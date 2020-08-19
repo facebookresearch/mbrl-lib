@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-import replay_buffer
+from . import replay_buffer
 
 
 # noinspection PyAbstractClass
@@ -54,9 +54,10 @@ def train_dyn_model(
     dataset: replay_buffer.BootstrapReplayBuffer,
     num_epochs: int,
     device: torch.device,
-):
+) -> List[float]:
     assert len(ensemble) == len(dataset.member_indices)
-    for _ in range(num_epochs):
+    losses = []
+    for j in range(num_epochs):
         total_avg_loss = 0
         for batch in dataset:
             avg_ensemble_loss = 0
@@ -77,7 +78,8 @@ def train_dyn_model(
                 avg_ensemble_loss += loss.item()
             avg_ensemble_loss /= len(batch)
             total_avg_loss += avg_ensemble_loss
-        print(total_avg_loss)
+        losses.append(total_avg_loss)
+    return losses
 
 
 def mbpo(env: gym.Env, device: torch.device):
