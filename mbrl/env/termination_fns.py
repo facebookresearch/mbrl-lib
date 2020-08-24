@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def hopper(act: np.ndarray, next_obs: np.ndarray):
+def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     assert len(next_obs.shape) == len(act.shape) == 2
 
     height = next_obs[:, 0]

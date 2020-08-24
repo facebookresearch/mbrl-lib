@@ -22,14 +22,21 @@ def test_gaussian_ensemble_forward():
     assert member_out_var_ex.shape == torch.Size([batch_size, model_out_size])
 
     def mock_forward(_, v=1):
-        return v * torch.ones_like(member_out_mean_ex)
+        return (
+            v * torch.ones_like(member_out_mean_ex),
+            torch.zeros_like(member_out_var_ex),
+        )
 
     ensemble[0][0].forward = functools.partial(mock_forward, v=1)
     ensemble[1][0].forward = functools.partial(mock_forward, v=2)
 
     model_out = ensemble.forward(model_in, sample=True)
     assert model_out.shape == torch.Size([batch_size, model_out_size])
-    assert model_out.sum().item() == batch_size * model_out_size
+    expected_tensor_sum = batch_size * model_out_size
+    tensor_sum = model_out.sum().item()
+    assert (tensor_sum == expected_tensor_sum) or (
+        tensor_sum == 2 * expected_tensor_sum
+    )
     model_out = ensemble.forward(model_in, sample=False)
     assert model_out.shape == torch.Size([batch_size, model_out_size])
     assert model_out.sum().item() == 1.5 * batch_size * model_out_size

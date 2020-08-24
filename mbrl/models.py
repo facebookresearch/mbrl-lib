@@ -20,7 +20,6 @@ def gaussian_nll(
     return losses.sum(dim=1).mean()
 
 
-# noinspection PyAbstractClass
 class Model(nn.Module):
     def __init__(
         self, in_size: int, out_size: int, device: torch.device, *args, **kwargs
@@ -42,7 +41,7 @@ class Model(nn.Module):
         pass
 
 
-# noinspection PyUnresolvedReferences,PyAbstractClass
+# noinspection PyAbstractClass
 class GaussianMLP(Model):
     def __init__(
         self,
@@ -120,9 +119,11 @@ class Ensemble(Model):
     def forward(self, x: torch.Tensor, sample=True):
         if sample:
             model = self.members[self.rng.choice(len(self.members))]
-            return model(x)
+            return model(x)[0]
         else:
-            return torch.stack([model(x) for model in self.members], dim=0).mean(dim=0)
+            return torch.stack([model(x)[0] for model in self.members], dim=0).mean(
+                dim=0
+            )
 
     def train_loss(
         self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
@@ -149,11 +150,10 @@ class Ensemble(Model):
             return avg_ensemble_loss / len(self.members)
 
 
-# noinspection PyUnresolvedReferences
 def get_dyn_model_input_and_target(
-    member_batch: Tuple, device
+    batch: Tuple, device
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    obs, action, next_obs, reward, _ = member_batch
+    obs, action, next_obs, reward, _ = batch
 
     model_in = torch.from_numpy(np.concatenate([obs, action], axis=1)).to(device)
     target = torch.from_numpy(
@@ -190,11 +190,11 @@ def train_dyn_ensemble(
     epochs_since_update = 0
     for _ in epoch_iter:
         total_avg_loss = 0
-        for batch in dataset_train:
+        for ensemble_batch in dataset_train:
             model_ins = []
             targets = []
-            for i, member_batch in enumerate(batch):
-                model_in, target = get_dyn_model_input_and_target(member_batch, device)
+            for i, batch in enumerate(ensemble_batch):
+                model_in, target = get_dyn_model_input_and_target(batch, device)
                 model_ins.append(model_in)
                 targets.append(target)
             avg_ensemble_loss = ensemble.train_loss(model_ins, targets)
@@ -203,8 +203,10 @@ def train_dyn_ensemble(
 
         if dataset_val:
             total_avg_loss = 0
-            for batch in dataset_val:
-                model_in, target = get_dyn_model_input_and_target(batch, device)
+            for ensemble_batch in dataset_val:
+                model_in, target = get_dyn_model_input_and_target(
+                    ensemble_batch, device
+                )
                 model_ins = [model_in for _ in range(len(ensemble))]
                 targets = [target for _ in range(len(ensemble))]
                 avg_ensemble_loss = ensemble.eval_loss(model_ins, targets)
@@ -240,11 +242,13 @@ class ModelEnv(gym.Env):
 
         self._current_obs = None
 
-    def reset(self, initial_obs_array: Optional[np.ndarray] = None) -> np.ndarray:
-        self._current_obs = np.copy(initial_obs_array)
+    def reset(self, initial_obs_batch: Optional[np.ndarray] = None) -> np.ndarray:
+        assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
+        self._current_obs = np.copy(initial_obs_batch)
         return self._current_obs
 
     def step(self, actions: np.ndarray):
+        assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
             model_in = torch.from_numpy(
                 np.concatenate([self._current_obs, actions], axis=1)
@@ -252,7 +256,7 @@ class ModelEnv(gym.Env):
             model_out = self.model(model_in).cpu().numpy()
             next_observs = model_out[:, :-1]
             rewards = model_out[:, -1]
-            dones = self.termination_fn(next_observs)
+            dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
             return next_observs, rewards, dones, {}
 

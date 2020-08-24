@@ -95,6 +95,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         return (self.num_stored - 1) // self.batch_size + 1
 
 
+# TODO Add a transition type to encapsulate this batch data
 class BootstrapReplayBuffer(IterableReplayBuffer):
     def __init__(
         self,
@@ -142,10 +143,14 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             batches.append(self._batch_from_indices(content_indices))
         return batches
 
-    def sample(self, batch_size: int) -> Sized:
-        batches = []
-        for member_idx in self.member_indices:
+    def sample(self, batch_size: int, ensemble=True) -> Sized:
+        if ensemble:
+            batches = []
+            for member_idx in self.member_indices:
+                indices = np.random.choice(self.num_stored, size=batch_size)
+                content_indices = member_idx[indices]
+                batches.append(self._batch_from_indices(content_indices))
+            return batches
+        else:
             indices = np.random.choice(self.num_stored, size=batch_size)
-            content_indices = member_idx[indices]
-            batches.append(self._batch_from_indices(content_indices))
-        return batches
+            return self._batch_from_indices(indices)

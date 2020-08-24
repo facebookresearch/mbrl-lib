@@ -1,8 +1,9 @@
-from typing import Callable
+from typing import Callable, Tuple
 
 import dmc2gym
 import gym
 import numpy as np
+import pytorch_sac.replay_buffer as sac_replay_buffer
 import torch
 
 import mbrl.env.termination_fns as termination_fns
@@ -38,9 +39,35 @@ def collect_random_trajectories(
                 return
 
 
+def rollout_model(
+    env: gym.Env,
+    model: models.Model,
+    env_dataset: replay_buffer.BootstrapReplayBuffer,
+    termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    obs_shape: Tuple[int],
+    act_shape: Tuple[int],
+    sac_buffer_capacity: int,
+    num_rollouts: int,
+    rollout_horizon: int,
+    batch_size: int,
+    device: torch.device,
+):
+    model_env = models.ModelEnv(env, model, termination_fn)
+    sac_buffer = sac_replay_buffer.ReplayBuffer(
+        obs_shape, act_shape, sac_buffer_capacity, device
+    )
+    for _ in range(num_rollouts):
+        initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
+        obs = model_env.reset(initial_obs_batch=initial_obs)
+        for i in range(rollout_horizon):
+            print(i)
+            pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
+            pass
+
+
 def mbpo(
     env: gym.Env,
-    termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], bool],
+    termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
     device: torch.device,
 ):
     obs_shape = env.observation_space.shape
@@ -55,6 +82,9 @@ def mbpo(
     num_epochs = 100
     freq_train_dyn_model = 10
     patience = 50
+    rollouts_per_step = 40
+    rollout_horizon = 15
+    sac_buffer_capacity = 10000
 
     # Creating environment datasets
     env_dataset_train = replay_buffer.BootstrapReplayBuffer(
@@ -74,13 +104,27 @@ def mbpo(
     )
     for epoch in range(num_epochs):
         if epoch % freq_train_dyn_model == 0:
-            models.train_dyn_ensemble(
+            train_loss, val_loss = models.train_dyn_ensemble(
                 ensemble,
                 env_dataset_train,
                 device,
                 dataset_val=env_dataset_val,
                 patience=patience,
             )
+
+        rollout_model(
+            env,
+            ensemble,
+            env_dataset_train,
+            termination_fn,
+            obs_shape,
+            act_shape,
+            sac_buffer_capacity,
+            rollouts_per_step,
+            rollout_horizon,
+            batch_size,
+            device,
+        )
 
 
 if __name__ == "__main__":
