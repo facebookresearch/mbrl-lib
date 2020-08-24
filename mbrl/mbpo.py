@@ -3,7 +3,7 @@ from typing import Callable, Tuple
 import dmc2gym
 import gym
 import numpy as np
-import pytorch_sac.replay_buffer as sac_replay_buffer
+import pytorch_sac
 import torch
 
 import mbrl.env.termination_fns as termination_fns
@@ -51,18 +51,29 @@ def rollout_model(
     rollout_horizon: int,
     batch_size: int,
     device: torch.device,
-):
+) -> pytorch_sac.ReplayBuffer:
     model_env = models.ModelEnv(env, model, termination_fn)
-    sac_buffer = sac_replay_buffer.ReplayBuffer(
+    sac_buffer = pytorch_sac.ReplayBuffer(
         obs_shape, act_shape, sac_buffer_capacity, device
     )
     for _ in range(num_rollouts):
         initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
         obs = model_env.reset(initial_obs_batch=initial_obs)
         for i in range(rollout_horizon):
-            print(i)
             pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
-            pass
+            # TODO consider changing sac_buffer to vectorize this loop
+            for j in range(batch_size):
+                sac_buffer.add(
+                    obs[j],
+                    action[j],
+                    pred_rewards[j],
+                    pred_next_obs[j],
+                    pred_dones[j],
+                    pred_dones[j],
+                )
+            obs = pred_next_obs
+
+    return sac_buffer
 
 
 def mbpo(
@@ -86,6 +97,9 @@ def mbpo(
     rollout_horizon = 15
     sac_buffer_capacity = 10000
 
+    # Agent
+    agent = pytorch_sac.SACAgent()
+
     # Creating environment datasets
     env_dataset_train = replay_buffer.BootstrapReplayBuffer(
         buffer_capacity, batch_size, ensemble_size, obs_shape, act_shape
@@ -97,6 +111,7 @@ def mbpo(
         env, env_dataset_train, env_dataset_val, steps_to_collect, val_ratio
     )
 
+    # Training loop
     model_in_size = obs_shape[0] + act_shape[0]
     model_out_size = obs_shape[0] + 1
     ensemble = models.Ensemble(
@@ -112,7 +127,7 @@ def mbpo(
                 patience=patience,
             )
 
-        rollout_model(
+        sac_buffer = rollout_model(
             env,
             ensemble,
             env_dataset_train,
