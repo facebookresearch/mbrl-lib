@@ -1,8 +1,8 @@
 import numpy as np
 
 
-def hopper(obs, act, next_obs):
-    assert len(obs.shape) == len(next_obs.shape) == len(act.shape) == 2
+def hopper(act: np.ndarray, next_obs: np.ndarray):
+    assert len(next_obs.shape) == len(act.shape) == 2
 
     height = next_obs[:, 0]
     angle = next_obs[:, 1]

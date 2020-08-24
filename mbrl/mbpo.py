@@ -70,7 +70,7 @@ def mbpo(
     model_in_size = obs_shape[0] + act_shape[0]
     model_out_size = obs_shape[0] + 1
     ensemble = models.Ensemble(
-        models.GaussianMLP, ensemble_size, device, model_in_size, model_out_size
+        models.GaussianMLP, ensemble_size, model_in_size, model_out_size, device
     )
     for epoch in range(num_epochs):
         if epoch % freq_train_dyn_model == 0:

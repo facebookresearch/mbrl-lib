@@ -22,9 +22,13 @@ def gaussian_nll(
 
 # noinspection PyAbstractClass
 class Model(nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self, in_size: int, out_size: int, device: torch.device, *args, **kwargs
+    ):
         super().__init__()
-        pass
+        self.in_size = in_size
+        self.out_size = out_size
+        self.device = device
 
     def forward(self, x):
         pass
@@ -33,13 +37,22 @@ class Model(nn.Module):
     def loss(self, model_in: torch.Tensor, target: torch.Tensor):
         pass
 
+    @abc.abstractmethod
+    def eval_loss(self, model_in: torch.Tensor, target: torch.Tensor):
+        pass
+
 
 # noinspection PyUnresolvedReferences,PyAbstractClass
 class GaussianMLP(Model):
     def __init__(
-        self, in_size: int, out_size: int, num_layers: int = 4, hid_size: int = 200
+        self,
+        in_size: int,
+        out_size: int,
+        device: torch.device,
+        num_layers: int = 4,
+        hid_size: int = 200,
     ):
-        super(GaussianMLP, self).__init__()
+        super(GaussianMLP, self).__init__(in_size, out_size, device)
         hidden_layers = [nn.Sequential(nn.Linear(in_size, hid_size), nn.ReLU())]
         for i in range(num_layers):
             hidden_layers.append(
@@ -61,7 +74,9 @@ class GaussianMLP(Model):
         logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
         return mean, logvar
 
-    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor():
+    def train_loss(
+        self, model_in: torch.Tensor, target: torch.Tensor
+    ) -> torch.Tensor():
         pred_mean, pred_logvar = self.forward(model_in)
         return gaussian_nll(pred_mean, pred_logvar, target)
 
@@ -70,22 +85,28 @@ class GaussianMLP(Model):
         return F.mse_loss(pred_mean, target)
 
 
-class Ensemble:
+# noinspection PyAbstractClass
+class Ensemble(Model):
     def __init__(
         self,
         cls: Type[Model],
-        num_members,
-        device,
+        num_members: int,
+        in_size: int,
+        out_size: int,
+        device: torch.device,
         *model_args,
-        optim_lr=0.0075,
+        optim_lr: float = 0.0075,
+        seed: Optional[int] = None,
         **model_kwargs,
     ):
+        super().__init__(in_size, out_size, device)
         self.members = []
         self.optimizers = []
         for i in range(num_members):
-            model = cls(*model_args, **model_kwargs)
+            model = cls(in_size, out_size, device, *model_args, **model_kwargs)
             self.members.append(model.to(device))
             self.optimizers.append(optim.Adam(model.parameters(), lr=optim_lr))
+        self.rng = np.random.RandomState(seed)
 
     def __len__(self):
         return len(self.members)
@@ -96,28 +117,36 @@ class Ensemble:
     def __iter__(self):
         return iter(zip(self.members, self.optimizers))
 
-    def step(
+    def forward(self, x: torch.Tensor, sample=True):
+        if sample:
+            model = self.members[self.rng.choice(len(self.members))]
+            return model(x)
+        else:
+            return torch.stack([model(x) for model in self.members], dim=0).mean(dim=0)
+
+    def train_loss(
         self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
     ) -> float:
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
             model.train()
             self.optimizers[i].zero_grad()
-            loss = model.loss(inputs[i], targets[i])
+            loss = model.train_loss(inputs[i], targets[i])
             loss.backward()
             self.optimizers[i].step(None)
             avg_ensemble_loss += loss.item()
         return avg_ensemble_loss / len(self.members)
 
-    def eval(
+    def eval_loss(
         self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
     ) -> float:
-        avg_ensemble_loss = 0
-        for i, model in enumerate(self.members):
-            model.eval()
-            loss = model.eval_loss(inputs[i], targets[i])
-            avg_ensemble_loss += loss.item()
-        return avg_ensemble_loss / len(self.members)
+        with torch.no_grad():
+            avg_ensemble_loss = 0
+            for i, model in enumerate(self.members):
+                model.eval()
+                loss = model.eval_loss(inputs[i], targets[i])
+                avg_ensemble_loss += loss.item()
+            return avg_ensemble_loss / len(self.members)
 
 
 # noinspection PyUnresolvedReferences
@@ -168,7 +197,7 @@ def train_dyn_ensemble(
                 model_in, target = get_dyn_model_input_and_target(member_batch, device)
                 model_ins.append(model_in)
                 targets.append(target)
-            avg_ensemble_loss = ensemble.step(model_ins, targets)
+            avg_ensemble_loss = ensemble.train_loss(model_ins, targets)
             total_avg_loss += avg_ensemble_loss
         training_losses.append(total_avg_loss)
 
@@ -178,7 +207,7 @@ def train_dyn_ensemble(
                 model_in, target = get_dyn_model_input_and_target(batch, device)
                 model_ins = [model_in for _ in range(len(ensemble))]
                 targets = [target for _ in range(len(ensemble))]
-                avg_ensemble_loss = ensemble.eval(model_ins, targets)
+                avg_ensemble_loss = ensemble.eval_loss(model_ins, targets)
                 total_avg_loss += avg_ensemble_loss
             val_losses.append(total_avg_loss)
 
@@ -202,17 +231,30 @@ def train_dyn_ensemble(
 
 
 class ModelEnv(gym.Env):
-    def __init__(self, model, termination_fn):
+    def __init__(self, env: gym.Env, model: Model, termination_fn):
         self.model = model
         self.termination_fn = termination_fn
 
-        # self.observation_space =
+        self.observation_space = env.observation_space
+        self.action_space = env.action_space
 
-    def reset(self):
-        pass
+        self._current_obs = None
 
-    def step(self, action):
-        pass
+    def reset(self, initial_obs_array: Optional[np.ndarray] = None) -> np.ndarray:
+        self._current_obs = np.copy(initial_obs_array)
+        return self._current_obs
+
+    def step(self, actions: np.ndarray):
+        with torch.no_grad():
+            model_in = torch.from_numpy(
+                np.concatenate([self._current_obs, actions], axis=1)
+            ).to(self.model.device)
+            model_out = self.model(model_in).cpu().numpy()
+            next_observs = model_out[:, :-1]
+            rewards = model_out[:, -1]
+            dones = self.termination_fn(next_observs)
+            self._current_obs = next_observs
+            return next_observs, rewards, dones, {}
 
     def render(self, mode="human"):
         pass
