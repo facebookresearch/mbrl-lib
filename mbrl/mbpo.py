@@ -1,12 +1,12 @@
 from typing import Callable, Tuple
 
-import dmc2gym
 import gym
+import hydra.utils
 import numpy as np
+import omegaconf
 import pytorch_sac
 import torch
 
-import mbrl.env.termination_fns as termination_fns
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
 
@@ -76,55 +76,55 @@ def rollout_model(
     return sac_buffer
 
 
-def mbpo(
+def train(
     env: gym.Env,
     termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
     device: torch.device,
+    cfg: omegaconf.DictConfig,
 ):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    # PARAMS TO MOVE TO A CONFIG FILE
-    ensemble_size = 7
-    val_ratio = 0.1
-    buffer_capacity = 1000
-    batch_size = 256
-    steps_to_collect = 100
-    num_epochs = 100
-    freq_train_dyn_model = 10
-    patience = 50
-    rollouts_per_step = 40
-    rollout_horizon = 15
-    sac_buffer_capacity = 10000
-
     # Agent
     # agent = pytorch_sac.SACAgent()
 
-    # Creating environment datasets
+    # Creating and populating environment dataset
     env_dataset_train = replay_buffer.BootstrapReplayBuffer(
-        buffer_capacity, batch_size, ensemble_size, obs_shape, act_shape
+        cfg.env_dataset_size,
+        cfg.dynamics_model_batch_size,
+        cfg.model.ensemble_size,
+        obs_shape,
+        act_shape,
     )
+    val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
     env_dataset_val = replay_buffer.IterableReplayBuffer(
-        int(buffer_capacity * val_ratio), batch_size, obs_shape, act_shape
+        val_buffer_capacity, cfg.dynamics_model_batch_size, obs_shape, act_shape
     )
     collect_random_trajectories(
-        env, env_dataset_train, env_dataset_val, steps_to_collect, val_ratio
+        env,
+        env_dataset_train,
+        env_dataset_val,
+        cfg.initial_exploration_steps,
+        cfg.validation_ratio,
     )
 
     # Training loop
-    model_in_size = obs_shape[0] + act_shape[0]
-    model_out_size = obs_shape[0] + 1
-    ensemble = models.Ensemble(
-        models.GaussianMLP, ensemble_size, model_in_size, model_out_size, device
+    cfg.model.in_size = obs_shape[0] + act_shape[0]
+    cfg.model.out_size = obs_shape[0] + 1
+
+    ensemble = hydra.utils.instantiate(cfg.model)
+
+    sac_buffer_capacity = (
+        cfg.rollouts_per_step * cfg.rollout_horizon * cfg.rollout_batch_size
     )
-    for epoch in range(num_epochs):
-        if epoch % freq_train_dyn_model == 0:
+    for epoch in range(cfg.num_epochs):
+        if epoch % cfg.freq_train_dyn_model == 0:
             train_loss, val_score = models.train_dyn_ensemble(
                 ensemble,
                 env_dataset_train,
                 device,
                 dataset_val=env_dataset_val,
-                patience=patience,
+                patience=cfg.patience,
             )
 
         sac_buffer = rollout_model(
@@ -135,13 +135,8 @@ def mbpo(
             obs_shape,
             act_shape,
             sac_buffer_capacity,
-            rollouts_per_step,
-            rollout_horizon,
-            batch_size,
+            cfg.rollouts_per_step,
+            cfg.rollout_horizon,
+            cfg.roullout_batch_size,
             device,
         )
-
-
-if __name__ == "__main__":
-    _env = dmc2gym.make(domain_name="hopper", task_name="stand")
-    mbpo(_env, termination_fns.hopper, torch.device("cuda:0"))

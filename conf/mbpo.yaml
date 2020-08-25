@@ -1,0 +1,37 @@
+defaults:
+  - agent: sac
+
+model:
+  _target_: mbrl.models.Ensemble
+  ensemble_size: 7
+  in_size: ???
+  out_size: ???
+  member_cfg: ${member_cfg}
+  device: ${device}
+  optim_lr: 0.0075 # TODO this should be moved out of the ensemble class
+
+member_cfg:
+  _target_: mbrl.models.GaussianMLP
+  device: ${model.device}
+  num_layers: 4
+  in_size: ${model.in_size}
+  out_size: ${model.out_size}
+  hid_size: 200
+
+env: "hopper--stand"
+
+env_dataset_size: 1000
+validation_ratio: 0.1
+dynamics_model_batch_size: 256
+initial_exploration_steps: 100
+num_epochs: 100
+freq_train_dyn_model: 100
+patience: 50
+rollouts_per_env_step: 40
+rollout_horizon: 15 # TODO replace by thresholded linear
+rollout_batch_size: 512
+sac_buffer_capacity: ???
+
+seed: 0
+
+device: "cuda:0"
