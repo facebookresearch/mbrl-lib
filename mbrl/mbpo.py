@@ -98,7 +98,7 @@ def mbpo(
     sac_buffer_capacity = 10000
 
     # Agent
-    agent = pytorch_sac.SACAgent()
+    # agent = pytorch_sac.SACAgent()
 
     # Creating environment datasets
     env_dataset_train = replay_buffer.BootstrapReplayBuffer(
@@ -119,7 +119,7 @@ def mbpo(
     )
     for epoch in range(num_epochs):
         if epoch % freq_train_dyn_model == 0:
-            train_loss, val_loss = models.train_dyn_ensemble(
+            train_loss, val_score = models.train_dyn_ensemble(
                 ensemble,
                 env_dataset_train,
                 device,

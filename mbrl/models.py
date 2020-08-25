@@ -1,6 +1,6 @@
 import abc
 import itertools
-from typing import Tuple, List, Optional, Type, Dict, Sequence
+from typing import Tuple, List, Optional, Type, Dict, Sequence, Union
 
 import gym
 import numpy as np
@@ -29,15 +29,15 @@ class Model(nn.Module):
         self.out_size = out_size
         self.device = device
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         pass
 
     @abc.abstractmethod
-    def loss(self, model_in: torch.Tensor, target: torch.Tensor):
+    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pass
 
     @abc.abstractmethod
-    def eval_loss(self, model_in: torch.Tensor, target: torch.Tensor):
+    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
         pass
 
 
@@ -65,7 +65,7 @@ class GaussianMLP(Model):
         )
         self.max_logvar = nn.Parameter(10 * torch.ones(1, out_size, requires_grad=True))
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, **_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.hidden_layers(x)
         mean = self.mean(x)
         logvar = self.logvar(x)
@@ -73,15 +73,14 @@ class GaussianMLP(Model):
         logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
         return mean, logvar
 
-    def train_loss(
-        self, model_in: torch.Tensor, target: torch.Tensor
-    ) -> torch.Tensor():
+    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor():
         pred_mean, pred_logvar = self.forward(model_in)
         return gaussian_nll(pred_mean, pred_logvar, target)
 
-    def eval_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor():
-        pred_mean, pred_logvar = self.forward(model_in)
-        return F.mse_loss(pred_mean, target)
+    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
+        with torch.no_grad():
+            pred_mean, pred_logvar = self.forward(model_in)
+            return F.mse_loss(pred_mean, target).item()
 
 
 # noinspection PyAbstractClass
@@ -116,38 +115,47 @@ class Ensemble(Model):
     def __iter__(self):
         return iter(zip(self.members, self.optimizers))
 
-    def forward(self, x: torch.Tensor, sample=True):
+    def forward(
+        self, x: torch.Tensor, sample=True, reduce=True
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         if sample:
             model = self.members[self.rng.choice(len(self.members))]
-            return model(x)[0]
+            return model(x)
         else:
-            return torch.stack([model(x)[0] for model in self.members], dim=0).mean(
-                dim=0
-            )
+            predictions = [model(x) for model in self.members]
+            all_means = torch.stack([p[0] for p in predictions], dim=0)
+            all_logvars = torch.stack([p[1] for p in predictions], dim=0)
+            if reduce:
+                mean = all_means.mean(dim=0)
+                logvar = all_logvars.mean(dim=0)
+                return mean, logvar
+            else:
+                return all_means, all_logvars
 
-    def train_loss(
+    # TODO move optimizers outside of this (do optim step in a different func)
+    def loss(
         self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
     ) -> float:
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
             model.train()
             self.optimizers[i].zero_grad()
-            loss = model.train_loss(inputs[i], targets[i])
+            loss = model.loss(inputs[i], targets[i])
             loss.backward()
             self.optimizers[i].step(None)
             avg_ensemble_loss += loss.item()
         return avg_ensemble_loss / len(self.members)
 
-    def eval_loss(
+    def eval_score(
         self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
     ) -> float:
         with torch.no_grad():
-            avg_ensemble_loss = 0
+            avg_ensemble_score = 0
             for i, model in enumerate(self.members):
                 model.eval()
-                loss = model.eval_loss(inputs[i], targets[i])
-                avg_ensemble_loss += loss.item()
-            return avg_ensemble_loss / len(self.members)
+                score = model.eval_score(inputs[i], targets[i])
+                avg_ensemble_score += score
+            return avg_ensemble_score / len(self.members)
 
 
 def get_dyn_model_input_and_target(
@@ -197,7 +205,7 @@ def train_dyn_ensemble(
                 model_in, target = get_dyn_model_input_and_target(batch, device)
                 model_ins.append(model_in)
                 targets.append(target)
-            avg_ensemble_loss = ensemble.train_loss(model_ins, targets)
+            avg_ensemble_loss = ensemble.loss(model_ins, targets)
             total_avg_loss += avg_ensemble_loss
         training_losses.append(total_avg_loss)
 
@@ -209,7 +217,7 @@ def train_dyn_ensemble(
                 )
                 model_ins = [model_in for _ in range(len(ensemble))]
                 targets = [target for _ in range(len(ensemble))]
-                avg_ensemble_loss = ensemble.eval_loss(model_ins, targets)
+                avg_ensemble_loss = ensemble.eval_score(model_ins, targets)
                 total_avg_loss += avg_ensemble_loss
             val_losses.append(total_avg_loss)
 
@@ -253,7 +261,7 @@ class ModelEnv(gym.Env):
             model_in = torch.from_numpy(
                 np.concatenate([self._current_obs, actions], axis=1)
             ).to(self.model.device)
-            model_out = self.model(model_in).cpu().numpy()
+            model_out = self.model(model_in).cpu().numpy()[0]
             next_observs = model_out[:, :-1]
             rewards = model_out[:, -1]
             dones = self.termination_fn(actions, next_observs)

@@ -30,13 +30,13 @@ def test_gaussian_ensemble_forward():
     ensemble[0][0].forward = functools.partial(mock_forward, v=1)
     ensemble[1][0].forward = functools.partial(mock_forward, v=2)
 
-    model_out = ensemble.forward(model_in, sample=True)
+    model_out = ensemble.forward(model_in, sample=True)[0]
     assert model_out.shape == torch.Size([batch_size, model_out_size])
     expected_tensor_sum = batch_size * model_out_size
     tensor_sum = model_out.sum().item()
     assert (tensor_sum == expected_tensor_sum) or (
         tensor_sum == 2 * expected_tensor_sum
     )
-    model_out = ensemble.forward(model_in, sample=False)
+    model_out = ensemble.forward(model_in, sample=False)[0]
     assert model_out.shape == torch.Size([batch_size, model_out_size])
     assert model_out.sum().item() == 1.5 * batch_size * model_out_size
