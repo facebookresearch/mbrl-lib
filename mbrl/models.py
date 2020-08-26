@@ -261,7 +261,7 @@ class ModelEnv(gym.Env):
             model_in = torch.from_numpy(
                 np.concatenate([self._current_obs, actions], axis=1)
             ).to(self.model.device)
-            model_out = self.model(model_in).cpu().numpy()[0]
+            model_out = self.model(model_in)[0].cpu().numpy()
             next_observs = model_out[:, :-1]
             rewards = model_out[:, -1]
             dones = self.termination_fn(actions, next_observs)
