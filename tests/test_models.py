@@ -1,5 +1,6 @@
 import functools
 
+import omegaconf
 import torch
 
 # noinspection PyUnresolvedReferences
@@ -11,8 +12,16 @@ import mbrl.models as models
 def test_gaussian_ensemble_forward():
     model_in_size = 2
     model_out_size = 2
+    member_cfg = omegaconf.OmegaConf.create(
+        {
+            "_target_": "mbrl.models.GaussianMLP",
+            "device": "cpu",
+            "in_size": model_in_size,
+            "out_size": model_out_size,
+        }
+    )
     ensemble = models.Ensemble(
-        models.GaussianMLP, 2, model_in_size, model_out_size, torch.device("cpu")
+        2, model_in_size, model_out_size, torch.device("cpu"), member_cfg
     )
     batch_size = 4
     model_in = torch.zeros(batch_size, 2)

@@ -3,7 +3,9 @@ import itertools
 from typing import Tuple, List, Optional, Type, Dict, Sequence, Union
 
 import gym
+import hydra.utils
 import numpy as np
+import omegaconf
 import torch
 from torch import nn as nn, optim as optim
 from torch.nn import functional as F
@@ -87,24 +89,22 @@ class GaussianMLP(Model):
 class Ensemble(Model):
     def __init__(
         self,
-        cls: Type[Model],
-        num_members: int,
+        ensemble_size: int,
         in_size: int,
         out_size: int,
         device: torch.device,
-        *model_args,
+        member_cfg: omegaconf.DictConfig,
         optim_lr: float = 0.0075,
-        seed: Optional[int] = None,
-        **model_kwargs,
     ):
         super().__init__(in_size, out_size, device)
         self.members = []
         self.optimizers = []
-        for i in range(num_members):
-            model = cls(in_size, out_size, device, *model_args, **model_kwargs)
+        for i in range(ensemble_size):
+            model = hydra.utils.instantiate(member_cfg)
+            # model = member_cls(in_size, out_size, device, *model_args, **model_kwargs)
             self.members.append(model.to(device))
             self.optimizers.append(optim.Adam(model.parameters(), lr=optim_lr))
-        self.rng = np.random.RandomState(seed)
+        self.rng = np.random.RandomState()
 
     def __len__(self):
         return len(self.members)
@@ -261,7 +261,7 @@ class ModelEnv(gym.Env):
             model_in = torch.from_numpy(
                 np.concatenate([self._current_obs, actions], axis=1)
             ).to(self.model.device)
-            model_out = self.model(model_in).cpu().numpy()[0]
+            model_out = self.model(model_in)[0].cpu().numpy()
             next_observs = model_out[:, :-1]
             rewards = model_out[:, -1]
             dones = self.termination_fn(actions, next_observs)
