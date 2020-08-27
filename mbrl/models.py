@@ -303,7 +303,7 @@ class ModelEnv(gym.Env):
             ).to(self.model.device)
             model_out = self.model(model_in)[0].cpu().numpy()
             next_observs = model_out[:, :-1]
-            rewards = model_out[:, -1]
+            rewards = model_out[:, -1:]
             dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
             return next_observs, rewards, dones, {}

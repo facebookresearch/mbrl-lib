@@ -86,16 +86,9 @@ def rollout_model_and_populate_sac_buffer(
         with pytorch_sac.utils.eval_mode(), torch.no_grad():
             action = agent.act(obs, sample=sac_samples_action, batched=True)
         pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
-        # TODO change sac_buffer to vectorize this loop (the batch size will be really large)
-        for j in range(batch_size):
-            sac_buffer.add(
-                obs[j],
-                action[j],
-                pred_rewards[j],
-                pred_next_obs[j],
-                pred_dones[j],
-                pred_dones[j],
-            )
+        sac_buffer.add_batch(
+            obs, action, pred_rewards, pred_next_obs, pred_dones, pred_dones
+        )
         obs = pred_next_obs
 
 
