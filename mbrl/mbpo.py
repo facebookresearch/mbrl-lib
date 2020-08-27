@@ -12,7 +12,6 @@ import torch
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
 
-
 MBPO_LOG_FORMAT = [
     ("calls", "E", "int"),
     ("step", "S", "int"),

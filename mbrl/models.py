@@ -1,6 +1,6 @@
 import abc
 import itertools
-from typing import Tuple, List, Optional, Dict, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import gym
 import hydra.utils
@@ -8,7 +8,8 @@ import numpy as np
 import omegaconf
 import pytorch_sac
 import torch
-from torch import nn as nn, optim as optim
+from torch import nn as nn
+from torch import optim as optim
 from torch.nn import functional as F
 
 from . import replay_buffer
