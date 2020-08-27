@@ -1,10 +1,10 @@
 import functools
 
 import omegaconf
-import torch
 
 # noinspection PyUnresolvedReferences
 import pytest
+import torch
 
 import mbrl.models as models
 

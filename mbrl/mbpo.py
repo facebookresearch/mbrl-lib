@@ -1,15 +1,44 @@
 import os
-from typing import Callable, Tuple
+from typing import Callable
 
 import gym
 import hydra.utils
 import numpy as np
 import omegaconf
 import pytorch_sac
+import pytorch_sac.utils
 import torch
 
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
+
+MBPO_LOG_FORMAT = [
+    ("calls", "E", "int"),
+    ("step", "S", "int"),
+    ("train_dataset_size", "TD", "int"),
+    ("val_dataset_size", "VD", "int"),
+    ("model_loss", "MLOSS", "float"),
+    ("model_val_score", "MVSCORE", "float"),
+]
+
+EVAL_LOG_FORMAT = [
+    ("episode", "E", "int"),
+    ("step", "S", "int"),
+    ("episode_reward", "R", "float"),
+]
+
+SAC_TRAIN_LOG_FORMAT = [
+    ("episode", "E", "int"),
+    ("step", "S", "int"),
+    ("episode_reward", "R", "float"),
+    ("duration", "D", "time"),
+    ("batch_reward", "BR", "float"),
+    ("actor_loss", "ALOSS", "float"),
+    ("critic_loss", "CLOSS", "float"),
+    ("alpha_loss", "TLOSS", "float"),
+    ("alpha_value", "TVAL", "float"),
+    ("actor_entropy", "AENT", "float"),
+]
 
 
 def collect_random_trajectories(
@@ -44,7 +73,7 @@ def collect_random_trajectories(
 def rollout_model_and_populate_sac_buffer(
     model_env: models.ModelEnv,
     env_dataset: replay_buffer.BootstrapReplayBuffer,
-    agent: pytorch_sac.SACAgent,
+    agent: pytorch_sac.Agent,
     sac_buffer: pytorch_sac.ReplayBuffer,
     sac_samples_action: bool,
     rollout_horizon: int,
@@ -54,7 +83,8 @@ def rollout_model_and_populate_sac_buffer(
     initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
     obs = model_env.reset(initial_obs_batch=initial_obs)
     for i in range(rollout_horizon):
-        action = agent.act(obs, sample=sac_samples_action, batched=True)
+        with pytorch_sac.utils.eval_mode(), torch.no_grad():
+            action = agent.act(obs, sample=sac_samples_action, batched=True)
         pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
         # TODO change sac_buffer to vectorize this loop (the batch size will be really large)
         for j in range(batch_size):
@@ -67,6 +97,28 @@ def rollout_model_and_populate_sac_buffer(
                 pred_dones[j],
             )
         obs = pred_next_obs
+
+
+def evaluate(
+    env: gym.Env,
+    agent: pytorch_sac.Agent,
+    num_episodes: int,
+    video_recorder: pytorch_sac.VideoRecorder,
+) -> float:
+    avg_episode_reward = 0
+    for episode in range(num_episodes):
+        obs = env.reset()
+        video_recorder.init(enabled=(episode == 0))
+        done = False
+        episode_reward = 0
+        while not done:
+            with pytorch_sac.utils.eval_mode(), torch.no_grad():
+                action = agent.act(obs)
+            obs, reward, done, _ = env.step(action)
+            video_recorder.record(env)
+            episode_reward += reward
+        avg_episode_reward += episode_reward
+    return avg_episode_reward / num_episodes
 
 
 def train(
@@ -88,9 +140,22 @@ def train(
     agent = hydra.utils.instantiate(cfg.agent)
 
     work_dir = os.getcwd()
-    logger = pytorch_sac.Logger(
-        work_dir, save_tb=cfg.log_save_tb, log_frequency=cfg.log_frequency, agent="sac"
+    mbpo_logger = pytorch_sac.Logger(
+        work_dir,
+        save_tb=cfg.log_save_tb,
+        log_frequency=cfg.log_frequency_sac,
+        agent="model",
+        train_format=MBPO_LOG_FORMAT,
+        eval_format=EVAL_LOG_FORMAT,
     )
+    sac_logger = pytorch_sac.Logger(
+        work_dir,
+        save_tb=cfg.log_save_tb,
+        log_frequency=cfg.log_frequency_sac,
+        train_format=SAC_TRAIN_LOG_FORMAT,
+        eval_format=EVAL_LOG_FORMAT,
+    )
+    video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
 
     rng = np.random.RandomState(cfg.seed)
 
@@ -130,12 +195,21 @@ def train(
     updates_made = 0
     env_steps = 0
     model_env = models.ModelEnv(env, ensemble, termination_fn)
+    model_trainer = models.EnsembleTrainer(
+        ensemble,
+        device,
+        env_dataset_train,
+        dataset_val=env_dataset_val,
+        logger=mbpo_logger,
+        log_frequency=cfg.log_frequency_model,
+    )
     for epoch in range(cfg.num_epochs):
         obs = env.reset()
         done = False
         while not done:
             # --------------- Env. Step and adding to model dataset -----------------
-            action = agent.act(obs)
+            with pytorch_sac.utils.eval_mode(), torch.no_grad():
+                action = agent.act(obs)
             next_obs, reward, done, _ = env.step(action)
             if rng.random() < cfg.validation_ratio:
                 env_dataset_val.add(obs, action, next_obs, reward, done)
@@ -145,13 +219,13 @@ def train(
 
             # --------------- Model Training -----------------
             if env_steps % cfg.freq_train_dyn_model == 0:
-                train_loss, val_score = models.train_dyn_ensemble(
-                    ensemble,
-                    env_dataset_train,
-                    device,
-                    dataset_val=env_dataset_val,
-                    patience=cfg.patience,
+                mbpo_logger.log(
+                    "train/train_dataset_size", env_dataset_train.num_stored, env_steps
                 )
+                mbpo_logger.log(
+                    "train/val_dataset_size", env_dataset_val.num_stored, env_steps
+                )
+                model_trainer.train(patience=cfg.patience)
 
             # --------------- Agent Training -----------------
             sac_buffer = pytorch_sac.ReplayBuffer(
@@ -169,9 +243,16 @@ def train(
                 )
 
                 for _ in range(cfg.num_sac_updates_per_rollout):
-                    agent.update(sac_buffer, logger, updates_made)
+                    agent.update(sac_buffer, sac_logger, updates_made)
                     updates_made += 1
 
-            logger.dump(updates_made, save=True)
+            sac_logger.dump(updates_made, save=True)
+
+            if env_steps % cfg.eval_freq == 0:
+                avg_reward = evaluate(env, agent, cfg.num_eval_episodes, video_recorder)
+                mbpo_logger.log("eval/episode", epoch, env_steps)
+                mbpo_logger.log("eval/episode_reward", avg_reward, env_steps)
+                mbpo_logger.dump(env_steps, save=True)
+                video_recorder.save(f"{epoch}.mp4")
 
             env_steps += 1

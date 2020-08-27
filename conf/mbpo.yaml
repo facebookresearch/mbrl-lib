@@ -25,10 +25,10 @@ validation_ratio: 0.1
 dynamics_model_batch_size: 256
 initial_exploration_steps: 20
 num_epochs: 100
-freq_train_dyn_model: 100
-patience: 50
-rollouts_per_step: 40
-rollout_horizon: 15 # TODO replace by thresholded linear
+freq_train_dyn_model: 1
+patience: 5
+rollouts_per_step: 2
+rollout_horizon: 2 # TODO replace by thresholded linear
 rollout_batch_size: 32
 sac_buffer_capacity: ???
 sac_samples_action: true
@@ -38,9 +38,13 @@ seed: 0
 
 device: "cuda:0"
 
-log_frequency: 100
+log_frequency_sac: 1
 log_save_tb: false
+log_frequency_model: 5
 
+eval_freq: 1
+num_eval_episodes: 1
+save_video: true
 
 experiment: test_exp
 
