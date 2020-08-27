@@ -42,6 +42,10 @@ log_frequency_sac: 1
 log_save_tb: false
 log_frequency_model: 5
 
+eval_freq: 1
+num_eval_episodes: 1
+save_video: true
+
 experiment: test_exp
 
 hydra:
