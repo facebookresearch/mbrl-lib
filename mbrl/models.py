@@ -44,6 +44,14 @@ class Model(nn.Module):
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
         pass
 
+    @abc.abstractmethod
+    def save(self, path: str):
+        pass
+
+    @abc.abstractmethod
+    def load(self, path: str):
+        pass
+
 
 # noinspection PyAbstractClass
 class GaussianMLP(Model):
@@ -85,6 +93,12 @@ class GaussianMLP(Model):
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
             return F.mse_loss(pred_mean, target).item()
+
+    def save(self, path: str):
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: str):
+        self.load_state_dict(torch.load(path))
 
 
 # noinspection PyAbstractClass
@@ -159,6 +173,16 @@ class Ensemble(Model):
                 avg_ensemble_score += score
             return avg_ensemble_score / len(self.members)
 
+    def save(self, path: str):
+        state_dicts = [m.state_dict() for m in self.members]
+        torch.save(state_dicts, path)
+
+    def load(self, path: str):
+        state_dicts = torch.load(path)
+        assert len(state_dicts) == len(self.members)
+        for i, m in enumerate(self.members):
+            m.load_state_dict(state_dicts[i])
+
 
 def get_dyn_model_input_and_target(
     batch: Tuple, device
@@ -188,13 +212,15 @@ class EnsembleTrainer:
         self.dataset_val = dataset_val
         self.device = device
         self.log_frequency = log_frequency
-        self._epochs_done = 0
         self._train_calls = 0
 
     # If num_epochs is passed trains for num_epochs. Otherwise trains until
     # patience num_epochs w/o improvement.
     def train(
-        self, num_epochs: Optional[int] = None, patience: Optional[int] = 50
+        self,
+        num_epochs: Optional[int] = None,
+        patience: Optional[int] = 50,
+        current_log_episode: int = 0,
     ) -> Tuple[List[float], List[float]]:
         assert len(self.ensemble) == len(self.dataset_train.member_indices)
         training_losses, val_losses = [], []
@@ -234,20 +260,20 @@ class EnsembleTrainer:
                 break
 
             if self.logger:
-                self.logger.log("train/calls", self._train_calls, self._epochs_done)
+                self.logger.log("train/episode", self._train_calls, current_log_episode)
                 self.logger.log(
                     "train/model_loss",
                     total_avg_loss,
-                    self._epochs_done,
+                    epoch,
                     log_frequency=self.log_frequency,
                 )
                 self.logger.log(
                     "train/model_val_score",
                     val_score,
-                    self._epochs_done,
+                    epoch,
                     log_frequency=self.log_frequency,
                 )
-                if epoch % self.log_frequency:
+                if epoch % self.log_frequency == 0:
                     self.logger.dump(epoch, save=True)
 
         if best_weights:

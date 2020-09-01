@@ -1,5 +1,5 @@
 import os
-from typing import Callable
+from typing import Callable, List
 
 import gym
 import hydra.utils
@@ -13,18 +13,21 @@ import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
 
 MBPO_LOG_FORMAT = [
-    ("calls", "E", "int"),
+    ("episode", "E", "int"),
     ("step", "S", "int"),
+    ("rollout_length", "RL", "int"),
     ("train_dataset_size", "TD", "int"),
     ("val_dataset_size", "VD", "int"),
     ("model_loss", "MLOSS", "float"),
     ("model_val_score", "MVSCORE", "float"),
+    ("sac_buffer_size", "SBSIZE", "int"),
 ]
 
 EVAL_LOG_FORMAT = [
     ("episode", "E", "int"),
     ("step", "S", "int"),
     ("episode_reward", "R", "float"),
+    ("model_reward", "MR", "float"),
 ]
 
 SAC_TRAIN_LOG_FORMAT = [
@@ -39,6 +42,19 @@ SAC_TRAIN_LOG_FORMAT = [
     ("alpha_value", "TVAL", "float"),
     ("actor_entropy", "AENT", "float"),
 ]
+
+
+def get_rollout_length(rollout_schedule: List[int], epoch: int):
+    min_epoch, max_epoch, min_length, max_length = rollout_schedule
+
+    if epoch <= min_epoch:
+        y = min_length
+    else:
+        dx = (epoch - min_epoch) / (max_epoch - min_epoch)
+        dx = min(dx, 1)
+        y = dx * (max_length - min_length) + min_length
+
+    return int(y)
 
 
 def collect_random_trajectories(
@@ -114,8 +130,27 @@ def evaluate(
     return avg_episode_reward / num_episodes
 
 
+def evaluate_on_model(
+    current_obs: np.ndarray,
+    agent: pytorch_sac.Agent,
+    model_env: models.ModelEnv,
+    rollout_length: int,
+    batch_size: int = 256,
+) -> float:
+    initial_batch = current_obs * np.ones((batch_size, len(current_obs)))
+    obs = model_env.reset(initial_obs_batch=initial_batch.astype(np.float32))
+    episode_reward = 0
+    for i in range(rollout_length):
+        with pytorch_sac.utils.eval_mode(), torch.no_grad():
+            action = agent.act(obs, batched=True)
+        obs, reward, done, _ = model_env.step(action)
+        episode_reward += reward * ~done
+    return episode_reward.mean()
+
+
 def train(
     env: gym.Env,
+    test_env: gym.Env,
     termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
     device: torch.device,
     cfg: omegaconf.DictConfig,
@@ -144,7 +179,7 @@ def train(
     sac_logger = pytorch_sac.Logger(
         work_dir,
         save_tb=cfg.log_save_tb,
-        log_frequency=cfg.log_frequency_sac,
+        log_frequency=cfg.log_frequency_model,
         train_format=SAC_TRAIN_LOG_FORMAT,
         eval_format=EVAL_LOG_FORMAT,
     )
@@ -181,10 +216,6 @@ def train(
 
     ensemble = hydra.utils.instantiate(cfg.model)
 
-    sac_buffer_capacity = (
-        cfg.rollouts_per_step * cfg.rollout_horizon * cfg.rollout_batch_size
-    )
-
     updates_made = 0
     env_steps = 0
     model_env = models.ModelEnv(env, ensemble, termination_fn)
@@ -196,7 +227,12 @@ def train(
         logger=mbpo_logger,
         log_frequency=cfg.log_frequency_model,
     )
-    for epoch in range(cfg.num_epochs):
+    best_eval_reward = -np.inf
+    sac_buffer = None
+    for episode in range(cfg.num_episodes):
+        rollout_length = get_rollout_length(cfg.rollout_schedule, episode)
+        mbpo_logger.log("train/rollout_length", rollout_length, 0)
+
         obs = env.reset()
         done = False
         while not done:
@@ -208,44 +244,76 @@ def train(
                 env_dataset_val.add(obs, action, next_obs, reward, done)
             else:
                 env_dataset_train.add(obs, action, next_obs, reward, done)
-            obs = next_obs
 
             # --------------- Model Training -----------------
             if env_steps % cfg.freq_train_dyn_model == 0:
+                # noinspection PyUnusedLocal
+                sac_buffer = None
+
+                mbpo_logger.log("train/sac_buffer_size", 0, env_steps)
                 mbpo_logger.log(
                     "train/train_dataset_size", env_dataset_train.num_stored, env_steps
                 )
                 mbpo_logger.log(
                     "train/val_dataset_size", env_dataset_val.num_stored, env_steps
                 )
-                model_trainer.train(patience=cfg.patience)
+                model_trainer.train(
+                    num_epochs=cfg.get("num_epochs_train_dyn_model", None),
+                    patience=cfg.patience,
+                    current_log_episode=episode,
+                )
+                ensemble.save(os.path.join(work_dir, "model.pth"))
+
+                # --------- Rollout new model and store imagined trajectories --------
+                sac_buffer_capacity = (
+                    cfg.num_model_rollouts * rollout_length * cfg.rollout_batch_size
+                )
+                sac_buffer = pytorch_sac.ReplayBuffer(
+                    obs_shape, act_shape, sac_buffer_capacity, device
+                )
+                for _ in range(cfg.num_model_rollouts):
+                    rollout_model_and_populate_sac_buffer(
+                        model_env,
+                        env_dataset_train,
+                        agent,
+                        sac_buffer,
+                        cfg.sac_samples_action,
+                        rollout_length,
+                        cfg.rollout_batch_size,
+                    )
+                mbpo_logger.log("train/sac_buffer_size", len(sac_buffer), env_steps)
+                mbpo_logger.dump(env_steps, save=True)
 
             # --------------- Agent Training -----------------
-            sac_buffer = pytorch_sac.ReplayBuffer(
-                obs_shape, act_shape, sac_buffer_capacity, device
+            mbpo_logger.log(
+                "train/val_dataset_size", env_dataset_val.num_stored, env_steps
             )
-            for _ in range(cfg.rollouts_per_step):
-                rollout_model_and_populate_sac_buffer(
-                    model_env,
-                    env_dataset_train,
-                    agent,
-                    sac_buffer,
-                    cfg.sac_samples_action,
-                    cfg.rollout_horizon,
-                    cfg.rollout_batch_size,
-                )
+            for _ in range(cfg.num_sac_updates_per_step):
+                agent.update(sac_buffer, sac_logger, updates_made)
+                updates_made += 1
+                if updates_made % cfg.log_frequency_sac == 0:
+                    sac_logger.dump(updates_made, save=True)
 
-                for _ in range(cfg.num_sac_updates_per_rollout):
-                    agent.update(sac_buffer, sac_logger, updates_made)
-                    updates_made += 1
-
-            sac_logger.dump(updates_made, save=True)
+            if cfg.get("debug_mode", False):
+                model_reward = evaluate_on_model(obs, agent, model_env, 1000)
+                sac_logger.log("eval/model_reward", model_reward, env_steps)
 
             if env_steps % cfg.eval_freq == 0:
-                avg_reward = evaluate(env, agent, cfg.num_eval_episodes, video_recorder)
-                mbpo_logger.log("eval/episode", epoch, env_steps)
+                avg_reward = evaluate(
+                    test_env, agent, cfg.num_eval_episodes, video_recorder
+                )
+                mbpo_logger.log("eval/episode", episode, env_steps)
                 mbpo_logger.log("eval/episode_reward", avg_reward, env_steps)
                 mbpo_logger.dump(env_steps, save=True)
-                video_recorder.save(f"{epoch}.mp4")
+                if avg_reward > best_eval_reward:
+                    video_recorder.save(f"{episode}.mp4")
+                    best_eval_reward = avg_reward
+                    torch.save(
+                        agent.critic.state_dict(), os.path.join(work_dir, "critic.pth")
+                    )
+                    torch.save(
+                        agent.actor.state_dict(), os.path.join(work_dir, "actor.pth")
+                    )
 
             env_steps += 1
+            obs = next_obs

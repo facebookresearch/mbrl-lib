@@ -16,3 +16,14 @@ def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     done = ~not_done
     done = done[:, None]
     return done
+
+
+def inverted_pendulum(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    not_done = np.isfinite(next_obs).all(axis=-1) * (np.abs(next_obs[:, 1]) <= 0.2)
+    done = ~not_done
+
+    done = done[:, None]
+
+    return done

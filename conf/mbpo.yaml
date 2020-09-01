@@ -18,21 +18,23 @@ member_cfg:
   out_size: ${model.out_size}
   hid_size: 200
 
-env: "hopper--stand"
+env: "gym@InvertedPendulum-v2"
+term_fn: "inverted_pendulum"
 
 env_dataset_size: 1000
 validation_ratio: 0.1
 dynamics_model_batch_size: 256
 initial_exploration_steps: 20
-num_epochs: 100
-freq_train_dyn_model: 1
+num_episodes: 100
+freq_train_dyn_model: 250
+num_epochs_train_dyn_model: 40
 patience: 5
-rollouts_per_step: 2
-rollout_horizon: 2 # TODO replace by thresholded linear
+num_model_rollouts: 2
+rollout_schedule: [1, 15, 1, 1]
 rollout_batch_size: 32
 sac_buffer_capacity: ???
 sac_samples_action: true
-num_sac_updates_per_rollout: 100
+num_sac_updates_per_step: 40
 
 seed: 0
 
@@ -44,7 +46,7 @@ log_frequency_model: 5
 
 eval_freq: 1
 num_eval_episodes: 1
-save_video: true
+save_video: false
 
 experiment: test_exp
 
