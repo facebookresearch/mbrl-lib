@@ -19,7 +19,7 @@ member_cfg:
   hid_size: 200
   use_silu: true
 
-env: "gym@Hopper-v2"
+env: "gym___Hopper-v2"
 term_fn: "hopper"
 
 env_dataset_size: 50000
@@ -31,7 +31,7 @@ epoch_length: 1000
 patience: 5
 freq_train_dyn_model: 250
 effective_model_rollouts_per_step: 400
-rollout_schedule: [20, 150, 1, 15]
+rollout_schedule: [20, 150, 1, 1]
 sac_samples_action: true
 num_sac_updates_per_step: 20
 

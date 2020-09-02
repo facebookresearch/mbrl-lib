@@ -129,7 +129,6 @@ class Ensemble(Model):
         self.optimizers = []
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
-            # model = member_cls(in_size, out_size, device, *model_args, **model_kwargs)
             self.members.append(model.to(device))
             self.optimizers.append(optim.Adam(model.parameters(), lr=optim_lr))
         self.rng = np.random.RandomState()
@@ -200,7 +199,6 @@ def get_dyn_model_input_and_target(
     batch: Tuple, device
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     obs, action, next_obs, reward, _ = batch
-
     model_in = torch.from_numpy(np.concatenate([obs, action], axis=1)).to(device)
     target = torch.from_numpy(
         np.concatenate([next_obs, np.expand_dims(reward, axis=1)], axis=1)

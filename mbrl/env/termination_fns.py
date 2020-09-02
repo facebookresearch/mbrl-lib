@@ -27,3 +27,11 @@ def inverted_pendulum(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     done = done[:, None]
 
     return done
+
+
+def halfcheetah(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    done = np.array([False]).repeat(len(next_obs))
+    done = done[:, None]
+    return done
