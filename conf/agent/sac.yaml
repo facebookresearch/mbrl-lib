@@ -18,7 +18,7 @@ agent:
   critic_betas: [0.9, 0.999]
   critic_tau: 0.005
   critic_target_update_frequency: 2
-  batch_size: 1024
+  batch_size: 256
   learnable_temperature: true
   target_entropy: -1
 

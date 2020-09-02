@@ -232,8 +232,9 @@ def train(
     )
     best_eval_reward = -np.inf
     sac_buffer = None
-    for episode in range(cfg.num_episodes):
-        rollout_length = get_rollout_length(cfg.rollout_schedule, episode)
+    epoch = 0
+    while epoch < cfg.num_epochs:
+        rollout_length = get_rollout_length(cfg.rollout_schedule, epoch)
         mbpo_logger.log("train/rollout_length", rollout_length, 0)
 
         obs = env.reset()
@@ -243,10 +244,7 @@ def train(
             with pytorch_sac.utils.eval_mode(), torch.no_grad():
                 action = agent.act(obs)
             next_obs, reward, done, _ = env.step(action)
-            if rng.random() < cfg.validation_ratio:
-                env_dataset_val.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
+            env_dataset_train.add(obs, action, next_obs, reward, done)
 
             # --------------- Model Training -----------------
             if env_steps % cfg.freq_train_dyn_model == 0:
@@ -262,7 +260,7 @@ def train(
                 model_trainer.train(
                     num_epochs=cfg.get("num_epochs_train_dyn_model", None),
                     patience=cfg.patience,
-                    current_log_episode=episode,
+                    outer_epoch=epoch,
                 )
                 ensemble.save(os.path.join(work_dir, "model.pth"))
                 mbpo_logger.dump(env_steps, save=True)
@@ -300,15 +298,16 @@ def train(
                 if updates_made % cfg.log_frequency_sac == 0:
                     sac_logger.dump(updates_made, save=True)
 
-            if env_steps % cfg.eval_freq == 0:
+            # ------ Epoch ended (evaluate and save model) ------
+            if env_steps % cfg.epoch_length == 0:
                 avg_reward = evaluate(
                     test_env, agent, cfg.num_eval_episodes, video_recorder
                 )
-                mbpo_logger.log("eval/episode", episode, env_steps)
+                mbpo_logger.log("eval/episode", epoch, env_steps)
                 mbpo_logger.log("eval/episode_reward", avg_reward, env_steps)
                 mbpo_logger.dump(env_steps, save=True)
                 if avg_reward > best_eval_reward:
-                    video_recorder.save(f"{episode}.mp4")
+                    video_recorder.save(f"{epoch}.mp4")
                     best_eval_reward = avg_reward
                     torch.save(
                         agent.critic.state_dict(), os.path.join(work_dir, "critic.pth")
@@ -316,6 +315,8 @@ def train(
                     torch.save(
                         agent.actor.state_dict(), os.path.join(work_dir, "actor.pth")
                     )
+                epoch += 1
 
             env_steps += 1
             obs = next_obs
+    return best_eval_reward
