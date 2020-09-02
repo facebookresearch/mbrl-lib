@@ -268,34 +268,32 @@ def train(
                 mbpo_logger.dump(env_steps, save=True)
 
                 # --------- Rollout new model and store imagined trajectories --------
-                sac_buffer_capacity = (
-                    cfg.num_model_rollouts * rollout_length * cfg.rollout_batch_size
+                # Batch all rollouts for the next freq_train_dyn_model steps together
+                rollout_batch_size = (
+                    cfg.effective_model_rollouts_per_step * cfg.freq_train_dyn_model
                 )
+                sac_buffer_capacity = rollout_length * rollout_batch_size
                 sac_buffer = pytorch_sac.ReplayBuffer(
                     obs_shape, act_shape, sac_buffer_capacity, device
                 )
-                for _ in range(cfg.num_model_rollouts):
-                    rollout_model_and_populate_sac_buffer(
-                        model_env,
-                        env_dataset_train,
-                        agent,
-                        sac_buffer,
-                        cfg.sac_samples_action,
-                        rollout_length,
-                        cfg.rollout_batch_size,
-                    )
+                rollout_model_and_populate_sac_buffer(
+                    model_env,
+                    env_dataset_train,
+                    agent,
+                    sac_buffer,
+                    cfg.sac_samples_action,
+                    rollout_length,
+                    rollout_batch_size,
+                )
 
                 if debug_mode:
                     print(
                         f"SAC buffer size: {len(sac_buffer)}. "
-                        f"Rollout length: {rollout_length}."
+                        f"Rollout length: {rollout_length}. "
                         f"Steps: {env_steps}"
                     )
 
             # --------------- Agent Training -----------------
-            mbpo_logger.log(
-                "train/val_dataset_size", env_dataset_val.num_stored, env_steps
-            )
             for _ in range(cfg.num_sac_updates_per_step):
                 agent.update(sac_buffer, sac_logger, updates_made)
                 updates_made += 1

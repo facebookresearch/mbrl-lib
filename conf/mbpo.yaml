@@ -19,34 +19,31 @@ member_cfg:
   hid_size: 200
   use_silu: true
 
-env: "gym@InvertedPendulum-v2"
-term_fn: "inverted_pendulum"
+env: "gym@Hopper-v2"
+term_fn: "hopper"
 
-env_dataset_size: 1000
+env_dataset_size: 50000
 validation_ratio: 0.1
 dynamics_model_batch_size: 256
-initial_exploration_steps: 20
-num_episodes: 100
-freq_train_dyn_model: 250
-num_epochs_train_dyn_model: 40
+initial_exploration_steps: 5750
+num_episodes: 125
 patience: 5
-num_model_rollouts: 2
-rollout_schedule: [1, 15, 1, 1]
-rollout_batch_size: 32
-sac_buffer_capacity: ???
+freq_train_dyn_model: 250
+effective_model_rollouts_per_step: 400
+rollout_schedule: [20, 150, 1, 15]
 sac_samples_action: true
-num_sac_updates_per_step: 40
+num_sac_updates_per_step: 20
 
 seed: 0
 
 device: "cuda:0"
 
-log_frequency_sac: 1
+log_frequency_sac: 200
 log_save_tb: false
-log_frequency_model: 5
+log_frequency_model: 1
 
-eval_freq: 1
-num_eval_episodes: 1
+eval_freq: 500
+num_eval_episodes: 50
 save_video: false
 
 experiment: test_exp
