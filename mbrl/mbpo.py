@@ -156,6 +156,8 @@ def train(
     cfg: omegaconf.DictConfig,
 ):
     # ------------------- Initialization -------------------
+    debug_mode = cfg.get("debug_mode", False)
+
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
@@ -199,6 +201,7 @@ def train(
     env_dataset_val = replay_buffer.IterableReplayBuffer(
         val_buffer_capacity, cfg.dynamics_model_batch_size, obs_shape, act_shape
     )
+
     # TODO replace this with some exploration policy
     collect_random_trajectories(
         env,
@@ -236,7 +239,7 @@ def train(
         obs = env.reset()
         done = False
         while not done:
-            # --------------- Env. Step and adding to model dataset -----------------
+            # --- Doing env step and adding to model dataset ---
             with pytorch_sac.utils.eval_mode(), torch.no_grad():
                 action = agent.act(obs)
             next_obs, reward, done, _ = env.step(action)
@@ -250,7 +253,6 @@ def train(
                 # noinspection PyUnusedLocal
                 sac_buffer = None
 
-                mbpo_logger.log("train/sac_buffer_size", 0, env_steps)
                 mbpo_logger.log(
                     "train/train_dataset_size", env_dataset_train.num_stored, env_steps
                 )
@@ -263,6 +265,7 @@ def train(
                     current_log_episode=episode,
                 )
                 ensemble.save(os.path.join(work_dir, "model.pth"))
+                mbpo_logger.dump(env_steps, save=True)
 
                 # --------- Rollout new model and store imagined trajectories --------
                 sac_buffer_capacity = (
@@ -281,8 +284,13 @@ def train(
                         rollout_length,
                         cfg.rollout_batch_size,
                     )
-                mbpo_logger.log("train/sac_buffer_size", len(sac_buffer), env_steps)
-                mbpo_logger.dump(env_steps, save=True)
+
+                if debug_mode:
+                    print(
+                        f"SAC buffer size: {len(sac_buffer)}. "
+                        f"Rollout length: {rollout_length}."
+                        f"Steps: {env_steps}"
+                    )
 
             # --------------- Agent Training -----------------
             mbpo_logger.log(
@@ -293,10 +301,6 @@ def train(
                 updates_made += 1
                 if updates_made % cfg.log_frequency_sac == 0:
                     sac_logger.dump(updates_made, save=True)
-
-            if cfg.get("debug_mode", False):
-                model_reward = evaluate_on_model(obs, agent, model_env, 1000)
-                sac_logger.log("eval/model_reward", model_reward, env_steps)
 
             if env_steps % cfg.eval_freq == 0:
                 avg_reward = evaluate(

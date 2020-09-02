@@ -17,6 +17,7 @@ member_cfg:
   in_size: ${model.in_size}
   out_size: ${model.out_size}
   hid_size: 200
+  use_silu: true
 
 env: "gym@InvertedPendulum-v2"
 term_fn: "inverted_pendulum"

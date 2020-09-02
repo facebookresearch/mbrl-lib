@@ -24,6 +24,16 @@ def gaussian_nll(
     return losses.sum(dim=1).mean()
 
 
+# noinspection PyAbstractClass,PyMethodMayBeStatic
+class SiLU(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.sigmoid(x) * x
+
+
+# noinspection PyAbstractClass
 class Model(nn.Module):
     def __init__(
         self, in_size: int, out_size: int, device: torch.device, *args, **kwargs
@@ -62,12 +72,14 @@ class GaussianMLP(Model):
         device: torch.device,
         num_layers: int = 4,
         hid_size: int = 200,
+        use_silu: bool = False,
     ):
         super(GaussianMLP, self).__init__(in_size, out_size, device)
-        hidden_layers = [nn.Sequential(nn.Linear(in_size, hid_size), nn.ReLU())]
+        activation_cls = SiLU if use_silu else nn.ReLU
+        hidden_layers = [nn.Sequential(nn.Linear(in_size, hid_size), activation_cls())]
         for i in range(num_layers):
             hidden_layers.append(
-                nn.Sequential(nn.Linear(hid_size, hid_size), nn.ReLU())
+                nn.Sequential(nn.Linear(hid_size, hid_size), activation_cls())
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
         self.mean = nn.Linear(hid_size, out_size)
@@ -212,7 +224,6 @@ class EnsembleTrainer:
         self.dataset_val = dataset_val
         self.device = device
         self.log_frequency = log_frequency
-        self._train_calls = 0
 
     # If num_epochs is passed trains for num_epochs. Otherwise trains until
     # patience num_epochs w/o improvement.
@@ -256,30 +267,18 @@ class EnsembleTrainer:
                 else:
                     epochs_since_update += 1
 
+            if self.logger and epoch % self.log_frequency == 0:
+                self.logger.log("train/episode", current_log_episode, epoch)
+                self.logger.log("train/model_loss", total_avg_loss, epoch)
+                self.logger.log("train/model_val_score", val_score, epoch)
+                self.logger.dump(epoch, save=True)
+
             if epochs_since_update >= patience:
                 break
-
-            if self.logger:
-                self.logger.log("train/episode", self._train_calls, current_log_episode)
-                self.logger.log(
-                    "train/model_loss",
-                    total_avg_loss,
-                    epoch,
-                    log_frequency=self.log_frequency,
-                )
-                self.logger.log(
-                    "train/model_val_score",
-                    val_score,
-                    epoch,
-                    log_frequency=self.log_frequency,
-                )
-                if epoch % self.log_frequency == 0:
-                    self.logger.dump(epoch, save=True)
 
         if best_weights:
             for i, (model, _) in enumerate(self.ensemble):
                 model.load_state_dict(best_weights[i])
-        self._train_calls += 1
         return training_losses, val_losses
 
     def evaluate(self) -> float:
@@ -299,7 +298,10 @@ class EnsembleTrainer:
         self, best_val_loss: float, val_loss: float
     ) -> Optional[List[Dict]]:
         best_weights = None
-        if val_loss < best_val_loss:
+        improvement = (
+            1 if np.isinf(best_val_loss) else (best_val_loss - val_loss) / best_val_loss
+        )
+        if improvement > 0.01:
             best_weights = []
             for model, _ in self.ensemble:
                 best_weights.append(model.state_dict())
