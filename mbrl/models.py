@@ -224,6 +224,7 @@ class EnsembleTrainer:
         self.dataset_val = dataset_val
         self.device = device
         self.log_frequency = log_frequency
+        self.best_val_score = np.inf
 
     # If num_epochs is passed trains for num_epochs. Otherwise trains until
     # patience num_epochs w/o improvement.
@@ -231,11 +232,11 @@ class EnsembleTrainer:
         self,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
-        current_log_episode: int = 0,
+        outer_epoch: int = 0,
     ) -> Tuple[List[float], List[float]]:
         assert len(self.ensemble) == len(self.dataset_train.member_indices)
         training_losses, val_losses = [], []
-        best_val_score, best_weights = np.inf, None
+        best_weights = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
         for epoch in epoch_iter:
@@ -258,17 +259,17 @@ class EnsembleTrainer:
                 val_score = self.evaluate()
                 val_losses.append(val_score)
                 maybe_best_weights = self.maybe_save_best_weights(
-                    best_val_score, val_score
+                    self.best_val_score, val_score
                 )
                 if maybe_best_weights:
-                    best_val_score = val_score
+                    self.best_val_score = val_score
                     best_weights = maybe_best_weights
                     epochs_since_update = 0
                 else:
                     epochs_since_update += 1
 
             if self.logger and epoch % self.log_frequency == 0:
-                self.logger.log("train/episode", current_log_episode, epoch)
+                self.logger.log("train/epoch", outer_epoch, epoch)
                 self.logger.log("train/model_loss", total_avg_loss, epoch)
                 self.logger.log("train/model_val_score", val_score, epoch)
                 self.logger.dump(epoch, save=True)
