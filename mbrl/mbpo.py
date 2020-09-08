@@ -244,7 +244,10 @@ def train(
             with pytorch_sac.utils.eval_mode(), torch.no_grad():
                 action = agent.act(obs)
             next_obs, reward, done, _ = env.step(action)
-            env_dataset_train.add(obs, action, next_obs, reward, done)
+            if cfg.increase_val_set and rng.random() < cfg.validation_ratio:
+                env_dataset_val.add(obs, action, next_obs, reward, done)
+            else:
+                env_dataset_train.add(obs, action, next_obs, reward, done)
 
             # --------------- Model Training -----------------
             if env_steps % cfg.freq_train_dyn_model == 0:
