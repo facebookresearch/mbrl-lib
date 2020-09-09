@@ -1,10 +1,11 @@
 import functools
 
+import numpy as np
 import omegaconf
 
-# noinspection PyUnresolvedReferences
 import pytest
 import torch
+import torch.nn as nn
 
 import mbrl.models as models
 
@@ -39,13 +40,137 @@ def test_gaussian_ensemble_forward():
     ensemble[0][0].forward = functools.partial(mock_forward, v=1)
     ensemble[1][0].forward = functools.partial(mock_forward, v=2)
 
-    model_out = ensemble.forward(model_in, sample=True)[0]
+    model_out = ensemble.forward(model_in, reduce=True)[0]
     assert model_out.shape == torch.Size([batch_size, model_out_size])
     expected_tensor_sum = batch_size * model_out_size
-    tensor_sum = model_out.sum().item()
-    assert (tensor_sum == expected_tensor_sum) or (
-        tensor_sum == 2 * expected_tensor_sum
-    )
-    model_out = ensemble.forward(model_in, sample=False)[0]
-    assert model_out.shape == torch.Size([batch_size, model_out_size])
+
     assert model_out.sum().item() == 1.5 * batch_size * model_out_size
+    model_out = ensemble.forward(model_in, reduce=False)[0]
+    assert model_out.shape == torch.Size([2, batch_size, model_out_size])
+    assert model_out[0].sum().item() == expected_tensor_sum
+    assert model_out[1].sum().item() == 2 * expected_tensor_sum
+
+
+mock_obs_dim = 1
+mock_act_dim = 1
+
+
+class MockEnv:
+    observation_space = (mock_obs_dim,)
+    action_space = (mock_act_dim,)
+
+
+# noinspection PyAbstractClass
+class MockProbModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.value = None
+        self.p = nn.Parameter(torch.ones(1))
+
+    def forward(self, x):
+        return self.value + x, None
+
+
+def mock_term_fn(act, next_obs):
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    done = np.array([False]).repeat(len(next_obs))
+    done = done[:, None]
+    return done
+
+
+def get_mock_env():
+    member_cfg = omegaconf.OmegaConf.create(
+        {"_target_": "tests.test_models.MockProbModel"}
+    )
+    num_members = 3
+    ensemble = models.Ensemble(
+        num_members,
+        mock_obs_dim + mock_act_dim,
+        mock_obs_dim,
+        torch.device("cpu"),
+        member_cfg,
+    )
+    # With value we can uniquely id the output of each member
+    member_incs = [i + 10 for i in range(num_members)]
+    for i in range(num_members):
+        ensemble.members[i].value = member_incs[i]
+
+    # noinspection PyTypeChecker
+    model_env = models.ModelEnv(MockEnv(), ensemble, mock_term_fn)
+    return model_env, member_incs
+
+
+def test_model_env_expectation_propagation():
+    batch_size = 7
+    model_env, member_incs = get_mock_env()
+    init_obs = np.zeros((batch_size, mock_obs_dim))
+    model_env.reset(initial_obs_batch=init_obs, propagation_method="expectation")
+
+    action = np.zeros((batch_size, mock_act_dim))
+    prev_sum = 0
+    for i in range(10):
+        next_obs, reward, *_ = model_env.step(action, sample=False)
+        assert next_obs.shape == (batch_size, 1)
+        cur_sum = np.sum(next_obs)
+        assert (cur_sum - prev_sum) == pytest.approx(batch_size * np.mean(member_incs))
+        assert reward == pytest.approx(np.mean(member_incs))
+        prev_sum = cur_sum
+
+
+def test_model_env_expectation_random():
+    batch_size = 100
+    model_env, member_incs = get_mock_env()
+    obs = np.zeros((batch_size, mock_obs_dim))
+    model_env.reset(initial_obs_batch=obs, propagation_method="random_model")
+
+    action = np.zeros((batch_size, mock_act_dim))
+    num_steps = 50
+    history = ["" for _ in range(batch_size)]
+    for i in range(num_steps):
+        next_obs, reward, *_ = model_env.step(action, sample=False)
+        assert next_obs.shape == (batch_size, 1)
+
+        diff = next_obs - obs
+        seen = set()
+        # Check that all models produced some output in the batch
+        for j, val in enumerate(diff):
+            v = int(val)
+            assert v in member_incs
+            seen.add(v)
+            history[j] += str(member_incs.index(v))
+        assert len(seen) == 3
+        obs = np.copy(next_obs)
+
+    # This is really hacky, but it's a cheap test to see if the history of models used
+    # varied over the batch
+    seen = set([h for h in history])
+    assert len(seen) == batch_size
+
+
+def test_model_env_expectation_fixed():
+    batch_size = 100
+    model_env, member_incs = get_mock_env()
+    obs = np.zeros((batch_size, mock_obs_dim))
+    model_env.reset(initial_obs_batch=obs, propagation_method="fixed_model")
+
+    action = np.zeros((batch_size, mock_act_dim))
+    num_steps = 50
+    history = ["" for _ in range(batch_size)]
+    for i in range(num_steps):
+        next_obs, reward, *_ = model_env.step(action, sample=False)
+        assert next_obs.shape == (batch_size, 1)
+
+        diff = next_obs - obs
+        seen = set()
+        # Check that all models produced some output in the batch
+        for j, val in enumerate(diff):
+            v = int(val)
+            assert v in member_incs
+            seen.add(v)
+            history[j] += str(member_incs.index(v))
+        assert len(seen) == 3
+        obs = np.copy(next_obs)
+
+    for h in history:
+        assert len(set([c for c in h])) == 1

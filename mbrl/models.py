@@ -1,6 +1,6 @@
 import abc
 import itertools
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, cast
 
 import gym
 import hydra.utils
@@ -131,7 +131,6 @@ class Ensemble(Model):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model.to(device))
             self.optimizers.append(optim.Adam(model.parameters(), lr=optim_lr))
-        self.rng = np.random.RandomState()
 
     def __len__(self):
         return len(self.members)
@@ -143,21 +142,20 @@ class Ensemble(Model):
         return iter(zip(self.members, self.optimizers))
 
     def forward(
-        self, x: torch.Tensor, sample=True, reduce=True
+        self, x: torch.Tensor, reduce=True
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        if sample:
-            model = self.members[self.rng.choice(len(self.members))]
-            return model(x)
-        else:
-            predictions = [model(x) for model in self.members]
-            all_means = torch.stack([p[0] for p in predictions], dim=0)
+        predictions = [model(x) for model in self.members]
+        all_means = torch.stack([p[0] for p in predictions], dim=0)
+        if predictions[0][1] is not None:
             all_logvars = torch.stack([p[1] for p in predictions], dim=0)
-            if reduce:
-                mean = all_means.mean(dim=0)
-                logvar = all_logvars.mean(dim=0)
-                return mean, logvar
-            else:
-                return all_means, all_logvars
+        else:
+            all_logvars = None
+        if reduce:
+            mean = all_means.mean(dim=0)
+            logvar = all_logvars.mean(dim=0) if all_logvars is not None else None
+            return mean, logvar
+        else:
+            return all_means, all_logvars
 
     # TODO move optimizers outside of this (do optim step in a different func)
     def loss(
@@ -195,7 +193,7 @@ class Ensemble(Model):
             m.load_state_dict(state_dicts[i])
 
 
-def get_dyn_model_input_and_target(
+def get_model_input_and_target(
     batch: Tuple, device
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     obs, action, next_obs, reward, _ = batch
@@ -243,9 +241,7 @@ class EnsembleTrainer:
                 model_ins = []
                 targets = []
                 for i, batch in enumerate(ensemble_batch):
-                    model_in, target = get_dyn_model_input_and_target(
-                        batch, self.device
-                    )
+                    model_in, target = get_model_input_and_target(batch, self.device)
                     model_ins.append(model_in)
                     targets.append(target)
                 avg_ensemble_loss = self.ensemble.loss(model_ins, targets)
@@ -283,9 +279,7 @@ class EnsembleTrainer:
     def evaluate(self) -> float:
         total_avg_loss = 0
         for ensemble_batch in self.dataset_val:
-            model_in, target = get_dyn_model_input_and_target(
-                ensemble_batch, self.device
-            )
+            model_in, target = get_model_input_and_target(ensemble_batch, self.device)
             model_ins = [model_in for _ in range(len(self.ensemble))]
             targets = [target for _ in range(len(self.ensemble))]
             avg_ensemble_loss = self.ensemble.eval_score(model_ins, targets)
@@ -307,8 +301,8 @@ class EnsembleTrainer:
         return best_weights
 
 
-class ModelEnv(gym.Env):
-    def __init__(self, env: gym.Env, model: Model, termination_fn):
+class ModelEnv:
+    def __init__(self, env: gym.Env, model: Model, termination_fn, seed=None):
         self.model = model
         self.termination_fn = termination_fn
 
@@ -316,24 +310,69 @@ class ModelEnv(gym.Env):
         self.action_space = env.action_space
 
         self._current_obs = None
+        self._propagation_fn = None
+        self._model_indices = None
+        self._rng = np.random.RandomState(seed)
 
-    def reset(self, initial_obs_batch: Optional[np.ndarray] = None) -> np.ndarray:
+    def reset(
+        self, initial_obs_batch: np.ndarray, propagation_method: str = "expectation"
+    ) -> np.ndarray:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         self._current_obs = np.copy(initial_obs_batch)
+
+        if propagation_method == "expectation":
+            self._propagation_fn = ModelEnv._propagate_expectation
+        else:
+            assert hasattr(self.model, "members")
+            if propagation_method == "random_model":
+                self._propagation_fn = ModelEnv._propagate_random
+            elif propagation_method == "fixed_model":
+                self._propagation_fn = self._propagate_fixed
+                self._model_indices = self._rng.randint(
+                    len(cast(Ensemble, self.model)), size=(len(initial_obs_batch),)
+                )
+            else:
+                raise ValueError(f"Invalid propagation method: {propagation_method}.")
         return self._current_obs
 
-    def step(self, actions: np.ndarray):
+    def step(self, actions: np.ndarray, sample: bool = False):
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
             model_in = torch.from_numpy(
                 np.concatenate([self._current_obs, actions], axis=1)
             ).to(self.model.device)
-            model_out = self.model(model_in)[0].cpu().numpy()
-            next_observs = model_out[:, :-1]
-            rewards = model_out[:, -1:]
+            means, logvars = self.model(model_in, reduce=False)
+
+            means = means.cpu().numpy()
+            if sample:
+                assert logvars is not None
+                variances = logvars.exp().cpu().numpy()
+                stds = np.sqrt(variances)
+                predictions = means + self._rng.normal(size=means.shape) * stds
+            else:
+                predictions = means
+            predictions = self._propagation_fn(predictions)
+
+            next_observs = predictions[:, :-1]
+            rewards = predictions[:, -1:]
             dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
             return next_observs, rewards, dones, {}
+
+    @staticmethod
+    def _propagate_expectation(predictions: np.ndarray) -> np.ndarray:
+        if predictions.ndim == 3:
+            return np.mean(predictions, axis=0)
+        raise NotImplementedError("Not yet implemented for non-ensemble models.")
+
+    @staticmethod
+    def _propagate_random(predictions: np.ndarray) -> np.ndarray:
+        ensemble_size, batch_size, obs_size = predictions.shape
+        idx = torch.randint(ensemble_size, size=(batch_size,))
+        return predictions[idx, range(batch_size)]
+
+    def _propagate_fixed(self, predictions: np.ndarray) -> np.ndarray:
+        return predictions[self._model_indices, range(predictions.shape[1])]
 
     def render(self, mode="human"):
         pass
