@@ -222,7 +222,6 @@ class EnsembleTrainer:
         self.dataset_val = dataset_val
         self.device = device
         self.log_frequency = log_frequency
-        self.best_val_score = np.inf
         self.target_is_offset = target_is_offset
 
     # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
@@ -238,6 +237,7 @@ class EnsembleTrainer:
         best_weights = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
+        best_val_score = self.evaluate()
         for epoch in epoch_iter:
             total_avg_loss = 0
             for ensemble_batch in self.dataset_train:
@@ -258,10 +258,10 @@ class EnsembleTrainer:
                 val_score = self.evaluate()
                 val_losses.append(val_score)
                 maybe_best_weights = self.maybe_save_best_weights(
-                    self.best_val_score, val_score
+                    best_val_score, val_score
                 )
                 if maybe_best_weights:
-                    self.best_val_score = val_score
+                    best_val_score = val_score
                     best_weights = maybe_best_weights
                     epochs_since_update = 0
                 else:
@@ -271,6 +271,7 @@ class EnsembleTrainer:
                 self.logger.log("train/epoch", outer_epoch, epoch)
                 self.logger.log("train/model_loss", total_avg_loss, epoch)
                 self.logger.log("train/model_val_score", val_score, epoch)
+                self.logger.log("train/model_best_val_score", best_val_score, epoch)
                 self.logger.dump(epoch, save=True)
 
             if epochs_since_update >= patience:

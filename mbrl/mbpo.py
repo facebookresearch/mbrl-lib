@@ -20,6 +20,7 @@ MBPO_LOG_FORMAT = [
     ("val_dataset_size", "VD", "int"),
     ("model_loss", "MLOSS", "float"),
     ("model_val_score", "MVSCORE", "float"),
+    ("model_best_val_score", "BMVSCORE", "float"),
     ("sac_buffer_size", "SBSIZE", "int"),
 ]
 
