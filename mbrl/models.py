@@ -194,12 +194,13 @@ class Ensemble(Model):
 
 
 def get_model_input_and_target(
-    batch: Tuple, device
+    batch: Tuple, device, target_is_offset: bool = False
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     obs, action, next_obs, reward, _ = batch
     model_in = torch.from_numpy(np.concatenate([obs, action], axis=1)).to(device)
+    target_obs = next_obs - obs if target_is_offset else next_obs
     target = torch.from_numpy(
-        np.concatenate([next_obs, np.expand_dims(reward, axis=1)], axis=1)
+        np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
     ).to(device)
     return model_in, target
 
@@ -213,6 +214,7 @@ class EnsembleTrainer:
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         logger: Optional[pytorch_sac.Logger] = None,
         log_frequency: int = 1,
+        target_is_offset: bool = True,
     ):
         self.ensemble = ensemble
         self.logger = logger
@@ -221,9 +223,10 @@ class EnsembleTrainer:
         self.device = device
         self.log_frequency = log_frequency
         self.best_val_score = np.inf
+        self.target_is_offset = target_is_offset
 
-    # If num_epochs is passed trains for num_epochs. Otherwise trains until
-    # patience num_epochs w/o improvement.
+    # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
+    # `patience` epochs lapse w/o improvement.
     def train(
         self,
         num_epochs: Optional[int] = None,
@@ -241,7 +244,9 @@ class EnsembleTrainer:
                 model_ins = []
                 targets = []
                 for i, batch in enumerate(ensemble_batch):
-                    model_in, target = get_model_input_and_target(batch, self.device)
+                    model_in, target = get_model_input_and_target(
+                        batch, self.device, target_is_offset=self.target_is_offset
+                    )
                     model_ins.append(model_in)
                     targets.append(target)
                 avg_ensemble_loss = self.ensemble.loss(model_ins, targets)
@@ -279,7 +284,9 @@ class EnsembleTrainer:
     def evaluate(self) -> float:
         total_avg_loss = 0
         for ensemble_batch in self.dataset_val:
-            model_in, target = get_model_input_and_target(ensemble_batch, self.device)
+            model_in, target = get_model_input_and_target(
+                ensemble_batch, self.device, self.target_is_offset
+            )
             model_ins = [model_in for _ in range(len(self.ensemble))]
             targets = [target for _ in range(len(self.ensemble))]
             avg_ensemble_loss = self.ensemble.eval_score(model_ins, targets)
@@ -353,7 +360,7 @@ class ModelEnv:
                 predictions = means
             predictions = self._propagation_fn(predictions)
 
-            next_observs = predictions[:, :-1]
+            next_observs = predictions[:, :-1] + self._current_obs
             rewards = predictions[:, -1:]
             dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
