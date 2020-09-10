@@ -20,6 +20,7 @@ MBPO_LOG_FORMAT = [
     ("val_dataset_size", "VD", "int"),
     ("model_loss", "MLOSS", "float"),
     ("model_val_score", "MVSCORE", "float"),
+    ("model_best_val_score", "BMVSCORE", "float"),
     ("sac_buffer_size", "SBSIZE", "int"),
 ]
 
@@ -97,7 +98,9 @@ def rollout_model_and_populate_sac_buffer(
 ):
 
     initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
-    obs = model_env.reset(initial_obs_batch=initial_obs)
+    obs = model_env.reset(
+        initial_obs_batch=initial_obs, propagation_method="random_model"
+    )
     for i in range(rollout_horizon):
         with pytorch_sac.utils.eval_mode(), torch.no_grad():
             action = agent.act(obs, sample=sac_samples_action, batched=True)
@@ -172,16 +175,16 @@ def train(
     work_dir = os.getcwd()
     mbpo_logger = pytorch_sac.Logger(
         work_dir,
-        save_tb=cfg.log_save_tb,
-        log_frequency=cfg.log_frequency_sac,
+        save_tb=False,
+        log_frequency=cfg.log_frequency_model,
         agent="model",
         train_format=MBPO_LOG_FORMAT,
         eval_format=EVAL_LOG_FORMAT,
     )
     sac_logger = pytorch_sac.Logger(
         work_dir,
-        save_tb=cfg.log_save_tb,
-        log_frequency=cfg.log_frequency_model,
+        save_tb=False,
+        log_frequency=cfg.log_frequency_sac,
         train_format=SAC_TRAIN_LOG_FORMAT,
         eval_format=EVAL_LOG_FORMAT,
     )
@@ -229,6 +232,7 @@ def train(
         dataset_val=env_dataset_val,
         logger=mbpo_logger,
         log_frequency=cfg.log_frequency_model,
+        target_is_offset=True,
     )
     best_eval_reward = -np.inf
     sac_buffer = None
