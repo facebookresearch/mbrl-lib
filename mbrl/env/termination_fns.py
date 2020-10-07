@@ -35,3 +35,14 @@ def halfcheetah(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     done = np.array([False]).repeat(len(next_obs))
     done = done[:, None]
     return done
+
+
+def walker2d(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    height = next_obs[:, 0]
+    angle = next_obs[:, 1]
+    not_done = (height > 0.8) * (height < 2.0) * (angle > -1.0) * (angle < 1.0)
+    done = ~not_done
+    done = done[:, None]
+    return done
