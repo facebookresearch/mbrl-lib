@@ -4,6 +4,7 @@ import numpy as np
 
 # TODO remove act from all of these, it's not needed
 
+
 def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     assert len(next_obs.shape) == 2
 

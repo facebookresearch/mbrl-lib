@@ -1,6 +1,6 @@
 import abc
 import itertools
-from typing import Dict, List, Optional, Sequence, Tuple, cast
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import gym
 import hydra.utils
@@ -97,7 +97,7 @@ class GaussianMLP(Model):
         logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
         return mean, logvar
 
-    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor():
+    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(model_in)
         return gaussian_nll(pred_mean, pred_logvar, target)
 
@@ -141,7 +141,7 @@ class Ensemble(Model):
     def __iter__(self):
         return iter(zip(self.members, self.optimizers))
 
-    def forward(
+    def forward(  # type: ignore
         self, x: torch.Tensor, reduce=True
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         predictions = [model(x) for model in self.members]
@@ -239,7 +239,7 @@ class EnsembleTrainer:
         epochs_since_update = 0
         best_val_score = self.evaluate()
         for epoch in epoch_iter:
-            total_avg_loss = 0
+            total_avg_loss = 0.0
             for ensemble_batch in self.dataset_train:
                 model_ins = []
                 targets = []
@@ -253,7 +253,7 @@ class EnsembleTrainer:
                 total_avg_loss += avg_ensemble_loss
             training_losses.append(total_avg_loss)
 
-            val_score = 0
+            val_score = 0.0
             if self.dataset_val:
                 val_score = self.evaluate()
                 val_losses.append(val_score)
@@ -283,7 +283,7 @@ class EnsembleTrainer:
         return training_losses, val_losses
 
     def evaluate(self) -> float:
-        total_avg_loss = 0
+        total_avg_loss = 0.0
         for ensemble_batch in self.dataset_val:
             model_in, target = get_model_input_and_target(
                 ensemble_batch, self.device, self.target_is_offset
@@ -318,7 +318,7 @@ class ModelEnv:
         self.action_space = env.action_space
 
         self._current_obs = None
-        self._propagation_fn = None
+        self._propagation_fn: Callable = None
         self._model_indices = None
         self._rng = np.random.RandomState(seed)
 

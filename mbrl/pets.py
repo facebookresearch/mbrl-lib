@@ -1,3 +1,7 @@
+# type: ignore
+# flake8: noqa
+
+# TODO remove the above
 import os
 from typing import Callable
 
@@ -61,11 +65,16 @@ def collect_random_trajectories(
                 return
 
 
-def sample_trajectory_rewards(initial_state: np.ndarray,
-    action_sequence: np.ndarray, model_env: models.ModelEnv, num_samples: int) -> np.ndarray:
+def sample_trajectory_rewards(
+    initial_state: np.ndarray,
+    action_sequence: np.ndarray,
+    model_env: models.ModelEnv,
+    num_samples: int,
+) -> np.ndarray:
 
     model_env.reset()
     pass
+
 
 # def trajectory_sampling(
 #     model_env: models.ModelEnv, cfg: omegaconf.DictConfig) -> float:
@@ -141,7 +150,7 @@ def train(
         obs = env.reset()
 
         obs = np.tile(obs, (cfg.num_particles, 1))
-        model_obs =
+        model_obs = 0
         done = termination_fn(None, obs)
         done = False
 

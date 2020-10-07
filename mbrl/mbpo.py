@@ -49,10 +49,10 @@ def get_rollout_length(rollout_schedule: List[int], epoch: int):
     min_epoch, max_epoch, min_length, max_length = rollout_schedule
 
     if epoch <= min_epoch:
-        y = min_length
+        y: float = min_length
     else:
         dx = (epoch - min_epoch) / (max_epoch - min_epoch)
-        dx = min(dx, 1)
+        dx = min(dx, 1.0)
         y = dx * (max_length - min_length) + min_length
 
     return int(y)
@@ -142,7 +142,7 @@ def evaluate_on_model(
 ) -> float:
     initial_batch = current_obs * np.ones((batch_size, len(current_obs)))
     obs = model_env.reset(initial_obs_batch=initial_batch.astype(np.float32))
-    episode_reward = 0
+    episode_reward: np.ndarray = 0
     for i in range(rollout_length):
         with pytorch_sac.utils.eval_mode(), torch.no_grad():
             action = agent.act(obs, batched=True)

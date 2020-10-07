@@ -1,4 +1,4 @@
-from typing import Sized, Tuple
+from typing import List, Sized, Tuple, Union
 
 import numpy as np
 
@@ -42,7 +42,7 @@ class SimpleReplayBuffer:
         indices = np.random.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
 
-    def _batch_from_indices(self, indices: Sized) -> Sized:
+    def _batch_from_indices(self, indices: Sized) -> Tuple:
         obs = self.obs[indices]
         next_obs = self.next_obs[indices]
         action = self.action[indices]
@@ -115,7 +115,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             obs_type=obs_type,
             action_type=action_type,
         )
-        self.member_indices = [None for _ in range(num_members)]
+        self.member_indices: List[List[int]] = [None for _ in range(num_members)]
 
     def add(
         self,
@@ -143,7 +143,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             batches.append(self._batch_from_indices(content_indices))
         return batches
 
-    def sample(self, batch_size: int, ensemble=True) -> Sized:
+    def sample(self, batch_size: int, ensemble=True) -> Union[List[Tuple], Tuple]:
         if ensemble:
             batches = []
             for member_idx in self.member_indices:
