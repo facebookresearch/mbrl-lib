@@ -18,3 +18,11 @@ repos:
         additional_dependencies: [tokenize-rt==3.2.0]
         args: [--no-strict-optional, --ignore-missing-imports]
         exclude: setup.py
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.5.2
+    hooks:
+      - id: isort
+        files: 'mbrl/.*'
+      - id: isort
+        files: 'tests/.*'

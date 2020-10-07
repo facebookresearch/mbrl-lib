@@ -1,9 +1,10 @@
 import numpy as np
-import torch
 
 # noinspection PyUnresolvedReferences
 import pytest
 import pytorch_sac.replay_buffer as sac_buffer
+import torch
+
 import mbrl.replay_buffer as replay_buffer
 
 

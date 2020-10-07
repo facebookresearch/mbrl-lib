@@ -1,6 +1,6 @@
 import math
-import numpy as np
 
+import numpy as np
 
 # TODO remove act from all of these, it's not needed
 

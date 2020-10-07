@@ -16,7 +16,6 @@ import mbrl.models as models
 import mbrl.planning as planning
 import mbrl.replay_buffer as replay_buffer
 
-
 PETS_LOG_FORMAT = [
     ("episode", "E", "int"),
     ("step", "S", "int"),
