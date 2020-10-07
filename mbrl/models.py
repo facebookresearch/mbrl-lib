@@ -24,7 +24,6 @@ def gaussian_nll(
     return losses.sum(dim=1).mean()
 
 
-# noinspection PyAbstractClass,PyMethodMayBeStatic
 class SiLU(nn.Module):
     def __init__(self):
         super().__init__()
@@ -33,7 +32,6 @@ class SiLU(nn.Module):
         return torch.sigmoid(x) * x
 
 
-# noinspection PyAbstractClass
 class Model(nn.Module):
     def __init__(
         self, in_size: int, out_size: int, device: torch.device, *args, **kwargs
@@ -63,7 +61,6 @@ class Model(nn.Module):
         pass
 
 
-# noinspection PyAbstractClass
 class GaussianMLP(Model):
     def __init__(
         self,
@@ -113,7 +110,6 @@ class GaussianMLP(Model):
         self.load_state_dict(torch.load(path))
 
 
-# noinspection PyAbstractClass
 class Ensemble(Model):
     def __init__(
         self,

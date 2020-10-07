@@ -255,7 +255,6 @@ def train(
 
             # --------------- Model Training -----------------
             if env_steps % cfg.freq_train_dyn_model == 0:
-                # noinspection PyUnusedLocal
                 sac_buffer = None
 
                 mbpo_logger.log(

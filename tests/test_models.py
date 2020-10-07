@@ -59,7 +59,6 @@ class MockEnv:
     action_space = (mock_act_dim,)
 
 
-# noinspection PyAbstractClass
 class MockProbModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -95,7 +94,6 @@ def get_mock_env():
     for i in range(num_members):
         ensemble.members[i].value = member_incs[i]
 
-    # noinspection PyTypeChecker
     model_env = models.ModelEnv(MockEnv(), ensemble, mock_term_fn)
     return model_env, member_incs
 
