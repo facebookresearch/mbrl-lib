@@ -1,6 +1,9 @@
 import math
+from typing import Callable
 
 import numpy as np
+
+TermFnType = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 # TODO remove act from all of these, it's not needed
 

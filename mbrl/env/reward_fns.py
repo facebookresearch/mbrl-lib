@@ -1,5 +1,10 @@
+from typing import Callable
+
 import numpy as np
-import termination_fns
+
+from . import termination_fns
+
+RewardFnType = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 
 def cartpole(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
