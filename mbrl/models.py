@@ -352,7 +352,9 @@ class ModelEnv:
                 assert logvars is not None
                 variances = logvars.exp().cpu().numpy()
                 stds = np.sqrt(variances)
-                predictions = means + self._rng.normal(size=means.shape) * stds
+                predictions = (
+                    means + self._rng.normal(size=means.shape).astype(np.float32) * stds
+                )
             else:
                 predictions = means
             predictions = self._propagation_fn(predictions)
