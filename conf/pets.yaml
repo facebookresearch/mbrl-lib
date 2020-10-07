@@ -1,0 +1,49 @@
+model:
+  _target_: mbrl.models.Ensemble
+  ensemble_size: 7
+  in_size: ???
+  out_size: ???
+  member_cfg: ${member_cfg}
+  device: ${device}
+  optim_lr: 0.0001
+
+member_cfg:
+  _target_: mbrl.models.GaussianMLP
+  device: ${model.device}
+  num_layers: 4
+  in_size: ${model.in_size}
+  out_size: ${model.out_size}
+  hid_size: 200
+  use_silu: true
+
+env: "gym___CartPole-v1"
+term_fn: "cartpole"
+reward_fn: ${term_fn}
+
+env_dataset_size: 1000
+validation_ratio: 0.1
+dynamics_model_batch_size: 256
+initial_exploration_steps: 100
+num_trials: 125
+trial_length: 1000
+patience: 5
+freq_train_dyn_model: 250
+increase_val_set: false
+
+planning_horizon: 10
+num_particles: 20
+
+seed: 0
+
+device: "cuda:0"
+
+log_frequency_model: 1
+
+num_eval_episodes: 100
+save_video: false
+
+experiment: pets_impl
+
+hydra:
+  run:
+    dir: ./exp/pets/${experiment}/${env}/${now:%Y.%m.%d}/${now:%H%M}

@@ -1,8 +1,11 @@
+import math
 import numpy as np
 
 
+# TODO remove act from all of these, it's not needed
+
 def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
-    assert len(next_obs.shape) == len(act.shape) == 2
+    assert len(next_obs.shape) == 2
 
     height = next_obs[:, 0]
     angle = next_obs[:, 1]
@@ -18,8 +21,26 @@ def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     return done
 
 
+def cartpole(_act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
+    assert len(next_obs.shape) == 2
+
+    x, theta = next_obs[:, 0], next_obs[:, 2]
+
+    x_threshold = 2.4
+    theta_threshold_radians = 12 * 2 * math.pi / 360
+    not_done = (
+        (x > -x_threshold)
+        * (x < x_threshold)
+        * (theta > -theta_threshold_radians)
+        * (theta < theta_threshold_radians)
+    )
+    done = ~not_done
+    done = done[:, None]
+    return done
+
+
 def inverted_pendulum(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
-    assert len(next_obs.shape) == len(act.shape) == 2
+    assert len(next_obs.shape) == 2
 
     not_done = np.isfinite(next_obs).all(axis=-1) * (np.abs(next_obs[:, 1]) <= 0.2)
     done = ~not_done
@@ -30,7 +51,7 @@ def inverted_pendulum(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
 
 
 def halfcheetah(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
-    assert len(next_obs.shape) == len(act.shape) == 2
+    assert len(next_obs.shape) == 2
 
     done = np.array([False]).repeat(len(next_obs))
     done = done[:, None]
@@ -38,7 +59,7 @@ def halfcheetah(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
 
 
 def walker2d(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
-    assert len(next_obs.shape) == len(act.shape) == 2
+    assert len(next_obs.shape) == 2
 
     height = next_obs[:, 0]
     angle = next_obs[:, 1]
