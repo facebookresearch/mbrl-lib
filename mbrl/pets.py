@@ -1,9 +1,6 @@
-# type: ignore
-# flake8: noqa
-
-# TODO remove the above
 import os
-from typing import Callable
+import time
+from typing import List
 
 import gym
 import hydra
@@ -12,8 +9,9 @@ import omegaconf
 import pytorch_sac
 import torch
 
+import mbrl.env.reward_fns as reward_fns
+import mbrl.env.termination_fns as termination_fns
 import mbrl.models as models
-import mbrl.planning as planning
 import mbrl.replay_buffer as replay_buffer
 
 PETS_LOG_FORMAT = [
@@ -27,10 +25,8 @@ PETS_LOG_FORMAT = [
 ]
 
 EVAL_LOG_FORMAT = [
-    ("episode", "E", "int"),
-    ("step", "S", "int"),
+    ("trial", "T", "int"),
     ("episode_reward", "R", "float"),
-    ("model_reward", "MR", "float"),
 ]
 
 
@@ -64,28 +60,10 @@ def collect_random_trajectories(
                 return
 
 
-def sample_trajectory_rewards(
-    initial_state: np.ndarray,
-    action_sequence: np.ndarray,
-    model_env: models.ModelEnv,
-    num_samples: int,
-) -> np.ndarray:
-
-    model_env.reset()
-    pass
-
-
-# def trajectory_sampling(
-#     model_env: models.ModelEnv, cfg: omegaconf.DictConfig) -> float:
-#     assert actions.shape == (cfg.planning_horizon, model_env.action_space.n)
-#     total_reward = 0
-#     for sample in cfg.num_particles:
-
-
 def train(
     env: gym.Env,
-    test_env: gym.Env,
-    termination_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
+    termination_fn: termination_fns.TermFnType,
+    reward_fn: reward_fns.RewardFnType,
     device: torch.device,
     cfg: omegaconf.DictConfig,
 ):
@@ -98,14 +76,16 @@ def train(
     rng = np.random.RandomState(cfg.seed)
 
     work_dir = os.getcwd()
-    mbpo_logger = pytorch_sac.Logger(
+    pets_logger = pytorch_sac.Logger(
         work_dir,
         save_tb=False,
         log_frequency=None,
-        agent="model",
+        agent="pets",
         train_format=PETS_LOG_FORMAT,
         eval_format=EVAL_LOG_FORMAT,
     )
+
+    planner = hydra.utils.instantiate(cfg.planner)
 
     # -------------- Create initial env. dataset --------------
     env_dataset_train = replay_buffer.BootstrapReplayBuffer(
@@ -127,6 +107,8 @@ def train(
         cfg.validation_ratio,
         rng,
     )
+    if cfg.learned_rewards:
+        reward_fn = None
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -141,33 +123,68 @@ def train(
         device,
         env_dataset_train,
         dataset_val=env_dataset_val,
-        logger=mbpo_logger,
+        logger=pets_logger,
         log_frequency=cfg.log_frequency_model,
     )
-    best_eval_reward = -np.inf
+    env_steps = 0
+    current_trial = 0
     for trial in range(cfg.num_trials):
         obs = env.reset()
-
-        obs = np.tile(obs, (cfg.num_particles, 1))
-        model_obs = 0
-        done = termination_fn(None, obs)
+        actions_to_use: List[np.ndarray] = []
         done = False
+        total_reward = 0
+        steps_trial = 0
+        while not done:
+            if not actions_to_use:  # re-plan is necessary
+                start_time = time.time()
+                plan, _ = planner.plan(
+                    model_env,
+                    obs,
+                    cfg.planning_horizon,
+                    cfg.num_particles,
+                    cfg.propagation_method,
+                    reward_fn,
+                )
+                plan_time = time.time() - start_time
+                if debug_mode:
+                    print(f"Plan time: {plan_time}")
 
-        particles = np.repeat(np.expand_dims(obs, axis=0), 20, axis=0).astype(
-            np.float32
-        )
-        model_env.reset(particles)
-        actions = (env.action_space.sample() * np.ones((20, 1))).astype(np.float32)
-        model_env.step(actions)
-        pass
-        # while not done:
+                actions_to_use.extend([a for a in plan[: cfg.replan_freq]])
+            action = actions_to_use.pop(0)
 
-        # --- Doing env step and adding to model dataset ---
-        # action = planning.cem(None)
-        # next_obs, reward, done, _ = env.step(action)
-        # if cfg.increase_val_set and rng.random() < cfg.validation_ratio:
-        #     env_dataset_val.add(obs, action, next_obs, reward, done)
-        # else:
-        #     env_dataset_train.add(obs, action, next_obs, reward, done)
-        #
-        # obs = next_obs
+            # --- Doing env step and adding to model dataset ---
+            next_obs, reward, done, _ = env.step(action)
+            if cfg.increase_val_set and rng.random() < cfg.validation_ratio:
+                env_dataset_val.add(obs, action, next_obs, reward, done)
+            else:
+                env_dataset_train.add(obs, action, next_obs, reward, done)
+
+            # --------------- Model Training -----------------
+            if env_steps % cfg.freq_train_dyn_model == 0:
+                pets_logger.log(
+                    "train/train_dataset_size", env_dataset_train.num_stored, env_steps
+                )
+                pets_logger.log(
+                    "train/val_dataset_size", env_dataset_val.num_stored, env_steps
+                )
+                model_trainer.train(
+                    num_epochs=cfg.get("num_epochs_train_dyn_model", None),
+                    patience=cfg.patience,
+                )
+                ensemble.save(os.path.join(work_dir, "model.pth"))
+                pets_logger.dump(env_steps, save=True)
+
+            obs = next_obs
+            total_reward += reward
+            steps_trial += 1
+            env_steps += 1
+            if steps_trial == cfg.trial_length:
+                break
+
+            if debug_mode:
+                print(f"Step {env_steps}: Reward {reward:.3f}")
+
+        pets_logger.log("eval/trial", current_trial, env_steps)
+        pets_logger.log("eval/episode_reward", total_reward, env_steps)
+        pets_logger.dump(env_steps, save=True)
+        current_trial += 1

@@ -128,7 +128,7 @@ class CEMPlanner:
         num_model_particles: int,
         propagation_method: str,
         reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
-    ) -> np.ndarray:
+    ) -> Tuple[np.ndarray, float]:
         def obj_fn(action_sequences_: np.ndarray) -> np.ndarray:
             # Returns the mean (over particles) of the total reward for each
             # sequence
@@ -148,4 +148,7 @@ class CEMPlanner:
         action_shape = model_env.action_space.shape
         if not action_shape:
             action_shape = (1,)
-        return self.optimizer.optimize(obj_fn, (horizon,) + action_shape)[0]
+        best_solution, opt_history = self.optimizer.optimize(
+            obj_fn, (horizon,) + action_shape
+        )
+        return best_solution, opt_history["value_maxs"].max()

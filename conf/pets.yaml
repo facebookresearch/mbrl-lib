@@ -1,6 +1,6 @@
 model:
   _target_: mbrl.models.Ensemble
-  ensemble_size: 7
+  ensemble_size: 5
   in_size: ???
   out_size: ???
   member_cfg: ${member_cfg}
@@ -16,31 +16,38 @@ member_cfg:
   hid_size: 200
   use_silu: true
 
-env: "gym___CartPole-v1"
-term_fn: "cartpole"
-reward_fn: ${term_fn}
+planner:
+  _target_: mbrl.planning.CEMPlanner
+  num_iterations: 5
+  elite_ratio: 0.1
+  population_size: 400
+  sigma: 2.0
 
-env_dataset_size: 1000
+#env: "gym___CartPole-v1"
+env: "pets___cartpole"
+term_fn: "cartpole"
+
+env_dataset_size: 100000
 validation_ratio: 0.1
 dynamics_model_batch_size: 256
-initial_exploration_steps: 100
+initial_exploration_steps: 1000
 num_trials: 125
-trial_length: 1000
+trial_length: 200
 patience: 5
 freq_train_dyn_model: 250
 increase_val_set: false
 
 planning_horizon: 10
-num_particles: 20
+num_particles: 25
+propagation_method: "random_model"
+replan_freq: 1
+learned_rewards: true
 
 seed: 0
 
 device: "cuda:0"
 
 log_frequency_model: 1
-
-num_eval_episodes: 100
-save_video: false
 
 experiment: pets_impl
 

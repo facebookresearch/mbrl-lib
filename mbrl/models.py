@@ -189,6 +189,7 @@ class Ensemble(Model):
             m.load_state_dict(state_dicts[i])
 
 
+# TODO rename target_is_offset to "offset_target"
 def get_model_input_and_target(
     batch: Tuple, device, target_is_offset: bool = False
 ) -> Tuple[torch.Tensor, torch.Tensor]:
