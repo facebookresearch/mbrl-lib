@@ -54,6 +54,27 @@ class SimpleReplayBuffer:
     def __len__(self):
         return self.num_stored
 
+    def save(self, path: str):
+        np.savez(
+            path,
+            obs=self.obs[: self.num_stored],
+            next_obs=self.next_obs[: self.num_stored],
+            action=self.action[: self.num_stored],
+            reward=self.reward[: self.num_stored],
+            done=self.done[: self.num_stored],
+        )
+
+    def load(self, path: str):
+        data = np.load(path)
+        num_stored = len(data["obs"])
+        self.obs[:num_stored] = data["obs"]
+        self.next_obs[:num_stored] = data["next_obs"]
+        self.action[:num_stored] = data["action"]
+        self.reward[:num_stored] = data["reward"]
+        self.done[:num_stored] = data["done"]
+        self.num_stored = num_stored
+        self.cur_idx = 0
+
 
 class IterableReplayBuffer(SimpleReplayBuffer):
     def __init__(
@@ -93,6 +114,10 @@ class IterableReplayBuffer(SimpleReplayBuffer):
 
     def __len__(self):
         return (self.num_stored - 1) // self.batch_size + 1
+
+    def load(self, path: str):
+        super().load(path)
+        self._current_batch = 0
 
 
 # TODO Add a transition type to encapsulate this batch data

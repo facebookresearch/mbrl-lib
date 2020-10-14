@@ -1,6 +1,7 @@
 import os
+import pathlib
 import time
-from typing import List
+from typing import List, Optional
 
 import gym
 import hydra
@@ -38,6 +39,7 @@ def collect_random_trajectories(
     steps_to_collect: int,
     val_ratio: float,
     rng: np.random.RandomState,
+    trial_length: Optional[int] = None,
 ):
     indices = rng.permutation(steps_to_collect)
     n_train = int(steps_to_collect * (1 - val_ratio))
@@ -56,6 +58,8 @@ def collect_random_trajectories(
                 env_dataset_test.add(obs, action, next_obs, reward, done)
             obs = next_obs
             step += 1
+            if trial_length and step % trial_length == 0:
+                break
             if step == steps_to_collect:
                 return
 
@@ -72,6 +76,9 @@ def train(
 
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
+
+    if cfg.learned_rewards:
+        reward_fn = None
 
     rng = np.random.RandomState(cfg.seed)
 
@@ -106,9 +113,10 @@ def train(
         cfg.initial_exploration_steps,
         cfg.validation_ratio,
         rng,
+        trial_length=cfg.trial_length,
     )
-    if cfg.learned_rewards:
-        reward_fn = None
+    if debug_mode:
+        env_dataset_train.save(str(pathlib.PurePath(work_dir) / "replay_buffer"))
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
