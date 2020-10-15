@@ -45,7 +45,9 @@ class NormalizedEnv(gym.Env):
         return val
 
     @staticmethod
-    def _denormalized_val(val: float, stats: Stats) -> float:
+    def _denormalized_val(
+        val: Union[float, np.ndarray], stats: Stats
+    ) -> Union[float, np.ndarray]:
         mean, m2, count = astuple(stats)
         if count > 1:
             std = np.sqrt(m2 / (count - 1))
@@ -76,3 +78,6 @@ class NormalizedEnv(gym.Env):
 
     def denormalize_reward(self, reward: float) -> float:
         return self._denormalized_val(reward, self.reward_stats)
+
+    def denormalize_obs(self, obs: np.ndarray) -> np.ndarray:
+        return self._denormalized_val(obs, self.obs_stats)
