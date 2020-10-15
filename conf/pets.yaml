@@ -26,6 +26,7 @@ planner:
 #env: "gym___CartPole-v1"
 env: "pets___cartpole"
 term_fn: "cartpole"
+normalize: true
 
 env_dataset_size: 100000
 validation_ratio: 0.1

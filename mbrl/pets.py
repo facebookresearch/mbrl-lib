@@ -12,6 +12,7 @@ import torch
 
 import mbrl.env.reward_fns as reward_fns
 import mbrl.env.termination_fns as termination_fns
+import mbrl.env.wrappers as wrappers
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
 
@@ -95,6 +96,10 @@ def train(
     planner = hydra.utils.instantiate(cfg.planner)
 
     # -------------- Create initial env. dataset --------------
+    normalize = cfg.get("normalize", False)
+    if normalize:
+        env = wrappers.NormalizedEnv(env)
+
     env_dataset_train = replay_buffer.BootstrapReplayBuffer(
         cfg.env_dataset_size,
         cfg.dynamics_model_batch_size,
@@ -183,6 +188,8 @@ def train(
                 pets_logger.dump(env_steps, save=True)
 
             obs = next_obs
+            if normalize:
+                reward = env.denormalize_reward(reward)
             total_reward += reward
             steps_trial += 1
             env_steps += 1
