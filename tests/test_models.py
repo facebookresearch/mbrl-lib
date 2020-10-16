@@ -66,7 +66,7 @@ class MockProbModel(nn.Module):
         self.p = nn.Parameter(torch.ones(1))
 
     def forward(self, x):
-        return self.value + x, None
+        return self.value * torch.ones_like(x), None
 
 
 def mock_term_fn(act, next_obs):
