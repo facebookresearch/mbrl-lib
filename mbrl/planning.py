@@ -9,7 +9,7 @@ import mbrl.models
 
 def evaluate_action_sequences(
     initial_state: np.ndarray,
-    action_sequences: np.ndarray,
+    action_sequences: torch.Tensor,
     model_env: mbrl.models.ModelEnv,
     num_particles: int,
     propagation_method: str,
@@ -21,7 +21,6 @@ def evaluate_action_sequences(
         initial_state, (num_particles * population_size, 1)
     ).astype(np.float32)
     model_env.reset(initial_obs_batch, propagation_method=propagation_method)
-    action_sequences = torch.from_numpy(action_sequences).float().to(model_env.device)
 
     total_rewards: torch.Tensor = 0
     for time_step in range(horizon):
@@ -43,6 +42,7 @@ class CEMOptimizer:
         elite_ratio: float,
         population_size: int,
         sigma: float,
+        device: torch.device,
     ):
         self.num_iterations = num_iterations
         self.elite_ratio = elite_ratio
@@ -52,6 +52,7 @@ class CEMOptimizer:
         self.elite_num = np.ceil(self.population_size * self.elite_ratio).astype(
             np.long
         )
+        self.device = device
 
     def _init_history(self, x_shape: Tuple[int, ...]) -> Dict[str, np.ndarray]:
         return {
@@ -65,25 +66,26 @@ class CEMOptimizer:
     @staticmethod
     def _update_history(
         iter_idx: int,
-        values: np.ndarray,
+        values: torch.Tensor,
         mu: np.ndarray,
-        best_x: np.ndarray,
+        best_x: torch.Tensor,
         history: Mapping[str, np.ndarray],
     ):
         history["value_means"][iter_idx] = values.mean()
         history["value_stds"][iter_idx] = values.std()
         history["value_maxs"][iter_idx] = np.max(values)
-        history["best_xs"][iter_idx] = best_x.copy()
+        history["best_xs"][iter_idx] = best_x.cpu().numpy()
         history["mus"][iter_idx] = mu.copy()
 
     def optimize(
-        self, obj_fun: Callable[[np.ndarray], np.ndarray], x_shape: Tuple[int, ...]
+        self, obj_fun: Callable[[torch.Tensor], torch.Tensor], x_shape: Tuple[int, ...]
     ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
         population = self.rng.normal(
             0, self.sigma, size=(self.population_size,) + x_shape
         ).astype(np.float32)
+        population = torch.from_numpy(population).to(self.device)
 
-        elite = np.zeros_like(population[: self.elite_num])
+        elite = torch.zeros_like(population[: self.elite_num])
         history = self._init_history(x_shape)
         best_solution = np.empty(x_shape)
         best_value = -np.inf
@@ -91,8 +93,8 @@ class CEMOptimizer:
             values = obj_fun(population)
             elite_idx = values.argsort()[-self.elite_num :]
             elite[:] = population[elite_idx]
-            mu = elite.mean(axis=0)
-            sigma = elite.std(axis=0)
+            mu = elite.mean(dim=0).cpu().numpy()
+            sigma = elite.std(dim=0).cpu().numpy()
 
             if values[elite_idx[-1]] > best_value:
                 best_value = values[elite_idx[-1]]
@@ -103,8 +105,9 @@ class CEMOptimizer:
                 mu.flatten(), np.diag(sigma.flatten()), self.population_size
             ).astype(np.float32)
             population = population.reshape((self.population_size,) + x_shape)
+            population = torch.from_numpy(population).to(self.device)
 
-        return best_solution, history
+        return best_solution.cpu().numpy(), history
 
 
 # TODO separate CEM specific parameters. This can probably be a planner class
@@ -116,9 +119,10 @@ class CEMPlanner:
         elite_ratio: float,
         population_size: int,
         sigma: float,
+        device: torch.device,
     ):
         self.optimizer = CEMOptimizer(
-            num_iterations, elite_ratio, population_size, sigma
+            num_iterations, elite_ratio, population_size, sigma, device
         )
         self.population_size = population_size
 
@@ -131,7 +135,7 @@ class CEMPlanner:
         propagation_method: str,
         reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
     ) -> Tuple[np.ndarray, float]:
-        def obj_fn(action_sequences_: np.ndarray) -> np.ndarray:
+        def obj_fn(action_sequences_: torch.Tensor) -> torch.Tensor:
             # Returns the mean (over particles) of the total reward for each
             # sequence
             total_rewards = evaluate_action_sequences(
