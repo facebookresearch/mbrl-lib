@@ -1,6 +1,6 @@
 import abc
 import itertools
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, cast
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import gym
 import hydra.utils
@@ -13,6 +13,8 @@ from torch import optim as optim
 from torch.nn import functional as F
 
 from . import replay_buffer
+
+TensorType = Union[torch.Tensor, np.ndarray]
 
 
 def gaussian_nll(
@@ -307,23 +309,28 @@ class EnsembleTrainer:
 
 
 class ModelEnv:
-    def __init__(self, env: gym.Env, model: Model, termination_fn, seed=None):
+    def __init__(
+        self, env: gym.Env, model: Model, termination_fn, seed=None, return_as_np=True
+    ):
         self.model = model
         self.termination_fn = termination_fn
 
         self.observation_space = env.observation_space
         self.action_space = env.action_space
 
-        self._current_obs = None
+        self._current_obs: torch.Tensor = None
         self._propagation_fn: Callable = None
         self._model_indices = None
         self._rng = np.random.RandomState(seed)
+        self._return_as_np = return_as_np
 
     def reset(
         self, initial_obs_batch: np.ndarray, propagation_method: str = "expectation"
-    ) -> np.ndarray:
+    ) -> TensorType:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
-        self._current_obs = np.copy(initial_obs_batch)
+        self._current_obs = torch.from_numpy(np.copy(initial_obs_batch)).to(
+            self.model.device
+        )
 
         if propagation_method == "expectation":
             self._propagation_fn = ModelEnv._propagate_expectation
@@ -338,24 +345,23 @@ class ModelEnv:
                 )
             else:
                 raise ValueError(f"Invalid propagation method: {propagation_method}.")
+
+        if self._return_as_np:
+            return self._current_obs.cpu().numpy()
         return self._current_obs
 
     def step(self, actions: np.ndarray, sample: bool = False):
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
-            model_in = torch.from_numpy(
-                np.concatenate([self._current_obs, actions], axis=1)
-            ).to(self.model.device)
+            actions = torch.from_numpy(actions).to(self.model.device)
+            model_in = torch.cat([self._current_obs, actions], axis=1)
             means, logvars = self.model(model_in, reduce=False)
 
-            means = means.cpu().numpy()
             if sample:
                 assert logvars is not None
-                variances = logvars.exp().cpu().numpy()
-                stds = np.sqrt(variances)
-                predictions = (
-                    means + self._rng.normal(size=means.shape).astype(np.float32) * stds
-                )
+                variances = logvars.exp()
+                stds = torch.sqrt(variances)
+                predictions = torch.normal(means, stds)
             else:
                 predictions = means
             predictions = self._propagation_fn(predictions)
@@ -364,21 +370,25 @@ class ModelEnv:
             rewards = predictions[:, -1:]
             dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
+            if self._return_as_np:
+                next_observs = next_observs.cpu().numpy()
+                rewards = rewards.cpu().numpy()
+                dones = dones.cpu().numpy()
             return next_observs, rewards, dones, {}
 
     @staticmethod
-    def _propagate_expectation(predictions: np.ndarray) -> np.ndarray:
+    def _propagate_expectation(predictions: torch.Tensor) -> torch.Tensor:
         if predictions.ndim == 3:
-            return np.mean(predictions, axis=0)
+            return predictions.mean(dim=0)
         raise NotImplementedError("Not yet implemented for non-ensemble models.")
 
     @staticmethod
-    def _propagate_random(predictions: np.ndarray) -> np.ndarray:
+    def _propagate_random(predictions: torch.Tensor) -> torch.Tensor:
         ensemble_size, batch_size, obs_size = predictions.shape
         idx = torch.randint(ensemble_size, size=(batch_size,))
         return predictions[idx, range(batch_size)]
 
-    def _propagate_fixed(self, predictions: np.ndarray) -> np.ndarray:
+    def _propagate_fixed(self, predictions: torch.Tensor) -> torch.Tensor:
         return predictions[self._model_indices, range(predictions.shape[1])]
 
     def render(self, mode="human"):

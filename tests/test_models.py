@@ -72,7 +72,7 @@ class MockProbModel(nn.Module):
 def mock_term_fn(act, next_obs):
     assert len(next_obs.shape) == len(act.shape) == 2
 
-    done = np.array([False]).repeat(len(next_obs))
+    done = torch.Tensor([False]).repeat(len(next_obs))
     done = done[:, None]
     return done
 

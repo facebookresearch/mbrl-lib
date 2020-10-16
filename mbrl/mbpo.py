@@ -1,5 +1,5 @@
 import os
-from typing import Callable, List
+from typing import List
 
 import gym
 import hydra.utils
@@ -9,6 +9,7 @@ import pytorch_sac
 import pytorch_sac.utils
 import torch
 
+import mbrl.env.termination_fns as termination_fns
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
 
@@ -154,7 +155,7 @@ def evaluate_on_model(
 def train(
     env: gym.Env,
     test_env: gym.Env,
-    termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    termination_fn: termination_fns.TermFnType,
     device: torch.device,
     cfg: omegaconf.DictConfig,
 ):
