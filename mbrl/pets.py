@@ -59,10 +59,10 @@ def collect_random_trajectories(
                 env_dataset_test.add(obs, action, next_obs, reward, done)
             obs = next_obs
             step += 1
-            if trial_length and step % trial_length == 0:
-                break
             if step == steps_to_collect:
                 return
+            if trial_length and step % trial_length == 0:
+                break
 
 
 def train(
@@ -173,7 +173,7 @@ def train(
                 env_dataset_train.add(obs, action, next_obs, reward, done)
 
             # --------------- Model Training -----------------
-            if env_steps % cfg.freq_train_dyn_model == 0:
+            if done or (env_steps % cfg.freq_train_dyn_model == 0):
                 pets_logger.log(
                     "train/train_dataset_size", env_dataset_train.num_stored, env_steps
                 )

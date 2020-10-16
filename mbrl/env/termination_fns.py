@@ -25,7 +25,7 @@ def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     return done
 
 
-def cartpole(_act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
+def cartpole(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     assert len(next_obs.shape) == 2
 
     x, theta = next_obs[:, 0], next_obs[:, 2]
