@@ -1,6 +1,7 @@
 from typing import Callable, Dict, Mapping, Optional, Tuple
 
 import numpy as np
+import torch
 
 import mbrl.env.reward_fns
 import mbrl.models
@@ -13,18 +14,19 @@ def evaluate_action_sequences(
     num_particles: int,
     propagation_method: str,
     reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
-) -> np.ndarray:
+) -> torch.Tensor:
     assert len(action_sequences.shape) == 3  # population_size, horizon, action_shape
     population_size, horizon, action_dim = action_sequences.shape
     initial_obs_batch = np.tile(
         initial_state, (num_particles * population_size, 1)
     ).astype(np.float32)
     model_env.reset(initial_obs_batch, propagation_method=propagation_method)
+    action_sequences = torch.from_numpy(action_sequences).float().to(model_env.device)
 
-    total_rewards: np.ndarray = 0
+    total_rewards: torch.Tensor = 0
     for time_step in range(horizon):
         actions_for_step = action_sequences[:, time_step, :]
-        action_batch = np.repeat(actions_for_step, num_particles, axis=0)
+        action_batch = torch.repeat_interleave(actions_for_step, num_particles, dim=0)
         next_obs, pred_rewards, _, _ = model_env.step(action_batch, sample=True)
         rewards = (
             pred_rewards if reward_fn is None else reward_fn(action_batch, next_obs)
@@ -140,8 +142,10 @@ class CEMPlanner:
                 propagation_method,
                 reward_fn,
             )
-            total_rewards = total_rewards.reshape(
-                self.population_size, num_model_particles
+            total_rewards = (
+                total_rewards.reshape(self.population_size, num_model_particles)
+                .cpu()
+                .numpy()
             )
             return total_rewards.mean(axis=1)
 

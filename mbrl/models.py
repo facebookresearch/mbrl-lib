@@ -314,6 +314,7 @@ class ModelEnv:
     ):
         self.model = model
         self.termination_fn = termination_fn
+        self.device = model.device
 
         self.observation_space = env.observation_space
         self.action_space = env.action_space
@@ -328,9 +329,7 @@ class ModelEnv:
         self, initial_obs_batch: np.ndarray, propagation_method: str = "expectation"
     ) -> TensorType:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
-        self._current_obs = torch.from_numpy(np.copy(initial_obs_batch)).to(
-            self.model.device
-        )
+        self._current_obs = torch.from_numpy(np.copy(initial_obs_batch)).to(self.device)
 
         if propagation_method == "expectation":
             self._propagation_fn = ModelEnv._propagate_expectation
@@ -350,10 +349,12 @@ class ModelEnv:
             return self._current_obs.cpu().numpy()
         return self._current_obs
 
-    def step(self, actions: np.ndarray, sample: bool = False):
+    def step(self, actions: TensorType, sample: bool = False):
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
-            actions = torch.from_numpy(actions).to(self.model.device)
+            # if actions is tensor, code assumes it's already on self.device
+            if isinstance(actions, np.ndarray):
+                actions = torch.from_numpy(actions).to(self.device)
             model_in = torch.cat([self._current_obs, actions], axis=1)
             means, logvars = self.model(model_in, reduce=False)
 
@@ -366,6 +367,7 @@ class ModelEnv:
                 predictions = means
             predictions = self._propagation_fn(predictions)
 
+            # This assumes model was trained using delta observations
             next_observs = predictions[:, :-1] + self._current_obs
             rewards = predictions[:, -1:]
             dones = self.termination_fn(actions, next_observs)

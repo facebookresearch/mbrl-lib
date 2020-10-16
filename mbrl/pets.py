@@ -130,7 +130,7 @@ def train(
 
     ensemble = hydra.utils.instantiate(cfg.model)
 
-    model_env = models.ModelEnv(env, ensemble, termination_fn)
+    model_env = models.ModelEnv(env, ensemble, termination_fn, return_as_np=False)
     model_trainer = models.EnsembleTrainer(
         ensemble,
         device,
