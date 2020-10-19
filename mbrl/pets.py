@@ -65,6 +65,15 @@ def collect_random_trajectories(
                 break
 
 
+def save_dataset(
+    env_dataset_train: replay_buffer.BootstrapReplayBuffer,
+    env_dataset_val: replay_buffer.IterableReplayBuffer,
+    work_dir: str,
+):
+    env_dataset_train.save(str(pathlib.PurePath(work_dir) / "replay_buffer_train"))
+    env_dataset_val.save(str(pathlib.PurePath(work_dir) / "replay_buffer_val"))
+
+
 def train(
     env: gym.Env,
     termination_fn: termination_fns.TermFnType,
@@ -121,7 +130,7 @@ def train(
         trial_length=cfg.trial_length,
     )
     if debug_mode:
-        env_dataset_train.save(str(pathlib.PurePath(work_dir) / "replay_buffer"))
+        save_dataset(env_dataset_train, env_dataset_val, work_dir)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -186,6 +195,9 @@ def train(
                 )
                 ensemble.save(os.path.join(work_dir, "model.pth"))
                 pets_logger.dump(env_steps, save=True)
+
+                if debug_mode:
+                    save_dataset(env_dataset_train, env_dataset_val, work_dir)
 
             obs = next_obs
             if normalize:
