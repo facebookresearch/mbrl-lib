@@ -149,6 +149,7 @@ def train(
         log_frequency=cfg.log_frequency_model,
     )
     env_steps = 0
+    steps_since_model_train = 0
     current_trial = 0
     for trial in range(cfg.num_trials):
         obs = env.reset()
@@ -157,6 +158,31 @@ def train(
         total_reward = 0
         steps_trial = 0
         while not done:
+            # --------------- Model Training -----------------
+            if steps_trial == 0 or (
+                steps_since_model_train % cfg.freq_train_dyn_model == 0
+            ):
+                pets_logger.log(
+                    "train/train_dataset_size", env_dataset_train.num_stored, env_steps
+                )
+                pets_logger.log(
+                    "train/val_dataset_size", env_dataset_val.num_stored, env_steps
+                )
+                model_trainer.train(
+                    num_epochs=cfg.get("num_epochs_train_dyn_model", None),
+                    patience=cfg.patience,
+                )
+                ensemble.save(os.path.join(work_dir, "model.pth"))
+                pets_logger.dump(env_steps, save=True)
+
+                if debug_mode:
+                    save_dataset(env_dataset_train, env_dataset_val, work_dir)
+
+                steps_since_model_train = 1
+            else:
+                steps_since_model_train += 1
+
+            # ------------- Planning using the learned model ---------------
             if not actions_to_use:  # re-plan is necessary
                 start_time = time.time()
                 plan, _ = planner.plan(
@@ -180,24 +206,6 @@ def train(
                 env_dataset_val.add(obs, action, next_obs, reward, done)
             else:
                 env_dataset_train.add(obs, action, next_obs, reward, done)
-
-            # --------------- Model Training -----------------
-            if done or (env_steps % cfg.freq_train_dyn_model == 0):
-                pets_logger.log(
-                    "train/train_dataset_size", env_dataset_train.num_stored, env_steps
-                )
-                pets_logger.log(
-                    "train/val_dataset_size", env_dataset_val.num_stored, env_steps
-                )
-                model_trainer.train(
-                    num_epochs=cfg.get("num_epochs_train_dyn_model", None),
-                    patience=cfg.patience,
-                )
-                ensemble.save(os.path.join(work_dir, "model.pth"))
-                pets_logger.dump(env_steps, save=True)
-
-                if debug_mode:
-                    save_dataset(env_dataset_train, env_dataset_val, work_dir)
 
             obs = next_obs
             if normalize:
