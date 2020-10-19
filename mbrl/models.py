@@ -121,6 +121,7 @@ class Ensemble(Model):
         device: torch.device,
         member_cfg: omegaconf.DictConfig,
         optim_lr: float = 0.0075,
+        optim_wd: float = 0.0001,
     ):
         super().__init__(in_size, out_size, device)
         self.members = []
@@ -128,7 +129,9 @@ class Ensemble(Model):
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model.to(device))
-            self.optimizers.append(optim.Adam(model.parameters(), lr=optim_lr))
+            self.optimizers.append(
+                optim.Adam(model.parameters(), lr=optim_lr, weight_decay=optim_wd)
+            )
 
     def __len__(self):
         return len(self.members)
