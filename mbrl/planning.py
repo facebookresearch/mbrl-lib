@@ -1,7 +1,8 @@
-from typing import Callable, Dict, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 import numpy as np
 import torch
+import torch.distributions
 
 import mbrl.env.reward_fns
 import mbrl.models
@@ -48,7 +49,6 @@ class CEMOptimizer:
         self.elite_ratio = elite_ratio
         self.population_size = population_size
         self.sigma = sigma
-        self.rng = np.random.default_rng()
         self.elite_num = np.ceil(self.population_size * self.elite_ratio).astype(
             np.long
         )
@@ -67,45 +67,44 @@ class CEMOptimizer:
     def _update_history(
         iter_idx: int,
         values: torch.Tensor,
-        mu: np.ndarray,
+        mu: torch.Tensor,
         best_x: torch.Tensor,
         history: Mapping[str, np.ndarray],
     ):
-        history["value_means"][iter_idx] = values.mean()
-        history["value_stds"][iter_idx] = values.std()
-        history["value_maxs"][iter_idx] = np.max(values)
+        history["value_means"][iter_idx] = values.mean().item()
+        history["value_stds"][iter_idx] = values.std().item()
+        history["value_maxs"][iter_idx] = values.max().item()
         history["best_xs"][iter_idx] = best_x.cpu().numpy()
-        history["mus"][iter_idx] = mu.copy()
+        history["mus"][iter_idx] = mu.cpu().numpy()
 
     def optimize(
-        self, obj_fun: Callable[[torch.Tensor], torch.Tensor], x_shape: Tuple[int, ...]
+        self,
+        obj_fun: Callable[[torch.Tensor], torch.Tensor],
+        x_shape: Tuple[int, ...],
+        callback: Optional[Callable[[torch.Tensor, int], Any]] = None,
     ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
-        population = self.rng.normal(
-            0, self.sigma, size=(self.population_size,) + x_shape
-        ).astype(np.float32)
-        population = torch.from_numpy(population).to(self.device)
+        mu = torch.zeros(x_shape).to(self.device)
+        sigma = self.sigma * torch.ones(x_shape).to(self.device)
 
-        elite = torch.zeros_like(population[: self.elite_num])
         history = self._init_history(x_shape)
         best_solution = np.empty(x_shape)
         best_value = -np.inf
         for i in range(self.num_iterations):
+            population = torch.distributions.Normal(mu, sigma).sample(
+                (self.population_size,)
+            )
+            if callback is not None:
+                callback(population, i)
             values = obj_fun(population)
-            elite_idx = values.argsort()[-self.elite_num :]
-            elite[:] = population[elite_idx]
-            mu = elite.mean(dim=0).cpu().numpy()
-            sigma = elite.std(dim=0).cpu().numpy()
+            best_values, elite_idx = values.topk(self.elite_num)
+            elite = population[elite_idx]
+            mu = elite.mean(dim=0)
+            sigma = elite.std(dim=0)
 
-            if values[elite_idx[-1]] > best_value:
-                best_value = values[elite_idx[-1]]
-                best_solution = population[elite_idx[-1]]
+            if best_values[0] > best_value:
+                best_value = best_values[0]
+                best_solution = population[elite_idx[0]]
             self._update_history(i, values, mu, best_solution, history)
-
-            population = self.rng.multivariate_normal(
-                mu.flatten(), np.diag(sigma.flatten()), self.population_size
-            ).astype(np.float32)
-            population = population.reshape((self.population_size,) + x_shape)
-            population = torch.from_numpy(population).to(self.device)
 
         return best_solution.cpu().numpy(), history
 
@@ -146,10 +145,8 @@ class CEMPlanner:
                 propagation_method,
                 reward_fn,
             )
-            total_rewards = (
-                total_rewards.reshape(self.population_size, num_model_particles)
-                .cpu()
-                .numpy()
+            total_rewards = total_rewards.reshape(
+                self.population_size, num_model_particles
             )
             return total_rewards.mean(axis=1)
 
