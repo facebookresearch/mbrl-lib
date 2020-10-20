@@ -24,6 +24,7 @@ PETS_LOG_FORMAT = [
     ("val_dataset_size", "VD", "int"),
     ("model_loss", "MLOSS", "float"),
     ("model_val_score", "MVSCORE", "float"),
+    ("model_best_val_score", "MBVSCORE", "float"),
 ]
 
 EVAL_LOG_FORMAT = [

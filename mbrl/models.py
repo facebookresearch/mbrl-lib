@@ -76,7 +76,7 @@ class GaussianMLP(Model):
         super(GaussianMLP, self).__init__(in_size, out_size, device)
         activation_cls = SiLU if use_silu else nn.ReLU
         hidden_layers = [nn.Sequential(nn.Linear(in_size, hid_size), activation_cls())]
-        for i in range(num_layers):
+        for i in range(num_layers - 1):
             hidden_layers.append(
                 nn.Sequential(nn.Linear(hid_size, hid_size), activation_cls())
             )
@@ -325,7 +325,9 @@ class ModelEnv:
         self._current_obs: torch.Tensor = None
         self._propagation_fn: Callable = None
         self._model_indices = None
-        self._rng = np.random.RandomState(seed)
+        self._rng = torch.Generator()
+        if seed is not None:
+            self._rng.manual_seed(seed)
         self._return_as_np = return_as_np
 
     def reset(
@@ -342,8 +344,11 @@ class ModelEnv:
                 self._propagation_fn = ModelEnv._propagate_random
             elif propagation_method == "fixed_model":
                 self._propagation_fn = self._propagate_fixed
-                self._model_indices = self._rng.randint(
-                    len(cast(Ensemble, self.model)), size=(len(initial_obs_batch),)
+                self._model_indices = torch.randint(
+                    len(cast(Ensemble, self.model)),
+                    (len(initial_obs_batch),),
+                    generator=self._rng,
+                    device=self.device,
                 )
             else:
                 raise ValueError(f"Invalid propagation method: {propagation_method}.")
@@ -369,7 +374,6 @@ class ModelEnv:
             else:
                 predictions = means
             predictions = self._propagation_fn(predictions)
-
             # This assumes model was trained using delta observations
             next_observs = predictions[:, :-1] + self._current_obs
             rewards = predictions[:, -1:]
@@ -390,11 +394,16 @@ class ModelEnv:
     @staticmethod
     def _propagate_random(predictions: torch.Tensor) -> torch.Tensor:
         ensemble_size, batch_size, obs_size = predictions.shape
-        idx = torch.randint(ensemble_size, size=(batch_size,))
-        return predictions[idx, range(batch_size)]
+        idx = torch.randint(
+            ensemble_size, size=(batch_size,), device=predictions.device
+        )
+        return predictions[idx, torch.arange(batch_size, device=predictions.device)]
 
     def _propagate_fixed(self, predictions: torch.Tensor) -> torch.Tensor:
-        return predictions[self._model_indices, range(predictions.shape[1])]
+        return predictions[
+            self._model_indices,
+            torch.arange(predictions.shape[1], device=predictions.device),
+        ]
 
     def render(self, mode="human"):
         pass
