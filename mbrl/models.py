@@ -1,6 +1,6 @@
 import abc
 import itertools
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import gym
 import hydra.utils
@@ -142,21 +142,72 @@ class Ensemble(Model):
     def __iter__(self):
         return iter(zip(self.members, self.optimizers))
 
-    def forward(  # type: ignore
-        self, x: torch.Tensor, reduce=True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _default_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         predictions = [model(x) for model in self.members]
         all_means = torch.stack([p[0] for p in predictions], dim=0)
         if predictions[0][1] is not None:
             all_logvars = torch.stack([p[1] for p in predictions], dim=0)
         else:
             all_logvars = None
-        if reduce:
-            mean = all_means.mean(dim=0)
-            logvar = all_logvars.mean(dim=0) if all_logvars is not None else None
-            return mean, logvar
-        else:
-            return all_means, all_logvars
+        return all_means, all_logvars
+
+    def _forward_from_indices(
+        self, x: torch.Tensor, model_indices: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        batch_size = len(x)
+        means = torch.empty((batch_size, self.out_size), device=self.device)
+        logvars = torch.empty((batch_size, self.out_size), device=self.device)
+        has_logvar = True
+        for i in range(len(self.members)):
+            model_idx = model_indices == i
+            mean, logvar = self.members[i](x[model_idx])
+            means[model_idx] = mean
+            if logvar is not None:
+                logvars[model_idx] = logvar
+            else:
+                has_logvar = False
+        if not has_logvar:
+            logvars = None
+        return means, logvars
+
+    def _forward_random_model(
+        self, x: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        batch_size = len(x)
+        model_indices = torch.randint(
+            len(self.members), size=(batch_size,), device=self.device
+        )
+        return self._forward_from_indices(x, model_indices)
+
+    def _forward_expectation(
+        self, x: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        all_means, all_logvars = self._default_forward(x)
+        mean = all_means.mean(dim=0)
+        logvar = all_logvars.mean(dim=0) if all_logvars is not None else None
+        return mean, logvar
+
+    def forward(  # type: ignore
+        self,
+        x: torch.Tensor,
+        propagation: Optional[str] = None,
+        propagation_indices: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if propagation is None:
+            return self._default_forward(x)
+        if propagation == "random_model":
+            return self._forward_random_model(x)
+        if propagation == "fixed_model":
+            assert (
+                propagation_indices is not None
+            ), "When using propagation='fixed_model', `propagation_indices` must be provided."
+            return self._forward_from_indices(x, propagation_indices)
+        if propagation == "expectation":
+            return self._forward_expectation(x)
+        raise ValueError(
+            f"Invalid propagation method {propagation}. Valid options are: "
+            f"'random_model', 'fixed_model', 'expectation'."
+        )
 
     # TODO move optimizers outside of this (do optim step in a different func)
     def loss(
@@ -313,7 +364,12 @@ class EnsembleTrainer:
 
 class ModelEnv:
     def __init__(
-        self, env: gym.Env, model: Model, termination_fn, seed=None, return_as_np=True
+        self,
+        env: gym.Env,
+        model: Ensemble,
+        termination_fn,
+        seed=None,
+        return_as_np=True,
     ):
         self.model = model
         self.termination_fn = termination_fn
@@ -323,7 +379,7 @@ class ModelEnv:
         self.action_space = env.action_space
 
         self._current_obs: torch.Tensor = None
-        self._propagation_fn: Callable = None
+        self._propagation_method: Optional[str] = None
         self._model_indices = None
         self._rng = torch.Generator()
         if seed is not None:
@@ -336,22 +392,14 @@ class ModelEnv:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         self._current_obs = torch.from_numpy(np.copy(initial_obs_batch)).to(self.device)
 
-        if propagation_method == "expectation":
-            self._propagation_fn = ModelEnv._propagate_expectation
-        else:
-            assert hasattr(self.model, "members")
-            if propagation_method == "random_model":
-                self._propagation_fn = ModelEnv._propagate_random
-            elif propagation_method == "fixed_model":
-                self._propagation_fn = self._propagate_fixed
-                self._model_indices = torch.randint(
-                    len(cast(Ensemble, self.model)),
-                    (len(initial_obs_batch),),
-                    generator=self._rng,
-                    device=self.device,
-                )
-            else:
-                raise ValueError(f"Invalid propagation method: {propagation_method}.")
+        self._propagation_method = propagation_method
+        if propagation_method == "fixed_model":
+            self._model_indices = torch.randint(
+                len(self.model),
+                (len(initial_obs_batch),),
+                generator=self._rng,
+                device=self.device,
+            )
 
         if self._return_as_np:
             return self._current_obs.cpu().numpy()
@@ -364,7 +412,11 @@ class ModelEnv:
             if isinstance(actions, np.ndarray):
                 actions = torch.from_numpy(actions).to(self.device)
             model_in = torch.cat([self._current_obs, actions], axis=1)
-            means, logvars = self.model(model_in, reduce=False)
+            means, logvars = self.model(
+                model_in,
+                propagation=self._propagation_method,
+                propagation_indices=self._model_indices,
+            )
 
             if sample:
                 assert logvars is not None
@@ -373,7 +425,7 @@ class ModelEnv:
                 predictions = torch.normal(means, stds)
             else:
                 predictions = means
-            predictions = self._propagation_fn(predictions)
+
             # This assumes model was trained using delta observations
             next_observs = predictions[:, :-1] + self._current_obs
             rewards = predictions[:, -1:]
@@ -384,26 +436,6 @@ class ModelEnv:
                 rewards = rewards.cpu().numpy()
                 dones = dones.cpu().numpy()
             return next_observs, rewards, dones, {}
-
-    @staticmethod
-    def _propagate_expectation(predictions: torch.Tensor) -> torch.Tensor:
-        if predictions.ndim == 3:
-            return predictions.mean(dim=0)
-        raise NotImplementedError("Not yet implemented for non-ensemble models.")
-
-    @staticmethod
-    def _propagate_random(predictions: torch.Tensor) -> torch.Tensor:
-        ensemble_size, batch_size, obs_size = predictions.shape
-        idx = torch.randint(
-            ensemble_size, size=(batch_size,), device=predictions.device
-        )
-        return predictions[idx, torch.arange(batch_size, device=predictions.device)]
-
-    def _propagate_fixed(self, predictions: torch.Tensor) -> torch.Tensor:
-        return predictions[
-            self._model_indices,
-            torch.arange(predictions.shape[1], device=predictions.device),
-        ]
 
     def render(self, mode="human"):
         pass

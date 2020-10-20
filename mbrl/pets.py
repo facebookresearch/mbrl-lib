@@ -1,6 +1,5 @@
 import os
 import pathlib
-import time
 from typing import List, Optional
 
 import gym
@@ -185,7 +184,6 @@ def train(
 
             # ------------- Planning using the learned model ---------------
             if not actions_to_use:  # re-plan is necessary
-                start_time = time.time()
                 plan, _ = planner.plan(
                     model_env,
                     obs,
@@ -194,9 +192,6 @@ def train(
                     cfg.propagation_method,
                     reward_fn,
                 )
-                plan_time = time.time() - start_time
-                if debug_mode:
-                    print(f"Plan time: {plan_time}")
 
                 actions_to_use.extend([a for a in plan[: cfg.replan_freq]])
             action = actions_to_use.pop(0)
