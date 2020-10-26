@@ -390,7 +390,9 @@ class ModelEnv:
         self, initial_obs_batch: np.ndarray, propagation_method: str = "expectation"
     ) -> TensorType:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
-        self._current_obs = torch.from_numpy(np.copy(initial_obs_batch)).to(self.device)
+        self._current_obs = torch.from_numpy(
+            np.copy(initial_obs_batch.astype(np.float32))
+        ).to(self.device)
 
         self._propagation_method = propagation_method
         if propagation_method == "fixed_model":
