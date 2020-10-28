@@ -1,6 +1,6 @@
 import os
 import pathlib
-import time
+import pickle
 from typing import List, Optional
 
 import gym
@@ -24,6 +24,7 @@ PETS_LOG_FORMAT = [
     ("val_dataset_size", "VD", "int"),
     ("model_loss", "MLOSS", "float"),
     ("model_val_score", "MVSCORE", "float"),
+    ("model_best_val_score", "MBVSCORE", "float"),
 ]
 
 EVAL_LOG_FORMAT = [
@@ -63,6 +64,16 @@ def collect_random_trajectories(
                 return
             if trial_length and step % trial_length == 0:
                 break
+
+
+def save_dataset(
+    env_dataset_train: replay_buffer.BootstrapReplayBuffer,
+    env_dataset_val: replay_buffer.IterableReplayBuffer,
+    work_dir: str,
+):
+    work_path = pathlib.Path(work_dir)
+    env_dataset_train.save(str(work_path / "replay_buffer_train"))
+    env_dataset_val.save(str(work_path / "replay_buffer_val"))
 
 
 def train(
@@ -121,7 +132,7 @@ def train(
         trial_length=cfg.trial_length,
     )
     if debug_mode:
-        env_dataset_train.save(str(pathlib.PurePath(work_dir) / "replay_buffer"))
+        save_dataset(env_dataset_train, env_dataset_val, work_dir)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -140,6 +151,7 @@ def train(
         log_frequency=cfg.log_frequency_model,
     )
     env_steps = 0
+    steps_since_model_train = 0
     current_trial = 0
     for trial in range(cfg.num_trials):
         obs = env.reset()
@@ -148,32 +160,12 @@ def train(
         total_reward = 0
         steps_trial = 0
         while not done:
-            if not actions_to_use:  # re-plan is necessary
-                start_time = time.time()
-                plan, _ = planner.plan(
-                    model_env,
-                    obs,
-                    cfg.planning_horizon,
-                    cfg.num_particles,
-                    cfg.propagation_method,
-                    reward_fn,
-                )
-                plan_time = time.time() - start_time
-                if debug_mode:
-                    print(f"Plan time: {plan_time}")
-
-                actions_to_use.extend([a for a in plan[: cfg.replan_freq]])
-            action = actions_to_use.pop(0)
-
-            # --- Doing env step and adding to model dataset ---
-            next_obs, reward, done, _ = env.step(action)
-            if cfg.increase_val_set and rng.random() < cfg.validation_ratio:
-                env_dataset_val.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
-
             # --------------- Model Training -----------------
-            if done or (env_steps % cfg.freq_train_dyn_model == 0):
+            # TODO move this to a separate function, replace also in mbpo
+            #   requires refactoring logger
+            if steps_trial == 0 or (
+                steps_since_model_train % cfg.freq_train_dyn_model == 0
+            ):
                 pets_logger.log(
                     "train/train_dataset_size", env_dataset_train.num_stored, env_steps
                 )
@@ -184,8 +176,42 @@ def train(
                     num_epochs=cfg.get("num_epochs_train_dyn_model", None),
                     patience=cfg.patience,
                 )
-                ensemble.save(os.path.join(work_dir, "model.pth"))
+                work_path = pathlib.Path(work_dir)
+                ensemble.save(work_path / "model.pth")
                 pets_logger.dump(env_steps, save=True)
+                if isinstance(env, wrappers.NormalizedEnv):
+                    with open(work_path / "env_stats.pickle", "wb") as f:
+                        pickle.dump(
+                            {"obs": env.obs_stats, "reward": env.reward_stats}, f
+                        )
+
+                if debug_mode:
+                    save_dataset(env_dataset_train, env_dataset_val, work_dir)
+
+                steps_since_model_train = 1
+            else:
+                steps_since_model_train += 1
+
+            # ------------- Planning using the learned model ---------------
+            if not actions_to_use:  # re-plan is necessary
+                plan, _ = planner.plan(
+                    model_env,
+                    obs,
+                    cfg.planning_horizon,
+                    cfg.num_particles,
+                    cfg.propagation_method,
+                    reward_fn,
+                )
+
+                actions_to_use.extend([a for a in plan[: cfg.replan_freq]])
+            action = actions_to_use.pop(0)
+
+            # --- Doing env step and adding to model dataset ---
+            next_obs, reward, done, _ = env.step(action)
+            if cfg.increase_val_set and rng.random() < cfg.validation_ratio:
+                env_dataset_val.add(obs, action, next_obs, reward, done)
+            else:
+                env_dataset_train.add(obs, action, next_obs, reward, done)
 
             obs = next_obs
             if normalize:

@@ -6,6 +6,7 @@ model:
   member_cfg: ${member_cfg}
   device: ${device}
   optim_lr: 0.0001
+  optim_wd: 0.0001
 
 member_cfg:
   _target_: mbrl.models.GaussianMLP

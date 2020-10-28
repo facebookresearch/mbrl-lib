@@ -1,3 +1,15 @@
-from . import cartpole_continuous, pets_cartpole, reward_fns, termination_fns
+from . import (
+    cartpole_continuous,
+    halfcheetah_pets_wrapper,
+    pets_reacher,
+    reward_fns,
+    termination_fns,
+)
 
-__all__ = ["cartpole_continuous", "pets_cartpole", "reward_fns", "termination_fns"]
+__all__ = [
+    "cartpole_continuous",
+    "halfcheetah_pets_wrapper",
+    "pets_reacher",
+    "reward_fns",
+    "termination_fns",
+]

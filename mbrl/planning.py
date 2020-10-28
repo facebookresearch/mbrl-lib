@@ -1,6 +1,8 @@
-from typing import Callable, Dict, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 import numpy as np
+import torch
+import torch.distributions
 
 import mbrl.env.reward_fns
 import mbrl.models
@@ -8,23 +10,25 @@ import mbrl.models
 
 def evaluate_action_sequences(
     initial_state: np.ndarray,
-    action_sequences: np.ndarray,
+    action_sequences: torch.Tensor,
     model_env: mbrl.models.ModelEnv,
     num_particles: int,
     propagation_method: str,
     reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
-) -> np.ndarray:
+) -> torch.Tensor:
     assert len(action_sequences.shape) == 3  # population_size, horizon, action_shape
     population_size, horizon, action_dim = action_sequences.shape
     initial_obs_batch = np.tile(
         initial_state, (num_particles * population_size, 1)
     ).astype(np.float32)
-    model_env.reset(initial_obs_batch, propagation_method=propagation_method)
+    model_env.reset(
+        initial_obs_batch, propagation_method=propagation_method, return_as_np=False
+    )
 
-    total_rewards: np.ndarray = 0
+    total_rewards: torch.Tensor = 0
     for time_step in range(horizon):
         actions_for_step = action_sequences[:, time_step, :]
-        action_batch = np.repeat(actions_for_step, num_particles, axis=0)
+        action_batch = torch.repeat_interleave(actions_for_step, num_particles, dim=0)
         next_obs, pred_rewards, _, _ = model_env.step(action_batch, sample=True)
         rewards = (
             pred_rewards if reward_fn is None else reward_fn(action_batch, next_obs)
@@ -41,15 +45,16 @@ class CEMOptimizer:
         elite_ratio: float,
         population_size: int,
         sigma: float,
+        device: torch.device,
     ):
         self.num_iterations = num_iterations
         self.elite_ratio = elite_ratio
         self.population_size = population_size
         self.sigma = sigma
-        self.rng = np.random.default_rng()
         self.elite_num = np.ceil(self.population_size * self.elite_ratio).astype(
             np.long
         )
+        self.device = device
 
     def _init_history(self, x_shape: Tuple[int, ...]) -> Dict[str, np.ndarray]:
         return {
@@ -63,46 +68,47 @@ class CEMOptimizer:
     @staticmethod
     def _update_history(
         iter_idx: int,
-        values: np.ndarray,
-        mu: np.ndarray,
-        best_x: np.ndarray,
+        values: torch.Tensor,
+        mu: torch.Tensor,
+        best_x: torch.Tensor,
         history: Mapping[str, np.ndarray],
     ):
-        history["value_means"][iter_idx] = values.mean()
-        history["value_stds"][iter_idx] = values.std()
-        history["value_maxs"][iter_idx] = np.max(values)
-        history["best_xs"][iter_idx] = best_x.copy()
-        history["mus"][iter_idx] = mu.copy()
+        history["value_means"][iter_idx] = values.mean().item()
+        history["value_stds"][iter_idx] = values.std().item()
+        history["value_maxs"][iter_idx] = values.max().item()
+        history["best_xs"][iter_idx] = best_x.cpu().numpy()
+        history["mus"][iter_idx] = mu.cpu().numpy()
 
     def optimize(
-        self, obj_fun: Callable[[np.ndarray], np.ndarray], x_shape: Tuple[int, ...]
+        self,
+        obj_fun: Callable[[torch.Tensor], torch.Tensor],
+        x_shape: Tuple[int, ...],
+        callback: Optional[Callable[[torch.Tensor, int], Any]] = None,
     ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
-        population = self.rng.normal(
-            0, self.sigma, size=(self.population_size,) + x_shape
-        ).astype(np.float32)
+        mu = torch.zeros(x_shape).to(self.device)
+        sigma = self.sigma * torch.ones(x_shape).to(self.device)
 
-        elite = np.zeros_like(population[: self.elite_num])
         history = self._init_history(x_shape)
         best_solution = np.empty(x_shape)
         best_value = -np.inf
         for i in range(self.num_iterations):
+            population = torch.distributions.Normal(mu, sigma).sample(
+                (self.population_size,)
+            )
+            if callback is not None:
+                callback(population, i)
             values = obj_fun(population)
-            elite_idx = values.argsort()[-self.elite_num :]
-            elite[:] = population[elite_idx]
-            mu = elite.mean(axis=0)
-            sigma = elite.std(axis=0)
+            best_values, elite_idx = values.topk(self.elite_num)
+            elite = population[elite_idx]
+            mu = elite.mean(dim=0)
+            sigma = elite.std(dim=0)
 
-            if values[elite_idx[-1]] > best_value:
-                best_value = values[elite_idx[-1]]
-                best_solution = population[elite_idx[-1]]
+            if best_values[0] > best_value:
+                best_value = best_values[0]
+                best_solution = population[elite_idx[0]]
             self._update_history(i, values, mu, best_solution, history)
 
-            population = self.rng.multivariate_normal(
-                mu.flatten(), np.diag(sigma.flatten()), self.population_size
-            ).astype(np.float32)
-            population = population.reshape((self.population_size,) + x_shape)
-
-        return best_solution, history
+        return best_solution.cpu().numpy(), history
 
 
 # TODO separate CEM specific parameters. This can probably be a planner class
@@ -114,9 +120,10 @@ class CEMPlanner:
         elite_ratio: float,
         population_size: int,
         sigma: float,
+        device: torch.device,
     ):
         self.optimizer = CEMOptimizer(
-            num_iterations, elite_ratio, population_size, sigma
+            num_iterations, elite_ratio, population_size, sigma, device
         )
         self.population_size = population_size
 
@@ -129,7 +136,7 @@ class CEMPlanner:
         propagation_method: str,
         reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
     ) -> Tuple[np.ndarray, float]:
-        def obj_fn(action_sequences_: np.ndarray) -> np.ndarray:
+        def obj_fn(action_sequences_: torch.Tensor) -> torch.Tensor:
             # Returns the mean (over particles) of the total reward for each
             # sequence
             total_rewards = evaluate_action_sequences(

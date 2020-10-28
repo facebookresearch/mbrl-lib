@@ -1,5 +1,5 @@
 import os
-from typing import Callable, List
+from typing import List
 
 import gym
 import hydra.utils
@@ -9,8 +9,10 @@ import pytorch_sac
 import pytorch_sac.utils
 import torch
 
+import mbrl.env.termination_fns as termination_fns
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
+import mbrl.util as util
 
 MBPO_LOG_FORMAT = [
     ("episode", "E", "int"),
@@ -154,7 +156,7 @@ def evaluate_on_model(
 def train(
     env: gym.Env,
     test_env: gym.Env,
-    termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    termination_fn: termination_fns.TermFnType,
     device: torch.device,
     cfg: omegaconf.DictConfig,
 ):
@@ -164,12 +166,7 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    cfg.agent.obs_dim = obs_shape[0]
-    cfg.agent.action_dim = act_shape[0]
-    cfg.agent.action_range = [
-        float(env.action_space.low.min()),
-        float(env.action_space.high.max()),
-    ]
+    util.complete_sac_cfg(env, cfg)
     agent = hydra.utils.instantiate(cfg.agent)
 
     work_dir = os.getcwd()
