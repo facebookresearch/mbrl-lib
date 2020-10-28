@@ -39,12 +39,12 @@ def test_gaussian_ensemble_forward():
     ensemble[0][0].forward = functools.partial(mock_forward, v=1)
     ensemble[1][0].forward = functools.partial(mock_forward, v=2)
 
-    model_out = ensemble.forward(model_in, reduce=True)[0]
+    model_out = ensemble.forward(model_in, propagation="expectation")[0]
     assert model_out.shape == torch.Size([batch_size, model_out_size])
     expected_tensor_sum = batch_size * model_out_size
 
     assert model_out.sum().item() == 1.5 * batch_size * model_out_size
-    model_out = ensemble.forward(model_in, reduce=False)[0]
+    model_out = ensemble.forward(model_in)[0]
     assert model_out.shape == torch.Size([2, batch_size, model_out_size])
     assert model_out[0].sum().item() == expected_tensor_sum
     assert model_out[1].sum().item() == 2 * expected_tensor_sum
@@ -85,7 +85,7 @@ def get_mock_env():
     ensemble = models.Ensemble(
         num_members,
         mock_obs_dim + mock_act_dim,
-        mock_obs_dim,
+        mock_obs_dim + 1,
         torch.device("cpu"),
         member_cfg,
     )
@@ -101,10 +101,10 @@ def get_mock_env():
 def test_model_env_expectation_propagation():
     batch_size = 7
     model_env, member_incs = get_mock_env()
-    init_obs = np.zeros((batch_size, mock_obs_dim))
+    init_obs = np.zeros((batch_size, mock_obs_dim)).astype(np.float32)
     model_env.reset(initial_obs_batch=init_obs, propagation_method="expectation")
 
-    action = np.zeros((batch_size, mock_act_dim))
+    action = np.zeros((batch_size, mock_act_dim)).astype(np.float32)
     prev_sum = 0
     for i in range(10):
         next_obs, reward, *_ = model_env.step(action, sample=False)
@@ -118,10 +118,10 @@ def test_model_env_expectation_propagation():
 def test_model_env_expectation_random():
     batch_size = 100
     model_env, member_incs = get_mock_env()
-    obs = np.zeros((batch_size, mock_obs_dim))
+    obs = np.zeros((batch_size, mock_obs_dim)).astype(np.float32)
     model_env.reset(initial_obs_batch=obs, propagation_method="random_model")
 
-    action = np.zeros((batch_size, mock_act_dim))
+    action = np.zeros((batch_size, mock_act_dim)).astype(np.float32)
     num_steps = 50
     history = ["" for _ in range(batch_size)]
     for i in range(num_steps):
@@ -148,10 +148,10 @@ def test_model_env_expectation_random():
 def test_model_env_expectation_fixed():
     batch_size = 100
     model_env, member_incs = get_mock_env()
-    obs = np.zeros((batch_size, mock_obs_dim))
+    obs = np.zeros((batch_size, mock_obs_dim)).astype(np.float32)
     model_env.reset(initial_obs_batch=obs, propagation_method="fixed_model")
 
-    action = np.zeros((batch_size, mock_act_dim))
+    action = np.zeros((batch_size, mock_act_dim)).astype(np.float32)
     num_steps = 50
     history = ["" for _ in range(batch_size)]
     for i in range(num_steps):
