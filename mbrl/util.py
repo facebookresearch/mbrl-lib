@@ -1,5 +1,5 @@
 import pathlib
-from typing import Callable, Tuple
+from typing import Callable, Optional, Sequence, Tuple, cast
 
 import dmc2gym.wrappers
 import gym
@@ -13,6 +13,8 @@ import torch
 
 import mbrl.env
 import mbrl.env.wrappers
+import mbrl.models
+import mbrl.planning
 
 
 # TODO rename
@@ -44,6 +46,9 @@ def get_environment_from_str(
     return env, term_fn, reward_fn
 
 
+# ------------------------------------------------------------------------ #
+# Utilities to roll out gym environments
+# ------------------------------------------------------------------------ #
 class freeze_mujoco_env:
     def __init__(self, env: gym.wrappers.TimeLimit):
         self._env = env
@@ -89,6 +94,75 @@ class freeze_mujoco_env:
         return self._exit_method()
 
 
+# If plan is given, then ignore agent and just run the actions in the plan
+def rollout_env(
+    env: gym.wrappers.TimeLimit,
+    initial_obs: np.ndarray,
+    agent: mbrl.Agent,
+    lookahead: int,
+    plan: Optional[Sequence[np.ndarray]] = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    actions = []
+    real_obses = []
+    rewards = []
+    with freeze_mujoco_env(cast(gym.wrappers.TimeLimit, env)):
+        current_obs = initial_obs.copy()
+        if plan is not None:
+            lookahead = len(plan)
+        for i in range(lookahead):
+            a = plan[i] if plan is not None else agent.act(current_obs)
+            next_obs, reward, done, _ = env.step(a)
+            actions.append(a)
+            real_obses.append(next_obs)
+            rewards.append(reward)
+            if done:
+                break
+            current_obs = next_obs
+    return np.stack(real_obses), np.stack(rewards), np.stack(actions)
+
+
+# TODO consider handling normalization inside ModelEnv.
+#  It will make a lot of this code cleaner
+def rollout_model_env(
+    model_env: mbrl.models.ModelEnv,
+    env: gym.Env,
+    initial_obs: np.ndarray,
+    plan: Optional[np.ndarray] = None,
+    planner: Optional[mbrl.planning.CEMPlanner] = None,
+    cfg: Optional[omegaconf.DictConfig] = None,
+    reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    obs_history = []
+    reward_history = []
+    normalized = False
+    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
+        normalized = True
+        initial_obs = env.normalize_obs(initial_obs)
+    if planner:
+        plan, _ = planner.plan(
+            model_env,
+            initial_obs[None, :],
+            cfg.planning_horizon,
+            cfg.num_particles,
+            cfg.propagation_method,
+            reward_fn=reward_fn,
+        )
+    model_env.reset(
+        initial_obs[None, :], propagation_method="expectation", return_as_np=True
+    )
+    for action in plan:
+        next_obs, reward, done, _ = model_env.step(action[None, :], sample=False)
+        if normalized:
+            next_obs = env.denormalize_obs(next_obs).squeeze()
+            reward = env.denormalize_reward(reward)
+        obs_history.append(next_obs)
+        reward_history.append(reward.item())
+    return np.stack(obs_history), np.stack(reward_history), plan
+
+
+# ------------------------------------------------------------------------ #
+# Utilities for agents
+# ------------------------------------------------------------------------ #
 class SACAgent(mbrl.Agent):
     def __init__(self, sac_agent: pytorch_sac.SACAgent):
         self.sac_agent = sac_agent
