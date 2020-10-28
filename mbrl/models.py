@@ -158,9 +158,9 @@ class Ensemble(Model):
         means = torch.empty((batch_size, self.out_size), device=self.device)
         logvars = torch.empty((batch_size, self.out_size), device=self.device)
         has_logvar = True
-        for i in range(len(self.members)):
+        for i, member in enumerate(self.members):
             model_idx = model_indices == i
-            mean, logvar = self.members[i](x[model_idx])
+            mean, logvar = member(x[model_idx])
             means[model_idx] = mean
             if logvar is not None:
                 logvars[model_idx] = logvar
