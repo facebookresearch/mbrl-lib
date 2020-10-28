@@ -21,7 +21,9 @@ def evaluate_action_sequences(
     initial_obs_batch = np.tile(
         initial_state, (num_particles * population_size, 1)
     ).astype(np.float32)
-    model_env.reset(initial_obs_batch, propagation_method=propagation_method)
+    model_env.reset(
+        initial_obs_batch, propagation_method=propagation_method, return_as_np=False
+    )
 
     total_rewards: torch.Tensor = 0
     for time_step in range(horizon):

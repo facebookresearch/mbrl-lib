@@ -363,14 +363,7 @@ class EnsembleTrainer:
 
 
 class ModelEnv:
-    def __init__(
-        self,
-        env: gym.Env,
-        model: Ensemble,
-        termination_fn,
-        seed=None,
-        return_as_np=True,
-    ):
+    def __init__(self, env: gym.Env, model: Ensemble, termination_fn, seed=None):
         self.model = model
         self.termination_fn = termination_fn
         self.device = model.device
@@ -384,10 +377,13 @@ class ModelEnv:
         self._rng = torch.Generator()
         if seed is not None:
             self._rng.manual_seed(seed)
-        self._return_as_np = return_as_np
+        self._return_as_np = True
 
     def reset(
-        self, initial_obs_batch: np.ndarray, propagation_method: str = "expectation"
+        self,
+        initial_obs_batch: np.ndarray,
+        propagation_method: str = "expectation",
+        return_as_np: bool = True,
     ) -> TensorType:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         self._current_obs = torch.from_numpy(
@@ -403,6 +399,7 @@ class ModelEnv:
                 device=self.device,
             )
 
+        self._return_as_np = return_as_np
         if self._return_as_np:
             return self._current_obs.cpu().numpy()
         return self._current_obs
