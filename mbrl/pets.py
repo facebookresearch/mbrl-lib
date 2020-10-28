@@ -1,5 +1,6 @@
 import os
 import pathlib
+import pickle
 from typing import List, Optional
 
 import gym
@@ -70,8 +71,9 @@ def save_dataset(
     env_dataset_val: replay_buffer.IterableReplayBuffer,
     work_dir: str,
 ):
-    env_dataset_train.save(str(pathlib.PurePath(work_dir) / "replay_buffer_train"))
-    env_dataset_val.save(str(pathlib.PurePath(work_dir) / "replay_buffer_val"))
+    work_path = pathlib.Path(work_dir)
+    env_dataset_train.save(str(work_path / "replay_buffer_train"))
+    env_dataset_val.save(str(work_path / "replay_buffer_val"))
 
 
 def train(
@@ -139,7 +141,7 @@ def train(
 
     ensemble = hydra.utils.instantiate(cfg.model)
 
-    model_env = models.ModelEnv(env, ensemble, termination_fn, return_as_np=False)
+    model_env = models.ModelEnv(env, ensemble, termination_fn)
     model_trainer = models.EnsembleTrainer(
         ensemble,
         device,
@@ -159,6 +161,8 @@ def train(
         steps_trial = 0
         while not done:
             # --------------- Model Training -----------------
+            # TODO move this to a separate function, replace also in mbpo
+            #   requires refactoring logger
             if steps_trial == 0 or (
                 steps_since_model_train % cfg.freq_train_dyn_model == 0
             ):
@@ -172,8 +176,14 @@ def train(
                     num_epochs=cfg.get("num_epochs_train_dyn_model", None),
                     patience=cfg.patience,
                 )
-                ensemble.save(os.path.join(work_dir, "model.pth"))
+                work_path = pathlib.Path(work_dir)
+                ensemble.save(work_path / "model.pth")
                 pets_logger.dump(env_steps, save=True)
+                if isinstance(env, wrappers.NormalizedEnv):
+                    with open(work_path / "env_stats.pickle", "wb") as f:
+                        pickle.dump(
+                            {"obs": env.obs_stats, "reward": env.reward_stats}, f
+                        )
 
                 if debug_mode:
                     save_dataset(env_dataset_train, env_dataset_val, work_dir)
