@@ -1,6 +1,8 @@
+import abc
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 import numpy as np
+import pytorch_sac
 import torch
 import torch.distributions
 
@@ -8,6 +10,26 @@ import mbrl.env.reward_fns
 import mbrl.models
 
 
+# TODO rename this module as "control.py", re-organize agents under a common
+#   interface (name it Controller)
+
+# ------------------------------------------------------------------------ #
+#                               Agent definitions
+# ------------------------------------------------------------------------ #
+class Agent:
+    @abc.abstractmethod
+    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+        """Issues an action given an observation."""
+
+
+class SACAgent(Agent):
+    def __init__(self, sac_agent: pytorch_sac.SACAgent):
+        self.sac_agent = sac_agent
+
+    def act(
+        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
+    ) -> np.ndarray:
+        return self.sac_agent.act(obs, sample=sample, batched=batched)
 def evaluate_action_sequences(
     initial_state: np.ndarray,
     action_sequences: torch.Tensor,

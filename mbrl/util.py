@@ -95,10 +95,11 @@ class freeze_mujoco_env:
 
 
 # If plan is given, then ignore agent and just run the actions in the plan
+# If plan is given, then ignores agent and runs the actions in the plan
 def rollout_env(
     env: gym.wrappers.TimeLimit,
     initial_obs: np.ndarray,
-    agent: mbrl.Agent,
+    agent: mbrl.planning.Agent,
     lookahead: int,
     plan: Optional[Sequence[np.ndarray]] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -163,16 +164,8 @@ def rollout_model_env(
 # ------------------------------------------------------------------------ #
 # Utilities for agents
 # ------------------------------------------------------------------------ #
-class SACAgent(mbrl.Agent):
-    def __init__(self, sac_agent: pytorch_sac.SACAgent):
-        self.sac_agent = sac_agent
-
-    def act(
-        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
-    ) -> np.ndarray:
-        return self.sac_agent.act(obs, sample=sample, batched=batched)
-
-
+# TODO unify this with planner configuration (probably have cem planner under a common base
+#   config, both using action_lb, action_ub. Refactor SAC agent accordingly)
 def complete_sac_cfg(env: gym.Env, cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
@@ -187,7 +180,9 @@ def complete_sac_cfg(env: gym.Env, cfg: omegaconf.DictConfig) -> omegaconf.DictC
     return cfg
 
 
-def get_agent(agent_path: pathlib.Path, env: gym.Env, agent_type: str) -> mbrl.Agent:
+def get_agent(
+    agent_path: pathlib.Path, env: gym.Env, agent_type: str
+) -> mbrl.planning.Agent:
     if agent_type == "pytorch_sac":
         cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
         cfg.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
@@ -195,7 +190,7 @@ def get_agent(agent_path: pathlib.Path, env: gym.Env, agent_type: str) -> mbrl.A
         agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.agent)
         agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
         agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
-        return SACAgent(agent)
+        return mbrl.planning.SACAgent(agent)
     else:
         raise ValueError(
             f"Invalid agent type {agent_type}. Supported options are: 'pytorch_sac'."
