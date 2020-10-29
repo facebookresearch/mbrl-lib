@@ -82,7 +82,7 @@ def train(
     reward_fn: reward_fns.RewardFnType,
     device: torch.device,
     cfg: omegaconf.DictConfig,
-):
+) -> float:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
 
@@ -141,7 +141,7 @@ def train(
 
     ensemble = hydra.utils.instantiate(cfg.model)
 
-    model_env = models.ModelEnv(env, ensemble, termination_fn)
+    model_env = models.ModelEnv(env, ensemble, termination_fn, seed=cfg.seed)
     model_trainer = models.EnsembleTrainer(
         ensemble,
         device,
@@ -153,6 +153,7 @@ def train(
     env_steps = 0
     steps_since_model_train = 0
     current_trial = 0
+    max_total_reward = -np.inf
     for trial in range(cfg.num_trials):
         obs = env.reset()
         actions_to_use: List[np.ndarray] = []
@@ -229,3 +230,7 @@ def train(
         pets_logger.log("eval/episode_reward", total_reward, env_steps)
         pets_logger.dump(env_steps, save=True)
         current_trial += 1
+
+        max_total_reward = max(max_total_reward, total_reward)
+
+    return float(max_total_reward)
