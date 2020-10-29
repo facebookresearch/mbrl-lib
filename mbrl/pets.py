@@ -104,6 +104,8 @@ def train(
         eval_format=EVAL_LOG_FORMAT,
     )
 
+    cfg.planner.action_lb = env.action_space.low.tolist()
+    cfg.planner.action_ub = env.action_space.high.tolist()
     planner = hydra.utils.instantiate(cfg.planner)
 
     # -------------- Create initial env. dataset --------------

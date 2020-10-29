@@ -21,8 +21,11 @@ planner:
   _target_: mbrl.planning.CEMPlanner
   num_iterations: 5
   elite_ratio: 0.1
-  population_size: 400
-  sigma: 2.0
+  population_size: 500
+  alpha: 0.1
+  action_lb: ???
+  action_ub: ???
+  device: ${model.device}
 
 #env: "gym___CartPole-v1"
 env: "cartpole_continuous"

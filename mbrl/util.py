@@ -17,6 +17,9 @@ import mbrl.models
 import mbrl.planning
 
 
+# ------------------------------------------------------------------------ #
+# Generic utilities
+# ------------------------------------------------------------------------ #
 # TODO rename
 def get_environment_from_str(
     cfg: omegaconf.DictConfig,
@@ -47,7 +50,7 @@ def get_environment_from_str(
 
 
 # ------------------------------------------------------------------------ #
-# Utilities to roll out gym environments
+# Utilities to roll out environments
 # ------------------------------------------------------------------------ #
 class freeze_mujoco_env:
     def __init__(self, env: gym.wrappers.TimeLimit):
@@ -94,7 +97,6 @@ class freeze_mujoco_env:
         return self._exit_method()
 
 
-# If plan is given, then ignore agent and just run the actions in the plan
 # If plan is given, then ignores agent and runs the actions in the plan
 def rollout_env(
     env: gym.wrappers.TimeLimit,
