@@ -199,6 +199,7 @@ def rollout_model_env(
     planner: Optional[mbrl.planning.CEMPlanner] = None,
     cfg: Optional[omegaconf.DictConfig] = None,
     reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+    num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     obs_history = []
     reward_history = []
@@ -216,15 +217,19 @@ def rollout_model_env(
             reward_fn=reward_fn,
         )
     model_env.reset(
-        initial_obs[None, :], propagation_method="expectation", return_as_np=True
+        np.tile(initial_obs, (num_samples, 1)),
+        propagation_method="random_model",
+        return_as_np=True,
     )
     for action in plan:
-        next_obs, reward, done, _ = model_env.step(action[None, :], sample=False)
+        next_obs, reward, done, _ = model_env.step(
+            np.tile(action, (num_samples, 1)), sample=False
+        )
         if normalized:
-            next_obs = env.denormalize_obs(next_obs).squeeze()
+            next_obs = env.denormalize_obs(next_obs)
             reward = env.denormalize_reward(reward)
         obs_history.append(next_obs)
-        reward_history.append(reward.item())
+        reward_history.append(reward)
     return np.stack(obs_history), np.stack(reward_history), plan
 
 
