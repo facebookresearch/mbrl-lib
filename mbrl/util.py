@@ -1,5 +1,5 @@
 import pathlib
-from typing import Callable, Optional, Sequence, Tuple, Union, cast
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union, cast
 
 import dmc2gym.wrappers
 import gym
@@ -207,6 +207,37 @@ def rollout_model_env(
         obs_history.append(next_obs)
         reward_history.append(reward.item())
     return np.stack(obs_history), np.stack(reward_history), plan
+
+
+def populate_buffers_with_agent_trajectories(
+    env: gym.Env,
+    env_dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
+    env_dataset_test: mbrl.replay_buffer.SimpleReplayBuffer,
+    steps_to_collect: int,
+    val_ratio: float,
+    agent: mbrl.planning.Agent,
+    agent_kwargs: Dict,
+    rng: np.random.Generator,
+):
+    indices = rng.permutation(steps_to_collect)
+    n_train = int(steps_to_collect * (1 - val_ratio))
+    indices_train = set(indices[:n_train])
+
+    step = 0
+    while True:
+        obs = env.reset()
+        done = False
+        while not done:
+            action = agent.act(obs, **agent_kwargs)
+            next_obs, reward, done, info = env.step(action)
+            if step in indices_train:
+                env_dataset_train.add(obs, action, next_obs, reward, done)
+            else:
+                env_dataset_test.add(obs, action, next_obs, reward, done)
+            obs = next_obs
+            step += 1
+            if step == steps_to_collect:
+                return
 
 
 # ------------------------------------------------------------------------ #
