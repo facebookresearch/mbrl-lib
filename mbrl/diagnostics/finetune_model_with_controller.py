@@ -1,6 +1,7 @@
 import pathlib
 from typing import Optional, cast
 
+import hydra
 import numpy as np
 import pytorch_sac
 
@@ -25,6 +26,7 @@ class FineTuner:
         agent_type: str,
         seed: Optional[int] = None,
         subdir: Optional[str] = None,
+        new_model: bool = False,
     ):
         self.cfg = mbrl.util.get_hydra_cfg(model_dir)
         self.env, self.term_fn, self.reward_fn = mbrl.util.make_env(self.cfg)
@@ -33,13 +35,16 @@ class FineTuner:
             self.env.action_space.shape[0] if self.env.action_space.shape else 1
         )
         self.cfg.model.out_size = self.env.observation_space.shape[0] + 1
-        self.ensemble = mbrl.util.load_trained_model(model_dir, self.cfg.model)
+        if new_model:
+            self.ensemble = hydra.utils.instantiate(self.cfg.model)
+        else:
+            self.ensemble = mbrl.util.load_trained_model(model_dir, self.cfg.model)
         self.agent = mbrl.util.get_agent(agent_dir, self.env, agent_type)
         self.dataset_train, self.dataset_val = mbrl.util.create_ensemble_buffers(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
-            model_dir,
+            None if new_model else model_dir,
         )
         self.rng = np.random.default_rng(seed)
 
@@ -97,5 +102,7 @@ if __name__ == "__main__":
         "/private/home/lep/code/pytorch_sac/exp/default/"
         "gym___HalfCheetah-v2/2020.10.26/0848_sac_test_exp"
     )
-    finetuner = FineTuner(model_dir_, agent_dir_, "pytorch_sac", subdir="sac40k")
-    finetuner.run(num_epochs=100, patience=20, steps_to_collect=40000)
+    finetuner = FineTuner(
+        model_dir_, agent_dir_, "pytorch_sac", subdir="new_model", new_model=True
+    )
+    finetuner.run(num_epochs=100, patience=20, steps_to_collect=100000)
