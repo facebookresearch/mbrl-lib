@@ -69,6 +69,8 @@ class Visualizer:
         )
         self.model_env = mbrl.models.ModelEnv(self.env, ensemble, term_fn)
 
+        self.cfg.planner.action_lb = self.env.action_space.low.tolist()
+        self.cfg.planner.action_ub = self.env.action_space.high.tolist()
         self.planner = hydra.utils.instantiate(self.cfg.planner)
 
         self.fig = None
