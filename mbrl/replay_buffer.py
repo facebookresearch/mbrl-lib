@@ -73,7 +73,7 @@ class SimpleReplayBuffer:
         self.reward[:num_stored] = data["reward"]
         self.done[:num_stored] = data["done"]
         self.num_stored = num_stored
-        self.cur_idx = 0
+        self.cur_idx = self.num_stored % self.capacity
 
 
 class IterableReplayBuffer(SimpleReplayBuffer):
