@@ -7,7 +7,6 @@ import hydra
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
-import omegaconf
 
 import mbrl
 import mbrl.env.wrappers
@@ -34,10 +33,9 @@ class Visualizer:
 
         pathlib.Path.mkdir(self.vis_path, exist_ok=True)
 
-        cfg_file = self.results_path / ".hydra" / "config.yaml"
-        self.cfg = omegaconf.OmegaConf.load(cfg_file)
+        self.cfg = mbrl.util.get_hydra_cfg(self.results_path)
 
-        self.env, term_fn, reward_fn = mbrl.util.get_environment_from_str(self.cfg)
+        self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
         self.reference_agent = mbrl.util.get_agent(
             self.agent_path,
             self.env,
@@ -57,11 +55,13 @@ class Visualizer:
         #  scattered all over the code
         obs_shape = self.env.observation_space.shape
         act_shape = self.env.action_space.shape
+
         self.cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
         self.cfg.model.out_size = obs_shape[0] + 1
-
-        ensemble = hydra.utils.instantiate(self.cfg.model)
-        ensemble.load(self.results_path / "model.pth")
+        ensemble = cast(
+            mbrl.models.Ensemble,
+            mbrl.util.load_trained_model(self.results_path, self.cfg.model),
+        )
         self.model_env = mbrl.models.ModelEnv(self.env, ensemble, term_fn)
 
         self.planner = hydra.utils.instantiate(self.cfg.planner)

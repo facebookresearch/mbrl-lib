@@ -60,6 +60,8 @@ def get_rollout_length(rollout_schedule: List[int], epoch: int):
     return int(y)
 
 
+# TODO replace this with mbrl.util.populate_buffer_with_agent_trajectories
+#   and a random agent
 def collect_random_trajectories(
     env: gym.Env,
     env_dataset_train: replay_buffer.BootstrapReplayBuffer,

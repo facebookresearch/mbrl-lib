@@ -258,6 +258,7 @@ def get_model_input_and_target(
     return model_in, target
 
 
+# TODO remove device from args, it's redundant (can use self.ensemble.device)
 class EnsembleTrainer:
     def __init__(
         self,
@@ -362,6 +363,7 @@ class EnsembleTrainer:
         return best_weights
 
 
+# TODO make this class compatible with Model (not just ensemble)
 class ModelEnv:
     def __init__(self, env: gym.Env, model: Ensemble, termination_fn, seed=None):
         self.model = model

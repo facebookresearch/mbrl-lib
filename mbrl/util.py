@@ -1,5 +1,5 @@
 import pathlib
-from typing import Callable, Optional, Sequence, Tuple, cast
+from typing import Callable, Optional, Sequence, Tuple, Union, cast
 
 import dmc2gym.wrappers
 import gym
@@ -15,13 +15,13 @@ import mbrl.env
 import mbrl.env.wrappers
 import mbrl.models
 import mbrl.planning
+import mbrl.replay_buffer
 
 
 # ------------------------------------------------------------------------ #
 # Generic utilities
 # ------------------------------------------------------------------------ #
-# TODO rename
-def get_environment_from_str(
+def make_env(
     cfg: omegaconf.DictConfig,
 ) -> Tuple[gym.Env, Callable, Callable]:
     if "dmcontrol___" in cfg.env:
@@ -47,6 +47,52 @@ def get_environment_from_str(
     if normalize:
         env = mbrl.env.wrappers.NormalizedEnv(env)
     return env, term_fn, reward_fn
+
+
+def load_trained_model(
+    results_dir: Union[str, pathlib.Path], model_cfg: omegaconf.DictConfig
+) -> mbrl.models.Model:
+    results_dir = pathlib.Path(results_dir)
+    model = hydra.utils.instantiate(model_cfg)
+    model.load(results_dir / "model.pth")
+    return model
+
+
+def get_hydra_cfg(results_dir: Union[str, pathlib.Path]):
+    results_dir = pathlib.Path(results_dir)
+    cfg_file = results_dir / ".hydra" / "config.yaml"
+    return omegaconf.OmegaConf.load(cfg_file)
+
+
+def create_ensemble_buffers(
+    cfg: omegaconf.DictConfig,
+    obs_shape: Tuple[int],
+    act_shape: Tuple[int],
+    load_dir: Optional[Union[str, pathlib.Path]] = None,
+) -> Tuple[
+    mbrl.replay_buffer.BootstrapReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
+]:
+    train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
+        cfg.env_dataset_size,
+        cfg.dynamics_model_batch_size,
+        cfg.model.ensemble_size,
+        obs_shape,
+        act_shape,
+    )
+    val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
+    val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
+        val_buffer_capacity,
+        cfg.dynamics_model_batch_size,
+        obs_shape,
+        act_shape,
+    )
+
+    if load_dir:
+        load_dir = pathlib.Path(load_dir)
+        train_buffer.load(str(load_dir / "replay_buffer_train.npz"))
+        val_buffer.load(str(load_dir / "replay_buffer_val.npz"))
+
+    return train_buffer, val_buffer
 
 
 # ------------------------------------------------------------------------ #
@@ -183,8 +229,9 @@ def complete_sac_cfg(env: gym.Env, cfg: omegaconf.DictConfig) -> omegaconf.DictC
 
 
 def get_agent(
-    agent_path: pathlib.Path, env: gym.Env, agent_type: str
+    agent_path: Union[str, pathlib.Path], env: gym.Env, agent_type: str
 ) -> mbrl.planning.Agent:
+    agent_path = pathlib.Path(agent_path)
     if agent_type == "pytorch_sac":
         cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
         cfg.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
