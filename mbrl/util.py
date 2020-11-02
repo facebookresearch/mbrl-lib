@@ -1,4 +1,5 @@
 import pathlib
+import pickle
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union, cast
 
 import dmc2gym.wrappers
@@ -49,12 +50,30 @@ def make_env(
     return env, term_fn, reward_fn
 
 
+# returns True if successful
+def maybe_load_env_stats(env: gym.Env, results_dir: str):
+    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
+        with open(pathlib.Path(results_dir) / "env_stats.pickle", "rb") as f:
+            env_stats = pickle.load(f)
+            env.obs_stats = env_stats["obs"]
+            env.reward_stats = env_stats["reward"]
+        return True
+    return False
+
+
+def maybe_save_env_stats(env: gym.Env, save_dir: Union[str, pathlib.Path]):
+    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
+        save_dir = pathlib.Path(save_dir)
+        with open(save_dir / "env_stats.pickle", "wb") as f:
+            pickle.dump({"obs": env.obs_stats, "reward": env.reward_stats}, f)
+
+
 def load_trained_model(
-    results_dir: Union[str, pathlib.Path], model_cfg: omegaconf.DictConfig
+    model_dir: Union[str, pathlib.Path], model_cfg: omegaconf.DictConfig
 ) -> mbrl.models.Model:
-    results_dir = pathlib.Path(results_dir)
+    model_dir = pathlib.Path(model_dir)
     model = hydra.utils.instantiate(model_cfg)
-    model.load(results_dir / "model.pth")
+    model.load(model_dir / "model.pth")
     return model
 
 

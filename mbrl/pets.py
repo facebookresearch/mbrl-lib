@@ -1,6 +1,5 @@
 import os
 import pathlib
-import pickle
 from typing import List, Optional
 
 import gym
@@ -15,6 +14,7 @@ import mbrl.env.termination_fns as termination_fns
 import mbrl.env.wrappers as wrappers
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
+import mbrl.util as util
 
 PETS_LOG_FORMAT = [
     ("episode", "E", "int"),
@@ -182,11 +182,7 @@ def train(
                 work_path = pathlib.Path(work_dir)
                 ensemble.save(work_path / "model.pth")
                 pets_logger.dump(env_steps, save=True)
-                if isinstance(env, wrappers.NormalizedEnv):
-                    with open(work_path / "env_stats.pickle", "wb") as f:
-                        pickle.dump(
-                            {"obs": env.obs_stats, "reward": env.reward_stats}, f
-                        )
+                util.maybe_save_env_stats(env, work_path)
 
                 if debug_mode:
                     save_dataset(env_dataset_train, env_dataset_val, work_dir)
