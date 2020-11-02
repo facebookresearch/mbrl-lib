@@ -1,5 +1,4 @@
 import pathlib
-import pickle
 from typing import Generator, List, Optional, Tuple, cast
 
 import gym.wrappers
@@ -24,14 +23,22 @@ class Visualizer:
         agent_dir: str,
         agent_type: str,
         num_steps: Optional[int] = None,
+        model_subdir: Optional[str] = None,
     ):
         self.lookahead = lookahead
         self.results_path = pathlib.Path(results_dir)
+        self.model_path = self.results_path
         self.agent_path = pathlib.Path(agent_dir)
-        self.vis_path = self.results_path / "vis"
-        self.num_steps = num_steps
-
+        self.vis_path = self.results_path / "diagnostics"
+        if model_subdir:
+            self.model_path /= model_subdir
+            if "diagnostics" in model_subdir:
+                # The model may have been created by another diagnostics script
+                model_subdir = pathlib.Path(model_subdir).name
+            self.vis_path /= model_subdir
         pathlib.Path.mkdir(self.vis_path, exist_ok=True)
+
+        self.num_steps = num_steps
 
         self.cfg = mbrl.util.get_hydra_cfg(self.results_path)
 
@@ -44,12 +51,10 @@ class Visualizer:
         self.reward_fn = reward_fn
 
         self.env_for_rollouts = self.env
-        if isinstance(self.env, mbrl.env.wrappers.NormalizedEnv):
-            self.env_for_rollouts = self.env.base_env
-            with open(self.results_path / "env_stats.pickle", "rb") as f:
-                env_stats = pickle.load(f)
-                self.env.obs_stats = env_stats["obs"]
-                self.env.reward_stats = env_stats["reward"]
+        if mbrl.util.maybe_load_env_stats(self.env, self.model_path):
+            self.env_for_rollouts = cast(
+                mbrl.env.wrappers.NormalizedEnv, self.env
+            ).base_env
 
         # TODO refactor all those cfg.model.in/out_size = obs_shape blabla
         #  scattered all over the code
@@ -60,7 +65,7 @@ class Visualizer:
         self.cfg.model.out_size = obs_shape[0] + 1
         ensemble = cast(
             mbrl.models.Ensemble,
-            mbrl.util.load_trained_model(self.results_path, self.cfg.model),
+            mbrl.util.load_trained_model(self.model_path, self.cfg.model),
         )
         self.model_env = mbrl.models.ModelEnv(self.env, ensemble, term_fn)
 

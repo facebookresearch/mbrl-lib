@@ -51,7 +51,7 @@ def make_env(
 
 
 # returns True if successful
-def maybe_load_env_stats(env: gym.Env, results_dir: str):
+def maybe_load_env_stats(env: gym.Env, results_dir: Union[str, pathlib.Path]):
     if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
         with open(pathlib.Path(results_dir) / "env_stats.pickle", "rb") as f:
             env_stats = pickle.load(f)
