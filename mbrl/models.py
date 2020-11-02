@@ -356,7 +356,7 @@ class EnsembleTrainer:
         improvement = (
             1 if np.isinf(best_val_loss) else (best_val_loss - val_loss) / best_val_loss
         )
-        if improvement > 0.01:
+        if improvement > 0.001:
             best_weights = []
             for model, _ in self.ensemble:
                 best_weights.append(model.state_dict())
