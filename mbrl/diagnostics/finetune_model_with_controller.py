@@ -30,7 +30,8 @@ class FineTuner:
     ):
         self.cfg = mbrl.util.get_hydra_cfg(model_dir)
         self.env, self.term_fn, self.reward_fn = mbrl.util.make_env(self.cfg)
-        mbrl.util.maybe_load_env_stats(self.env, model_dir)
+        if not new_model:
+            mbrl.util.maybe_load_env_stats(self.env, model_dir)
         self.cfg.model.in_size = self.env.observation_space.shape[0] + (
             self.env.action_space.shape[0] if self.env.action_space.shape else 1
         )
@@ -105,4 +106,4 @@ if __name__ == "__main__":
     finetuner = FineTuner(
         model_dir_, agent_dir_, "pytorch_sac", subdir="new_model", new_model=True
     )
-    finetuner.run(num_epochs=100, patience=20, steps_to_collect=100000)
+    finetuner.run(num_epochs=500, patience=20, steps_to_collect=100000)
