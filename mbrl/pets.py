@@ -146,7 +146,6 @@ def train(
     model_env = models.ModelEnv(env, ensemble, termination_fn, seed=cfg.seed)
     model_trainer = models.EnsembleTrainer(
         ensemble,
-        device,
         env_dataset_train,
         dataset_val=env_dataset_val,
         logger=pets_logger,

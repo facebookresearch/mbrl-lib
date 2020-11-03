@@ -82,7 +82,6 @@ class FineTuner:
 
         model_trainer = mbrl.models.EnsembleTrainer(
             cast(mbrl.models.Ensemble, self.ensemble),
-            self.ensemble.device,
             self.dataset_train,
             dataset_val=self.dataset_val,
             logger=logger,

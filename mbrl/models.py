@@ -263,12 +263,13 @@ class Ensemble(Model):
             m.load_state_dict(state_dicts[i])
 
 
-# TODO remove device from args, it's redundant (can use self.ensemble.device)
+# ------------------------------------------------------------------------ #
+# Model trainer
+# ------------------------------------------------------------------------ #
 class EnsembleTrainer:
     def __init__(
         self,
         ensemble: Ensemble,
-        device: torch.device,
         dataset_train: replay_buffer.BootstrapReplayBuffer,
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         logger: Optional[pytorch_sac.Logger] = None,
@@ -279,7 +280,6 @@ class EnsembleTrainer:
         self.logger = logger
         self.dataset_train = dataset_train
         self.dataset_val = dataset_val
-        self.device = device
         self.log_frequency = log_frequency
         self.target_is_delta = target_is_delta
 
@@ -304,7 +304,9 @@ class EnsembleTrainer:
                 targets = []
                 for i, batch in enumerate(ensemble_batch):
                     model_in, target = get_model_input_and_target(
-                        batch, self.device, target_is_delta=self.target_is_delta
+                        batch,
+                        self.ensemble.device,
+                        target_is_delta=self.target_is_delta,
                     )
                     model_ins.append(model_in)
                     targets.append(target)
@@ -345,7 +347,7 @@ class EnsembleTrainer:
         total_avg_loss = 0.0
         for ensemble_batch in self.dataset_val:
             model_in, target = get_model_input_and_target(
-                ensemble_batch, self.device, self.target_is_delta
+                ensemble_batch, self.ensemble.device, self.target_is_delta
             )
             model_ins = [model_in for _ in range(len(self.ensemble))]
             targets = [target for _ in range(len(self.ensemble))]
@@ -368,6 +370,9 @@ class EnsembleTrainer:
         return best_weights
 
 
+# ------------------------------------------------------------------------ #
+# Model environment
+# ------------------------------------------------------------------------ #
 # TODO make this class compatible with Model (not just ensemble)
 class ModelEnv:
     def __init__(self, env: gym.Env, model: Ensemble, termination_fn, seed=None):
