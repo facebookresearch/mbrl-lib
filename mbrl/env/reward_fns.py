@@ -1,10 +1,6 @@
-from typing import Callable
-
 import torch
 
 from . import termination_fns
-
-RewardFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
