@@ -29,14 +29,6 @@ def gaussian_nll(
     return losses.sum(dim=1).mean()
 
 
-class SiLU(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.sigmoid(x) * x
-
-
 def get_model_input_and_target(
     batch: Tuple, device, target_is_delta: bool = False
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -92,7 +84,7 @@ class GaussianMLP(Model):
         use_silu: bool = False,
     ):
         super(GaussianMLP, self).__init__(in_size, out_size, device)
-        activation_cls = SiLU if use_silu else nn.ReLU
+        activation_cls = nn.SiLU if use_silu else nn.ReLU
         hidden_layers = [nn.Sequential(nn.Linear(in_size, hid_size), activation_cls())]
         for i in range(num_layers - 1):
             hidden_layers.append(
