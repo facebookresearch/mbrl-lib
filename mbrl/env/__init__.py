@@ -1,6 +1,6 @@
 from . import (
     cartpole_continuous,
-    halfcheetah_pets_wrapper,
+    pets_halfcheetah,
     pets_reacher,
     reward_fns,
     termination_fns,
@@ -8,7 +8,7 @@ from . import (
 
 __all__ = [
     "cartpole_continuous",
-    "halfcheetah_pets_wrapper",
+    "pets_halfcheetah",
     "pets_reacher",
     "reward_fns",
     "termination_fns",
