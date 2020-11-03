@@ -30,7 +30,8 @@ planner:
 #env: "gym___CartPole-v1"
 env: "cartpole_continuous"
 term_fn: "cartpole"
-normalize: false
+normalize: true
+target_is_delta: true
 learned_rewards: true
 
 env_dataset_size: 20000

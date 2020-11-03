@@ -7,14 +7,10 @@ import hydra
 import numpy as np
 import omegaconf
 import pytorch_sac
-import torch
 
-import mbrl.env.reward_fns as reward_fns
-import mbrl.env.termination_fns as termination_fns
-import mbrl.env.wrappers as wrappers
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
-import mbrl.util as util
+import mbrl.types
 
 PETS_LOG_FORMAT = [
     ("episode", "E", "int"),
@@ -38,6 +34,7 @@ def collect_random_trajectories(
     env: gym.Env,
     env_dataset_train: replay_buffer.BootstrapReplayBuffer,
     env_dataset_test: replay_buffer.IterableReplayBuffer,
+    dynamics_model: models.DynamicsModelWrapper,
     steps_to_collect: int,
     val_ratio: float,
     rng: np.random.RandomState,
@@ -58,6 +55,7 @@ def collect_random_trajectories(
                 env_dataset_train.add(obs, action, next_obs, reward, done)
             else:
                 env_dataset_test.add(obs, action, next_obs, reward, done)
+            dynamics_model.update_normalizer((obs, action, next_obs, reward, done))
             obs = next_obs
             step += 1
             if step == steps_to_collect:
@@ -78,9 +76,8 @@ def save_dataset(
 
 def train(
     env: gym.Env,
-    termination_fn: termination_fns.TermFnType,
-    reward_fn: reward_fns.RewardFnType,
-    device: torch.device,
+    termination_fn: mbrl.types.TermFnType,
+    reward_fn: mbrl.types.RewardFnType,
     cfg: omegaconf.DictConfig,
 ) -> float:
     # ------------------- Initialization -------------------
@@ -108,11 +105,14 @@ def train(
     cfg.planner.action_ub = env.action_space.high.tolist()
     planner = hydra.utils.instantiate(cfg.planner)
 
-    # -------------- Create initial env. dataset --------------
-    normalize = cfg.get("normalize", False)
-    if normalize:
-        env = wrappers.NormalizedEnv(env)
+    cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
+    cfg.model.out_size = obs_shape[0] + 1
+    ensemble = hydra.utils.instantiate(cfg.model)
+    dynamics_model = models.DynamicsModelWrapper(
+        ensemble, target_is_delta=cfg.target_is_delta, normalize=cfg.normalize
+    )
 
+    # -------------- Create initial env. dataset --------------
     env_dataset_train = replay_buffer.BootstrapReplayBuffer(
         cfg.env_dataset_size,
         cfg.dynamics_model_batch_size,
@@ -128,24 +128,19 @@ def train(
         env,
         env_dataset_train,
         env_dataset_val,
+        dynamics_model,
         cfg.initial_exploration_steps,
         cfg.validation_ratio,
         rng,
         trial_length=cfg.trial_length,
     )
-    if debug_mode:
-        save_dataset(env_dataset_train, env_dataset_val, work_dir)
+    save_dataset(env_dataset_train, env_dataset_val, work_dir)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
-    cfg.model.out_size = obs_shape[0] + 1
-
-    ensemble = hydra.utils.instantiate(cfg.model)
-
-    model_env = models.ModelEnv(env, ensemble, termination_fn, seed=cfg.seed)
+    model_env = models.ModelEnv(env, dynamics_model, termination_fn, seed=cfg.seed)
     model_trainer = models.EnsembleTrainer(
-        ensemble,
+        dynamics_model,
         env_dataset_train,
         dataset_val=env_dataset_val,
         logger=pets_logger,
@@ -181,10 +176,9 @@ def train(
                 work_path = pathlib.Path(work_dir)
                 ensemble.save(work_path / "model.pth")
                 pets_logger.dump(env_steps, save=True)
-                util.maybe_save_env_stats(env, work_path)
-
-                if debug_mode:
-                    save_dataset(env_dataset_train, env_dataset_val, work_dir)
+                if cfg.normalize:
+                    dynamics_model.normalizer.save(work_path)
+                save_dataset(env_dataset_train, env_dataset_val, work_dir)
 
                 steps_since_model_train = 1
             else:
@@ -212,8 +206,6 @@ def train(
                 env_dataset_train.add(obs, action, next_obs, reward, done)
 
             obs = next_obs
-            if normalize:
-                reward = env.denormalize_reward(reward)
             total_reward += reward
             steps_trial += 1
             env_steps += 1
