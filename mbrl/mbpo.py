@@ -231,7 +231,7 @@ def train(
         dataset_val=env_dataset_val,
         logger=mbpo_logger,
         log_frequency=cfg.log_frequency_model,
-        target_is_offset=True,
+        target_is_delta=True,
     )
     best_eval_reward = -np.inf
     sac_buffer = None

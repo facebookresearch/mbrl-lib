@@ -17,6 +17,9 @@ from . import replay_buffer
 TensorType = Union[torch.Tensor, np.ndarray]
 
 
+# ------------------------------------------------------------------------ #
+# Common model utilities
+# ------------------------------------------------------------------------ #
 def gaussian_nll(
     pred_mean: torch.Tensor, pred_logvar: torch.Tensor, target: torch.Tensor
 ) -> torch.Tensor:
@@ -34,6 +37,21 @@ class SiLU(nn.Module):
         return torch.sigmoid(x) * x
 
 
+def get_model_input_and_target(
+    batch: Tuple, device, target_is_delta: bool = False
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    obs, action, next_obs, reward, _ = batch
+    model_in = torch.from_numpy(np.concatenate([obs, action], axis=1)).to(device)
+    target_obs = next_obs - obs if target_is_delta else next_obs
+    target = torch.from_numpy(
+        np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
+    ).to(device)
+    return model_in, target
+
+
+# ------------------------------------------------------------------------ #
+# Model classes
+# ------------------------------------------------------------------------ #
 class Model(nn.Module):
     def __init__(
         self, in_size: int, out_size: int, device: torch.device, *args, **kwargs
@@ -245,19 +263,6 @@ class Ensemble(Model):
             m.load_state_dict(state_dicts[i])
 
 
-# TODO rename target_is_offset to "offset_target"
-def get_model_input_and_target(
-    batch: Tuple, device, target_is_offset: bool = False
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    obs, action, next_obs, reward, _ = batch
-    model_in = torch.from_numpy(np.concatenate([obs, action], axis=1)).to(device)
-    target_obs = next_obs - obs if target_is_offset else next_obs
-    target = torch.from_numpy(
-        np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
-    ).to(device)
-    return model_in, target
-
-
 # TODO remove device from args, it's redundant (can use self.ensemble.device)
 class EnsembleTrainer:
     def __init__(
@@ -268,7 +273,7 @@ class EnsembleTrainer:
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         logger: Optional[pytorch_sac.Logger] = None,
         log_frequency: int = 1,
-        target_is_offset: bool = True,
+        target_is_delta: bool = True,
     ):
         self.ensemble = ensemble
         self.logger = logger
@@ -276,7 +281,7 @@ class EnsembleTrainer:
         self.dataset_val = dataset_val
         self.device = device
         self.log_frequency = log_frequency
-        self.target_is_offset = target_is_offset
+        self.target_is_delta = target_is_delta
 
     # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
     # `patience` epochs lapse w/o improvement.
@@ -299,7 +304,7 @@ class EnsembleTrainer:
                 targets = []
                 for i, batch in enumerate(ensemble_batch):
                     model_in, target = get_model_input_and_target(
-                        batch, self.device, target_is_offset=self.target_is_offset
+                        batch, self.device, target_is_delta=self.target_is_delta
                     )
                     model_ins.append(model_in)
                     targets.append(target)
@@ -340,7 +345,7 @@ class EnsembleTrainer:
         total_avg_loss = 0.0
         for ensemble_batch in self.dataset_val:
             model_in, target = get_model_input_and_target(
-                ensemble_batch, self.device, self.target_is_offset
+                ensemble_batch, self.device, self.target_is_delta
             )
             model_ins = [model_in for _ in range(len(self.ensemble))]
             targets = [target for _ in range(len(self.ensemble))]
