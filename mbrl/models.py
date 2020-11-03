@@ -324,7 +324,11 @@ class Ensemble(Model):
 # TODO implement this for non-ensemble models
 class DynamicsModelWrapper:
     def __init__(
-        self, model: Ensemble, target_is_delta: bool = True, normalize: bool = False
+        self,
+        model: Ensemble,
+        target_is_delta: bool = True,
+        normalize: bool = False,
+        obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
     ):
         assert hasattr(model, "members")
         self.model = model
@@ -333,12 +337,15 @@ class DynamicsModelWrapper:
             self.normalizer = Normalizer(self.model.in_size, self.model.device)
         self.device = self.model.device
         self.target_is_delta = target_is_delta
+        self.obs_process_fn = obs_process_fn
 
     def update_normalizer(self, batch: Tuple):
         obs, action, next_obs, reward, _ = batch
         if obs.ndim == 1:
             obs = obs[None, :]
             action = action[None, :]
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
         model_in_np = np.concatenate([obs, action], axis=1)
         if self.normalizer:
             self.normalizer.update_stats(model_in_np)
@@ -346,6 +353,8 @@ class DynamicsModelWrapper:
     def _get_model_input_from_np(
         self, obs: np.ndarray, action: np.ndarray, device: torch.device
     ) -> torch.Tensor:
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
         model_in_np = np.concatenate([obs, action], axis=1)
         if self.normalizer:
             # Normalizer lives on device
@@ -353,6 +362,8 @@ class DynamicsModelWrapper:
         return torch.from_numpy(model_in_np).to(device)
 
     def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
         model_in = torch.cat([obs, action], axis=1)
         if self.normalizer:
             model_in = self.normalizer.normalize(model_in)
@@ -566,6 +577,7 @@ class ModelEnv:
             next_observs, rewards = self.dynamics_model.predict(
                 self._current_obs,
                 actions,
+                sample=sample,
                 propagation_method=self._propagation_method,
                 propagation_indices=self._model_indices,
             )
