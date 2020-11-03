@@ -1,4 +1,5 @@
 import abc
+import dataclasses
 import itertools
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
@@ -39,6 +40,45 @@ def get_model_input_and_target(
         np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
     ).to(device)
     return model_in, target
+
+
+@dataclasses.dataclass
+class Stats:
+    mean: Union[float, np.ndarray]
+    m2: Union[float, np.ndarray]
+    count: int
+
+
+class Normalizer:
+    def __init__(self, input_shape: Tuple[int]):
+        self.stats = Stats(
+            np.zeros(input_shape),
+            np.ones(input_shape),
+            0,
+        )
+
+    def update_stats(self, val: Union[float, np.ndarray]) -> Stats:
+        mean, m2, count = dataclasses.astuple(self.stats)
+        count = count + 1
+        delta = val - mean
+        mean += delta / count
+        delta2 = val - mean
+        m2 += delta * delta2
+        return Stats(mean, m2, count)
+
+    def normalize(self, val: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        mean, m2, count = dataclasses.astuple(self.stats)
+        if count > 1:
+            std = np.sqrt(m2 / (count - 1))
+            return (val - mean) / std
+        return val
+
+    def denormalize(self, val: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        mean, m2, count = dataclasses.astuple(self.stats)
+        if count > 1:
+            std = np.sqrt(m2 / (count - 1))
+            return std * val + mean
+        return val
 
 
 # ------------------------------------------------------------------------ #
