@@ -15,9 +15,9 @@ from torch import nn as nn
 from torch import optim as optim
 from torch.nn import functional as F
 
-from . import replay_buffer
+import mbrl.types
 
-TensorType = Union[torch.Tensor, np.ndarray]
+from . import replay_buffer
 
 
 # ------------------------------------------------------------------------ #
@@ -48,7 +48,7 @@ class Normalizer:
         )
         self.device = device
 
-    def update_stats(self, val: Union[float, TensorType]):
+    def update_stats(self, val: Union[float, mbrl.types.TensorType]):
         if isinstance(val, np.ndarray):
             val = torch.from_numpy(val).to(self.device)
         mean, m2, count = dataclasses.astuple(self.stats)
@@ -61,7 +61,9 @@ class Normalizer:
         self.stats.m2 = m2
         self.stats.count = count
 
-    def normalize(self, val: Union[float, TensorType]) -> Union[float, TensorType]:
+    def normalize(
+        self, val: Union[float, mbrl.types.TensorType]
+    ) -> Union[float, mbrl.types.TensorType]:
         if isinstance(val, np.ndarray):
             val = torch.from_numpy(val).to(self.device)
         mean, m2, count = dataclasses.astuple(self.stats)
@@ -70,7 +72,9 @@ class Normalizer:
             return (val - mean) / std
         return val
 
-    def denormalize(self, val: Union[float, TensorType]) -> Union[float, TensorType]:
+    def denormalize(
+        self, val: Union[float, mbrl.types.TensorType]
+    ) -> Union[float, mbrl.types.TensorType]:
         if isinstance(val, np.ndarray):
             val = torch.from_numpy(val).to(self.device)
         mean, m2, count = dataclasses.astuple(self.stats)
@@ -533,7 +537,7 @@ class ModelEnv:
         initial_obs_batch: np.ndarray,
         propagation_method: str = "expectation",
         return_as_np: bool = True,
-    ) -> TensorType:
+    ) -> mbrl.types.TensorType:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         self._current_obs = torch.from_numpy(
             np.copy(initial_obs_batch.astype(np.float32))
@@ -553,7 +557,7 @@ class ModelEnv:
             return self._current_obs.cpu().numpy()
         return self._current_obs
 
-    def step(self, actions: TensorType, sample: bool = False):
+    def step(self, actions: mbrl.types.TensorType, sample: bool = False):
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
