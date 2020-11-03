@@ -1,5 +1,4 @@
 import pathlib
-import pickle
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union, cast
 
 import dmc2gym.wrappers
@@ -14,7 +13,6 @@ import torch
 
 import mbrl.env
 import mbrl.env.wrappers
-import mbrl.models
 import mbrl.planning
 import mbrl.replay_buffer
 
@@ -48,24 +46,6 @@ def make_env(
     if normalize:
         env = mbrl.env.wrappers.NormalizedEnv(env)
     return env, term_fn, reward_fn
-
-
-# returns True if successful
-def maybe_load_env_stats(env: gym.Env, results_dir: Union[str, pathlib.Path]):
-    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
-        with open(pathlib.Path(results_dir) / "env_stats.pickle", "rb") as f:
-            env_stats = pickle.load(f)
-            env.obs_stats = env_stats["obs"]
-            env.reward_stats = env_stats["reward"]
-        return True
-    return False
-
-
-def maybe_save_env_stats(env: gym.Env, save_dir: Union[str, pathlib.Path]):
-    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
-        save_dir = pathlib.Path(save_dir)
-        with open(save_dir / "env_stats.pickle", "wb") as f:
-            pickle.dump({"obs": env.obs_stats, "reward": env.reward_stats}, f)
 
 
 def load_trained_model(
@@ -189,24 +169,17 @@ def rollout_env(
     return np.stack(real_obses), np.stack(rewards), np.stack(actions)
 
 
-# TODO consider handling normalization inside ModelEnv.
-#  It will make a lot of this code cleaner
 def rollout_model_env(
     model_env: mbrl.models.ModelEnv,
-    env: gym.Env,
     initial_obs: np.ndarray,
     plan: Optional[np.ndarray] = None,
     planner: Optional[mbrl.planning.CEMPlanner] = None,
     cfg: Optional[omegaconf.DictConfig] = None,
-    reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+    reward_fn: Optional[mbrl.types.RewardFnType] = None,
     num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     obs_history = []
     reward_history = []
-    normalized = False
-    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
-        normalized = True
-        initial_obs = env.normalize_obs(initial_obs)
     if planner:
         plan, _ = planner.plan(
             model_env,
@@ -225,9 +198,6 @@ def rollout_model_env(
         next_obs, reward, done, _ = model_env.step(
             np.tile(action, (num_samples, 1)), sample=False
         )
-        if normalized:
-            next_obs = env.denormalize_obs(next_obs)
-            reward = env.denormalize_reward(reward)
         obs_history.append(next_obs)
         reward_history.append(reward)
     return np.stack(obs_history), np.stack(reward_history), plan

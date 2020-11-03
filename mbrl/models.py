@@ -1,6 +1,8 @@
 import abc
 import dataclasses
 import itertools
+import pathlib
+import pickle
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import gym
@@ -40,13 +42,13 @@ class Stats:
 class Normalizer:
     def __init__(self, in_size: int, device: torch.device):
         self.stats = Stats(
-            torch.zeros((in_size,), device=device),
-            torch.ones((in_size,), device=device),
+            torch.zeros((1, in_size), device=device),
+            torch.ones((1, in_size), device=device),
             0,
         )
         self.device = device
 
-    def update_stats(self, val: Union[float, TensorType]) -> Stats:
+    def update_stats(self, val: Union[float, TensorType]):
         if isinstance(val, np.ndarray):
             val = torch.from_numpy(val).to(self.device)
         mean, m2, count = dataclasses.astuple(self.stats)
@@ -55,14 +57,16 @@ class Normalizer:
         mean += delta / count
         delta2 = val - mean
         m2 += delta * delta2
-        return Stats(mean, m2, count)
+        self.stats.mean = mean
+        self.stats.m2 = m2
+        self.stats.count = count
 
     def normalize(self, val: Union[float, TensorType]) -> Union[float, TensorType]:
         if isinstance(val, np.ndarray):
             val = torch.from_numpy(val).to(self.device)
         mean, m2, count = dataclasses.astuple(self.stats)
         if count > 1:
-            std = np.sqrt(m2 / (count - 1))
+            std = torch.sqrt(m2 / (count - 1))
             return (val - mean) / std
         return val
 
@@ -71,9 +75,27 @@ class Normalizer:
             val = torch.from_numpy(val).to(self.device)
         mean, m2, count = dataclasses.astuple(self.stats)
         if count > 1:
-            std = np.sqrt(m2 / (count - 1))
+            std = torch.sqrt(m2 / (count - 1))
             return std * val + mean
         return val
+
+    # returns True if successful
+    def load(self, results_dir: Union[str, pathlib.Path]):
+        with open(pathlib.Path(results_dir) / "normalizer.pickle", "rb") as f:
+            stats = pickle.load(f)
+            self.stats = Stats(
+                torch.from_numpy(stats["mean"]).to(self.device),
+                torch.from_numpy(stats["m2"]).to(self.device),
+                stats["count"],
+            )
+
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        mean, m2, count = dataclasses.astuple(self.stats)
+        save_dir = pathlib.Path(save_dir)
+        with open(save_dir / "env_stats.pickle", "wb") as f:
+            pickle.dump(
+                {"mean": mean.cpu().numpy(), "m2": m2.cpu().numpy(), "count": count}, f
+            )
 
 
 # ------------------------------------------------------------------------ #
@@ -308,16 +330,22 @@ class DynamicsModelWrapper:
         self.device = self.model.device
         self.target_is_delta = target_is_delta
 
-    def update_stats(self, val: Union[float, np.ndarray]):
+    def update_normalizer(self, batch: Tuple):
+        obs, action, next_obs, reward, _ = batch
+        if obs.ndim == 1:
+            obs = obs[None, :]
+            action = action[None, :]
+        model_in_np = np.concatenate([obs, action], axis=1)
         if self.normalizer:
-            self.normalizer.update_stats(val)
+            self.normalizer.update_stats(model_in_np)
 
     def _get_model_input_from_np(
         self, obs: np.ndarray, action: np.ndarray, device: torch.device
     ) -> torch.Tensor:
         model_in_np = np.concatenate([obs, action], axis=1)
         if self.normalizer:
-            model_in_np = self.normalizer.normalize(model_in_np)
+            # Normalizer lives on device
+            return self.normalizer.normalize(model_in_np)
         return torch.from_numpy(model_in_np).to(device)
 
     def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
