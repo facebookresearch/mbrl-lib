@@ -194,18 +194,9 @@ def train(
     rng = np.random.RandomState(cfg.seed)
 
     # -------------- Create initial env. dataset --------------
-    env_dataset_train = replay_buffer.BootstrapReplayBuffer(
-        cfg.env_dataset_size,
-        cfg.dynamics_model_batch_size,
-        cfg.model.ensemble_size,
-        obs_shape,
-        act_shape,
+    env_dataset_train, env_dataset_val = util.create_ensemble_buffers(
+        cfg, obs_shape, act_shape
     )
-    val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
-    env_dataset_val = replay_buffer.IterableReplayBuffer(
-        val_buffer_capacity, cfg.dynamics_model_batch_size, obs_shape, act_shape
-    )
-
     # TODO replace this with some exploration policy
     collect_random_trajectories(
         env,
@@ -218,13 +209,7 @@ def train(
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    cfg.model.in_size = obs_shape[0] + act_shape[0]
-    cfg.model.out_size = obs_shape[0] + 1
-
-    ensemble = hydra.utils.instantiate(cfg.model)
-    dynamics_model = models.DynamicsModelWrapper(
-        ensemble, target_is_delta=cfg.target_is_delta, normalize=cfg.normalize
-    )
+    dynamics_model = util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     updates_made = 0
     env_steps = 0
@@ -268,7 +253,7 @@ def train(
                     patience=cfg.patience,
                     outer_epoch=epoch,
                 )
-                ensemble.save(os.path.join(work_dir, "model.pth"))
+                dynamics_model.save(work_dir)
                 mbpo_logger.dump(env_steps, save=True)
 
                 # --------- Rollout new model and store imagined trajectories --------

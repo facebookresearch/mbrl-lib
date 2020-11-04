@@ -12,9 +12,10 @@ import pytorch_sac
 import torch
 
 import mbrl.env
-import mbrl.env.wrappers
+import mbrl.models
 import mbrl.planning
 import mbrl.replay_buffer
+import mbrl.types
 
 
 # ------------------------------------------------------------------------ #
@@ -36,16 +37,37 @@ def make_env(
         env = mbrl.env.cartpole_continuous.CartPoleEnv()
         term_fn = getattr(mbrl.env.termination_fns, cfg.term_fn)
         reward_fn = getattr(mbrl.env.reward_fns, cfg.term_fn, None)
+    elif cfg.env == "pets_halfcheetah":
+        env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
+        term_fn = mbrl.env.termination_fns.no_termination
+        reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
     else:
         raise ValueError("Invalid environment string.")
 
-    if cfg.learned_rewards:
+    learned_rewards = cfg.get("learned_rewards", True)
+    if learned_rewards:
         reward_fn = None
 
-    normalize = cfg.get("normalize", False)
-    if normalize:
-        env = mbrl.env.wrappers.NormalizedEnv(env)
     return env, term_fn, reward_fn
+
+
+def create_dynamics_model(
+    cfg: omegaconf.DictConfig, obs_shape: Tuple[int], act_shape: Tuple[int]
+):
+    cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
+    cfg.model.out_size = obs_shape[0] + 1
+    ensemble = hydra.utils.instantiate(cfg.model)
+    name_obs_process_fn = cfg.get("obs_process_fn", None)
+    if name_obs_process_fn:
+        obs_process_fn = hydra.utils.get_method(cfg.obs_process_fn)
+    else:
+        obs_process_fn = None
+    return mbrl.models.DynamicsModelWrapper(
+        ensemble,
+        target_is_delta=cfg.target_is_delta,
+        normalize=cfg.normalize,
+        obs_process_fn=obs_process_fn,
+    )
 
 
 def load_trained_model(
@@ -253,7 +275,7 @@ def complete_sac_cfg(env: gym.Env, cfg: omegaconf.DictConfig) -> omegaconf.DictC
     return cfg
 
 
-def get_agent(
+def load_agent(
     agent_path: Union[str, pathlib.Path], env: gym.Env, agent_type: str
 ) -> mbrl.planning.Agent:
     agent_path = pathlib.Path(agent_path)

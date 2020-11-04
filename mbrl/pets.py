@@ -11,6 +11,7 @@ import pytorch_sac
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
 import mbrl.types
+import mbrl.util
 
 PETS_LOG_FORMAT = [
     ("episode", "E", "int"),
@@ -87,9 +88,6 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    if cfg.learned_rewards:
-        reward_fn = None
-
     rng = np.random.RandomState(cfg.seed)
 
     work_dir = os.getcwd()
@@ -106,28 +104,11 @@ def train(
     cfg.planner.action_ub = env.action_space.high.tolist()
     planner = hydra.utils.instantiate(cfg.planner)
 
-    cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
-    cfg.model.out_size = obs_shape[0] + 1
-    ensemble = hydra.utils.instantiate(cfg.model)
-    obs_process_fn = hydra.utils.get_method(cfg.obs_process_fn)
-    dynamics_model = models.DynamicsModelWrapper(
-        ensemble,
-        target_is_delta=cfg.target_is_delta,
-        normalize=cfg.normalize,
-        obs_process_fn=obs_process_fn,
-    )
+    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
-    # -------------- Create initial env. dataset --------------
-    env_dataset_train = replay_buffer.BootstrapReplayBuffer(
-        cfg.env_dataset_size,
-        cfg.dynamics_model_batch_size,
-        cfg.model.ensemble_size,
-        obs_shape,
-        act_shape,
-    )
-    val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
-    env_dataset_val = replay_buffer.IterableReplayBuffer(
-        val_buffer_capacity, cfg.dynamics_model_batch_size, obs_shape, act_shape
+    # -------- Create and populate initial env. dataset --------
+    env_dataset_train, env_dataset_val = mbrl.util.create_ensemble_buffers(
+        cfg, obs_shape, act_shape
     )
     collect_random_trajectories(
         env,
@@ -178,12 +159,9 @@ def train(
                     num_epochs=cfg.get("num_epochs_train_dyn_model", None),
                     patience=cfg.patience,
                 )
-                work_path = pathlib.Path(work_dir)
-                ensemble.save(work_path / "model.pth")
-                pets_logger.dump(env_steps, save=True)
-                if cfg.normalize:
-                    dynamics_model.normalizer.save(work_path)
+                dynamics_model.save(work_dir)
                 save_dataset(env_dataset_train, env_dataset_val, work_dir)
+                pets_logger.dump(env_steps, save=True)
 
                 steps_since_model_train = 1
             else:

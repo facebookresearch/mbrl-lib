@@ -332,7 +332,7 @@ class DynamicsModelWrapper:
     ):
         assert hasattr(model, "members")
         self.model = model
-        self.normalizer = Optional[Normalizer]
+        self.normalizer: Optional[Normalizer] = None
         if normalize:
             self.normalizer = Normalizer(self.model.in_size, self.model.device)
         self.device = self.model.device
@@ -428,6 +428,12 @@ class DynamicsModelWrapper:
             next_observs += obs
         rewards = predictions[:, -1:]
         return next_observs, rewards
+
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        save_dir = pathlib.Path(save_dir)
+        self.model.save(str(save_dir / "model.pth"))
+        if self.normalizer:
+            self.normalizer.save(save_dir)
 
 
 # ------------------------------------------------------------------------ #
