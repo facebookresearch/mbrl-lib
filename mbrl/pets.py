@@ -29,7 +29,8 @@ EVAL_LOG_FORMAT = [
 ]
 
 
-# TODO consider moving this to a utils file
+# TODO replace this with mbrl.util.populate_buffer_with_agent_trajectories
+#   and a random agent
 def collect_random_trajectories(
     env: gym.Env,
     env_dataset_train: replay_buffer.BootstrapReplayBuffer,
@@ -108,8 +109,12 @@ def train(
     cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
     cfg.model.out_size = obs_shape[0] + 1
     ensemble = hydra.utils.instantiate(cfg.model)
+    obs_process_fn = hydra.utils.get_method(cfg.obs_process_fn)
     dynamics_model = models.DynamicsModelWrapper(
-        ensemble, target_is_delta=cfg.target_is_delta, normalize=cfg.normalize
+        ensemble,
+        target_is_delta=cfg.target_is_delta,
+        normalize=cfg.normalize,
+        obs_process_fn=obs_process_fn,
     )
 
     # -------------- Create initial env. dataset --------------
