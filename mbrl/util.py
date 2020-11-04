@@ -52,11 +52,19 @@ def make_env(
 
 
 def create_dynamics_model(
-    cfg: omegaconf.DictConfig, obs_shape: Tuple[int], act_shape: Tuple[int]
+    cfg: omegaconf.DictConfig,
+    obs_shape: Tuple[int],
+    act_shape: Tuple[int],
+    weights_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
     cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
     cfg.model.out_size = obs_shape[0] + 1
     ensemble = hydra.utils.instantiate(cfg.model)
+
+    if weights_dir:
+        weights_dir = pathlib.Path(weights_dir)
+        ensemble.load(weights_dir / "model.pth")
+
     name_obs_process_fn = cfg.get("obs_process_fn", None)
     if name_obs_process_fn:
         obs_process_fn = hydra.utils.get_method(cfg.obs_process_fn)
@@ -68,15 +76,6 @@ def create_dynamics_model(
         normalize=cfg.normalize,
         obs_process_fn=obs_process_fn,
     )
-
-
-def load_trained_model(
-    model_dir: Union[str, pathlib.Path], model_cfg: omegaconf.DictConfig
-) -> mbrl.models.Model:
-    model_dir = pathlib.Path(model_dir)
-    model = hydra.utils.instantiate(model_cfg)
-    model.load(model_dir / "model.pth")
-    return model
 
 
 def get_hydra_cfg(results_dir: Union[str, pathlib.Path]):
