@@ -9,9 +9,9 @@ import pytorch_sac
 import pytorch_sac.utils
 import torch
 
-import mbrl.env.termination_fns as termination_fns
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
+import mbrl.types
 import mbrl.util as util
 
 MBPO_LOG_FORMAT = [
@@ -103,7 +103,9 @@ def rollout_model_and_populate_sac_buffer(
 
     initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
     obs = model_env.reset(
-        initial_obs_batch=initial_obs, propagation_method="random_model"
+        initial_obs_batch=initial_obs,
+        propagation_method="random_model",
+        return_as_np=True,
     )
     for i in range(rollout_horizon):
         with pytorch_sac.utils.eval_mode(), torch.no_grad():
@@ -158,7 +160,7 @@ def evaluate_on_model(
 def train(
     env: gym.Env,
     test_env: gym.Env,
-    termination_fn: termination_fns.TermFnType,
+    termination_fn: mbrl.types.TermFnType,
     device: torch.device,
     cfg: omegaconf.DictConfig,
 ):
@@ -220,17 +222,19 @@ def train(
     cfg.model.out_size = obs_shape[0] + 1
 
     ensemble = hydra.utils.instantiate(cfg.model)
+    dynamics_model = models.DynamicsModelWrapper(
+        ensemble, target_is_delta=cfg.target_is_delta, normalize=cfg.normalize
+    )
 
     updates_made = 0
     env_steps = 0
-    model_env = models.ModelEnv(env, ensemble, termination_fn)
+    model_env = models.ModelEnv(env, dynamics_model, termination_fn)
     model_trainer = models.EnsembleTrainer(
-        ensemble,
+        dynamics_model,
         env_dataset_train,
         dataset_val=env_dataset_val,
         logger=mbpo_logger,
         log_frequency=cfg.log_frequency_model,
-        target_is_delta=True,
     )
     best_eval_reward = -np.inf
     sac_buffer = None
@@ -253,8 +257,6 @@ def train(
 
             # --------------- Model Training -----------------
             if env_steps % cfg.freq_train_dyn_model == 0:
-                sac_buffer = None
-
                 mbpo_logger.log(
                     "train/train_dataset_size", env_dataset_train.num_stored, env_steps
                 )
