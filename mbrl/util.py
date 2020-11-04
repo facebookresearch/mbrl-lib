@@ -176,6 +176,7 @@ def rollout_env(
     rewards = []
     with freeze_mujoco_env(cast(gym.wrappers.TimeLimit, env)):
         current_obs = initial_obs.copy()
+        real_obses.append(current_obs)
         if plan is not None:
             lookahead = len(plan)
         for i in range(lookahead):
@@ -210,11 +211,12 @@ def rollout_model_env(
             cfg.propagation_method,
             reward_fn=reward_fn,
         )
-    model_env.reset(
+    obs0 = model_env.reset(
         np.tile(initial_obs, (num_samples, 1)),
         propagation_method="random_model",
         return_as_np=True,
     )
+    obs_history.append(obs0)
     for action in plan:
         next_obs, reward, done, _ = model_env.step(
             np.tile(action, (num_samples, 1)), sample=False
