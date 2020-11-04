@@ -55,7 +55,7 @@ class Visualizer:
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
-            self.model_path,
+            model_dir=self.model_path,
         )
         self.model_env = mbrl.models.ModelEnv(self.env, self.dynamics_model, term_fn)
 
@@ -220,7 +220,7 @@ if __name__ == "__main__":
         agent_type="pytorch_sac",
         num_steps=200,
         num_model_samples=32,
-        # model_subdir="diagnostics/new_model",
+        model_subdir="diagnostics/new_model",
     )
 
     visualizer.run()

@@ -1,7 +1,6 @@
 import pathlib
-from typing import Optional, cast
+from typing import Optional
 
-import hydra
 import numpy as np
 import pytorch_sac
 
@@ -30,17 +29,13 @@ class FineTuner:
     ):
         self.cfg = mbrl.util.get_hydra_cfg(model_dir)
         self.env, self.term_fn, self.reward_fn = mbrl.util.make_env(self.cfg)
-        if not new_model:
-            mbrl.util.maybe_load_env_stats(self.env, model_dir)
-        self.cfg.model.in_size = self.env.observation_space.shape[0] + (
-            self.env.action_space.shape[0] if self.env.action_space.shape else 1
+        self.dynamics_model = mbrl.util.create_dynamics_model(
+            self.cfg,
+            self.env.observation_space.shape,
+            self.env.action_space.shape,
+            model_dir=None if new_model else model_dir,
         )
-        self.cfg.model.out_size = self.env.observation_space.shape[0] + 1
-        if new_model:
-            self.ensemble = hydra.utils.instantiate(self.cfg.model)
-        else:
-            self.ensemble = mbrl.util.load_trained_model(model_dir, self.cfg.model)
-        self.agent = mbrl.util.get_agent(agent_dir, self.env, agent_type)
+        self.agent = mbrl.util.load_agent(agent_dir, self.env, agent_type)
         self.dataset_train, self.dataset_val = mbrl.util.create_ensemble_buffers(
             self.cfg,
             self.env.observation_space.shape,
@@ -81,21 +76,20 @@ class FineTuner:
         )
 
         model_trainer = mbrl.models.EnsembleTrainer(
-            cast(mbrl.models.Ensemble, self.ensemble),
+            self.dynamics_model,
             self.dataset_train,
             dataset_val=self.dataset_val,
             logger=logger,
         )
         train_losses, val_losses = model_trainer.train(num_epochs, patience=patience)
 
-        self.ensemble.save(str(self.outdir / "model.pth"))
+        self.dynamics_model.save(str(self.outdir))
         np.savez(self.outdir / "finetune_losses", train=train_losses, val=val_losses)
-        mbrl.util.maybe_save_env_stats(self.env, self.outdir)
 
 
 if __name__ == "__main__":
     model_dir_ = (
-        "/private/home/lep/code/mbrl/exp/pets/vis/gym___HalfCheetah-v2/2020.10.26/1501"
+        "/checkpoint/lep/mbrl/exp/pets/vis/gym___HalfCheetah-v2/2020.11.04/1250"
     )
 
     agent_dir_ = (
@@ -105,4 +99,4 @@ if __name__ == "__main__":
     finetuner = FineTuner(
         model_dir_, agent_dir_, "pytorch_sac", subdir="new_model", new_model=True
     )
-    finetuner.run(num_epochs=500, patience=20, steps_to_collect=100000)
+    finetuner.run(num_epochs=200, patience=20, steps_to_collect=20000)

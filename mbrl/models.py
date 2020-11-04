@@ -40,6 +40,8 @@ class Stats:
 
 
 class Normalizer:
+    _STATS_FNAME = "env_stats.pickle"
+
     def __init__(self, in_size: int, device: torch.device):
         self.stats = Stats(
             torch.zeros((1, in_size), device=device),
@@ -83,9 +85,8 @@ class Normalizer:
             return std * val + mean
         return val
 
-    # returns True if successful
     def load(self, results_dir: Union[str, pathlib.Path]):
-        with open(pathlib.Path(results_dir) / "normalizer.pickle", "rb") as f:
+        with open(pathlib.Path(results_dir) / self._STATS_FNAME, "rb") as f:
             stats = pickle.load(f)
             self.stats = Stats(
                 torch.from_numpy(stats["mean"]).to(self.device),
@@ -96,7 +97,7 @@ class Normalizer:
     def save(self, save_dir: Union[str, pathlib.Path]):
         mean, m2, count = dataclasses.astuple(self.stats)
         save_dir = pathlib.Path(save_dir)
-        with open(save_dir / "env_stats.pickle", "wb") as f:
+        with open(save_dir / self._STATS_FNAME, "wb") as f:
             pickle.dump(
                 {"mean": mean.cpu().numpy(), "m2": m2.cpu().numpy(), "count": count}, f
             )
@@ -323,6 +324,8 @@ class Ensemble(Model):
 
 # TODO implement this for non-ensemble models
 class DynamicsModelWrapper:
+    _MODEL_FNAME = "model.pth"
+
     def __init__(
         self,
         model: Ensemble,
@@ -431,9 +434,15 @@ class DynamicsModelWrapper:
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         save_dir = pathlib.Path(save_dir)
-        self.model.save(str(save_dir / "model.pth"))
+        self.model.save(str(save_dir / self._MODEL_FNAME))
         if self.normalizer:
             self.normalizer.save(save_dir)
+
+    def load(self, load_dir: Union[str, pathlib.Path]):
+        load_dir = pathlib.Path(load_dir)
+        self.model.load(str(load_dir / self._MODEL_FNAME))
+        if self.normalizer:
+            self.normalizer.load(load_dir)
 
 
 # ------------------------------------------------------------------------ #
@@ -460,7 +469,6 @@ class EnsembleTrainer:
         self,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
-        outer_epoch: int = 0,
     ) -> Tuple[List[float], List[float]]:
         assert len(self.dynamics_model.model) == len(self.dataset_train.member_indices)
         training_losses, val_losses = [], []
@@ -492,7 +500,7 @@ class EnsembleTrainer:
                     epochs_since_update += 1
 
             if self.logger and epoch % self.log_frequency == 0:
-                self.logger.log("train/epoch", outer_epoch, epoch)
+                self.logger.log("train/epoch", epoch, epoch)
                 self.logger.log("train/model_loss", total_avg_loss, epoch)
                 self.logger.log("train/model_val_score", val_score, epoch)
                 self.logger.log("train/model_best_val_score", best_val_score, epoch)
