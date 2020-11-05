@@ -131,9 +131,13 @@ class CEMOptimizer:
         self,
         obj_fun: Callable[[torch.Tensor], torch.Tensor],
         x_shape: Tuple[int, ...],
+        initial_mu: Optional[torch.Tensor] = None,
         callback: Optional[Callable[[torch.Tensor, int], Any]] = None,
-    ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
-        mu = torch.zeros(x_shape).to(self.device)
+    ) -> Tuple[torch.Tensor, Dict[str, np.ndarray]]:
+        if initial_mu is None:
+            mu = torch.zeros(x_shape).to(self.device)
+        else:
+            mu = torch.ones(x_shape).to(self.device) * initial_mu
         var = torch.ones(x_shape).to(self.device) * self.initial_var
 
         history = self._init_history(x_shape)
@@ -167,7 +171,7 @@ class CEMOptimizer:
                 best_solution = population[elite_idx[0]].clone()
             self._update_history(i, values, mu, best_solution, history)
 
-        return best_solution.cpu().numpy(), history
+        return best_solution, history
 
 
 # TODO separate CEM specific parameters. This can probably be a planner class
@@ -182,6 +186,7 @@ class CEMPlanner:
         action_ub: np.ndarray,
         alpha: float,
         device: torch.device,
+        replan_freq: int = 1,
     ):
         self.optimizer = CEMOptimizer(
             num_iterations,
@@ -193,6 +198,11 @@ class CEMPlanner:
             device,
         )
         self.population_size = population_size
+        self.initial_solution = (
+            (torch.tensor(action_lb) + torch.tensor(action_ub)) / 2
+        ).to(device)
+        self.previous_solution = self.initial_solution.clone()
+        self.replan_freq = replan_freq
 
     def plan(
         self,
@@ -222,7 +232,14 @@ class CEMPlanner:
         action_shape = model_env.action_space.shape
         if not action_shape:
             action_shape = (1,)
+        if self.previous_solution.ndim == 1:
+            self.previous_solution = self.previous_solution.repeat((horizon, 1))
         best_solution, opt_history = self.optimizer.optimize(
-            obj_fn, (horizon,) + action_shape
+            obj_fn, (horizon,) + action_shape, initial_mu=self.previous_solution
         )
-        return best_solution, opt_history["value_maxs"].max()
+        self.previous_solution = best_solution.roll(-self.replan_freq, dims=0)
+        self.previous_solution[-self.replan_freq :] = self.initial_solution
+        return best_solution.cpu().numpy(), opt_history["value_maxs"].max()
+
+    def reset(self):
+        self.previous_solution = self.initial_solution.clone()
