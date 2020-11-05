@@ -213,7 +213,7 @@ def train(
 
     updates_made = 0
     env_steps = 0
-    model_env = models.ModelEnv(env, dynamics_model, termination_fn)
+    model_env = models.ModelEnv(env, dynamics_model, termination_fn, None)
     model_trainer = models.EnsembleTrainer(
         dynamics_model,
         env_dataset_train,
@@ -251,7 +251,6 @@ def train(
                 model_trainer.train(
                     num_epochs=cfg.get("num_epochs_train_dyn_model", None),
                     patience=cfg.patience,
-                    outer_epoch=epoch,
                 )
                 dynamics_model.save(work_dir)
                 mbpo_logger.dump(env_steps, save=True)

@@ -57,7 +57,9 @@ class Visualizer:
             self.env.action_space.shape,
             model_dir=self.model_path,
         )
-        self.model_env = mbrl.models.ModelEnv(self.env, self.dynamics_model, term_fn)
+        self.model_env = mbrl.models.ModelEnv(
+            self.env, self.dynamics_model, term_fn, reward_fn
+        )
 
         self.cfg.planner.action_lb = self.env.action_space.low.tolist()
         self.cfg.planner.action_ub = self.env.action_space.high.tolist()

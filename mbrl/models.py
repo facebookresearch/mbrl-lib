@@ -540,10 +540,16 @@ class EnsembleTrainer:
 # ------------------------------------------------------------------------ #
 class ModelEnv:
     def __init__(
-        self, env: gym.Env, model: DynamicsModelWrapper, termination_fn, seed=None
+        self,
+        env: gym.Env,
+        model: DynamicsModelWrapper,
+        termination_fn,
+        reward_fn,
+        seed=None,
     ):
         self.dynamics_model = model
         self.termination_fn = termination_fn
+        self.reward_fn = reward_fn
         self.device = model.device
 
         self.observation_space = env.observation_space
@@ -588,12 +594,17 @@ class ModelEnv:
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
                 actions = torch.from_numpy(actions).to(self.device)
-            next_observs, rewards = self.dynamics_model.predict(
+            next_observs, pred_rewards = self.dynamics_model.predict(
                 self._current_obs,
                 actions,
                 sample=sample,
                 propagation_method=self._propagation_method,
                 propagation_indices=self._model_indices,
+            )
+            rewards = (
+                pred_rewards
+                if self.reward_fn is None
+                else self.reward_fn(actions, next_observs)
             )
             dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
@@ -605,3 +616,33 @@ class ModelEnv:
 
     def render(self, mode="human"):
         pass
+
+    def evaluate_action_sequences(
+        self,
+        initial_state: np.ndarray,
+        action_sequences: torch.Tensor,
+        num_particles: int,
+        propagation_method: str,
+    ) -> torch.Tensor:
+        assert (
+            len(action_sequences.shape) == 3
+        )  # population_size, horizon, action_shape
+        population_size, horizon, action_dim = action_sequences.shape
+        initial_obs_batch = np.tile(
+            initial_state, (num_particles * population_size, 1)
+        ).astype(np.float32)
+        self.reset(
+            initial_obs_batch, propagation_method=propagation_method, return_as_np=False
+        )
+
+        total_rewards: torch.Tensor = 0
+        for time_step in range(horizon):
+            actions_for_step = action_sequences[:, time_step, :]
+            action_batch = torch.repeat_interleave(
+                actions_for_step, num_particles, dim=0
+            )
+            _, rewards, _, _ = self.step(action_batch, sample=True)
+            total_rewards += rewards
+
+        total_rewards = total_rewards.reshape(-1, num_particles)
+        return total_rewards.mean(axis=1)

@@ -124,7 +124,9 @@ def train(
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    model_env = models.ModelEnv(env, dynamics_model, termination_fn, seed=cfg.seed)
+    model_env = models.ModelEnv(
+        env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
+    )
     model_trainer = models.EnsembleTrainer(
         dynamics_model,
         env_dataset_train,
