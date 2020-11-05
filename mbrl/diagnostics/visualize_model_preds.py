@@ -82,7 +82,6 @@ class Visualizer:
                 plan=None,
                 planner=self.planner,
                 cfg=self.cfg,
-                reward_fn=self.reward_fn,
                 num_samples=self.num_model_samples,
             )
             real_obses, real_rewards, _ = mbrl.util.rollout_env(
