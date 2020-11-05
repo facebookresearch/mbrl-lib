@@ -197,19 +197,27 @@ def rollout_model_env(
     plan: Optional[np.ndarray] = None,
     planner: Optional[mbrl.planning.CEMPlanner] = None,
     cfg: Optional[omegaconf.DictConfig] = None,
-    reward_fn: Optional[mbrl.types.RewardFnType] = None,
     num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     obs_history = []
     reward_history = []
     if planner:
+
+        def traj_eval_fn(
+            initial_obs_: np.ndarray, action_sequence: torch.Tensor
+        ) -> torch.Tensor:
+            return model_env.evaluate_action_sequences(
+                initial_obs_,
+                action_sequence,
+                num_particles=cfg.num_particles,
+                propagation_method=cfg.propagation_method,
+            )
+
         plan, _ = planner.plan(
-            model_env,
             initial_obs[None, :],
+            model_env.action_space.shape,
             cfg.planning_horizon,
-            cfg.num_particles,
-            cfg.propagation_method,
-            reward_fn=reward_fn,
+            traj_eval_fn,
         )
     obs0 = model_env.reset(
         np.tile(initial_obs, (num_samples, 1)),

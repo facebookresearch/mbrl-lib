@@ -1,3 +1,4 @@
+import functools
 import os
 import pathlib
 from typing import List, Optional
@@ -127,6 +128,11 @@ def train(
     model_env = models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
     )
+    traj_eval_fn = functools.partial(
+        model_env.evaluate_action_sequences,
+        num_particles=cfg.num_particles,
+        propagation_method=cfg.propagation_method,
+    )
     model_trainer = models.EnsembleTrainer(
         dynamics_model,
         env_dataset_train,
@@ -140,6 +146,7 @@ def train(
     max_total_reward = -np.inf
     for trial in range(cfg.num_trials):
         obs = env.reset()
+        planner.reset()
         actions_to_use: List[np.ndarray] = []
         done = False
         total_reward = 0
@@ -172,12 +179,10 @@ def train(
             # ------------- Planning using the learned model ---------------
             if not actions_to_use:  # re-plan is necessary
                 plan, _ = planner.plan(
-                    model_env,
                     obs,
+                    model_env.action_space.shape,
                     cfg.planning_horizon,
-                    cfg.num_particles,
-                    cfg.propagation_method,
-                    reward_fn,
+                    traj_eval_fn,
                 )
 
                 actions_to_use.extend([a for a in plan[: cfg.replan_freq]])

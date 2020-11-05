@@ -6,9 +6,6 @@ import pytorch_sac
 import torch
 import torch.distributions
 
-import mbrl.models
-import mbrl.types
-
 # TODO rename this module as "control.py", re-organize agents under a common
 #   interface (name it Controller)
 
@@ -46,36 +43,6 @@ def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1):
     tensor.data.copy_(tmp.gather(-1, ind).squeeze(-1))
     tensor.data.mul_(std).add_(mean)
     return tensor
-
-
-def evaluate_action_sequences(
-    initial_state: np.ndarray,
-    action_sequences: torch.Tensor,
-    model_env: mbrl.models.ModelEnv,
-    num_particles: int,
-    propagation_method: str,
-    reward_fn: Optional[mbrl.types.RewardFnType] = None,
-) -> torch.Tensor:
-    assert len(action_sequences.shape) == 3  # population_size, horizon, action_shape
-    population_size, horizon, action_dim = action_sequences.shape
-    initial_obs_batch = np.tile(
-        initial_state, (num_particles * population_size, 1)
-    ).astype(np.float32)
-    model_env.reset(
-        initial_obs_batch, propagation_method=propagation_method, return_as_np=False
-    )
-
-    total_rewards: torch.Tensor = 0
-    for time_step in range(horizon):
-        actions_for_step = action_sequences[:, time_step, :]
-        action_batch = torch.repeat_interleave(actions_for_step, num_particles, dim=0)
-        next_obs, pred_rewards, _, _ = model_env.step(action_batch, sample=True)
-        rewards = (
-            pred_rewards if reward_fn is None else reward_fn(action_batch, next_obs)
-        )
-        total_rewards += rewards
-
-    return total_rewards
 
 
 # ------------------------------------------------------------------------ #
@@ -206,30 +173,17 @@ class CEMPlanner:
 
     def plan(
         self,
-        model_env: mbrl.models.ModelEnv,
         initial_state: np.ndarray,
+        action_shape: Tuple[int],
         horizon: int,
-        num_model_particles: int,
-        propagation_method: str,
-        reward_fn: Optional[mbrl.types.RewardFnType] = None,
+        trajectory_eval_fn: Callable[[np.ndarray, torch.Tensor], torch.Tensor],
     ) -> Tuple[np.ndarray, float]:
         def obj_fn(action_sequences_: torch.Tensor) -> torch.Tensor:
-            # Returns the mean (over particles) of the total reward for each
-            # sequence
-            total_rewards = evaluate_action_sequences(
+            return trajectory_eval_fn(
                 initial_state,
                 action_sequences_,
-                model_env,
-                num_model_particles,
-                propagation_method,
-                reward_fn,
             )
-            total_rewards = total_rewards.reshape(
-                self.population_size, num_model_particles
-            )
-            return total_rewards.mean(axis=1)
 
-        action_shape = model_env.action_space.shape
         if not action_shape:
             action_shape = (1,)
         if self.previous_solution.ndim == 1:
