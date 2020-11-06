@@ -173,23 +173,19 @@ class CEMPlanner:
 
     def plan(
         self,
-        initial_state: np.ndarray,
         action_shape: Tuple[int],
         horizon: int,
-        trajectory_eval_fn: Callable[[np.ndarray, torch.Tensor], torch.Tensor],
+        trajectory_eval_fn: Callable[[torch.Tensor], torch.Tensor],
     ) -> Tuple[np.ndarray, float]:
-        def obj_fn(action_sequences_: torch.Tensor) -> torch.Tensor:
-            return trajectory_eval_fn(
-                initial_state,
-                action_sequences_,
-            )
 
         if not action_shape:
             action_shape = (1,)
         if self.previous_solution.ndim == 1:
             self.previous_solution = self.previous_solution.repeat((horizon, 1))
         best_solution, opt_history = self.optimizer.optimize(
-            obj_fn, (horizon,) + action_shape, initial_mu=self.previous_solution
+            trajectory_eval_fn,
+            (horizon,) + action_shape,
+            initial_mu=self.previous_solution,
         )
         self.previous_solution = best_solution.roll(-self.replan_freq, dims=0)
         self.previous_solution[-self.replan_freq :] = self.initial_solution

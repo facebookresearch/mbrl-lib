@@ -619,8 +619,8 @@ class ModelEnv:
 
     def evaluate_action_sequences(
         self,
-        initial_state: np.ndarray,
         action_sequences: torch.Tensor,
+        initial_state: np.ndarray,
         num_particles: int,
         propagation_method: str,
     ) -> torch.Tensor:

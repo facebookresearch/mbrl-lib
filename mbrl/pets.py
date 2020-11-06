@@ -128,11 +128,6 @@ def train(
     model_env = models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
     )
-    traj_eval_fn = functools.partial(
-        model_env.evaluate_action_sequences,
-        num_particles=cfg.num_particles,
-        propagation_method=cfg.propagation_method,
-    )
     model_trainer = models.EnsembleTrainer(
         dynamics_model,
         env_dataset_train,
@@ -178,11 +173,16 @@ def train(
 
             # ------------- Planning using the learned model ---------------
             if not actions_to_use:  # re-plan is necessary
+                trajectory_eval_fn = functools.partial(
+                    model_env.evaluate_action_sequences,
+                    initial_state=obs,
+                    num_particles=cfg.num_particles,
+                    propagation_method=cfg.propagation_method,
+                )
                 plan, _ = planner.plan(
-                    obs,
                     model_env.action_space.shape,
                     cfg.planning_horizon,
-                    traj_eval_fn,
+                    trajectory_eval_fn,
                 )
 
                 actions_to_use.extend([a for a in plan[: cfg.replan_freq]])

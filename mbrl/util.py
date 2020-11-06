@@ -203,21 +203,18 @@ def rollout_model_env(
     reward_history = []
     if planner:
 
-        def traj_eval_fn(
-            initial_obs_: np.ndarray, action_sequence: torch.Tensor
-        ) -> torch.Tensor:
+        def trajectory_eval_fn(action_sequence: torch.Tensor) -> torch.Tensor:
             return model_env.evaluate_action_sequences(
-                initial_obs_,
                 action_sequence,
+                initial_state=initial_obs[None, :],
                 num_particles=cfg.num_particles,
                 propagation_method=cfg.propagation_method,
             )
 
         plan, _ = planner.plan(
-            initial_obs[None, :],
             model_env.action_space.shape,
             cfg.planning_horizon,
-            traj_eval_fn,
+            trajectory_eval_fn,
         )
     obs0 = model_env.reset(
         np.tile(initial_obs, (num_samples, 1)),
