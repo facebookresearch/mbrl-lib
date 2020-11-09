@@ -6,8 +6,8 @@ import pytorch_sac
 import torch
 import torch.distributions
 
-import mbrl.env.reward_fns
 import mbrl.models
+import mbrl.types
 
 # TODO rename this module as "control.py", re-organize agents under a common
 #   interface (name it Controller)
@@ -54,7 +54,7 @@ def evaluate_action_sequences(
     model_env: mbrl.models.ModelEnv,
     num_particles: int,
     propagation_method: str,
-    reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+    reward_fn: Optional[mbrl.types.RewardFnType] = None,
 ) -> torch.Tensor:
     assert len(action_sequences.shape) == 3  # population_size, horizon, action_shape
     population_size, horizon, action_dim = action_sequences.shape
@@ -201,7 +201,7 @@ class CEMPlanner:
         horizon: int,
         num_model_particles: int,
         propagation_method: str,
-        reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+        reward_fn: Optional[mbrl.types.RewardFnType] = None,
     ) -> Tuple[np.ndarray, float]:
         def obj_fn(action_sequences_: torch.Tensor) -> torch.Tensor:
             # Returns the mean (over particles) of the total reward for each
