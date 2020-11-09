@@ -19,10 +19,12 @@ import mbrl.types
 from . import replay_buffer
 
 
-def truncated_normal_init(m):
-    if type(m) == nn.Linear:
-        torch.nn.init.xavier_uniform(m.weight)
-        m.bias.data.fill_(0.01)
+def truncated_normal_init(m: nn.Module):
+    if isinstance(m, nn.Linear):
+        input_dim = m.weight.data.shape[0]
+        stddev = 1 / (2 * np.sqrt(input_dim))
+        mbrl.math.truncated_normal_(m.weight.data, std=stddev)
+        m.bias.data.fill_(0.0)
 
 
 # ------------------------------------------------------------------------ #
