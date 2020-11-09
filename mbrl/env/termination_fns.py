@@ -1,9 +1,6 @@
 import math
-from typing import Callable
 
 import torch
-
-TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 # TODO remove act from all of these, it's not needed
 

@@ -1,11 +1,51 @@
-from typing import Any, Callable, Dict, Mapping, Optional, Tuple
+import abc
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
+import pytorch_sac
 import torch
 import torch.distributions
 
-import mbrl.env.reward_fns
 import mbrl.models
+import mbrl.types
+
+# TODO rename this module as "control.py", re-organize agents under a common
+#   interface (name it Controller)
+
+
+# ------------------------------------------------------------------------ #
+#                               Agent definitions
+# ------------------------------------------------------------------------ #
+class Agent:
+    @abc.abstractmethod
+    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+        """Issues an action given an observation."""
+
+
+class SACAgent(Agent):
+    def __init__(self, sac_agent: pytorch_sac.SACAgent):
+        self.sac_agent = sac_agent
+
+    def act(
+        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
+    ) -> np.ndarray:
+        return self.sac_agent.act(obs, sample=sample, batched=batched)
+
+
+# ------------------------------------------------------------------------ #
+#                               Utilities
+# ------------------------------------------------------------------------ #
+# inplace truncated normal function for pytorch.
+# Taken from https://discuss.pytorch.org/t/implementing-truncated-normal-initializer/4778/16
+# and tested to be equivalent to scipy.stats.truncnorm.rvs
+def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1):
+    size = tensor.shape
+    tmp = tensor.new_empty(size + (4,)).normal_()
+    valid = (tmp < 2) & (tmp > -2)
+    ind = valid.max(-1, keepdim=True)[1]
+    tensor.data.copy_(tmp.gather(-1, ind).squeeze(-1))
+    tensor.data.mul_(std).add_(mean)
+    return tensor
 
 
 def evaluate_action_sequences(
@@ -14,7 +54,7 @@ def evaluate_action_sequences(
     model_env: mbrl.models.ModelEnv,
     num_particles: int,
     propagation_method: str,
-    reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+    reward_fn: Optional[mbrl.types.RewardFnType] = None,
 ) -> torch.Tensor:
     assert len(action_sequences.shape) == 3  # population_size, horizon, action_shape
     population_size, horizon, action_dim = action_sequences.shape
@@ -38,22 +78,30 @@ def evaluate_action_sequences(
     return total_rewards
 
 
+# ------------------------------------------------------------------------ #
+#                               CEM
+# ------------------------------------------------------------------------ #
 class CEMOptimizer:
     def __init__(
         self,
         num_iterations: int,
         elite_ratio: float,
         population_size: int,
-        sigma: float,
+        lower_bound: Sequence[float],
+        upper_bound: Sequence[float],
+        alpha: float,
         device: torch.device,
     ):
         self.num_iterations = num_iterations
         self.elite_ratio = elite_ratio
         self.population_size = population_size
-        self.sigma = sigma
         self.elite_num = np.ceil(self.population_size * self.elite_ratio).astype(
             np.long
         )
+        self.lower_bound = torch.tensor(lower_bound, device=device)
+        self.upper_bound = torch.tensor(upper_bound, device=device)
+        self.initial_var = ((self.upper_bound - self.lower_bound) ** 2) / 16
+        self.alpha = alpha
         self.device = device
 
     def _init_history(self, x_shape: Tuple[int, ...]) -> Dict[str, np.ndarray]:
@@ -86,26 +134,37 @@ class CEMOptimizer:
         callback: Optional[Callable[[torch.Tensor, int], Any]] = None,
     ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
         mu = torch.zeros(x_shape).to(self.device)
-        sigma = self.sigma * torch.ones(x_shape).to(self.device)
+        var = torch.ones(x_shape).to(self.device) * self.initial_var
 
         history = self._init_history(x_shape)
         best_solution = np.empty(x_shape)
         best_value = -np.inf
+        population = torch.zeros((self.population_size,) + x_shape).to(
+            device=self.device
+        )
         for i in range(self.num_iterations):
-            population = torch.distributions.Normal(mu, sigma).sample(
-                (self.population_size,)
-            )
+            lb_dist = mu - self.lower_bound
+            ub_dist = self.upper_bound - mu
+            mv = torch.min(torch.pow(lb_dist / 2, 2), torch.pow(ub_dist / 2, 2))
+            constrained_var = torch.min(mv, var)
+
+            population = truncated_normal_(population)
+            population = population * torch.sqrt(constrained_var) + mu
+
             if callback is not None:
                 callback(population, i)
             values = obj_fun(population)
             best_values, elite_idx = values.topk(self.elite_num)
             elite = population[elite_idx]
-            mu = elite.mean(dim=0)
-            sigma = elite.std(dim=0)
+
+            new_mu = torch.mean(elite, dim=0)
+            new_var = torch.var(elite, unbiased=False, dim=0)
+            mu = self.alpha * mu + (1 - self.alpha) * new_mu
+            var = self.alpha * var + (1 - self.alpha) * new_var
 
             if best_values[0] > best_value:
                 best_value = best_values[0]
-                best_solution = population[elite_idx[0]]
+                best_solution = population[elite_idx[0]].clone()
             self._update_history(i, values, mu, best_solution, history)
 
         return best_solution.cpu().numpy(), history
@@ -119,11 +178,19 @@ class CEMPlanner:
         num_iterations: int,
         elite_ratio: float,
         population_size: int,
-        sigma: float,
+        action_lb: np.ndarray,
+        action_ub: np.ndarray,
+        alpha: float,
         device: torch.device,
     ):
         self.optimizer = CEMOptimizer(
-            num_iterations, elite_ratio, population_size, sigma, device
+            num_iterations,
+            elite_ratio,
+            population_size,
+            action_lb,
+            action_ub,
+            alpha,
+            device,
         )
         self.population_size = population_size
 
@@ -134,7 +201,7 @@ class CEMPlanner:
         horizon: int,
         num_model_particles: int,
         propagation_method: str,
-        reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+        reward_fn: Optional[mbrl.types.RewardFnType] = None,
     ) -> Tuple[np.ndarray, float]:
         def obj_fn(action_sequences_: torch.Tensor) -> torch.Tensor:
             # Returns the mean (over particles) of the total reward for each
