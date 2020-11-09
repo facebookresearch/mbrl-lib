@@ -6,6 +6,8 @@ import pytorch_sac
 import torch
 import torch.distributions
 
+import mbrl.math
+
 # TODO rename this module as "control.py", re-organize agents under a common
 #   interface (name it Controller)
 
@@ -27,22 +29,6 @@ class SACAgent(Agent):
         self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
     ) -> np.ndarray:
         return self.sac_agent.act(obs, sample=sample, batched=batched)
-
-
-# ------------------------------------------------------------------------ #
-#                               Utilities
-# ------------------------------------------------------------------------ #
-# inplace truncated normal function for pytorch.
-# Taken from https://discuss.pytorch.org/t/implementing-truncated-normal-initializer/4778/16
-# and tested to be equivalent to scipy.stats.truncnorm.rvs
-def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1):
-    size = tensor.shape
-    tmp = tensor.new_empty(size + (4,)).normal_()
-    valid = (tmp < 2) & (tmp > -2)
-    ind = valid.max(-1, keepdim=True)[1]
-    tensor.data.copy_(tmp.gather(-1, ind).squeeze(-1))
-    tensor.data.mul_(std).add_(mean)
-    return tensor
 
 
 # ------------------------------------------------------------------------ #
@@ -119,7 +105,7 @@ class CEMOptimizer:
             mv = torch.min(torch.pow(lb_dist / 2, 2), torch.pow(ub_dist / 2, 2))
             constrained_var = torch.min(mv, var)
 
-            population = truncated_normal_(population)
+            population = mbrl.math.truncated_normal_(population)
             population = population * torch.sqrt(constrained_var) + mu
 
             if callback is not None:
