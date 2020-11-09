@@ -1,5 +1,8 @@
 import abc
+import dataclasses
 import itertools
+import pathlib
+import pickle
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import gym
@@ -12,11 +15,14 @@ from torch import nn as nn
 from torch import optim as optim
 from torch.nn import functional as F
 
+import mbrl.types
+
 from . import replay_buffer
 
-TensorType = Union[torch.Tensor, np.ndarray]
 
-
+# ------------------------------------------------------------------------ #
+# Common model utilities
+# ------------------------------------------------------------------------ #
 def gaussian_nll(
     pred_mean: torch.Tensor, pred_logvar: torch.Tensor, target: torch.Tensor
 ) -> torch.Tensor:
@@ -26,17 +32,88 @@ def gaussian_nll(
     return losses.sum(dim=1).mean()
 
 
-class SiLU(nn.Module):
-    def __init__(self):
-        super().__init__()
+@dataclasses.dataclass
+class Stats:
+    mean: Union[float, torch.Tensor]
+    m2: Union[float, torch.Tensor]
+    count: int
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.sigmoid(x) * x
+
+class Normalizer:
+    _STATS_FNAME = "env_stats.pickle"
+
+    def __init__(self, in_size: int, device: torch.device):
+        self.stats = Stats(
+            torch.zeros((1, in_size), device=device),
+            torch.ones((1, in_size), device=device),
+            0,
+        )
+        self.device = device
+
+    def update_stats(self, val: Union[float, mbrl.types.TensorType]):
+        if isinstance(val, np.ndarray):
+            val = torch.from_numpy(val).to(self.device)
+        mean, m2, count = dataclasses.astuple(self.stats)
+        count = count + 1
+        delta = val - mean
+        mean += delta / count
+        delta2 = val - mean
+        m2 += delta * delta2
+        self.stats.mean = mean
+        self.stats.m2 = m2
+        self.stats.count = count
+
+    def normalize(
+        self, val: Union[float, mbrl.types.TensorType]
+    ) -> Union[float, mbrl.types.TensorType]:
+        if isinstance(val, np.ndarray):
+            val = torch.from_numpy(val).to(self.device)
+        mean, m2, count = dataclasses.astuple(self.stats)
+        if count > 1:
+            std = torch.sqrt(m2 / (count - 1))
+            return (val - mean) / std
+        return val
+
+    def denormalize(
+        self, val: Union[float, mbrl.types.TensorType]
+    ) -> Union[float, mbrl.types.TensorType]:
+        if isinstance(val, np.ndarray):
+            val = torch.from_numpy(val).to(self.device)
+        mean, m2, count = dataclasses.astuple(self.stats)
+        if count > 1:
+            std = torch.sqrt(m2 / (count - 1))
+            return std * val + mean
+        return val
+
+    def load(self, results_dir: Union[str, pathlib.Path]):
+        with open(pathlib.Path(results_dir) / self._STATS_FNAME, "rb") as f:
+            stats = pickle.load(f)
+            self.stats = Stats(
+                torch.from_numpy(stats["mean"]).to(self.device),
+                torch.from_numpy(stats["m2"]).to(self.device),
+                stats["count"],
+            )
+
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        mean, m2, count = dataclasses.astuple(self.stats)
+        save_dir = pathlib.Path(save_dir)
+        with open(save_dir / self._STATS_FNAME, "wb") as f:
+            pickle.dump(
+                {"mean": mean.cpu().numpy(), "m2": m2.cpu().numpy(), "count": count}, f
+            )
 
 
+# ------------------------------------------------------------------------ #
+# Model classes
+# ------------------------------------------------------------------------ #
 class Model(nn.Module):
     def __init__(
-        self, in_size: int, out_size: int, device: torch.device, *args, **kwargs
+        self,
+        in_size: int,
+        out_size: int,
+        device: torch.device,
+        *args,
+        **kwargs,
     ):
         super().__init__()
         self.in_size = in_size
@@ -74,7 +151,7 @@ class GaussianMLP(Model):
         use_silu: bool = False,
     ):
         super(GaussianMLP, self).__init__(in_size, out_size, device)
-        activation_cls = SiLU if use_silu else nn.ReLU
+        activation_cls = nn.SiLU if use_silu else nn.ReLU
         hidden_layers = [nn.Sequential(nn.Linear(in_size, hid_size), activation_cls())]
         for i in range(num_layers - 1):
             hidden_layers.append(
@@ -245,38 +322,146 @@ class Ensemble(Model):
             m.load_state_dict(state_dicts[i])
 
 
-# TODO rename target_is_offset to "offset_target"
-def get_model_input_and_target(
-    batch: Tuple, device, target_is_offset: bool = False
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    obs, action, next_obs, reward, _ = batch
-    model_in = torch.from_numpy(np.concatenate([obs, action], axis=1)).to(device)
-    target_obs = next_obs - obs if target_is_offset else next_obs
-    target = torch.from_numpy(
-        np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
-    ).to(device)
-    return model_in, target
+# TODO implement this for non-ensemble models
+class DynamicsModelWrapper:
+    _MODEL_FNAME = "model.pth"
+
+    def __init__(
+        self,
+        model: Ensemble,
+        target_is_delta: bool = True,
+        normalize: bool = False,
+        obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
+    ):
+        assert hasattr(model, "members")
+        self.model = model
+        self.normalizer: Optional[Normalizer] = None
+        if normalize:
+            self.normalizer = Normalizer(self.model.in_size, self.model.device)
+        self.device = self.model.device
+        self.target_is_delta = target_is_delta
+        self.obs_process_fn = obs_process_fn
+
+    def update_normalizer(self, batch: Tuple):
+        obs, action, next_obs, reward, _ = batch
+        if obs.ndim == 1:
+            obs = obs[None, :]
+            action = action[None, :]
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
+        model_in_np = np.concatenate([obs, action], axis=1)
+        if self.normalizer:
+            self.normalizer.update_stats(model_in_np)
+
+    def _get_model_input_from_np(
+        self, obs: np.ndarray, action: np.ndarray, device: torch.device
+    ) -> torch.Tensor:
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
+        model_in_np = np.concatenate([obs, action], axis=1)
+        if self.normalizer:
+            # Normalizer lives on device
+            return self.normalizer.normalize(model_in_np)
+        return torch.from_numpy(model_in_np).to(device)
+
+    def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
+        model_in = torch.cat([obs, action], axis=1)
+        if self.normalizer:
+            model_in = self.normalizer.normalize(model_in)
+        return model_in
+
+    def _get_model_input_and_target_from_batch(
+        self, batch: Tuple
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        obs, action, next_obs, reward, _ = batch
+        target_obs = next_obs - obs if self.target_is_delta else next_obs
+
+        model_in = self._get_model_input_from_np(obs, action, self.device)
+        target = torch.from_numpy(
+            np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
+        ).to(self.device)
+        return model_in, target
+
+    def loss_from_bootstrap_batch(self, bootstrap_batch: Tuple):
+        assert isinstance(self.model, Ensemble)
+
+        model_ins = []
+        targets = []
+        for i, batch in enumerate(bootstrap_batch):
+            model_in, target = self._get_model_input_and_target_from_batch(batch)
+            model_ins.append(model_in)
+            targets.append(target)
+        return self.model.loss(model_ins, targets)
+
+    def eval_score_from_simple_batch(self, batch: Tuple):
+        assert isinstance(self.model, Ensemble)
+
+        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        model_ins = [model_in for _ in range(len(self.model))]
+        targets = [target for _ in range(len(self.model))]
+        return self.model.eval_score(model_ins, targets)
+
+    def predict(
+        self,
+        obs: torch.Tensor,
+        actions: torch.Tensor,
+        sample=True,
+        propagation_method="expectation",
+        propagation_indices=None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        model_in = self._get_model_input_from_tensors(obs, actions)
+        means, logvars = self.model(
+            model_in,
+            propagation=propagation_method,
+            propagation_indices=propagation_indices,
+        )
+
+        if sample:
+            assert logvars is not None
+            variances = logvars.exp()
+            stds = torch.sqrt(variances)
+            predictions = torch.normal(means, stds)
+        else:
+            predictions = means
+
+        next_observs = predictions[:, :-1]
+        if self.target_is_delta:
+            next_observs += obs
+        rewards = predictions[:, -1:]
+        return next_observs, rewards
+
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        save_dir = pathlib.Path(save_dir)
+        self.model.save(str(save_dir / self._MODEL_FNAME))
+        if self.normalizer:
+            self.normalizer.save(save_dir)
+
+    def load(self, load_dir: Union[str, pathlib.Path]):
+        load_dir = pathlib.Path(load_dir)
+        self.model.load(str(load_dir / self._MODEL_FNAME))
+        if self.normalizer:
+            self.normalizer.load(load_dir)
 
 
-# TODO remove device from args, it's redundant (can use self.ensemble.device)
+# ------------------------------------------------------------------------ #
+# Model trainer
+# ------------------------------------------------------------------------ #
 class EnsembleTrainer:
     def __init__(
         self,
-        ensemble: Ensemble,
-        device: torch.device,
+        dynamics_model: DynamicsModelWrapper,
         dataset_train: replay_buffer.BootstrapReplayBuffer,
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         logger: Optional[pytorch_sac.Logger] = None,
         log_frequency: int = 1,
-        target_is_offset: bool = True,
     ):
-        self.ensemble = ensemble
+        self.dynamics_model = dynamics_model
         self.logger = logger
         self.dataset_train = dataset_train
         self.dataset_val = dataset_val
-        self.device = device
         self.log_frequency = log_frequency
-        self.target_is_offset = target_is_offset
 
     # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
     # `patience` epochs lapse w/o improvement.
@@ -284,9 +469,8 @@ class EnsembleTrainer:
         self,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
-        outer_epoch: int = 0,
     ) -> Tuple[List[float], List[float]]:
-        assert len(self.ensemble) == len(self.dataset_train.member_indices)
+        assert len(self.dynamics_model.model) == len(self.dataset_train.member_indices)
         training_losses, val_losses = [], []
         best_weights = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
@@ -294,16 +478,10 @@ class EnsembleTrainer:
         best_val_score = self.evaluate()
         for epoch in epoch_iter:
             total_avg_loss = 0.0
-            for ensemble_batch in self.dataset_train:
-                model_ins = []
-                targets = []
-                for i, batch in enumerate(ensemble_batch):
-                    model_in, target = get_model_input_and_target(
-                        batch, self.device, target_is_offset=self.target_is_offset
-                    )
-                    model_ins.append(model_in)
-                    targets.append(target)
-                avg_ensemble_loss = self.ensemble.loss(model_ins, targets)
+            for bootstrap_batch in self.dataset_train:
+                avg_ensemble_loss = self.dynamics_model.loss_from_bootstrap_batch(
+                    bootstrap_batch
+                )
                 total_avg_loss += avg_ensemble_loss
             training_losses.append(total_avg_loss)
 
@@ -322,7 +500,7 @@ class EnsembleTrainer:
                     epochs_since_update += 1
 
             if self.logger and epoch % self.log_frequency == 0:
-                self.logger.log("train/epoch", outer_epoch, epoch)
+                self.logger.log("train/epoch", epoch, epoch)
                 self.logger.log("train/model_loss", total_avg_loss, epoch)
                 self.logger.log("train/model_val_score", val_score, epoch)
                 self.logger.log("train/model_best_val_score", best_val_score, epoch)
@@ -332,21 +510,15 @@ class EnsembleTrainer:
                 break
 
         if best_weights:
-            for i, (model, _) in enumerate(self.ensemble):
+            for i, (model, _) in enumerate(self.dynamics_model.model):
                 model.load_state_dict(best_weights[i])
         return training_losses, val_losses
 
     def evaluate(self) -> float:
         total_avg_loss = 0.0
-        for ensemble_batch in self.dataset_val:
-            model_in, target = get_model_input_and_target(
-                ensemble_batch, self.device, self.target_is_offset
-            )
-            model_ins = [model_in for _ in range(len(self.ensemble))]
-            targets = [target for _ in range(len(self.ensemble))]
-            avg_ensemble_loss = self.ensemble.eval_score(model_ins, targets)
+        for batch in self.dataset_val:
+            avg_ensemble_loss = self.dynamics_model.eval_score_from_simple_batch(batch)
             total_avg_loss += avg_ensemble_loss
-
         return total_avg_loss
 
     def maybe_save_best_weights(
@@ -358,15 +530,19 @@ class EnsembleTrainer:
         )
         if improvement > 0.001:
             best_weights = []
-            for model, _ in self.ensemble:
+            for model, _ in self.dynamics_model.model:
                 best_weights.append(model.state_dict())
         return best_weights
 
 
-# TODO make this class compatible with Model (not just ensemble)
+# ------------------------------------------------------------------------ #
+# Model environment
+# ------------------------------------------------------------------------ #
 class ModelEnv:
-    def __init__(self, env: gym.Env, model: Ensemble, termination_fn, seed=None):
-        self.model = model
+    def __init__(
+        self, env: gym.Env, model: DynamicsModelWrapper, termination_fn, seed=None
+    ):
+        self.dynamics_model = model
         self.termination_fn = termination_fn
         self.device = model.device
 
@@ -386,7 +562,7 @@ class ModelEnv:
         initial_obs_batch: np.ndarray,
         propagation_method: str = "expectation",
         return_as_np: bool = True,
-    ) -> TensorType:
+    ) -> mbrl.types.TensorType:
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         self._current_obs = torch.from_numpy(
             np.copy(initial_obs_batch.astype(np.float32))
@@ -395,7 +571,7 @@ class ModelEnv:
         self._propagation_method = propagation_method
         if propagation_method == "fixed_model":
             self._model_indices = torch.randint(
-                len(self.model),
+                len(self.dynamics_model.model),
                 (len(initial_obs_batch),),
                 generator=self._rng,
                 device=self.device,
@@ -406,30 +582,19 @@ class ModelEnv:
             return self._current_obs.cpu().numpy()
         return self._current_obs
 
-    def step(self, actions: TensorType, sample: bool = False):
+    def step(self, actions: mbrl.types.TensorType, sample: bool = False):
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
                 actions = torch.from_numpy(actions).to(self.device)
-            model_in = torch.cat([self._current_obs, actions], axis=1)
-            means, logvars = self.model(
-                model_in,
-                propagation=self._propagation_method,
+            next_observs, rewards = self.dynamics_model.predict(
+                self._current_obs,
+                actions,
+                sample=sample,
+                propagation_method=self._propagation_method,
                 propagation_indices=self._model_indices,
             )
-
-            if sample:
-                assert logvars is not None
-                variances = logvars.exp()
-                stds = torch.sqrt(variances)
-                predictions = torch.normal(means, stds)
-            else:
-                predictions = means
-
-            # This assumes model was trained using delta observations
-            next_observs = predictions[:, :-1] + self._current_obs
-            rewards = predictions[:, -1:]
             dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
             if self._return_as_np:

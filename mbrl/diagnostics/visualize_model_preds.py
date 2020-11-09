@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import mbrl
-import mbrl.env.wrappers
 import mbrl.models
 import mbrl.util
 
@@ -45,31 +44,20 @@ class Visualizer:
         self.cfg = mbrl.util.get_hydra_cfg(self.results_path)
 
         self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
-        self.reference_agent = mbrl.util.get_agent(
+        self.reference_agent = mbrl.util.load_agent(
             self.agent_path,
             self.env,
             agent_type,
         )
         self.reward_fn = reward_fn
 
-        self.env_for_rollouts = self.env
-        if mbrl.util.maybe_load_env_stats(self.env, self.model_path):
-            self.env_for_rollouts = cast(
-                mbrl.env.wrappers.NormalizedEnv, self.env
-            ).base_env
-
-        # TODO refactor all those cfg.model.in/out_size = obs_shape blabla
-        #  scattered all over the code
-        obs_shape = self.env.observation_space.shape
-        act_shape = self.env.action_space.shape
-
-        self.cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
-        self.cfg.model.out_size = obs_shape[0] + 1
-        ensemble = cast(
-            mbrl.models.Ensemble,
-            mbrl.util.load_trained_model(self.model_path, self.cfg.model),
+        self.dynamics_model = mbrl.util.create_dynamics_model(
+            self.cfg,
+            self.env.observation_space.shape,
+            self.env.action_space.shape,
+            model_dir=self.model_path,
         )
-        self.model_env = mbrl.models.ModelEnv(self.env, ensemble, term_fn)
+        self.model_env = mbrl.models.ModelEnv(self.env, self.dynamics_model, term_fn)
 
         self.cfg.planner.action_lb = self.env.action_space.low.tolist()
         self.cfg.planner.action_ub = self.env.action_space.high.tolist()
@@ -88,7 +76,6 @@ class Visualizer:
         if use_mpc:
             model_obses, model_rewards, actions = mbrl.util.rollout_model_env(
                 self.model_env,
-                self.env,
                 obs,
                 plan=None,
                 planner=self.planner,
@@ -97,7 +84,7 @@ class Visualizer:
                 num_samples=self.num_model_samples,
             )
             real_obses, real_rewards, _ = mbrl.util.rollout_env(
-                cast(gym.wrappers.TimeLimit, self.env_for_rollouts),
+                cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.reference_agent,
                 self.lookahead,
@@ -105,14 +92,13 @@ class Visualizer:
             )
         else:
             real_obses, real_rewards, actions = mbrl.util.rollout_env(
-                cast(gym.wrappers.TimeLimit, self.env_for_rollouts),
+                cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.reference_agent,
                 self.lookahead,
             )
             model_obses, model_rewards, _ = mbrl.util.rollout_model_env(
                 self.model_env,
-                self.env,
                 obs,
                 plan=actions,
                 num_samples=self.num_model_samples,
@@ -120,12 +106,12 @@ class Visualizer:
         return real_obses, real_rewards, model_obses, model_rewards, actions
 
     def vis_rollout(self, use_mpc: bool = False) -> Generator:
-        obs = self.env_for_rollouts.reset()
+        obs = self.env.reset()
         done = False
         i = 0
         while not done:
             vis_data = self.get_obs_rewards_and_actions(obs, use_mpc=use_mpc)
-            next_obs, reward, done, _ = self.env_for_rollouts.step(vis_data[-1][0])
+            next_obs, reward, done, _ = self.env.step(vis_data[-1][0])
             obs = next_obs
             i += 1
             if self.num_steps and i == self.num_steps:
@@ -228,8 +214,7 @@ if __name__ == "__main__":
 
     visualizer = Visualizer(
         lookahead=30,
-        results_dir="/private/home/lep/code/mbrl/exp/pets/"
-        "vis/gym___HalfCheetah-v2/2020.10.26/1501",
+        results_dir="/checkpoint/lep/mbrl/exp/pets/vis/gym___HalfCheetah-v2/2020.11.04/1250",
         agent_dir="/private/home/lep/code/pytorch_sac/exp/default/"
         "gym___HalfCheetah-v2/2020.10.26/0848_sac_test_exp",
         agent_type="pytorch_sac",

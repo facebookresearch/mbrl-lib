@@ -89,12 +89,15 @@ def get_mock_env():
         torch.device("cpu"),
         member_cfg,
     )
+    dynamics_model = models.DynamicsModelWrapper(
+        ensemble, target_is_delta=True, normalize=False, obs_process_fn=None
+    )
     # With value we can uniquely id the output of each member
     member_incs = [i + 10 for i in range(num_members)]
     for i in range(num_members):
         ensemble.members[i].value = member_incs[i]
 
-    model_env = models.ModelEnv(MockEnv(), ensemble, mock_term_fn)
+    model_env = models.ModelEnv(MockEnv(), dynamics_model, mock_term_fn)
     return model_env, member_incs
 
 

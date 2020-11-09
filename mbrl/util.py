@@ -1,5 +1,4 @@
 import pathlib
-import pickle
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union, cast
 
 import dmc2gym.wrappers
@@ -13,10 +12,10 @@ import pytorch_sac
 import torch
 
 import mbrl.env
-import mbrl.env.wrappers
 import mbrl.models
 import mbrl.planning
 import mbrl.replay_buffer
+import mbrl.types
 
 
 # ------------------------------------------------------------------------ #
@@ -38,43 +37,45 @@ def make_env(
         env = mbrl.env.cartpole_continuous.CartPoleEnv()
         term_fn = getattr(mbrl.env.termination_fns, cfg.term_fn)
         reward_fn = getattr(mbrl.env.reward_fns, cfg.term_fn, None)
+    elif cfg.env == "pets_halfcheetah":
+        env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
+        term_fn = mbrl.env.termination_fns.no_termination
+        reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
     else:
         raise ValueError("Invalid environment string.")
 
-    if cfg.learned_rewards:
+    learned_rewards = cfg.get("learned_rewards", True)
+    if learned_rewards:
         reward_fn = None
 
-    normalize = cfg.get("normalize", False)
-    if normalize:
-        env = mbrl.env.wrappers.NormalizedEnv(env)
     return env, term_fn, reward_fn
 
 
-# returns True if successful
-def maybe_load_env_stats(env: gym.Env, results_dir: Union[str, pathlib.Path]):
-    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
-        with open(pathlib.Path(results_dir) / "env_stats.pickle", "rb") as f:
-            env_stats = pickle.load(f)
-            env.obs_stats = env_stats["obs"]
-            env.reward_stats = env_stats["reward"]
-        return True
-    return False
+def create_dynamics_model(
+    cfg: omegaconf.DictConfig,
+    obs_shape: Tuple[int],
+    act_shape: Tuple[int],
+    model_dir: Optional[Union[str, pathlib.Path]] = None,
+):
+    cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
+    cfg.model.out_size = obs_shape[0] + 1
+    ensemble = hydra.utils.instantiate(cfg.model)
 
+    name_obs_process_fn = cfg.get("obs_process_fn", None)
+    if name_obs_process_fn:
+        obs_process_fn = hydra.utils.get_method(cfg.obs_process_fn)
+    else:
+        obs_process_fn = None
+    dynamics_model = mbrl.models.DynamicsModelWrapper(
+        ensemble,
+        target_is_delta=cfg.target_is_delta,
+        normalize=cfg.normalize,
+        obs_process_fn=obs_process_fn,
+    )
+    if model_dir:
+        dynamics_model.load(model_dir)
 
-def maybe_save_env_stats(env: gym.Env, save_dir: Union[str, pathlib.Path]):
-    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
-        save_dir = pathlib.Path(save_dir)
-        with open(save_dir / "env_stats.pickle", "wb") as f:
-            pickle.dump({"obs": env.obs_stats, "reward": env.reward_stats}, f)
-
-
-def load_trained_model(
-    model_dir: Union[str, pathlib.Path], model_cfg: omegaconf.DictConfig
-) -> mbrl.models.Model:
-    model_dir = pathlib.Path(model_dir)
-    model = hydra.utils.instantiate(model_cfg)
-    model.load(model_dir / "model.pth")
-    return model
+    return dynamics_model
 
 
 def get_hydra_cfg(results_dir: Union[str, pathlib.Path]):
@@ -175,6 +176,7 @@ def rollout_env(
     rewards = []
     with freeze_mujoco_env(cast(gym.wrappers.TimeLimit, env)):
         current_obs = initial_obs.copy()
+        real_obses.append(current_obs)
         if plan is not None:
             lookahead = len(plan)
         for i in range(lookahead):
@@ -189,24 +191,17 @@ def rollout_env(
     return np.stack(real_obses), np.stack(rewards), np.stack(actions)
 
 
-# TODO consider handling normalization inside ModelEnv.
-#  It will make a lot of this code cleaner
 def rollout_model_env(
     model_env: mbrl.models.ModelEnv,
-    env: gym.Env,
     initial_obs: np.ndarray,
     plan: Optional[np.ndarray] = None,
     planner: Optional[mbrl.planning.CEMPlanner] = None,
     cfg: Optional[omegaconf.DictConfig] = None,
-    reward_fn: Optional[mbrl.env.reward_fns.RewardFnType] = None,
+    reward_fn: Optional[mbrl.types.RewardFnType] = None,
     num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     obs_history = []
     reward_history = []
-    normalized = False
-    if isinstance(env, mbrl.env.wrappers.NormalizedEnv):
-        normalized = True
-        initial_obs = env.normalize_obs(initial_obs)
     if planner:
         plan, _ = planner.plan(
             model_env,
@@ -216,18 +211,16 @@ def rollout_model_env(
             cfg.propagation_method,
             reward_fn=reward_fn,
         )
-    model_env.reset(
+    obs0 = model_env.reset(
         np.tile(initial_obs, (num_samples, 1)),
         propagation_method="random_model",
         return_as_np=True,
     )
+    obs_history.append(obs0)
     for action in plan:
         next_obs, reward, done, _ = model_env.step(
             np.tile(action, (num_samples, 1)), sample=False
         )
-        if normalized:
-            next_obs = env.denormalize_obs(next_obs)
-            reward = env.denormalize_reward(reward)
         obs_history.append(next_obs)
         reward_history.append(reward)
     return np.stack(obs_history), np.stack(reward_history), plan
@@ -283,7 +276,7 @@ def complete_sac_cfg(env: gym.Env, cfg: omegaconf.DictConfig) -> omegaconf.DictC
     return cfg
 
 
-def get_agent(
+def load_agent(
     agent_path: Union[str, pathlib.Path], env: gym.Env, agent_type: str
 ) -> mbrl.planning.Agent:
     agent_path = pathlib.Path(agent_path)
