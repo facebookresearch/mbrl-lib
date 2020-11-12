@@ -87,7 +87,9 @@ class GaussianMLP(Model):
         self.min_logvar = nn.Parameter(
             -10 * torch.ones(1, out_size, requires_grad=True)
         )
-        self.max_logvar = nn.Parameter(10 * torch.ones(1, out_size, requires_grad=True))
+        self.max_logvar = nn.Parameter(
+            0.5 * torch.ones(1, out_size, requires_grad=True)
+        )
 
         self.apply(truncated_normal_init)
 
@@ -101,7 +103,8 @@ class GaussianMLP(Model):
 
     def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(model_in)
-        return mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+        nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+        return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
         with torch.no_grad():
