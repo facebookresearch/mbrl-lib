@@ -1,3 +1,4 @@
+import argparse
 import multiprocessing as mp
 import time
 from typing import Sequence, Tuple, cast
@@ -52,34 +53,36 @@ def get_random_trajectory(horizon):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--env", type=str, default="gym___HalfCheetah-v2")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--control_horizon", type=int, default=30)
+    parser.add_argument("--num_processes", type=int, default=1)
+    parser.add_argument("--num_steps", type=int, default=1000)
+    parser.add_argument("--samples_per_process", type=int, default=512)
+    args = parser.parse_args()
+
     mp.set_start_method("spawn")
-    env_name__ = "gym___HalfCheetah-v2"
-    seed__ = 0
-    eval_env = mbrl.util.make_env_from_str(env_name__)
-    eval_env.seed(seed__)
+    eval_env = mbrl.util.make_env_from_str(args.env)
+    eval_env.seed(args.seed)
     current_obs = eval_env.reset()
 
-    horizon__ = 30
-    num_processes__ = 64
-    trajectories_per_process__ = 8
-    population_size__ = num_processes__ * trajectories_per_process__
     controller = mbrl.planning.CEMPlanner(
         5,
         0.1,
-        population_size__,
+        args.num_processes * args.samples_per_process,
         eval_env.action_space.low,
         eval_env.action_space.high,
         0.1,
         torch.device("cpu"),
     )
-    episode_length__ = 100
 
     with mp.Pool(
-        processes=num_processes__, initializer=init, initargs=[env_name__, seed__]
+        processes=args.num_processes, initializer=init, initargs=[args.env, args.seed]
     ) as pool__:
 
         total_reward__ = 0
-        for t in range(episode_length__):
+        for t in range(args.num_steps):
             start = time.time()
 
             current_state__ = mbrl.util.get_current_state(
@@ -94,7 +97,7 @@ if __name__ == "__main__":
                 )
 
             plan, pred_value = controller.plan(
-                eval_env.action_space.shape, horizon__, trajectory_eval_fn
+                eval_env.action_space.shape, args.control_horizon, trajectory_eval_fn
             )
             action__ = plan[0]
             next_obs__, reward__, done__, _ = eval_env.step(action__)
