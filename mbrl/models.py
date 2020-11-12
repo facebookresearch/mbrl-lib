@@ -331,6 +331,15 @@ class DynamicsModelWrapper:
         targets = [target for _ in range(len(self.model))]
         return self.model.eval_score(model_ins, targets)
 
+    def get_output_and_targets_from_simple_batch(
+        self, batch: Tuple
+    ) -> Tuple[List[torch.Tensor], torch.Tensor]:
+        assert isinstance(self.model, Ensemble)
+        with torch.no_grad():
+            model_in, target = self._get_model_input_and_target_from_batch(batch)
+            outputs = [member(model_in) for member in self.model.members]
+        return outputs, target
+
     def predict(
         self,
         obs: torch.Tensor,

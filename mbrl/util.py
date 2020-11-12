@@ -89,16 +89,25 @@ def create_ensemble_buffers(
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
+    train_no_bootstrap: bool = False,
 ) -> Tuple[
-    mbrl.replay_buffer.BootstrapReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
+    mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
 ]:
-    train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
-        cfg.env_dataset_size,
-        cfg.dynamics_model_batch_size,
-        cfg.model.ensemble_size,
-        obs_shape,
-        act_shape,
-    )
+    if train_no_bootstrap:
+        train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
+            cfg.env_dataset_size,
+            cfg.dynamics_model_batch_size,
+            obs_shape,
+            act_shape,
+        )
+    else:
+        train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
+            cfg.env_dataset_size,
+            cfg.dynamics_model_batch_size,
+            cfg.model.ensemble_size,
+            obs_shape,
+            act_shape,
+        )
     val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
     val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
         val_buffer_capacity,
