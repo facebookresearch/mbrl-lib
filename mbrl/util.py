@@ -104,6 +104,7 @@ def create_ensemble_buffers(
             cfg.dynamics_model_batch_size,
             obs_shape,
             act_shape,
+            shuffle_each_epoch=True,
         )
     else:
         train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
@@ -112,6 +113,7 @@ def create_ensemble_buffers(
             cfg.model.ensemble_size,
             obs_shape,
             act_shape,
+            shuffle_each_epoch=True,
         )
     val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
     val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
