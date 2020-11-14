@@ -274,7 +274,7 @@ class DynamicsModelWrapper:
         self.device = self.model.device
         self.learned_rewards = learned_rewards
         self.target_is_delta = target_is_delta
-        self.no_delta_list = no_delta_list
+        self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
 
     def update_normalizer(self, batch: Tuple):
@@ -313,9 +313,8 @@ class DynamicsModelWrapper:
         obs, action, next_obs, reward, _ = batch
         if self.target_is_delta:
             target_obs = next_obs - obs
-            if self.no_delta_list:
-                for dim in self.no_delta_list:
-                    target_obs[:, dim] = next_obs[:, dim]
+            for dim in self.no_delta_list:
+                target_obs[:, dim] = next_obs[:, dim]
         else:
             target_obs = next_obs
 
@@ -381,7 +380,10 @@ class DynamicsModelWrapper:
 
         next_observs = predictions[:, :-1] if self.learned_rewards else predictions
         if self.target_is_delta:
-            next_observs += obs
+            tmp_ = next_observs + obs
+            for dim in self.no_delta_list:
+                tmp_[:, dim] = next_observs[:, dim]
+            next_observs = tmp_
         rewards = predictions[:, -1:] if self.learned_rewards else None
         return next_observs, rewards
 
