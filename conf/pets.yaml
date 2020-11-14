@@ -44,7 +44,7 @@ patience: 50
 freq_train_dyn_model: ${trial_length}
 increase_val_set: true
 
-planning_horizon: 25
+planning_horizon: 15
 num_particles: 20
 propagation_method: "random_model"
 replan_freq: 1

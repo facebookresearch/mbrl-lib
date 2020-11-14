@@ -87,7 +87,9 @@ class GaussianMLP(Model):
         self.min_logvar = nn.Parameter(
             -10 * torch.ones(1, out_size, requires_grad=True)
         )
-        self.max_logvar = nn.Parameter(10 * torch.ones(1, out_size, requires_grad=True))
+        self.max_logvar = nn.Parameter(
+            0.5 * torch.ones(1, out_size, requires_grad=True)
+        )
 
         self.apply(truncated_normal_init)
 
@@ -101,7 +103,8 @@ class GaussianMLP(Model):
 
     def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(model_in)
-        return mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+        nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+        return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
         with torch.no_grad():
@@ -257,7 +260,9 @@ class DynamicsModelWrapper:
         model: Ensemble,
         target_is_delta: bool = True,
         normalize: bool = False,
+        learned_rewards: bool = True,
         obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
+        no_delta_list: Optional[List[int]] = None,
     ):
         assert hasattr(model, "members")
         self.model = model
@@ -267,7 +272,9 @@ class DynamicsModelWrapper:
                 self.model.in_size, self.model.device
             )
         self.device = self.model.device
+        self.learned_rewards = learned_rewards
         self.target_is_delta = target_is_delta
+        self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
 
     def update_normalizer(self, batch: Tuple):
@@ -304,12 +311,20 @@ class DynamicsModelWrapper:
         self, batch: Tuple
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         obs, action, next_obs, reward, _ = batch
-        target_obs = next_obs - obs if self.target_is_delta else next_obs
+        if self.target_is_delta:
+            target_obs = next_obs - obs
+            for dim in self.no_delta_list:
+                target_obs[:, dim] = next_obs[:, dim]
+        else:
+            target_obs = next_obs
 
         model_in = self._get_model_input_from_np(obs, action, self.device)
-        target = torch.from_numpy(
-            np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
-        ).to(self.device)
+        if self.learned_rewards:
+            target = torch.from_numpy(
+                np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
+            ).to(self.device)
+        else:
+            target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
     def loss_from_bootstrap_batch(self, bootstrap_batch: Tuple):
@@ -363,10 +378,13 @@ class DynamicsModelWrapper:
         else:
             predictions = means
 
-        next_observs = predictions[:, :-1]
+        next_observs = predictions[:, :-1] if self.learned_rewards else predictions
         if self.target_is_delta:
-            next_observs += obs
-        rewards = predictions[:, -1:]
+            tmp_ = next_observs + obs
+            for dim in self.no_delta_list:
+                tmp_[:, dim] = next_observs[:, dim]
+            next_observs = tmp_
+        rewards = predictions[:, -1:] if self.learned_rewards else None
         return next_observs, rewards
 
     def save(self, save_dir: Union[str, pathlib.Path]):
@@ -495,7 +513,7 @@ class ModelEnv:
         self._current_obs: torch.Tensor = None
         self._propagation_method: Optional[str] = None
         self._model_indices = None
-        self._rng = torch.Generator()
+        self._rng = torch.Generator(device=self.device)
         if seed is not None:
             self._rng.manual_seed(seed)
         self._return_as_np = True

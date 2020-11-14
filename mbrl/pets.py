@@ -1,7 +1,7 @@
 import functools
 import os
 import pathlib
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import gym
 import hydra
@@ -111,6 +111,7 @@ def train(
     env_dataset_train, env_dataset_val = mbrl.util.create_ensemble_buffers(
         cfg, obs_shape, act_shape
     )
+    env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
     collect_random_trajectories(
         env,
         env_dataset_train,

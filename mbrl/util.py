@@ -57,8 +57,11 @@ def create_dynamics_model(
     act_shape: Tuple[int],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
+    # Fix this for learned_rewards
     cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
-    cfg.model.out_size = obs_shape[0] + 1
+    cfg.model.out_size = obs_shape[0]
+    if cfg.learned_rewards:
+        cfg.model.out_size += 1
     ensemble = hydra.utils.instantiate(cfg.model)
 
     name_obs_process_fn = cfg.get("obs_process_fn", None)
@@ -70,7 +73,9 @@ def create_dynamics_model(
         ensemble,
         target_is_delta=cfg.target_is_delta,
         normalize=cfg.normalize,
+        learned_rewards=cfg.learned_rewards,
         obs_process_fn=obs_process_fn,
+        no_delta_list=cfg.get("no_delta_list", None),
     )
     if model_dir:
         dynamics_model.load(model_dir)
@@ -99,6 +104,7 @@ def create_ensemble_buffers(
             cfg.dynamics_model_batch_size,
             obs_shape,
             act_shape,
+            shuffle_each_epoch=True,
         )
     else:
         train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
@@ -107,6 +113,7 @@ def create_ensemble_buffers(
             cfg.model.ensemble_size,
             obs_shape,
             act_shape,
+            shuffle_each_epoch=True,
         )
     val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
     val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
