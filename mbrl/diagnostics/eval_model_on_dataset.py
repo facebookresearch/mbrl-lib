@@ -70,12 +70,12 @@ class DatasetEvaluator:
 
             plt.figure(figsize=(8, 8))
             for i in range(num_members):
-                plt.plot(means[i], target, ".", markersize=2)
+                plt.plot(target, means[i], ".", markersize=2)
             mean_of_means = means.mean(axis=0)
-            mean_sort_idx = mean_of_means.argsort()
+            mean_sort_idx = target.argsort()
             plt.plot(
-                mean_of_means[mean_sort_idx],
                 target[mean_sort_idx],
+                mean_of_means[mean_sort_idx],
                 color="r",
                 linewidth=0.5,
             )
@@ -85,8 +85,8 @@ class DatasetEvaluator:
                 linewidth=2,
                 color="k",
             )
-            plt.xlabel("Prediction")
-            plt.ylabel("Target")
+            plt.xlabel("Target")
+            plt.ylabel("Prediction")
             fname = self.output_path / f"pred_{name}_dim{dim}.png"
             plt.savefig(fname)
             plt.close()
