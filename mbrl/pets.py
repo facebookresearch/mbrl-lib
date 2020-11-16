@@ -1,6 +1,5 @@
 import functools
 import os
-import pathlib
 from typing import List, Optional, cast
 
 import gym
@@ -67,16 +66,6 @@ def collect_random_trajectories(
                 break
 
 
-def save_dataset(
-    env_dataset_train: replay_buffer.BootstrapReplayBuffer,
-    env_dataset_val: replay_buffer.IterableReplayBuffer,
-    work_dir: str,
-):
-    work_path = pathlib.Path(work_dir)
-    env_dataset_train.save(str(work_path / "replay_buffer_train"))
-    env_dataset_val.save(str(work_path / "replay_buffer_val"))
-
-
 def train(
     env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
@@ -122,7 +111,7 @@ def train(
         rng,
         trial_length=cfg.trial_length,
     )
-    save_dataset(env_dataset_train, env_dataset_val, work_dir)
+    mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -165,7 +154,7 @@ def train(
                     patience=cfg.patience,
                 )
                 dynamics_model.save(work_dir)
-                save_dataset(env_dataset_train, env_dataset_val, work_dir)
+                mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
                 pets_logger.dump(env_steps, save=True)
 
                 steps_since_model_train = 1

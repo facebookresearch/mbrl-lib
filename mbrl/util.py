@@ -131,6 +131,16 @@ def create_ensemble_buffers(
     return train_buffer, val_buffer
 
 
+def save_buffers(
+    env_dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
+    env_dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,
+    work_dir: Union[str, pathlib.Path],
+):
+    work_path = pathlib.Path(work_dir)
+    env_dataset_train.save(str(work_path / "replay_buffer_train"))
+    env_dataset_val.save(str(work_path / "replay_buffer_val"))
+
+
 # ------------------------------------------------------------------------ #
 # Utilities to roll out environments
 # ------------------------------------------------------------------------ #

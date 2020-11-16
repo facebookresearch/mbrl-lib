@@ -86,6 +86,7 @@ class FineTuner:
 
         self.dynamics_model.save(str(self.outdir))
         np.savez(self.outdir / "finetune_losses", train=train_losses, val=val_losses)
+        mbrl.util.save_buffers(self.dataset_train, self.dataset_val, self.outdir)
 
 
 if __name__ == "__main__":
