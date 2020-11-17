@@ -1,10 +1,12 @@
 import argparse
 import multiprocessing as mp
+import pathlib
 import time
 from typing import Sequence, Tuple, cast
 
 import gym.wrappers
 import numpy as np
+import skvideo.io
 import torch
 
 import mbrl.planning
@@ -60,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_processes", type=int, default=1)
     parser.add_argument("--num_steps", type=int, default=1000)
     parser.add_argument("--samples_per_process", type=int, default=512)
+    parser.add_argument("--output_dir", type=str, default=None)
     args = parser.parse_args()
 
     mp.set_start_method("spawn")
@@ -82,7 +85,9 @@ if __name__ == "__main__":
     ) as pool__:
 
         total_reward__ = 0
+        frames = []
         for t in range(args.num_steps):
+            frames.append(eval_env.render(mode="rgb_array"))
             start = time.time()
 
             current_state__ = mbrl.util.get_current_state(
@@ -108,5 +113,10 @@ if __name__ == "__main__":
                 f"step: {t}, time: {time.time() - start: .3f}, "
                 f"reward: {reward__: .3f}, pred_value: {pred_value: .3f}"
             )
+        frames_np = np.stack(frames)
+        writer = skvideo.io.FFmpegWriter(pathlib.Path(args.output_dir) / "video.mp4")
+        for i in range(len(frames_np)):
+            writer.writeFrame(frames_np[i, :, :, :])
+        writer.close()
 
         print("total_reward: ", total_reward__)
