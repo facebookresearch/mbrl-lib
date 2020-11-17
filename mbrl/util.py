@@ -252,6 +252,8 @@ def rollout_env(
             lookahead = len(plan)
         for i in range(lookahead):
             a = plan[i] if plan is not None else agent.act(current_obs)
+            if isinstance(a, torch.Tensor):
+                a = a.numpy()
             next_obs, reward, done, _ = env.step(a)
             actions.append(a)
             real_obses.append(next_obs)
