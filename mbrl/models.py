@@ -52,7 +52,8 @@ class Model(nn.Module):
         pass
 
     @abc.abstractmethod
-    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
+    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        # Returns the non-reduced score
         pass
 
     @abc.abstractmethod
@@ -106,10 +107,10 @@ class GaussianMLP(Model):
         nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
         return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
-    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
+    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
-            return F.mse_loss(pred_mean, target).item()
+            return F.mse_loss(pred_mean, target, reduce=False).mean(dim=1)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
@@ -231,13 +232,13 @@ class Ensemble(Model):
 
     def eval_score(
         self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
-    ) -> float:
+    ) -> torch.Tensor:
         with torch.no_grad():
-            avg_ensemble_score = 0
+            avg_ensemble_score = torch.tensor(0.0)
             for i, model in enumerate(self.members):
                 model.eval()
                 score = model.eval_score(inputs[i], targets[i])
-                avg_ensemble_score += score
+                avg_ensemble_score = score + avg_ensemble_score
             return avg_ensemble_score / len(self.members)
 
     def save(self, path: str):
@@ -338,7 +339,7 @@ class DynamicsModelWrapper:
             targets.append(target)
         return self.model.loss(model_ins, targets)
 
-    def eval_score_from_simple_batch(self, batch: Tuple):
+    def eval_score_from_simple_batch(self, batch: Tuple) -> torch.Tensor:
         assert isinstance(self.model, Ensemble)
 
         model_in, target = self._get_model_input_and_target_from_batch(batch)
@@ -426,38 +427,47 @@ class EnsembleTrainer:
         patience: Optional[int] = 50,
     ) -> Tuple[List[float], List[float]]:
         assert len(self.dynamics_model.model) == len(self.dataset_train.member_indices)
-        training_losses, val_losses = [], []
+        training_losses, train_eval_scores, val_losses = [], [], []
         best_weights = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
-        best_val_score = self.evaluate()
+        has_val_dataset = (
+            self.dataset_val is not None and self.dataset_val.num_stored > 0
+        )
+        best_val_score = self.evaluate(use_train_set=not has_val_dataset)
         for epoch in epoch_iter:
             total_avg_loss = 0.0
             for bootstrap_batch in self.dataset_train:
+                # This call also updates the model.
+                # TODO refactor this to separate loss computation from update
                 avg_ensemble_loss = self.dynamics_model.loss_from_bootstrap_batch(
                     bootstrap_batch
                 )
                 total_avg_loss += avg_ensemble_loss
             training_losses.append(total_avg_loss)
 
-            val_score = 0.0
-            if self.dataset_val:
-                val_score = self.evaluate()
-                val_losses.append(val_score)
-                maybe_best_weights = self.maybe_save_best_weights(
-                    best_val_score, val_score
-                )
-                if maybe_best_weights:
-                    best_val_score = val_score
-                    best_weights = maybe_best_weights
-                    epochs_since_update = 0
-                else:
-                    epochs_since_update += 1
+            train_score = self.evaluate(use_train_set=True)
+            train_eval_scores.append(train_score)
+            eval_score = train_score
+            if has_val_dataset:
+                eval_score = self.evaluate()
+                val_losses.append(eval_score)
+
+            maybe_best_weights = self.maybe_save_best_weights(
+                best_val_score, eval_score
+            )
+            if maybe_best_weights:
+                best_val_score = eval_score
+                best_weights = maybe_best_weights
+                epochs_since_update = 0
+            else:
+                epochs_since_update += 1
 
             if self.logger and epoch % self.log_frequency == 0:
                 self.logger.log("train/epoch", epoch, epoch)
                 self.logger.log("train/model_loss", total_avg_loss, epoch)
-                self.logger.log("train/model_val_score", val_score, epoch)
+                self.logger.log("train/model_score", train_score, epoch)
+                self.logger.log("train/model_val_score", eval_score, epoch)
                 self.logger.log("train/model_best_val_score", best_val_score, epoch)
                 self.logger.dump(epoch, save=True)
 
@@ -469,12 +479,22 @@ class EnsembleTrainer:
                 model.load_state_dict(best_weights[i])
         return training_losses, val_losses
 
-    def evaluate(self) -> float:
-        total_avg_loss = 0.0
-        for batch in self.dataset_val:
+    def evaluate(self, use_train_set: bool = False) -> float:
+        dataset = self.dataset_val
+        if use_train_set:
+            self.dataset_train.toggle_bootstrap()
+            dataset = self.dataset_train
+
+        total_avg_loss = torch.tensor(0.0)
+        for batch in dataset:
             avg_ensemble_loss = self.dynamics_model.eval_score_from_simple_batch(batch)
-            total_avg_loss += avg_ensemble_loss
-        return total_avg_loss
+            total_avg_loss = (
+                avg_ensemble_loss.sum() / dataset.num_stored
+            ) + total_avg_loss
+
+        if use_train_set:
+            self.dataset_train.toggle_bootstrap()
+        return total_avg_loss.item()
 
     def maybe_save_best_weights(
         self, best_val_loss: float, val_loss: float

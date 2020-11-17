@@ -149,6 +149,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             shuffle_each_epoch=shuffle_each_epoch,
         )
         self.member_indices: List[List[int]] = [None for _ in range(num_members)]
+        self._bootstrap_iter = True
 
     def add(
         self,
@@ -169,6 +170,8 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         return self
 
     def __next__(self):
+        if not self._bootstrap_iter:
+            return super().__next__()
         indices = self._get_indices_next_batch()
         batches = []
         for member_idx in self.member_indices:
@@ -187,3 +190,6 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         else:
             indices = np.random.choice(self.num_stored, size=batch_size)
             return self._batch_from_indices(indices)
+
+    def toggle_bootstrap(self):
+        self._bootstrap_iter = not self._bootstrap_iter

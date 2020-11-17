@@ -20,6 +20,7 @@ PETS_LOG_FORMAT = [
     ("train_dataset_size", "TD", "int"),
     ("val_dataset_size", "VD", "int"),
     ("model_loss", "MLOSS", "float"),
+    ("model_score", "MSCORE", "float"),
     ("model_val_score", "MVSCORE", "float"),
     ("model_best_val_score", "MBVSCORE", "float"),
 ]
