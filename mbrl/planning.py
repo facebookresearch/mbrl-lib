@@ -105,7 +105,7 @@ class CEMOptimizer:
             mv = torch.min(torch.pow(lb_dist / 2, 2), torch.pow(ub_dist / 2, 2))
             constrained_var = torch.min(mv, var)
 
-            population = mbrl.math.truncated_normal_(population)
+            population = mbrl.math.truncated_normal_(population, clip=True)
             population = population * torch.sqrt(constrained_var) + mu
 
             if callback is not None:

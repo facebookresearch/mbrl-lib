@@ -22,12 +22,17 @@ def gaussian_nll(
 # inplace truncated normal function for pytorch.
 # Taken from https://discuss.pytorch.org/t/implementing-truncated-normal-initializer/4778/16
 # and tested to be equivalent to scipy.stats.truncnorm.rvs
-def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1):
+def truncated_normal_(
+    tensor: torch.Tensor, mean: float = 0, std: float = 1, clip=False
+):
     size = tensor.shape
     tmp = tensor.new_empty(size + (4,)).normal_()
     valid = (tmp < 2) & (tmp > -2)
     ind = valid.max(-1, keepdim=True)[1]
     tensor.data.copy_(tmp.gather(-1, ind).squeeze(-1))
+    if clip:
+        # This is quite rarely needed
+        tensor.clip_(-2, 2)
     tensor.data.mul_(std).add_(mean)
     return tensor
 
