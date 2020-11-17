@@ -1,5 +1,6 @@
 import functools
 import os
+import time
 from typing import List, Optional, cast
 
 import gym
@@ -163,6 +164,7 @@ def train(
                 steps_since_model_train += 1
 
             # ------------- Planning using the learned model ---------------
+            plan_time = 0.0
             if not actions_to_use:  # re-plan is necessary
                 trajectory_eval_fn = functools.partial(
                     model_env.evaluate_action_sequences,
@@ -170,11 +172,13 @@ def train(
                     num_particles=cfg.num_particles,
                     propagation_method=cfg.propagation_method,
                 )
+                start_time = time.time()
                 plan, _ = planner.plan(
                     model_env.action_space.shape,
                     cfg.planning_horizon,
                     trajectory_eval_fn,
                 )
+                plan_time = time.time() - start_time
 
                 actions_to_use.extend([a for a in plan[: cfg.replan_freq]])
             action = actions_to_use.pop(0)
@@ -194,7 +198,7 @@ def train(
                 break
 
             if debug_mode:
-                print(f"Step {env_steps}: Reward {reward:.3f}")
+                print(f"Step {env_steps}: Reward {reward:.3f}. Time: {plan_time:.3f}")
 
         pets_logger.log("eval/trial", current_trial, env_steps)
         pets_logger.log("eval/episode_reward", total_reward, env_steps)

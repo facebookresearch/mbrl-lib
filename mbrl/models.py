@@ -83,21 +83,22 @@ class GaussianMLP(Model):
                 nn.Sequential(nn.Linear(hid_size, hid_size), activation_cls())
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
-        self.mean = nn.Linear(hid_size, out_size)
-        self.logvar = nn.Linear(hid_size, out_size)
+        self.mean_and_logvar = nn.Linear(hid_size, 2 * out_size)
         self.min_logvar = nn.Parameter(
             -10 * torch.ones(1, out_size, requires_grad=True)
         )
         self.max_logvar = nn.Parameter(
             0.5 * torch.ones(1, out_size, requires_grad=True)
         )
+        self.out_size = out_size
 
         self.apply(truncated_normal_init)
 
     def forward(self, x: torch.Tensor, **_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.hidden_layers(x)
-        mean = self.mean(x)
-        logvar = self.logvar(x)
+        mean_and_logvar = self.mean_and_logvar(x)
+        mean = mean_and_logvar[:, : self.out_size]
+        logvar = mean_and_logvar[:, self.out_size :]
         logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
         logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
         return mean, logvar
