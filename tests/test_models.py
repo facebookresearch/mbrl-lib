@@ -97,7 +97,7 @@ def get_mock_env():
     for i in range(num_members):
         ensemble.members[i].value = member_incs[i]
 
-    model_env = models.ModelEnv(MockEnv(), dynamics_model, mock_term_fn)
+    model_env = models.ModelEnv(MockEnv(), dynamics_model, mock_term_fn, None)
     return model_env, member_incs
 
 

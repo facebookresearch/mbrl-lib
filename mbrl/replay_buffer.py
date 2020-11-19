@@ -85,6 +85,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         action_shape: Tuple[int],
         obs_type=np.float32,
         action_type=np.float32,
+        shuffle_each_epoch: bool = False,
     ):
         super(IterableReplayBuffer, self).__init__(
             capacity,
@@ -95,18 +96,23 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         )
         self.batch_size = batch_size
         self._current_batch = 0
+        self._order: np.ndarray = np.arange(self.capacity)
+        self._shuffle_each_epoch = shuffle_each_epoch
 
     def _get_indices_next_batch(self) -> Sized:
         start_idx = self._current_batch * self.batch_size
         if start_idx >= self.num_stored:
             raise StopIteration
         end_idx = min((self._current_batch + 1) * self.batch_size, self.num_stored)
-        indices = range(start_idx, end_idx)
+        order_indices = range(start_idx, end_idx)
+        indices = self._order[order_indices]
         self._current_batch += 1
         return indices
 
     def __iter__(self):
         self._current_batch = 0
+        if self._shuffle_each_epoch:
+            self._order = np.random.permutation(self.num_stored)
         return self
 
     def __next__(self):
@@ -131,6 +137,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         action_shape: Tuple[int],
         obs_type=np.float32,
         action_type=np.float32,
+        shuffle_each_epoch: bool = False,
     ):
         super(BootstrapReplayBuffer, self).__init__(
             capacity,
@@ -139,8 +146,10 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             action_shape,
             obs_type=obs_type,
             action_type=action_type,
+            shuffle_each_epoch=shuffle_each_epoch,
         )
         self.member_indices: List[List[int]] = [None for _ in range(num_members)]
+        self._bootstrap_iter = True
 
     def add(
         self,
@@ -161,6 +170,8 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         return self
 
     def __next__(self):
+        if not self._bootstrap_iter:
+            return super().__next__()
         indices = self._get_indices_next_batch()
         batches = []
         for member_idx in self.member_indices:
@@ -179,3 +190,6 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         else:
             indices = np.random.choice(self.num_stored, size=batch_size)
             return self._batch_from_indices(indices)
+
+    def toggle_bootstrap(self):
+        self._bootstrap_iter = not self._bootstrap_iter

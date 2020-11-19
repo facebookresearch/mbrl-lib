@@ -51,14 +51,32 @@ def make_env(
     return env, term_fn, reward_fn
 
 
+def make_env_from_str(env_name: str) -> gym.Env:
+    if "dmcontrol___" in env_name:
+        domain, task = env_name.split("___")[1].split("--")
+        env = dmc2gym.make(domain_name=domain, task_name=task)
+    elif "gym___" in env_name:
+        env = gym.make(env_name.split("___")[1])
+    elif env_name == "cartpole_continuous":
+        env = mbrl.env.cartpole_continuous.CartPoleEnv()
+    elif env_name == "pets_halfcheetah":
+        env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
+    else:
+        raise ValueError("Invalid environment string.")
+    return env
+
+
 def create_dynamics_model(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
+    # Fix this for learned_rewards
     cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
-    cfg.model.out_size = obs_shape[0] + 1
+    cfg.model.out_size = obs_shape[0]
+    if cfg.learned_rewards:
+        cfg.model.out_size += 1
     ensemble = hydra.utils.instantiate(cfg.model)
 
     name_obs_process_fn = cfg.get("obs_process_fn", None)
@@ -70,7 +88,9 @@ def create_dynamics_model(
         ensemble,
         target_is_delta=cfg.target_is_delta,
         normalize=cfg.normalize,
+        learned_rewards=cfg.learned_rewards,
         obs_process_fn=obs_process_fn,
+        no_delta_list=cfg.get("no_delta_list", None),
     )
     if model_dir:
         dynamics_model.load(model_dir)
@@ -89,16 +109,27 @@ def create_ensemble_buffers(
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
+    train_no_bootstrap: bool = False,
 ) -> Tuple[
-    mbrl.replay_buffer.BootstrapReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
+    mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
 ]:
-    train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
-        cfg.env_dataset_size,
-        cfg.dynamics_model_batch_size,
-        cfg.model.ensemble_size,
-        obs_shape,
-        act_shape,
-    )
+    if train_no_bootstrap:
+        train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
+            cfg.env_dataset_size,
+            cfg.dynamics_model_batch_size,
+            obs_shape,
+            act_shape,
+            shuffle_each_epoch=True,
+        )
+    else:
+        train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
+            cfg.env_dataset_size,
+            cfg.dynamics_model_batch_size,
+            cfg.model.ensemble_size,
+            obs_shape,
+            act_shape,
+            shuffle_each_epoch=True,
+        )
     val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
     val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
         val_buffer_capacity,
@@ -113,6 +144,16 @@ def create_ensemble_buffers(
         val_buffer.load(str(load_dir / "replay_buffer_val.npz"))
 
     return train_buffer, val_buffer
+
+
+def save_buffers(
+    env_dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
+    env_dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,
+    work_dir: Union[str, pathlib.Path],
+):
+    work_path = pathlib.Path(work_dir)
+    env_dataset_train.save(str(work_path / "replay_buffer_train"))
+    env_dataset_val.save(str(work_path / "replay_buffer_val"))
 
 
 # ------------------------------------------------------------------------ #
@@ -163,6 +204,36 @@ class freeze_mujoco_env:
         return self._exit_method()
 
 
+def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
+    if isinstance(env.env, gym.envs.mujoco.MujocoEnv):
+        state = (
+            env.env.data.qpos.ravel().copy(),
+            env.env.data.qvel.ravel().copy(),
+        )
+        elapsed_steps = env._elapsed_steps
+        return state, elapsed_steps
+    elif isinstance(env.env, dmc2gym.wrappers.DMCWrapper):
+        state = env.env._env.physics.get_state().copy()
+        elapsed_steps = env._elapsed_steps
+        step_count = env.env._env._step_count
+        return state, elapsed_steps, step_count
+    else:
+        raise ValueError(
+            "Only gym mujoco and dmcontrol environments supported by get_current_state"
+        )
+
+
+def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
+    if isinstance(env.env, gym.envs.mujoco.MujocoEnv):
+        env.set_state(*state[0])
+        env._elapsed_steps = state[1]
+    elif isinstance(env.env, dmc2gym.wrappers.DMCWrapper):
+        with env.env._env.physics.reset_context():
+            env.env._env.physics.set_state(state[0])
+            env._elapsed_steps = state[1]
+            env.env._env._step_count = state[2]
+
+
 # If plan is given, then ignores agent and runs the actions in the plan
 def rollout_env(
     env: gym.wrappers.TimeLimit,
@@ -181,6 +252,8 @@ def rollout_env(
             lookahead = len(plan)
         for i in range(lookahead):
             a = plan[i] if plan is not None else agent.act(current_obs)
+            if isinstance(a, torch.Tensor):
+                a = a.numpy()
             next_obs, reward, done, _ = env.step(a)
             actions.append(a)
             real_obses.append(next_obs)
@@ -197,19 +270,24 @@ def rollout_model_env(
     plan: Optional[np.ndarray] = None,
     planner: Optional[mbrl.planning.CEMPlanner] = None,
     cfg: Optional[omegaconf.DictConfig] = None,
-    reward_fn: Optional[mbrl.types.RewardFnType] = None,
     num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     obs_history = []
     reward_history = []
     if planner:
+
+        def trajectory_eval_fn(action_sequence: torch.Tensor) -> torch.Tensor:
+            return model_env.evaluate_action_sequences(
+                action_sequence,
+                initial_state=initial_obs[None, :],
+                num_particles=cfg.num_particles,
+                propagation_method=cfg.propagation_method,
+            )
+
         plan, _ = planner.plan(
-            model_env,
-            initial_obs[None, :],
+            model_env.action_space.shape,
             cfg.planning_horizon,
-            cfg.num_particles,
-            cfg.propagation_method,
-            reward_fn=reward_fn,
+            trajectory_eval_fn,
         )
     obs0 = model_env.reset(
         np.tile(initial_obs, (num_samples, 1)),

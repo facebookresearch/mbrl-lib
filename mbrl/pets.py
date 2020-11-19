@@ -1,6 +1,7 @@
+import functools
 import os
-import pathlib
-from typing import List, Optional
+import time
+from typing import List, Optional, cast
 
 import gym
 import hydra
@@ -20,6 +21,7 @@ PETS_LOG_FORMAT = [
     ("train_dataset_size", "TD", "int"),
     ("val_dataset_size", "VD", "int"),
     ("model_loss", "MLOSS", "float"),
+    ("model_score", "MSCORE", "float"),
     ("model_val_score", "MVSCORE", "float"),
     ("model_best_val_score", "MBVSCORE", "float"),
 ]
@@ -66,16 +68,6 @@ def collect_random_trajectories(
                 break
 
 
-def save_dataset(
-    env_dataset_train: replay_buffer.BootstrapReplayBuffer,
-    env_dataset_val: replay_buffer.IterableReplayBuffer,
-    work_dir: str,
-):
-    work_path = pathlib.Path(work_dir)
-    env_dataset_train.save(str(work_path / "replay_buffer_train"))
-    env_dataset_val.save(str(work_path / "replay_buffer_val"))
-
-
 def train(
     env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
@@ -110,6 +102,7 @@ def train(
     env_dataset_train, env_dataset_val = mbrl.util.create_ensemble_buffers(
         cfg, obs_shape, act_shape
     )
+    env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
     collect_random_trajectories(
         env,
         env_dataset_train,
@@ -120,11 +113,13 @@ def train(
         rng,
         trial_length=cfg.trial_length,
     )
-    save_dataset(env_dataset_train, env_dataset_val, work_dir)
+    mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    model_env = models.ModelEnv(env, dynamics_model, termination_fn, seed=cfg.seed)
+    model_env = models.ModelEnv(
+        env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
+    )
     model_trainer = models.EnsembleTrainer(
         dynamics_model,
         env_dataset_train,
@@ -138,6 +133,7 @@ def train(
     max_total_reward = -np.inf
     for trial in range(cfg.num_trials):
         obs = env.reset()
+        planner.reset()
         actions_to_use: List[np.ndarray] = []
         done = False
         total_reward = 0
@@ -160,7 +156,7 @@ def train(
                     patience=cfg.patience,
                 )
                 dynamics_model.save(work_dir)
-                save_dataset(env_dataset_train, env_dataset_val, work_dir)
+                mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
                 pets_logger.dump(env_steps, save=True)
 
                 steps_since_model_train = 1
@@ -168,15 +164,21 @@ def train(
                 steps_since_model_train += 1
 
             # ------------- Planning using the learned model ---------------
+            plan_time = 0.0
             if not actions_to_use:  # re-plan is necessary
-                plan, _ = planner.plan(
-                    model_env,
-                    obs,
-                    cfg.planning_horizon,
-                    cfg.num_particles,
-                    cfg.propagation_method,
-                    reward_fn,
+                trajectory_eval_fn = functools.partial(
+                    model_env.evaluate_action_sequences,
+                    initial_state=obs,
+                    num_particles=cfg.num_particles,
+                    propagation_method=cfg.propagation_method,
                 )
+                start_time = time.time()
+                plan, _ = planner.plan(
+                    model_env.action_space.shape,
+                    cfg.planning_horizon,
+                    trajectory_eval_fn,
+                )
+                plan_time = time.time() - start_time
 
                 actions_to_use.extend([a for a in plan[: cfg.replan_freq]])
             action = actions_to_use.pop(0)
@@ -196,7 +198,7 @@ def train(
                 break
 
             if debug_mode:
-                print(f"Step {env_steps}: Reward {reward:.3f}")
+                print(f"Step {env_steps}: Reward {reward:.3f}. Time: {plan_time:.3f}")
 
         pets_logger.log("eval/trial", current_trial, env_steps)
         pets_logger.log("eval/episode_reward", total_reward, env_steps)

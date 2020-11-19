@@ -6,8 +6,7 @@ import pytorch_sac
 import torch
 import torch.distributions
 
-import mbrl.models
-import mbrl.types
+import mbrl.math
 
 # TODO rename this module as "control.py", re-organize agents under a common
 #   interface (name it Controller)
@@ -30,52 +29,6 @@ class SACAgent(Agent):
         self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
     ) -> np.ndarray:
         return self.sac_agent.act(obs, sample=sample, batched=batched)
-
-
-# ------------------------------------------------------------------------ #
-#                               Utilities
-# ------------------------------------------------------------------------ #
-# inplace truncated normal function for pytorch.
-# Taken from https://discuss.pytorch.org/t/implementing-truncated-normal-initializer/4778/16
-# and tested to be equivalent to scipy.stats.truncnorm.rvs
-def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1):
-    size = tensor.shape
-    tmp = tensor.new_empty(size + (4,)).normal_()
-    valid = (tmp < 2) & (tmp > -2)
-    ind = valid.max(-1, keepdim=True)[1]
-    tensor.data.copy_(tmp.gather(-1, ind).squeeze(-1))
-    tensor.data.mul_(std).add_(mean)
-    return tensor
-
-
-def evaluate_action_sequences(
-    initial_state: np.ndarray,
-    action_sequences: torch.Tensor,
-    model_env: mbrl.models.ModelEnv,
-    num_particles: int,
-    propagation_method: str,
-    reward_fn: Optional[mbrl.types.RewardFnType] = None,
-) -> torch.Tensor:
-    assert len(action_sequences.shape) == 3  # population_size, horizon, action_shape
-    population_size, horizon, action_dim = action_sequences.shape
-    initial_obs_batch = np.tile(
-        initial_state, (num_particles * population_size, 1)
-    ).astype(np.float32)
-    model_env.reset(
-        initial_obs_batch, propagation_method=propagation_method, return_as_np=False
-    )
-
-    total_rewards: torch.Tensor = 0
-    for time_step in range(horizon):
-        actions_for_step = action_sequences[:, time_step, :]
-        action_batch = torch.repeat_interleave(actions_for_step, num_particles, dim=0)
-        next_obs, pred_rewards, _, _ = model_env.step(action_batch, sample=True)
-        rewards = (
-            pred_rewards if reward_fn is None else reward_fn(action_batch, next_obs)
-        )
-        total_rewards += rewards
-
-    return total_rewards
 
 
 # ------------------------------------------------------------------------ #
@@ -131,9 +84,13 @@ class CEMOptimizer:
         self,
         obj_fun: Callable[[torch.Tensor], torch.Tensor],
         x_shape: Tuple[int, ...],
+        initial_mu: Optional[torch.Tensor] = None,
         callback: Optional[Callable[[torch.Tensor, int], Any]] = None,
-    ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
-        mu = torch.zeros(x_shape).to(self.device)
+    ) -> Tuple[torch.Tensor, Dict[str, np.ndarray]]:
+        if initial_mu is None:
+            mu = torch.zeros(x_shape).to(self.device)
+        else:
+            mu = torch.ones(x_shape).to(self.device) * initial_mu
         var = torch.ones(x_shape).to(self.device) * self.initial_var
 
         history = self._init_history(x_shape)
@@ -148,7 +105,7 @@ class CEMOptimizer:
             mv = torch.min(torch.pow(lb_dist / 2, 2), torch.pow(ub_dist / 2, 2))
             constrained_var = torch.min(mv, var)
 
-            population = truncated_normal_(population)
+            population = mbrl.math.truncated_normal_(population, clip=True)
             population = population * torch.sqrt(constrained_var) + mu
 
             if callback is not None:
@@ -167,7 +124,7 @@ class CEMOptimizer:
                 best_solution = population[elite_idx[0]].clone()
             self._update_history(i, values, mu, best_solution, history)
 
-        return best_solution.cpu().numpy(), history
+        return best_solution, history
 
 
 # TODO separate CEM specific parameters. This can probably be a planner class
@@ -182,6 +139,7 @@ class CEMPlanner:
         action_ub: np.ndarray,
         alpha: float,
         device: torch.device,
+        replan_freq: int = 1,
     ):
         self.optimizer = CEMOptimizer(
             num_iterations,
@@ -193,36 +151,31 @@ class CEMPlanner:
             device,
         )
         self.population_size = population_size
+        self.initial_solution = (
+            (torch.tensor(action_lb) + torch.tensor(action_ub)) / 2
+        ).to(device)
+        self.previous_solution = self.initial_solution.clone()
+        self.replan_freq = replan_freq
 
     def plan(
         self,
-        model_env: mbrl.models.ModelEnv,
-        initial_state: np.ndarray,
+        action_shape: Tuple[int],
         horizon: int,
-        num_model_particles: int,
-        propagation_method: str,
-        reward_fn: Optional[mbrl.types.RewardFnType] = None,
+        trajectory_eval_fn: Callable[[torch.Tensor], torch.Tensor],
     ) -> Tuple[np.ndarray, float]:
-        def obj_fn(action_sequences_: torch.Tensor) -> torch.Tensor:
-            # Returns the mean (over particles) of the total reward for each
-            # sequence
-            total_rewards = evaluate_action_sequences(
-                initial_state,
-                action_sequences_,
-                model_env,
-                num_model_particles,
-                propagation_method,
-                reward_fn,
-            )
-            total_rewards = total_rewards.reshape(
-                self.population_size, num_model_particles
-            )
-            return total_rewards.mean(axis=1)
 
-        action_shape = model_env.action_space.shape
         if not action_shape:
             action_shape = (1,)
+        if self.previous_solution.ndim == 1:
+            self.previous_solution = self.previous_solution.repeat((horizon, 1))
         best_solution, opt_history = self.optimizer.optimize(
-            obj_fn, (horizon,) + action_shape
+            trajectory_eval_fn,
+            (horizon,) + action_shape,
+            initial_mu=self.previous_solution,
         )
-        return best_solution, opt_history["value_maxs"].max()
+        self.previous_solution = best_solution.roll(-self.replan_freq, dims=0)
+        self.previous_solution[-self.replan_freq :] = self.initial_solution
+        return best_solution.cpu().numpy(), opt_history["value_maxs"].max()
+
+    def reset(self):
+        self.previous_solution = self.initial_solution.clone()

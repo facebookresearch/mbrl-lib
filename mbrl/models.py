@@ -1,8 +1,6 @@
 import abc
-import dataclasses
 import itertools
 import pathlib
-import pickle
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import gym
@@ -15,92 +13,18 @@ from torch import nn as nn
 from torch import optim as optim
 from torch.nn import functional as F
 
+import mbrl.math
 import mbrl.types
 
 from . import replay_buffer
 
 
-# ------------------------------------------------------------------------ #
-# Common model utilities
-# ------------------------------------------------------------------------ #
-def gaussian_nll(
-    pred_mean: torch.Tensor, pred_logvar: torch.Tensor, target: torch.Tensor
-) -> torch.Tensor:
-    l2 = F.mse_loss(pred_mean, target, reduction="none")
-    inv_var = (-pred_logvar).exp()
-    losses = l2 * inv_var + pred_logvar
-    return losses.sum(dim=1).mean()
-
-
-@dataclasses.dataclass
-class Stats:
-    mean: Union[float, torch.Tensor]
-    m2: Union[float, torch.Tensor]
-    count: int
-
-
-class Normalizer:
-    _STATS_FNAME = "env_stats.pickle"
-
-    def __init__(self, in_size: int, device: torch.device):
-        self.stats = Stats(
-            torch.zeros((1, in_size), device=device),
-            torch.ones((1, in_size), device=device),
-            0,
-        )
-        self.device = device
-
-    def update_stats(self, val: Union[float, mbrl.types.TensorType]):
-        if isinstance(val, np.ndarray):
-            val = torch.from_numpy(val).to(self.device)
-        mean, m2, count = dataclasses.astuple(self.stats)
-        count = count + 1
-        delta = val - mean
-        mean += delta / count
-        delta2 = val - mean
-        m2 += delta * delta2
-        self.stats.mean = mean
-        self.stats.m2 = m2
-        self.stats.count = count
-
-    def normalize(
-        self, val: Union[float, mbrl.types.TensorType]
-    ) -> Union[float, mbrl.types.TensorType]:
-        if isinstance(val, np.ndarray):
-            val = torch.from_numpy(val).to(self.device)
-        mean, m2, count = dataclasses.astuple(self.stats)
-        if count > 1:
-            std = torch.sqrt(m2 / (count - 1))
-            return (val - mean) / std
-        return val
-
-    def denormalize(
-        self, val: Union[float, mbrl.types.TensorType]
-    ) -> Union[float, mbrl.types.TensorType]:
-        if isinstance(val, np.ndarray):
-            val = torch.from_numpy(val).to(self.device)
-        mean, m2, count = dataclasses.astuple(self.stats)
-        if count > 1:
-            std = torch.sqrt(m2 / (count - 1))
-            return std * val + mean
-        return val
-
-    def load(self, results_dir: Union[str, pathlib.Path]):
-        with open(pathlib.Path(results_dir) / self._STATS_FNAME, "rb") as f:
-            stats = pickle.load(f)
-            self.stats = Stats(
-                torch.from_numpy(stats["mean"]).to(self.device),
-                torch.from_numpy(stats["m2"]).to(self.device),
-                stats["count"],
-            )
-
-    def save(self, save_dir: Union[str, pathlib.Path]):
-        mean, m2, count = dataclasses.astuple(self.stats)
-        save_dir = pathlib.Path(save_dir)
-        with open(save_dir / self._STATS_FNAME, "wb") as f:
-            pickle.dump(
-                {"mean": mean.cpu().numpy(), "m2": m2.cpu().numpy(), "count": count}, f
-            )
+def truncated_normal_init(m: nn.Module):
+    if isinstance(m, nn.Linear):
+        input_dim = m.weight.data.shape[0]
+        stddev = 1 / (2 * np.sqrt(input_dim))
+        mbrl.math.truncated_normal_(m.weight.data, std=stddev)
+        m.bias.data.fill_(0.0)
 
 
 # ------------------------------------------------------------------------ #
@@ -128,7 +52,8 @@ class Model(nn.Module):
         pass
 
     @abc.abstractmethod
-    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
+    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        # Returns the non-reduced score
         pass
 
     @abc.abstractmethod
@@ -158,29 +83,35 @@ class GaussianMLP(Model):
                 nn.Sequential(nn.Linear(hid_size, hid_size), activation_cls())
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
-        self.mean = nn.Linear(hid_size, out_size)
-        self.logvar = nn.Linear(hid_size, out_size)
+        self.mean_and_logvar = nn.Linear(hid_size, 2 * out_size)
         self.min_logvar = nn.Parameter(
             -10 * torch.ones(1, out_size, requires_grad=True)
         )
-        self.max_logvar = nn.Parameter(10 * torch.ones(1, out_size, requires_grad=True))
+        self.max_logvar = nn.Parameter(
+            0.5 * torch.ones(1, out_size, requires_grad=True)
+        )
+        self.out_size = out_size
+
+        self.apply(truncated_normal_init)
 
     def forward(self, x: torch.Tensor, **_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.hidden_layers(x)
-        mean = self.mean(x)
-        logvar = self.logvar(x)
+        mean_and_logvar = self.mean_and_logvar(x)
+        mean = mean_and_logvar[:, : self.out_size]
+        logvar = mean_and_logvar[:, self.out_size :]
         logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
         logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
         return mean, logvar
 
     def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(model_in)
-        return gaussian_nll(pred_mean, pred_logvar, target)
+        nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+        return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
-    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> float:
+    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
-            return F.mse_loss(pred_mean, target).item()
+            return F.mse_loss(pred_mean, target, reduce=False).mean(dim=1)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
@@ -302,13 +233,13 @@ class Ensemble(Model):
 
     def eval_score(
         self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
-    ) -> float:
+    ) -> torch.Tensor:
         with torch.no_grad():
-            avg_ensemble_score = 0
+            avg_ensemble_score = torch.tensor(0.0)
             for i, model in enumerate(self.members):
                 model.eval()
                 score = model.eval_score(inputs[i], targets[i])
-                avg_ensemble_score += score
+                avg_ensemble_score = score + avg_ensemble_score
             return avg_ensemble_score / len(self.members)
 
     def save(self, path: str):
@@ -331,15 +262,21 @@ class DynamicsModelWrapper:
         model: Ensemble,
         target_is_delta: bool = True,
         normalize: bool = False,
+        learned_rewards: bool = True,
         obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
+        no_delta_list: Optional[List[int]] = None,
     ):
         assert hasattr(model, "members")
         self.model = model
-        self.normalizer: Optional[Normalizer] = None
+        self.normalizer: Optional[mbrl.math.Normalizer] = None
         if normalize:
-            self.normalizer = Normalizer(self.model.in_size, self.model.device)
+            self.normalizer = mbrl.math.Normalizer(
+                self.model.in_size, self.model.device
+            )
         self.device = self.model.device
+        self.learned_rewards = learned_rewards
         self.target_is_delta = target_is_delta
+        self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
 
     def update_normalizer(self, batch: Tuple):
@@ -376,12 +313,20 @@ class DynamicsModelWrapper:
         self, batch: Tuple
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         obs, action, next_obs, reward, _ = batch
-        target_obs = next_obs - obs if self.target_is_delta else next_obs
+        if self.target_is_delta:
+            target_obs = next_obs - obs
+            for dim in self.no_delta_list:
+                target_obs[:, dim] = next_obs[:, dim]
+        else:
+            target_obs = next_obs
 
         model_in = self._get_model_input_from_np(obs, action, self.device)
-        target = torch.from_numpy(
-            np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
-        ).to(self.device)
+        if self.learned_rewards:
+            target = torch.from_numpy(
+                np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
+            ).to(self.device)
+        else:
+            target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
     def loss_from_bootstrap_batch(self, bootstrap_batch: Tuple):
@@ -395,13 +340,22 @@ class DynamicsModelWrapper:
             targets.append(target)
         return self.model.loss(model_ins, targets)
 
-    def eval_score_from_simple_batch(self, batch: Tuple):
+    def eval_score_from_simple_batch(self, batch: Tuple) -> torch.Tensor:
         assert isinstance(self.model, Ensemble)
 
         model_in, target = self._get_model_input_and_target_from_batch(batch)
         model_ins = [model_in for _ in range(len(self.model))]
         targets = [target for _ in range(len(self.model))]
         return self.model.eval_score(model_ins, targets)
+
+    def get_output_and_targets_from_simple_batch(
+        self, batch: Tuple
+    ) -> Tuple[List[torch.Tensor], torch.Tensor]:
+        assert isinstance(self.model, Ensemble)
+        with torch.no_grad():
+            model_in, target = self._get_model_input_and_target_from_batch(batch)
+            outputs = [member(model_in) for member in self.model.members]
+        return outputs, target
 
     def predict(
         self,
@@ -426,10 +380,13 @@ class DynamicsModelWrapper:
         else:
             predictions = means
 
-        next_observs = predictions[:, :-1]
+        next_observs = predictions[:, :-1] if self.learned_rewards else predictions
         if self.target_is_delta:
-            next_observs += obs
-        rewards = predictions[:, -1:]
+            tmp_ = next_observs + obs
+            for dim in self.no_delta_list:
+                tmp_[:, dim] = next_observs[:, dim]
+            next_observs = tmp_
+        rewards = predictions[:, -1:] if self.learned_rewards else None
         return next_observs, rewards
 
     def save(self, save_dir: Union[str, pathlib.Path]):
@@ -471,38 +428,47 @@ class EnsembleTrainer:
         patience: Optional[int] = 50,
     ) -> Tuple[List[float], List[float]]:
         assert len(self.dynamics_model.model) == len(self.dataset_train.member_indices)
-        training_losses, val_losses = [], []
+        training_losses, train_eval_scores, val_losses = [], [], []
         best_weights = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
-        best_val_score = self.evaluate()
+        has_val_dataset = (
+            self.dataset_val is not None and self.dataset_val.num_stored > 0
+        )
+        best_val_score = self.evaluate(use_train_set=not has_val_dataset)
         for epoch in epoch_iter:
             total_avg_loss = 0.0
             for bootstrap_batch in self.dataset_train:
+                # This call also updates the model.
+                # TODO refactor this to separate loss computation from update
                 avg_ensemble_loss = self.dynamics_model.loss_from_bootstrap_batch(
                     bootstrap_batch
                 )
                 total_avg_loss += avg_ensemble_loss
             training_losses.append(total_avg_loss)
 
-            val_score = 0.0
-            if self.dataset_val:
-                val_score = self.evaluate()
-                val_losses.append(val_score)
-                maybe_best_weights = self.maybe_save_best_weights(
-                    best_val_score, val_score
-                )
-                if maybe_best_weights:
-                    best_val_score = val_score
-                    best_weights = maybe_best_weights
-                    epochs_since_update = 0
-                else:
-                    epochs_since_update += 1
+            train_score = self.evaluate(use_train_set=True)
+            train_eval_scores.append(train_score)
+            eval_score = train_score
+            if has_val_dataset:
+                eval_score = self.evaluate()
+                val_losses.append(eval_score)
+
+            maybe_best_weights = self.maybe_save_best_weights(
+                best_val_score, eval_score
+            )
+            if maybe_best_weights:
+                best_val_score = eval_score
+                best_weights = maybe_best_weights
+                epochs_since_update = 0
+            else:
+                epochs_since_update += 1
 
             if self.logger and epoch % self.log_frequency == 0:
                 self.logger.log("train/epoch", epoch, epoch)
                 self.logger.log("train/model_loss", total_avg_loss, epoch)
-                self.logger.log("train/model_val_score", val_score, epoch)
+                self.logger.log("train/model_score", train_score, epoch)
+                self.logger.log("train/model_val_score", eval_score, epoch)
                 self.logger.log("train/model_best_val_score", best_val_score, epoch)
                 self.logger.dump(epoch, save=True)
 
@@ -514,12 +480,22 @@ class EnsembleTrainer:
                 model.load_state_dict(best_weights[i])
         return training_losses, val_losses
 
-    def evaluate(self) -> float:
-        total_avg_loss = 0.0
-        for batch in self.dataset_val:
+    def evaluate(self, use_train_set: bool = False) -> float:
+        dataset = self.dataset_val
+        if use_train_set:
+            self.dataset_train.toggle_bootstrap()
+            dataset = self.dataset_train
+
+        total_avg_loss = torch.tensor(0.0)
+        for batch in dataset:
             avg_ensemble_loss = self.dynamics_model.eval_score_from_simple_batch(batch)
-            total_avg_loss += avg_ensemble_loss
-        return total_avg_loss
+            total_avg_loss = (
+                avg_ensemble_loss.sum() / dataset.num_stored
+            ) + total_avg_loss
+
+        if use_train_set:
+            self.dataset_train.toggle_bootstrap()
+        return total_avg_loss.item()
 
     def maybe_save_best_weights(
         self, best_val_loss: float, val_loss: float
@@ -540,10 +516,16 @@ class EnsembleTrainer:
 # ------------------------------------------------------------------------ #
 class ModelEnv:
     def __init__(
-        self, env: gym.Env, model: DynamicsModelWrapper, termination_fn, seed=None
+        self,
+        env: gym.Env,
+        model: DynamicsModelWrapper,
+        termination_fn,
+        reward_fn,
+        seed=None,
     ):
         self.dynamics_model = model
         self.termination_fn = termination_fn
+        self.reward_fn = reward_fn
         self.device = model.device
 
         self.observation_space = env.observation_space
@@ -552,7 +534,7 @@ class ModelEnv:
         self._current_obs: torch.Tensor = None
         self._propagation_method: Optional[str] = None
         self._model_indices = None
-        self._rng = torch.Generator()
+        self._rng = torch.Generator(device=self.device)
         if seed is not None:
             self._rng.manual_seed(seed)
         self._return_as_np = True
@@ -588,12 +570,17 @@ class ModelEnv:
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
                 actions = torch.from_numpy(actions).to(self.device)
-            next_observs, rewards = self.dynamics_model.predict(
+            next_observs, pred_rewards = self.dynamics_model.predict(
                 self._current_obs,
                 actions,
                 sample=sample,
                 propagation_method=self._propagation_method,
                 propagation_indices=self._model_indices,
+            )
+            rewards = (
+                pred_rewards
+                if self.reward_fn is None
+                else self.reward_fn(actions, next_observs)
             )
             dones = self.termination_fn(actions, next_observs)
             self._current_obs = next_observs
@@ -605,3 +592,33 @@ class ModelEnv:
 
     def render(self, mode="human"):
         pass
+
+    def evaluate_action_sequences(
+        self,
+        action_sequences: torch.Tensor,
+        initial_state: np.ndarray,
+        num_particles: int,
+        propagation_method: str,
+    ) -> torch.Tensor:
+        assert (
+            len(action_sequences.shape) == 3
+        )  # population_size, horizon, action_shape
+        population_size, horizon, action_dim = action_sequences.shape
+        initial_obs_batch = np.tile(
+            initial_state, (num_particles * population_size, 1)
+        ).astype(np.float32)
+        self.reset(
+            initial_obs_batch, propagation_method=propagation_method, return_as_np=False
+        )
+
+        total_rewards: torch.Tensor = 0
+        for time_step in range(horizon):
+            actions_for_step = action_sequences[:, time_step, :]
+            action_batch = torch.repeat_interleave(
+                actions_for_step, num_particles, dim=0
+            )
+            _, rewards, _, _ = self.step(action_batch, sample=True)
+            total_rewards += rewards
+
+        total_rewards = total_rewards.reshape(-1, num_particles)
+        return total_rewards.mean(axis=1)

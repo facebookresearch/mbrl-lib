@@ -1,5 +1,6 @@
+import argparse
 import pathlib
-from typing import Optional
+from typing import Optional, cast
 
 import numpy as np
 import pytorch_sac
@@ -77,7 +78,7 @@ class FineTuner:
 
         model_trainer = mbrl.models.EnsembleTrainer(
             self.dynamics_model,
-            self.dataset_train,
+            cast(mbrl.replay_buffer.BootstrapReplayBuffer, self.dataset_train),
             dataset_val=self.dataset_val,
             logger=logger,
         )
@@ -85,18 +86,30 @@ class FineTuner:
 
         self.dynamics_model.save(str(self.outdir))
         np.savez(self.outdir / "finetune_losses", train=train_losses, val=val_losses)
+        mbrl.util.save_buffers(self.dataset_train, self.dataset_val, self.outdir)
 
 
 if __name__ == "__main__":
-    model_dir_ = (
-        "/checkpoint/lep/mbrl/exp/pets/vis/gym___HalfCheetah-v2/2020.11.04/1250"
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_dir", type=str, default=None)
+    parser.add_argument("--agent_dir", type=str, default=None)
+    parser.add_argument("--agent_type", type=str, default=None)
+    parser.add_argument("--results_subdir", type=str, default=None)
+    parser.add_argument("--num_train_epochs", type=int, default=50)
+    parser.add_argument("--patience", type=int, default=50)
+    parser.add_argument("--num_steps_to_collect", type=int, default=10000)
+    parser.add_argument("--new_model", action="store_true")
+    args = parser.parse_args()
 
-    agent_dir_ = (
-        "/private/home/lep/code/pytorch_sac/exp/default/"
-        "gym___HalfCheetah-v2/2020.10.26/0848_sac_test_exp"
-    )
     finetuner = FineTuner(
-        model_dir_, agent_dir_, "pytorch_sac", subdir="new_model", new_model=True
+        args.model_dir,
+        args.agent_dir,
+        args.agent_type,
+        subdir=args.results_subdir,
+        new_model=args.new_model,
     )
-    finetuner.run(num_epochs=200, patience=20, steps_to_collect=20000)
+    finetuner.run(
+        num_epochs=args.num_train_epochs,
+        patience=args.patience,
+        steps_to_collect=args.num_steps_to_collect,
+    )
