@@ -1,0 +1,62 @@
+model:
+  _target_: mbrl.models.Ensemble
+  ensemble_size: 5
+  in_size: ???
+  out_size: ???
+  member_cfg: ${member_cfg}
+  device: ${device}
+  optim_lr: 0.0001
+  optim_wd: 0.0001
+
+member_cfg:
+  _target_: mbrl.models.GaussianMLP
+  device: ${model.device}
+  num_layers: 4
+  in_size: ${model.in_size}
+  out_size: ${model.out_size}
+  hid_size: 200
+  use_silu: true
+
+planner:
+  _target_: mbrl.planning.CEMPlanner
+  num_iterations: 5
+  elite_ratio: 0.1
+  population_size: 400
+  alpha: 0.1
+  action_lb: ???
+  action_ub: ???
+  device: ${model.device}
+
+env: "cartpole_continuous"
+term_fn: "cartpole"
+normalize: true
+target_is_delta: true
+learned_rewards: false
+
+env_dataset_size: 20000
+validation_ratio: 0.1
+dynamics_model_batch_size: 256
+initial_exploration_steps: 200
+num_trials: 100
+trial_length: 200
+num_epochs_train_dyn_model: 50
+patience: 50
+freq_train_dyn_model: ${trial_length}
+increase_val_set: true
+
+planning_horizon: 15
+num_particles: 20
+propagation_method: "random_model"
+replan_freq: 1
+
+seed: 0
+
+device: "cuda:0"
+
+log_frequency_model: 1
+
+experiment: debug
+
+hydra:
+  run:
+    dir: ./exp/pets/${experiment}/${env}/${now:%Y.%m.%d}/${now:%H%M}

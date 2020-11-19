@@ -1,9 +1,8 @@
 import numpy as np
-import torch
-
-# noinspection PyUnresolvedReferences
 import pytest
 import pytorch_sac.replay_buffer as sac_buffer
+import torch
+
 import mbrl.replay_buffer as replay_buffer
 
 
@@ -100,7 +99,7 @@ def test_len_iterable_replay_buffer():
 
 
 def test_iterable_buffer():
-    def check_for_capacity_and_batch_size(capacity, batch_size):
+    def _check_for_capacity_and_batch_size(capacity, batch_size):
         buffer = replay_buffer.IterableReplayBuffer(capacity, batch_size, (1,), (1,))
         for i in range(capacity):
             buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
@@ -117,7 +116,30 @@ def test_iterable_buffer():
 
     for cap in range(10, 20):
         for bs in range(4, cap + 1):
-            check_for_capacity_and_batch_size(cap, bs)
+            _check_for_capacity_and_batch_size(cap, bs)
+
+
+def test_iterable_buffer_shuffle():
+    def _check(capacity, batch_size):
+        buffer = replay_buffer.IterableReplayBuffer(
+            capacity, batch_size, (1,), (1,), shuffle_each_epoch=True
+        )
+        for i in range(capacity):
+            buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
+
+        all_obs = []
+        for i, batch in enumerate(buffer):
+            obs, action, next_obs, reward, done = batch
+            for j in range(len(obs)):
+                all_obs.append(obs[j].item())
+        all_obs_sorted = sorted(all_obs)
+
+        assert any([a != b for a, b in zip(all_obs, all_obs_sorted)])
+        assert all([a == b for a, b in zip(all_obs_sorted, range(capacity))])
+
+    for cap in range(10, 20):
+        for bs in range(4, cap + 1):
+            _check(cap, bs)
 
 
 def test_bootstrap_replay_buffer():
@@ -125,7 +147,7 @@ def test_bootstrap_replay_buffer():
     batch_size = 4
     num_members = 5
 
-    def check_for_num_additions(how_many_to_add):
+    def _check_for_num_additions(how_many_to_add):
         buffer = replay_buffer.BootstrapReplayBuffer(
             capacity, batch_size, num_members, (1,), (1,)
         )
@@ -144,5 +166,5 @@ def test_bootstrap_replay_buffer():
             all_batches = next(it)
             assert len(all_batches) == num_members
 
-    for howm in range(10, 30):
-        check_for_num_additions(howm)
+    for how_many in range(10, 30):
+        _check_for_num_additions(how_many)

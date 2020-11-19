@@ -1,0 +1,34 @@
+<mujoco model="cartpole">
+	<compiler inertiafromgeom="true"/>
+	<default>
+		<joint armature="0" damping="1" limited="true"/>
+		<geom contype="0" friction="1 0.1 0.1" rgba="0.7 0.7 0 1"/>
+		<tendon/>
+		<motor ctrlrange="-3 3" ctrllimited='true'/>
+	</default>
+    <asset>
+		<texture type="skybox" builtin="checker" rgb1="1 1 1" rgb2="1 1 1"
+                    width="256" height="256"/>
+        <texture name="texgeom" type="cube" builtin="flat" mark="cross" width="127" height="1278" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01" />
+		<texture name="texplane" type="2d" builtin="checker" rgb1=".5 .5 .5" rgb2=".5 .5 .5" width="100" height="100" />
+        <texture name="texplane_show" type="2d" builtin="checker" rgb1="0 0 0" rgb2="0.9 0.9 0.9" width="100" height="100" />
+        <material name='MatPlane' texture="texplane" shininess="1" texrepeat="30 30" specular="1"  reflectance="0.5" />
+        <material name='geom' texture="texgeom" texuniform="true" />
+ 	</asset>
+	<option gravity="0 0 -9.81" integrator="RK4" timestep="0.02"/>
+	<size nstack="3000"/>
+	<worldbody>
+		<geom name="rail" pos="0 0 0" quat="0.707 0 0.707 0" rgba="0.3 0.3 0.7 1" size="0.02 3" type="capsule"/>
+		<body name="cart" pos="0 0 0">
+			<joint axis="1 0 0" limited="true" name="slider" pos="0 0 0" range="-2.5 2.5" type="slide"/>
+			<geom name="cart" pos="0 0 0" quat="0.707 0 0.707 0" size="0.1 0.1" type="capsule"/>
+			<body name="pole" pos="0 0 0">
+				<joint axis="0 1 0" limited="false" name="hinge" pos="0 0 0" range="-180 180" type="hinge"/>
+				<geom fromto="0 0 0 0.001 0 -0.6" name="cpole" rgba="0 0.7 0.7 1" size="0.049 0.3" type="capsule"/>
+			</body>
+		</body>
+	</worldbody>
+	<actuator>
+		<motor gear="100" joint="slider" name="slide"/>
+	</actuator>
+</mujoco>

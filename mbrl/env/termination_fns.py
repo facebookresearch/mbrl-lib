@@ -1,16 +1,20 @@
-import numpy as np
+import math
+
+import torch
+
+# TODO remove act from all of these, it's not needed
 
 
-def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
-    assert len(next_obs.shape) == len(act.shape) == 2
+def hopper(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == 2
 
     height = next_obs[:, 0]
     angle = next_obs[:, 1]
     not_done = (
-        np.isfinite(next_obs).all(axis=-1)
-        * np.abs(next_obs[:, 1:] < 100).all(axis=-1)
+        torch.isfinite(next_obs).all(-1)
+        * (next_obs[:, 1:] < 100).abs().all(-1)
         * (height > 0.7)
-        * (np.abs(angle) < 0.2)
+        * (angle.abs() < 0.2)
     )
 
     done = ~not_done
@@ -18,10 +22,28 @@ def hopper(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     return done
 
 
-def inverted_pendulum(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
-    assert len(next_obs.shape) == len(act.shape) == 2
+def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == 2
 
-    not_done = np.isfinite(next_obs).all(axis=-1) * (np.abs(next_obs[:, 1]) <= 0.2)
+    x, theta = next_obs[:, 0], next_obs[:, 2]
+
+    x_threshold = 2.4
+    theta_threshold_radians = 12 * 2 * math.pi / 360
+    not_done = (
+        (x > -x_threshold)
+        * (x < x_threshold)
+        * (theta > -theta_threshold_radians)
+        * (theta < theta_threshold_radians)
+    )
+    done = ~not_done
+    done = done[:, None]
+    return done
+
+
+def inverted_pendulum(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == 2
+
+    not_done = torch.isfinite(next_obs).all(-1) * (next_obs[:, 1].abs() <= 0.2)
     done = ~not_done
 
     done = done[:, None]
@@ -29,9 +51,20 @@ def inverted_pendulum(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
     return done
 
 
-def halfcheetah(act: np.ndarray, next_obs: np.ndarray) -> np.ndarray:
-    assert len(next_obs.shape) == len(act.shape) == 2
+def no_termination(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == 2
 
-    done = np.array([False]).repeat(len(next_obs))
+    done = torch.Tensor([False]).repeat(len(next_obs))
+    done = done[:, None]
+    return done
+
+
+def walker2d(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == 2
+
+    height = next_obs[:, 0]
+    angle = next_obs[:, 1]
+    not_done = (height > 0.8) * (height < 2.0) * (angle > -1.0) * (angle < 1.0)
+    done = ~not_done
     done = done[:, None]
     return done

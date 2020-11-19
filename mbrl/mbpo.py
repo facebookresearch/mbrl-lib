@@ -1,5 +1,5 @@
 import os
-from typing import Callable, List
+from typing import List
 
 import gym
 import hydra.utils
@@ -11,6 +11,8 @@ import torch
 
 import mbrl.models as models
 import mbrl.replay_buffer as replay_buffer
+import mbrl.types
+import mbrl.util as util
 
 MBPO_LOG_FORMAT = [
     ("episode", "E", "int"),
@@ -49,15 +51,17 @@ def get_rollout_length(rollout_schedule: List[int], epoch: int):
     min_epoch, max_epoch, min_length, max_length = rollout_schedule
 
     if epoch <= min_epoch:
-        y = min_length
+        y: float = min_length
     else:
         dx = (epoch - min_epoch) / (max_epoch - min_epoch)
-        dx = min(dx, 1)
+        dx = min(dx, 1.0)
         y = dx * (max_length - min_length) + min_length
 
     return int(y)
 
 
+# TODO replace this with mbrl.util.populate_buffer_with_agent_trajectories
+#   and a random agent
 def collect_random_trajectories(
     env: gym.Env,
     env_dataset_train: replay_buffer.BootstrapReplayBuffer,
@@ -99,7 +103,9 @@ def rollout_model_and_populate_sac_buffer(
 
     initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
     obs = model_env.reset(
-        initial_obs_batch=initial_obs, propagation_method="random_model"
+        initial_obs_batch=initial_obs,
+        propagation_method="random_model",
+        return_as_np=True,
     )
     for i in range(rollout_horizon):
         with pytorch_sac.utils.eval_mode(), torch.no_grad():
@@ -142,7 +148,7 @@ def evaluate_on_model(
 ) -> float:
     initial_batch = current_obs * np.ones((batch_size, len(current_obs)))
     obs = model_env.reset(initial_obs_batch=initial_batch.astype(np.float32))
-    episode_reward = 0
+    episode_reward: np.ndarray = 0
     for i in range(rollout_length):
         with pytorch_sac.utils.eval_mode(), torch.no_grad():
             action = agent.act(obs, batched=True)
@@ -154,7 +160,7 @@ def evaluate_on_model(
 def train(
     env: gym.Env,
     test_env: gym.Env,
-    termination_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    termination_fn: mbrl.types.TermFnType,
     device: torch.device,
     cfg: omegaconf.DictConfig,
 ):
@@ -164,12 +170,7 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    cfg.agent.obs_dim = obs_shape[0]
-    cfg.agent.action_dim = act_shape[0]
-    cfg.agent.action_range = [
-        float(env.action_space.low.min()),
-        float(env.action_space.high.max()),
-    ]
+    util.complete_sac_cfg(env, cfg)
     agent = hydra.utils.instantiate(cfg.agent)
 
     work_dir = os.getcwd()
@@ -193,18 +194,9 @@ def train(
     rng = np.random.RandomState(cfg.seed)
 
     # -------------- Create initial env. dataset --------------
-    env_dataset_train = replay_buffer.BootstrapReplayBuffer(
-        cfg.env_dataset_size,
-        cfg.dynamics_model_batch_size,
-        cfg.model.ensemble_size,
-        obs_shape,
-        act_shape,
+    env_dataset_train, env_dataset_val = util.create_ensemble_buffers(
+        cfg, obs_shape, act_shape
     )
-    val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
-    env_dataset_val = replay_buffer.IterableReplayBuffer(
-        val_buffer_capacity, cfg.dynamics_model_batch_size, obs_shape, act_shape
-    )
-
     # TODO replace this with some exploration policy
     collect_random_trajectories(
         env,
@@ -217,22 +209,17 @@ def train(
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    cfg.model.in_size = obs_shape[0] + act_shape[0]
-    cfg.model.out_size = obs_shape[0] + 1
-
-    ensemble = hydra.utils.instantiate(cfg.model)
+    dynamics_model = util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     updates_made = 0
     env_steps = 0
-    model_env = models.ModelEnv(env, ensemble, termination_fn)
+    model_env = models.ModelEnv(env, dynamics_model, termination_fn, None)
     model_trainer = models.EnsembleTrainer(
-        ensemble,
-        device,
+        dynamics_model,
         env_dataset_train,
         dataset_val=env_dataset_val,
         logger=mbpo_logger,
         log_frequency=cfg.log_frequency_model,
-        target_is_offset=True,
     )
     best_eval_reward = -np.inf
     sac_buffer = None
@@ -255,9 +242,6 @@ def train(
 
             # --------------- Model Training -----------------
             if env_steps % cfg.freq_train_dyn_model == 0:
-                # noinspection PyUnusedLocal
-                sac_buffer = None
-
                 mbpo_logger.log(
                     "train/train_dataset_size", env_dataset_train.num_stored, env_steps
                 )
@@ -267,9 +251,8 @@ def train(
                 model_trainer.train(
                     num_epochs=cfg.get("num_epochs_train_dyn_model", None),
                     patience=cfg.patience,
-                    outer_epoch=epoch,
                 )
-                ensemble.save(os.path.join(work_dir, "model.pth"))
+                dynamics_model.save(work_dir)
                 mbpo_logger.dump(env_steps, save=True)
 
                 # --------- Rollout new model and store imagined trajectories --------
