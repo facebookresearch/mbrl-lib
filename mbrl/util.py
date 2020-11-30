@@ -41,6 +41,11 @@ def make_env(
         env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
         term_fn = mbrl.env.termination_fns.no_termination
         reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
+    elif cfg.env == "ant_truncated_obs":
+        env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
+        env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
+        term_fn = mbrl.env.termination_fns.ant
+        reward_fn = None
     else:
         raise ValueError("Invalid environment string.")
 
@@ -61,6 +66,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
         env = mbrl.env.cartpole_continuous.CartPoleEnv()
     elif env_name == "pets_halfcheetah":
         env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
+    elif env_name == "ant_truncated_obs":
+        env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
     else:
         raise ValueError("Invalid environment string.")
     return env
@@ -73,8 +80,10 @@ def create_dynamics_model(
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
     # Fix this for learned_rewards
-    cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
-    cfg.model.out_size = obs_shape[0]
+    if cfg.model.get("in_size", None) is None:
+        cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
+    if cfg.model.get("out_size", None) is None:
+        cfg.model.out_size = obs_shape[0]
     if cfg.learned_rewards:
         cfg.model.out_size += 1
     ensemble = hydra.utils.instantiate(cfg.model)
