@@ -89,6 +89,13 @@ def train(
     )
 
     planner = mbrl.planning.ModelEnvSamplerAgent(model_env, cfg.algorithm.planner)
+    planner_args = {
+        "num_particles": cfg.algorithm.num_particles,
+        "planning_horizon": cfg.algorithm.planning_horizon,
+        "replan_freq": cfg.algorithm.replan_freq,
+        "propagation_method": cfg.algorithm.propagation_method,
+        "verbose": debug_mode,
+    }
 
     env_steps = 0
     steps_since_model_train = 0
@@ -98,7 +105,7 @@ def train(
         obs = env.reset()
         planner.reset()
         done = False
-        total_reward = 0
+        total_reward = 0.0
         steps_trial = 0
         while not done:
             # --------------- Model Training -----------------
@@ -125,25 +132,22 @@ def train(
             else:
                 steps_since_model_train += 1
 
-            # ------------- Planning using the learned model ---------------
-            action = planner.act(
-                obs,
-                num_particles=cfg.algorithm.num_particles,
-                planning_horizon=cfg.algorithm.planning_horizon,
-                replan_freq=cfg.algorithm.replan_freq,
-                propagation_method=cfg.algorithm.propagation_method,
-                verbose=debug_mode,
+            # --- Doing env step using the planner and adding to model dataset ---
+            dataset_to_update = mbrl.util.select_dataset_to_update(
+                env_dataset_train,
+                env_dataset_val,
+                cfg.algorithm.increase_val_set,
+                cfg.overrides.validation_ratio,
+                rng,
             )
-
-            # --- Doing env step and adding to model dataset ---
-            next_obs, reward, done, _ = env.step(action)
-            if (
-                cfg.algorithm.increase_val_set
-                and rng.random() < cfg.overrides.validation_ratio
-            ):
-                env_dataset_val.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
+            next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
+                env,
+                obs,
+                planner,
+                planner_args,
+                dataset_to_update,
+                dynamics_model.update_normalizer,
+            )
 
             obs = next_obs
             total_reward += reward

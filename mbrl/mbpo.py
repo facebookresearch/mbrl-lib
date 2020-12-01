@@ -186,15 +186,21 @@ def train(
         done = False
         while not done:
             # --- Doing env step and adding to model dataset ---
-            action = agent.act(obs)
-            next_obs, reward, done, _ = env.step(action)
-            if (
-                cfg.algorithm.increase_val_set
-                and rng.random() < cfg.overrides.validation_ratio
-            ):
-                env_dataset_val.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
+            dataset_to_update = mbrl.util.select_dataset_to_update(
+                env_dataset_train,
+                env_dataset_val,
+                cfg.algorithm.increase_val_set,
+                cfg.overrides.validation_ratio,
+                rng,
+            )
+            next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
+                env,
+                obs,
+                agent,
+                {},
+                dataset_to_update,
+                normalizer_callback=dynamics_model.update_normalizer,
+            )
 
             # --------------- Model Training -----------------
             if env_steps % cfg.overrides.freq_train_model == 0:

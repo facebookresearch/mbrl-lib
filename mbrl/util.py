@@ -318,6 +318,36 @@ def rollout_model_env(
     return np.stack(obs_history), np.stack(reward_history), plan
 
 
+def select_dataset_to_update(
+    train_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
+    val_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
+    increase_val_set: bool,
+    validation_ratio: float,
+    rng: np.random.Generator,
+) -> mbrl.replay_buffer.SimpleReplayBuffer:
+    if increase_val_set and rng.random() < validation_ratio:
+        return val_dataset
+    else:
+        return train_dataset
+
+
+def step_env_and_populate_dataset(
+    env: gym.Env,
+    obs: np.ndarray,
+    agent: mbrl.planning.Agent,
+    agent_kwargs: Dict,
+    dataset: mbrl.replay_buffer.SimpleReplayBuffer,
+    normalizer_callback: Optional[Callable] = None,
+) -> Tuple[np.ndarray, float, bool, Dict]:
+    action = agent.act(obs, **agent_kwargs)
+    next_obs, reward, done, info = env.step(action)
+    dataset.add(obs, action, next_obs, reward, done)
+    if normalizer_callback:
+        normalizer_callback((obs, action, next_obs, reward, done))
+
+    return next_obs, reward, done, info
+
+
 def populate_buffers_with_agent_trajectories(
     env: gym.Env,
     env_dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
@@ -339,14 +369,17 @@ def populate_buffers_with_agent_trajectories(
         obs = env.reset()
         done = False
         while not done:
-            action = agent.act(obs, **agent_kwargs)
-            next_obs, reward, done, info = env.step(action)
-            if step in indices_train:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_test.add(obs, action, next_obs, reward, done)
-            if normalizer_callback:
-                normalizer_callback((obs, action, next_obs, reward, done))
+            which_dataset = (
+                env_dataset_train if step in indices_train else env_dataset_test
+            )
+            next_obs, *_, = step_env_and_populate_dataset(
+                env,
+                obs,
+                agent,
+                agent_kwargs,
+                which_dataset,
+                normalizer_callback=normalizer_callback,
+            )
             obs = next_obs
             step += 1
             if step == steps_to_collect:
