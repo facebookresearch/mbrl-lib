@@ -62,9 +62,9 @@ class Visualizer:
             self.env, self.dynamics_model, term_fn, reward_fn
         )
 
-        self.cfg.planner.action_lb = self.env.action_space.low.tolist()
-        self.cfg.planner.action_ub = self.env.action_space.high.tolist()
-        self.planner = hydra.utils.instantiate(self.cfg.planner)
+        self.cfg.algorithm.planner.action_lb = self.env.action_space.low.tolist()
+        self.cfg.algorithm.planner.action_ub = self.env.action_space.high.tolist()
+        self.planner = hydra.utils.instantiate(self.cfg.algorithm.planner)
 
         self.fig = None
         self.axs: List[plt.Axes] = []

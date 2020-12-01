@@ -61,7 +61,7 @@ class FineTuner:
             self.dataset_train,
             self.dataset_val,
             steps_to_collect,
-            self.cfg.validation_ratio,
+            self.cfg.overrides.validation_ratio,
             self.agent,
             {"sample": False},
             self.rng,
