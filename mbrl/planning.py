@@ -1,45 +1,22 @@
 import abc
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
+import functools
+import time
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import gym
+import hydra
 import numpy as np
+import omegaconf
 import pytorch_sac
 import pytorch_sac.utils
 import torch
 import torch.distributions
 
 import mbrl.math
+import mbrl.models
 
 # TODO rename this module as "control.py", re-organize agents under a common
 #   interface (name it Controller)
-
-
-# ------------------------------------------------------------------------ #
-#                               Agent definitions
-# ------------------------------------------------------------------------ #
-class Agent:
-    @abc.abstractmethod
-    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
-        """Issues an action given an observation."""
-
-
-class RandomAgent(Agent):
-    def __init__(self, env: gym.Env):
-        self.env = env
-
-    def act(self, *_args, **_kwargs) -> np.ndarray:
-        return self.env.action_space.sample()
-
-
-class SACAgent(Agent):
-    def __init__(self, sac_agent: pytorch_sac.SACAgent):
-        self.sac_agent = sac_agent
-
-    def act(
-        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
-    ) -> np.ndarray:
-        with pytorch_sac.utils.eval_mode(), torch.no_grad():
-            return self.sac_agent.act(obs, sample=sample, batched=batched)
 
 
 # ------------------------------------------------------------------------ #
@@ -190,3 +167,82 @@ class CEMPlanner:
 
     def reset(self):
         self.previous_solution = self.initial_solution.clone()
+
+
+# ------------------------------------------------------------------------ #
+#                               Agent definitions
+# ------------------------------------------------------------------------ #
+class Agent:
+    @abc.abstractmethod
+    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+        """Issues an action given an observation."""
+
+    def reset(self):
+        pass
+
+
+class RandomAgent(Agent):
+    def __init__(self, env: gym.Env):
+        self.env = env
+
+    def act(self, *_args, **_kwargs) -> np.ndarray:
+        return self.env.action_space.sample()
+
+
+class SACAgent(Agent):
+    def __init__(self, sac_agent: pytorch_sac.SACAgent):
+        self.sac_agent = sac_agent
+
+    def act(
+        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
+    ) -> np.ndarray:
+        with pytorch_sac.utils.eval_mode(), torch.no_grad():
+            return self.sac_agent.act(obs, sample=sample, batched=batched)
+
+
+class ModelEnvSamplerAgent(Agent):
+    def __init__(
+        self, model_env: mbrl.models.ModelEnv, planner_cfg: omegaconf.DictConfig
+    ):
+        planner_cfg.action_lb = model_env.action_space.low.tolist()
+        planner_cfg.action_ub = model_env.action_space.high.tolist()
+        self.planner = hydra.utils.instantiate(planner_cfg)
+        self.model_env = model_env
+        self.cfg = planner_cfg
+        self.actions_to_use: List[np.ndarray] = []
+
+    def reset(self):
+        self.planner.reset()
+
+    def act(
+        self,
+        obs: np.ndarray,
+        num_particles: int = 1,
+        planning_horizon: int = 1,
+        replan_freq: int = 1,
+        propagation_method: str = "random_model",
+        verbose: bool = False,
+        **_kwargs,
+    ) -> np.ndarray:
+        plan_time = 0.0
+        if not self.actions_to_use:  # re-plan is necessary
+            trajectory_eval_fn = functools.partial(
+                self.model_env.evaluate_action_sequences,
+                initial_state=obs,
+                num_particles=num_particles,
+                propagation_method=propagation_method,
+            )
+            start_time = time.time()
+            plan, _ = self.planner.plan(
+                self.model_env.action_space.shape,
+                planning_horizon,
+                trajectory_eval_fn,
+            )
+            plan_time = time.time() - start_time
+
+            self.actions_to_use.extend([a for a in plan[:replan_freq]])
+        action = self.actions_to_use.pop(0)
+
+        if verbose:
+            print(f"Planning time: {plan_time:.3f}")
+        return action
