@@ -185,7 +185,7 @@ def train(
         obs = env.reset()
         done = False
         while not done:
-            # --- Doing overrides step and adding to model dataset ---
+            # --- Doing env step and adding to model dataset ---
             action = agent.act(obs)
             next_obs, reward, done, _ = env.step(action)
             if (

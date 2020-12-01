@@ -63,7 +63,7 @@ def train(
 
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
-    # -------- Create and populate initial overrides. dataset --------
+    # -------- Create and populate initial env dataset --------
     env_dataset_train, env_dataset_val = mbrl.util.create_ensemble_buffers(
         cfg, obs_shape, act_shape
     )
@@ -150,7 +150,7 @@ def train(
                 actions_to_use.extend([a for a in plan[: cfg.algorithm.replan_freq]])
             action = actions_to_use.pop(0)
 
-            # --- Doing overrides step and adding to model dataset ---
+            # --- Doing env step and adding to model dataset ---
             next_obs, reward, done, _ = env.step(action)
             if (
                 cfg.algorithm.increase_val_set
