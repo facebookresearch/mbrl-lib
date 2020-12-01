@@ -24,24 +24,24 @@ import mbrl.types
 def make_env(
     cfg: omegaconf.DictConfig,
 ) -> Tuple[gym.Env, Callable, Callable]:
-    if "dmcontrol___" in cfg.env:
-        domain, task = cfg.env.split("___")[1].split("--")
+    if "dmcontrol___" in cfg.overrides.env:
+        domain, task = cfg.overrides.env.split("___")[1].split("--")
         term_fn = getattr(mbrl.env.termination_fns, domain)
-        reward_fn = getattr(mbrl.env.reward_fns, cfg.term_fn, None)
+        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
         env = dmc2gym.make(domain_name=domain, task_name=task)
-    elif "gym___" in cfg.env:
-        env = gym.make(cfg.env.split("___")[1])
-        term_fn = getattr(mbrl.env.termination_fns, cfg.term_fn)
-        reward_fn = getattr(mbrl.env.reward_fns, cfg.term_fn, None)
-    elif cfg.env == "cartpole_continuous":
+    elif "gym___" in cfg.overrides.env:
+        env = gym.make(cfg.overrides.env.split("___")[1])
+        term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
+        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+    elif cfg.overrides.env == "cartpole_continuous":
         env = mbrl.env.cartpole_continuous.CartPoleEnv()
-        term_fn = getattr(mbrl.env.termination_fns, cfg.term_fn)
-        reward_fn = getattr(mbrl.env.reward_fns, cfg.term_fn, None)
-    elif cfg.env == "pets_halfcheetah":
+        term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
+        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+    elif cfg.overrides.env == "pets_halfcheetah":
         env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
         term_fn = mbrl.env.termination_fns.no_termination
         reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
-    elif cfg.env == "ant_truncated_obs":
+    elif cfg.overrides.env == "ant_truncated_obs":
         env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
         env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
         term_fn = mbrl.env.termination_fns.ant
@@ -49,7 +49,7 @@ def make_env(
     else:
         raise ValueError("Invalid environment string.")
 
-    learned_rewards = cfg.get("learned_rewards", True)
+    learned_rewards = cfg.overrides.get("learned_rewards", True)
     if learned_rewards:
         reward_fn = None
 
@@ -80,24 +80,26 @@ def create_dynamics_model(
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
     # Fix this for learned_rewards
-    if cfg.model.get("in_size", None) is None:
-        cfg.model.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
-    if cfg.model.get("out_size", None) is None:
-        cfg.model.out_size = obs_shape[0]
-    if cfg.learned_rewards:
-        cfg.model.out_size += 1
-    ensemble = hydra.utils.instantiate(cfg.model)
+    if cfg.dynamics_model.model.get("in_size", None) is None:
+        cfg.dynamics_model.model.in_size = obs_shape[0] + (
+            act_shape[0] if act_shape else 1
+        )
+    if cfg.dynamics_model.model.get("out_size", None) is None:
+        cfg.dynamics_model.model.out_size = obs_shape[0]
+    if cfg.algorithm.learned_rewards:
+        cfg.dynamics_model.model.out_size += 1
+    ensemble = hydra.utils.instantiate(cfg.dynamics_model.model)
 
-    name_obs_process_fn = cfg.get("obs_process_fn", None)
+    name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
     if name_obs_process_fn:
-        obs_process_fn = hydra.utils.get_method(cfg.obs_process_fn)
+        obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
     else:
         obs_process_fn = None
     dynamics_model = mbrl.models.DynamicsModelWrapper(
         ensemble,
-        target_is_delta=cfg.target_is_delta,
-        normalize=cfg.normalize,
-        learned_rewards=cfg.learned_rewards,
+        target_is_delta=cfg.algorithm.target_is_delta,
+        normalize=cfg.algorithm.normalize,
+        learned_rewards=cfg.algorithm.learned_rewards,
         obs_process_fn=obs_process_fn,
         no_delta_list=cfg.get("no_delta_list", None),
     )
@@ -122,27 +124,30 @@ def create_ensemble_buffers(
 ) -> Tuple[
     mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
 ]:
+    dataset_size = cfg.algorithm.get("dataset_size", None)
+    if not dataset_size:
+        dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
     if train_no_bootstrap:
         train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
-            cfg.env_dataset_size,
-            cfg.dynamics_model_batch_size,
+            dataset_size,
+            cfg.overrides.model_batch_size,
             obs_shape,
             act_shape,
             shuffle_each_epoch=True,
         )
     else:
         train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
-            cfg.env_dataset_size,
-            cfg.dynamics_model_batch_size,
-            cfg.model.ensemble_size,
+            dataset_size,
+            cfg.overrides.model_batch_size,
+            cfg.dynamics_model.model.ensemble_size,
             obs_shape,
             act_shape,
             shuffle_each_epoch=True,
         )
-    val_buffer_capacity = int(cfg.env_dataset_size * cfg.validation_ratio)
+    val_buffer_capacity = int(dataset_size * cfg.overrides.validation_ratio)
     val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
         val_buffer_capacity,
-        cfg.dynamics_model_batch_size,
+        cfg.overrides.model_batch_size,
         obs_shape,
         act_shape,
     )
@@ -289,13 +294,13 @@ def rollout_model_env(
             return model_env.evaluate_action_sequences(
                 action_sequence,
                 initial_state=initial_obs[None, :],
-                num_particles=cfg.num_particles,
-                propagation_method=cfg.propagation_method,
+                num_particles=cfg.algorithm.num_particles,
+                propagation_method=cfg.algorithm.propagation_method,
             )
 
         plan, _ = planner.plan(
             model_env.action_space.shape,
-            cfg.planning_horizon,
+            cfg.algorithm.planning_horizon,
             trajectory_eval_fn,
         )
     obs0 = model_env.reset(
