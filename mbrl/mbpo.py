@@ -139,24 +139,6 @@ def evaluate(
     return avg_episode_reward / num_episodes
 
 
-def evaluate_on_model(
-    current_obs: np.ndarray,
-    agent: pytorch_sac.Agent,
-    model_env: models.ModelEnv,
-    rollout_length: int,
-    batch_size: int = 256,
-) -> float:
-    initial_batch = current_obs * np.ones((batch_size, len(current_obs)))
-    obs = model_env.reset(initial_obs_batch=initial_batch.astype(np.float32))
-    episode_reward: np.ndarray = 0
-    for i in range(rollout_length):
-        with pytorch_sac.utils.eval_mode(), torch.no_grad():
-            action = agent.act(obs, batched=True)
-        obs, reward, done, _ = model_env.step(action)
-        episode_reward += reward * ~done
-    return episode_reward.mean()
-
-
 def train(
     env: gym.Env,
     test_env: gym.Env,
