@@ -1,7 +1,7 @@
 import functools
 import os
 import time
-from typing import List, Optional, cast
+from typing import List, cast
 
 import gym
 import hydra
@@ -10,6 +10,7 @@ import omegaconf
 import pytorch_sac
 
 import mbrl.models as models
+import mbrl.planning
 import mbrl.replay_buffer as replay_buffer
 import mbrl.types
 import mbrl.util
@@ -32,42 +33,6 @@ EVAL_LOG_FORMAT = [
 ]
 
 
-# TODO replace this with mbrl.util.populate_buffer_with_agent_trajectories
-#   and a random agent
-def collect_random_trajectories(
-    env: gym.Env,
-    env_dataset_train: replay_buffer.BootstrapReplayBuffer,
-    env_dataset_test: replay_buffer.IterableReplayBuffer,
-    dynamics_model: models.DynamicsModelWrapper,
-    steps_to_collect: int,
-    val_ratio: float,
-    rng: np.random.RandomState,
-    trial_length: Optional[int] = None,
-):
-    indices = rng.permutation(steps_to_collect)
-    n_train = int(steps_to_collect * (1 - val_ratio))
-    indices_train = set(indices[:n_train])
-
-    step = 0
-    while True:
-        obs = env.reset()
-        done = False
-        while not done:
-            action = env.action_space.sample()
-            next_obs, reward, done, info = env.step(action)
-            if step in indices_train:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_test.add(obs, action, next_obs, reward, done)
-            dynamics_model.update_normalizer((obs, action, next_obs, reward, done))
-            obs = next_obs
-            step += 1
-            if step == steps_to_collect:
-                return
-            if trial_length and step % trial_length == 0:
-                break
-
-
 def train(
     env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
@@ -80,7 +45,7 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    rng = np.random.RandomState(cfg.seed)
+    rng = np.random.default_rng(seed=cfg.seed)
 
     work_dir = os.getcwd()
     pets_logger = pytorch_sac.Logger(
@@ -103,15 +68,17 @@ def train(
         cfg, obs_shape, act_shape
     )
     env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
-    collect_random_trajectories(
+    mbrl.util.populate_buffers_with_agent_trajectories(
         env,
         env_dataset_train,
         env_dataset_val,
-        dynamics_model,
         cfg.algorithm.initial_exploration_steps,
         cfg.overrides.validation_ratio,
+        mbrl.planning.RandomAgent(env),
+        {},
         rng,
         trial_length=cfg.overrides.trial_length,
+        normalizer_callback=dynamics_model.update_normalizer,
     )
     mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
 

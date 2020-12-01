@@ -327,6 +327,8 @@ def populate_buffers_with_agent_trajectories(
     agent: mbrl.planning.Agent,
     agent_kwargs: Dict,
     rng: np.random.Generator,
+    trial_length: Optional[int] = None,
+    normalizer_callback: Optional[Callable] = None,
 ):
     indices = rng.permutation(steps_to_collect)
     n_train = int(steps_to_collect * (1 - val_ratio))
@@ -343,10 +345,14 @@ def populate_buffers_with_agent_trajectories(
                 env_dataset_train.add(obs, action, next_obs, reward, done)
             else:
                 env_dataset_test.add(obs, action, next_obs, reward, done)
+            if normalizer_callback:
+                normalizer_callback((obs, action, next_obs, reward, done))
             obs = next_obs
             step += 1
             if step == steps_to_collect:
                 return
+            if trial_length and step % trial_length == 0:
+                break
 
 
 # ------------------------------------------------------------------------ #
