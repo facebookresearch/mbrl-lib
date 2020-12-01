@@ -1,0 +1,25 @@
+# @package _group_
+name: "pets"
+
+planner:
+  _target_: mbrl.planning.CEMPlanner
+  num_iterations: 5
+  elite_ratio: 0.1
+  population_size: 500
+  alpha: 0.1
+  action_lb: ???
+  action_ub: ???
+  device: ${device}
+
+normalize: true
+target_is_delta: true
+increase_val_set: true
+dataset_size: ???
+initial_exploration_steps: ${overrides.trial_length}
+freq_train_model: ${overrides.trial_length}
+learned_rewards: ${overrides.learned_rewards}
+
+planning_horizon: 15
+num_particles: 25
+propagation_method: "fixed_model"
+replan_freq: 1

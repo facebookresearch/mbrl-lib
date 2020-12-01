@@ -1,0 +1,18 @@
+# TODO make cem planner an agent
+defaults:
+  - algorithm: pets
+  - agent: sac
+  - dynamics_model: ensemble
+  - overrides: pets_cartpole
+
+seed: 0
+device: "cuda:0"
+log_frequency_model: 1
+log_frequency_agent: 1000
+save_video: false
+
+experiment: default
+
+hydra:
+  run:
+    dir: ./exp/${algorithm.name}/${experiment}/${overrides.env}/${now:%Y.%m.%d}/${now:%H%M}

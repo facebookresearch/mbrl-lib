@@ -1,0 +1,12 @@
+# @package _group_
+name: "mbpo"
+
+normalize: true
+target_is_delta: true
+learned_rewards: true
+increase_val_set: false
+freq_train_model: ${overrides.freq_train_model}
+
+sac_samples_action: true
+initial_exploration_steps: ${overrides.trial_length}
+num_eval_episodes: 1
