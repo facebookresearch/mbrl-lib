@@ -10,6 +10,7 @@ import pytorch_sac.utils
 import torch
 
 import mbrl.models as models
+import mbrl.planning
 import mbrl.replay_buffer as replay_buffer
 import mbrl.types
 import mbrl.util as util
@@ -58,37 +59,6 @@ def get_rollout_length(rollout_schedule: List[int], epoch: int):
         y = dx * (max_length - min_length) + min_length
 
     return int(y)
-
-
-# TODO replace this with mbrl.util.populate_buffer_with_agent_trajectories
-#   and a random agent
-def collect_random_trajectories(
-    env: gym.Env,
-    env_dataset_train: replay_buffer.BootstrapReplayBuffer,
-    env_dataset_test: replay_buffer.IterableReplayBuffer,
-    steps_to_collect: int,
-    val_ratio: float,
-    rng: np.random.RandomState,
-):
-    indices = rng.permutation(steps_to_collect)
-    n_train = int(steps_to_collect * (1 - val_ratio))
-    indices_train = set(indices[:n_train])
-
-    step = 0
-    while True:
-        obs = env.reset()
-        done = False
-        while not done:
-            action = env.action_space.sample()
-            next_obs, reward, done, info = env.step(action)
-            if step in indices_train:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_test.add(obs, action, next_obs, reward, done)
-            obs = next_obs
-            step += 1
-            if step == steps_to_collect:
-                return
 
 
 def rollout_model_and_populate_sac_buffer(
@@ -173,20 +143,21 @@ def train(
     )
     video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
 
-    rng = np.random.RandomState(cfg.seed)
+    rng = np.random.default_rng(seed=cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
     env_dataset_train, env_dataset_val = util.create_ensemble_buffers(
         cfg, obs_shape, act_shape
     )
     env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
-    # TODO replace this with some exploration policy
-    collect_random_trajectories(
+    mbrl.util.populate_buffers_with_agent_trajectories(
         env,
         env_dataset_train,
         env_dataset_val,
         cfg.algorithm.initial_exploration_steps,
         cfg.overrides.validation_ratio,
+        mbrl.planning.RandomAgent(env),
+        {},
         rng,
     )
 
@@ -215,8 +186,7 @@ def train(
         done = False
         while not done:
             # --- Doing overrides step and adding to model dataset ---
-            with pytorch_sac.utils.eval_mode(), torch.no_grad():
-                action = agent.act(obs)
+            action = agent.act(obs)
             next_obs, reward, done, _ = env.step(action)
             if (
                 cfg.algorithm.increase_val_set

@@ -1,8 +1,10 @@
 import abc
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
+import gym
 import numpy as np
 import pytorch_sac
+import pytorch_sac.utils
 import torch
 import torch.distributions
 
@@ -21,6 +23,14 @@ class Agent:
         """Issues an action given an observation."""
 
 
+class RandomAgent(Agent):
+    def __init__(self, env: gym.Env):
+        self.env = env
+
+    def act(self, *_args, **_kwargs) -> np.ndarray:
+        return self.env.action_space.sample()
+
+
 class SACAgent(Agent):
     def __init__(self, sac_agent: pytorch_sac.SACAgent):
         self.sac_agent = sac_agent
@@ -28,7 +38,8 @@ class SACAgent(Agent):
     def act(
         self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
     ) -> np.ndarray:
-        return self.sac_agent.act(obs, sample=sample, batched=batched)
+        with pytorch_sac.utils.eval_mode(), torch.no_grad():
+            return self.sac_agent.act(obs, sample=sample, batched=batched)
 
 
 # ------------------------------------------------------------------------ #
