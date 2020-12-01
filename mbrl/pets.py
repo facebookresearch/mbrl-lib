@@ -1,10 +1,7 @@
-import functools
 import os
-import time
-from typing import List, cast
+from typing import cast
 
 import gym
-import hydra
 import numpy as np
 import omegaconf
 import pytorch_sac
@@ -57,10 +54,6 @@ def train(
         eval_format=EVAL_LOG_FORMAT,
     )
 
-    cfg.algorithm.planner.action_lb = env.action_space.low.tolist()
-    cfg.algorithm.planner.action_ub = env.action_space.high.tolist()
-    planner = hydra.utils.instantiate(cfg.algorithm.planner)
-
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     # -------- Create and populate initial env dataset --------
@@ -94,6 +87,9 @@ def train(
         logger=pets_logger,
         log_frequency=cfg.log_frequency_model,
     )
+
+    planner = mbrl.planning.ModelEnvSamplerAgent(model_env, cfg.algorithm.planner)
+
     env_steps = 0
     steps_since_model_train = 0
     current_trial = 0
@@ -101,7 +97,6 @@ def train(
     for trial in range(cfg.overrides.num_trials):
         obs = env.reset()
         planner.reset()
-        actions_to_use: List[np.ndarray] = []
         done = False
         total_reward = 0
         steps_trial = 0
@@ -131,24 +126,14 @@ def train(
                 steps_since_model_train += 1
 
             # ------------- Planning using the learned model ---------------
-            plan_time = 0.0
-            if not actions_to_use:  # re-plan is necessary
-                trajectory_eval_fn = functools.partial(
-                    model_env.evaluate_action_sequences,
-                    initial_state=obs,
-                    num_particles=cfg.algorithm.num_particles,
-                    propagation_method=cfg.algorithm.propagation_method,
-                )
-                start_time = time.time()
-                plan, _ = planner.plan(
-                    model_env.action_space.shape,
-                    cfg.algorithm.planning_horizon,
-                    trajectory_eval_fn,
-                )
-                plan_time = time.time() - start_time
-
-                actions_to_use.extend([a for a in plan[: cfg.algorithm.replan_freq]])
-            action = actions_to_use.pop(0)
+            action = planner.act(
+                obs,
+                num_particles=cfg.algorithm.num_particles,
+                planning_horizon=cfg.algorithm.planning_horizon,
+                replan_freq=cfg.algorithm.replan_freq,
+                propagation_method=cfg.algorithm.propagation_method,
+                verbose=debug_mode,
+            )
 
             # --- Doing env step and adding to model dataset ---
             next_obs, reward, done, _ = env.step(action)
@@ -168,7 +153,7 @@ def train(
                 break
 
             if debug_mode:
-                print(f"Step {env_steps}: Reward {reward:.3f}. Time: {plan_time:.3f}")
+                print(f"Step {env_steps}: Reward {reward:.3f}.")
 
         pets_logger.log("eval/trial", current_trial, env_steps)
         pets_logger.log("eval/episode_reward", total_reward, env_steps)
