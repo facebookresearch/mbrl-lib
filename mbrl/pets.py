@@ -91,7 +91,6 @@ def train(
     planner = mbrl.planning.ModelEnvSamplerAgent(model_env, cfg.algorithm.planner)
     planner_args = {
         "num_particles": cfg.algorithm.num_particles,
-        "planning_horizon": cfg.algorithm.planning_horizon,
         "replan_freq": cfg.algorithm.replan_freq,
         "propagation_method": cfg.algorithm.propagation_method,
         "verbose": debug_mode,

@@ -2,13 +2,14 @@
 name: "pets"
 
 planner:
-  _target_: mbrl.planning.CEMPlanner
+  _target_: mbrl.planning.TrajectoryOptimizer
   num_iterations: 5
   elite_ratio: 0.1
   population_size: 500
   alpha: 0.1
   action_lb: ???
   action_ub: ???
+  planning_horizon: 15
   device: ${device}
 
 normalize: true
@@ -19,7 +20,6 @@ initial_exploration_steps: ${overrides.trial_length}
 freq_train_model: ${overrides.trial_length}
 learned_rewards: ${overrides.learned_rewards}
 
-planning_horizon: 15
 num_particles: 25
 propagation_method: "fixed_model"
 replan_freq: 1

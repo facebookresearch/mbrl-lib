@@ -302,7 +302,7 @@ def rollout_model_env(
     model_env: mbrl.models.ModelEnv,
     initial_obs: np.ndarray,
     plan: Optional[np.ndarray] = None,
-    planner: Optional[mbrl.planning.CEMPlanner] = None,
+    planner: Optional[mbrl.planning.TrajectoryOptimizer] = None,
     cfg: Optional[omegaconf.DictConfig] = None,
     num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -318,11 +318,7 @@ def rollout_model_env(
                 propagation_method=cfg.algorithm.propagation_method,
             )
 
-        plan, _ = planner.plan(
-            model_env.action_space.shape,
-            cfg.algorithm.planning_horizon,
-            trajectory_eval_fn,
-        )
+        plan, _ = planner.optimize(trajectory_eval_fn)
     obs0 = model_env.reset(
         np.tile(initial_obs, (num_samples, 1)),
         propagation_method="random_model",

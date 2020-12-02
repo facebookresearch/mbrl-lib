@@ -39,8 +39,8 @@ class CEMOptimizer:
         self.elite_num = np.ceil(self.population_size * self.elite_ratio).astype(
             np.long
         )
-        self.lower_bound = torch.tensor(lower_bound, device=device)
-        self.upper_bound = torch.tensor(upper_bound, device=device)
+        self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
+        self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
         self.initial_var = ((self.upper_bound - self.lower_bound) ** 2) / 16
         self.alpha = alpha
         self.device = device
@@ -75,11 +75,12 @@ class CEMOptimizer:
         initial_mu: Optional[torch.Tensor] = None,
         callback: Optional[Callable[[torch.Tensor, int], Any]] = None,
     ) -> Tuple[torch.Tensor, Dict[str, np.ndarray]]:
-        if initial_mu is None:
-            mu = torch.zeros(x_shape).to(self.device)
-        else:
-            mu = torch.ones(x_shape).to(self.device) * initial_mu
-        var = torch.ones(x_shape).to(self.device) * self.initial_var
+        mu = (
+            torch.zeros(x_shape, device=self.device)
+            if initial_mu is None
+            else initial_mu.clone()
+        )
+        var = self.initial_var.clone()
 
         history = self._init_history(x_shape)
         best_solution = np.empty(x_shape)
@@ -117,14 +118,15 @@ class CEMOptimizer:
 
 # TODO separate CEM specific parameters. This can probably be a planner class
 #   and CEM replaced by some generic optimizer
-class CEMPlanner:
+class TrajectoryOptimizer:
     def __init__(
         self,
+        action_lb: np.ndarray,
+        action_ub: np.ndarray,
+        planning_horizon: int,
         num_iterations: int,
         elite_ratio: float,
         population_size: int,
-        action_lb: np.ndarray,
-        action_ub: np.ndarray,
         alpha: float,
         device: torch.device,
         replan_freq: int = 1,
@@ -133,36 +135,34 @@ class CEMPlanner:
             num_iterations,
             elite_ratio,
             population_size,
-            action_lb,
-            action_ub,
+            np.tile(action_lb, (planning_horizon, 1)),
+            np.tile(action_ub, (planning_horizon, 1)),
             alpha,
             device,
         )
         self.population_size = population_size
         self.initial_solution = (
-            (torch.tensor(action_lb) + torch.tensor(action_ub)) / 2
-        ).to(device)
+            ((torch.tensor(action_lb) + torch.tensor(action_ub)) / 2).float().to(device)
+        )
+        self.initial_solution = self.initial_solution.repeat((planning_horizon, 1))
         self.previous_solution = self.initial_solution.clone()
         self.replan_freq = replan_freq
+        self.horizon = planning_horizon
+        self.x_shape = (self.horizon,) + (len(action_lb),)
 
-    def plan(
-        self,
-        action_shape: Tuple[int],
-        horizon: int,
-        trajectory_eval_fn: Callable[[torch.Tensor], torch.Tensor],
+    def optimize(
+        self, trajectory_eval_fn: Callable[[torch.Tensor], torch.Tensor]
     ) -> Tuple[np.ndarray, float]:
 
-        if not action_shape:
-            action_shape = (1,)
-        if self.previous_solution.ndim == 1:
-            self.previous_solution = self.previous_solution.repeat((horizon, 1))
         best_solution, opt_history = self.optimizer.optimize(
             trajectory_eval_fn,
-            (horizon,) + action_shape,
+            self.x_shape,
             initial_mu=self.previous_solution,
         )
         self.previous_solution = best_solution.roll(-self.replan_freq, dims=0)
-        self.previous_solution[-self.replan_freq :] = self.initial_solution
+        # Note that initial_solution[i] is the same for all values of [i],
+        # so just pick i = 0
+        self.previous_solution[-self.replan_freq :] = self.initial_solution[0]
         return best_solution.cpu().numpy(), opt_history["value_maxs"].max()
 
     def reset(self):
@@ -218,7 +218,6 @@ class ModelEnvSamplerAgent(Agent):
         self,
         obs: np.ndarray,
         num_particles: int = 1,
-        planning_horizon: int = 1,
         replan_freq: int = 1,
         propagation_method: str = "random_model",
         verbose: bool = False,
@@ -233,11 +232,7 @@ class ModelEnvSamplerAgent(Agent):
                 propagation_method=propagation_method,
             )
             start_time = time.time()
-            plan, _ = self.planner.plan(
-                self.model_env.action_space.shape,
-                planning_horizon,
-                trajectory_eval_fn,
-            )
+            plan, _ = self.planner.optimize(trajectory_eval_fn)
             plan_time = time.time() - start_time
 
             self.actions_to_use.extend([a for a in plan[:replan_freq]])
