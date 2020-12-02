@@ -79,7 +79,6 @@ def create_dynamics_model(
     act_shape: Tuple[int],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
-    # Fix this for learned_rewards
     if cfg.dynamics_model.model.get("in_size", None) is None:
         cfg.dynamics_model.model.in_size = obs_shape[0] + (
             act_shape[0] if act_shape else 1
@@ -168,6 +167,27 @@ def save_buffers(
     work_path = pathlib.Path(work_dir)
     env_dataset_train.save(str(work_path / "replay_buffer_train"))
     env_dataset_val.save(str(work_path / "replay_buffer_val"))
+
+
+def train_model_and_save_model_and_data(
+    dynamics_model: mbrl.models.DynamicsModelWrapper,
+    model_trainer: mbrl.models.EnsembleTrainer,
+    cfg: omegaconf.DictConfig,
+    dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
+    dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,
+    work_dir: Union[str, pathlib.Path],
+    env_steps: int,
+    logger: pytorch_sac.Logger,
+):
+    logger.log("train/train_dataset_size", dataset_train.num_stored, env_steps)
+    logger.log("train/val_dataset_size", dataset_val.num_stored, env_steps)
+    model_trainer.train(
+        num_epochs=cfg.overrides.get("num_epochs_train_model", None),
+        patience=cfg.overrides.patience,
+    )
+    dynamics_model.save(work_dir)
+    mbrl.util.save_buffers(dataset_train, dataset_val, work_dir)
+    logger.dump(env_steps, save=True)
 
 
 # ------------------------------------------------------------------------ #

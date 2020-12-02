@@ -45,7 +45,7 @@ def train(
     rng = np.random.default_rng(seed=cfg.seed)
 
     work_dir = os.getcwd()
-    pets_logger = pytorch_sac.Logger(
+    logger = pytorch_sac.Logger(
         work_dir,
         save_tb=False,
         log_frequency=None,
@@ -57,14 +57,14 @@ def train(
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     # -------- Create and populate initial env dataset --------
-    env_dataset_train, env_dataset_val = mbrl.util.create_ensemble_buffers(
+    dataset_train, dataset_val = mbrl.util.create_ensemble_buffers(
         cfg, obs_shape, act_shape
     )
-    env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
+    dataset_train = cast(replay_buffer.BootstrapReplayBuffer, dataset_train)
     mbrl.util.populate_buffers_with_agent_trajectories(
         env,
-        env_dataset_train,
-        env_dataset_val,
+        dataset_train,
+        dataset_val,
         cfg.algorithm.initial_exploration_steps,
         cfg.overrides.validation_ratio,
         mbrl.planning.RandomAgent(env),
@@ -73,7 +73,7 @@ def train(
         trial_length=cfg.overrides.trial_length,
         normalizer_callback=dynamics_model.update_normalizer,
     )
-    mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
+    mbrl.util.save_buffers(dataset_train, dataset_val, work_dir)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -82,9 +82,9 @@ def train(
     )
     model_trainer = models.EnsembleTrainer(
         dynamics_model,
-        env_dataset_train,
-        dataset_val=env_dataset_val,
-        logger=pets_logger,
+        dataset_train,
+        dataset_val=dataset_val,
+        logger=logger,
         log_frequency=cfg.log_frequency_model,
     )
 
@@ -98,7 +98,6 @@ def train(
     }
 
     env_steps = 0
-    steps_since_model_train = 0
     current_trial = 0
     max_total_reward = -np.inf
     for trial in range(cfg.overrides.num_trials):
@@ -109,33 +108,22 @@ def train(
         steps_trial = 0
         while not done:
             # --------------- Model Training -----------------
-            # TODO move this to a separate function, replace also in mbpo
-            #   requires refactoring logger
-            if steps_trial == 0 or (
-                steps_since_model_train % cfg.algorithm.freq_train_model == 0
-            ):
-                pets_logger.log(
-                    "train/train_dataset_size", env_dataset_train.num_stored, env_steps
+            if steps_trial == 0 or env_steps % cfg.algorithm.freq_train_model == 0:
+                mbrl.util.train_model_and_save_model_and_data(
+                    dynamics_model,
+                    model_trainer,
+                    cfg,
+                    dataset_train,
+                    dataset_val,
+                    work_dir,
+                    env_steps,
+                    logger,
                 )
-                pets_logger.log(
-                    "train/val_dataset_size", env_dataset_val.num_stored, env_steps
-                )
-                model_trainer.train(
-                    num_epochs=cfg.overrides.get("num_epochs_train_model", None),
-                    patience=cfg.overrides.patience,
-                )
-                dynamics_model.save(work_dir)
-                mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
-                pets_logger.dump(env_steps, save=True)
-
-                steps_since_model_train = 1
-            else:
-                steps_since_model_train += 1
 
             # --- Doing env step using the planner and adding to model dataset ---
             dataset_to_update = mbrl.util.select_dataset_to_update(
-                env_dataset_train,
-                env_dataset_val,
+                dataset_train,
+                dataset_val,
                 cfg.algorithm.increase_val_set,
                 cfg.overrides.validation_ratio,
                 rng,
@@ -159,9 +147,9 @@ def train(
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")
 
-        pets_logger.log("eval/trial", current_trial, env_steps)
-        pets_logger.log("eval/episode_reward", total_reward, env_steps)
-        pets_logger.dump(env_steps, save=True)
+        logger.log("eval/trial", current_trial, env_steps)
+        logger.log("eval/episode_reward", total_reward, env_steps)
+        logger.dump(env_steps, save=True)
         current_trial += 1
 
         max_total_reward = max(max_total_reward, total_reward)

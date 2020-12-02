@@ -204,18 +204,16 @@ def train(
 
             # --------------- Model Training -----------------
             if env_steps % cfg.overrides.freq_train_model == 0:
-                mbpo_logger.log(
-                    "train/train_dataset_size", env_dataset_train.num_stored, env_steps
+                mbrl.util.train_model_and_save_model_and_data(
+                    dynamics_model,
+                    model_trainer,
+                    cfg,
+                    env_dataset_train,
+                    env_dataset_val,
+                    work_dir,
+                    env_steps,
+                    mbpo_logger,
                 )
-                mbpo_logger.log(
-                    "train/val_dataset_size", env_dataset_val.num_stored, env_steps
-                )
-                model_trainer.train(
-                    num_epochs=cfg.overrides.get("num_epochs_train_model", None),
-                    patience=cfg.overrides.patience,
-                )
-                dynamics_model.save(work_dir)
-                mbpo_logger.dump(env_steps, save=True)
 
                 # --------- Rollout new model and store imagined trajectories --------
                 # Batch all rollouts for the next freq_train_model steps together
