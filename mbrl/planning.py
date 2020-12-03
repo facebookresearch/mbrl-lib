@@ -192,41 +192,34 @@ class SACAgent(Agent):
 
 class TrajectoryOptimizerAgent(Agent):
     def __init__(
-        self, model_env: mbrl.models.ModelEnv, planner_cfg: omegaconf.DictConfig
+        self,
+        planner_cfg: omegaconf.DictConfig,
+        trajectory_eval_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        replan_freq: int = 1,
+        verbose: bool = False,
     ):
+        # trajectory_eval_should have signature fn(initial_state, action_sequences)
         self.planner = hydra.utils.instantiate(planner_cfg)
-        self.model_env = model_env
-        self.cfg = planner_cfg
+        self.trajectory_eval_fn = trajectory_eval_fn
         self.actions_to_use: List[np.ndarray] = []
+        self.replan_freq = replan_freq
+        self.verbose = verbose
 
     def reset(self):
         self.planner.reset()
 
-    def act(
-        self,
-        obs: np.ndarray,
-        num_particles: int = 1,
-        replan_freq: int = 1,
-        propagation_method: str = "random_model",
-        verbose: bool = False,
-        **_kwargs,
-    ) -> np.ndarray:
+    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
         plan_time = 0.0
         if not self.actions_to_use:  # re-plan is necessary
-            trajectory_eval_fn = functools.partial(
-                self.model_env.evaluate_action_sequences,
-                initial_state=obs,
-                num_particles=num_particles,
-                propagation_method=propagation_method,
-            )
+            trajectory_eval_fn = functools.partial(self.trajectory_eval_fn, obs)
             start_time = time.time()
             plan, _ = self.planner.optimize(trajectory_eval_fn)
             plan_time = time.time() - start_time
 
-            self.actions_to_use.extend([a for a in plan[:replan_freq]])
+            self.actions_to_use.extend([a for a in plan[: self.replan_freq]])
         action = self.actions_to_use.pop(0)
 
-        if verbose:
+        if self.verbose:
             print(f"Planning time: {plan_time:.3f}")
         return action
 

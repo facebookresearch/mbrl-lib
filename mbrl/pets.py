@@ -76,7 +76,7 @@ def train(
     mbrl.util.save_buffers(dataset_train, dataset_val, work_dir)
 
     # ---------------------------------------------------------
-    # --------------------- Training Loop ---------------------
+    # ---------- Create model environment and agent -----------
     model_env = models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
     )
@@ -88,15 +88,24 @@ def train(
         log_frequency=cfg.log_frequency_model,
     )
 
-    mbrl.planning.complete_agent_cfg(env, cfg.algorithm.planner)
-    planner = mbrl.planning.TrajectoryOptimizerAgent(model_env, cfg.algorithm.planner)
-    planner_args = {
-        "num_particles": cfg.algorithm.num_particles,
-        "replan_freq": cfg.algorithm.replan_freq,
-        "propagation_method": cfg.algorithm.propagation_method,
-        "verbose": debug_mode,
-    }
+    def trajectory_eval_fn(initial_state, action_sequences):
+        return model_env.evaluate_action_sequences(
+            action_sequences,
+            initial_state=initial_state,
+            num_particles=cfg.algorithm.num_particles,
+            propagation_method=cfg.algorithm.propagation_method,
+        )
 
+    mbrl.planning.complete_agent_cfg(env, cfg.algorithm.planner)
+    planner = mbrl.planning.TrajectoryOptimizerAgent(
+        cfg.algorithm.planner,
+        trajectory_eval_fn,
+        replan_freq=cfg.algorithm.replan_freq,
+        verbose=debug_mode,
+    )
+
+    # ---------------------------------------------------------
+    # --------------------- Training Loop ---------------------
     env_steps = 0
     current_trial = 0
     max_total_reward = -np.inf
@@ -132,7 +141,7 @@ def train(
                 env,
                 obs,
                 planner,
-                planner_args,
+                {},
                 dataset_to_update,
                 dynamics_model.update_normalizer,
             )
