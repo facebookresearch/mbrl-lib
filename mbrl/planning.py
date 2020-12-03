@@ -116,33 +116,22 @@ class CEMOptimizer:
         return best_solution, history
 
 
-# TODO separate CEM specific parameters. This can probably be a planner class
-#   and CEM replaced by some generic optimizer
 class TrajectoryOptimizer:
     def __init__(
         self,
+        optimizer_cfg: omegaconf.DictConfig,
         action_lb: np.ndarray,
         action_ub: np.ndarray,
         planning_horizon: int,
-        num_iterations: int,
-        elite_ratio: float,
-        population_size: int,
-        alpha: float,
-        device: torch.device,
         replan_freq: int = 1,
     ):
-        self.optimizer = CEMOptimizer(
-            num_iterations,
-            elite_ratio,
-            population_size,
-            np.tile(action_lb, (planning_horizon, 1)),
-            np.tile(action_ub, (planning_horizon, 1)),
-            alpha,
-            device,
-        )
-        self.population_size = population_size
+        optimizer_cfg.lower_bound = np.tile(action_lb, (planning_horizon, 1)).tolist()
+        optimizer_cfg.upper_bound = np.tile(action_ub, (planning_horizon, 1)).tolist()
+        self.optimizer = hydra.utils.instantiate(optimizer_cfg)
         self.initial_solution = (
-            ((torch.tensor(action_lb) + torch.tensor(action_ub)) / 2).float().to(device)
+            ((torch.tensor(action_lb) + torch.tensor(action_ub)) / 2)
+            .float()
+            .to(optimizer_cfg.device)
         )
         self.initial_solution = self.initial_solution.repeat((planning_horizon, 1))
         self.previous_solution = self.initial_solution.clone()

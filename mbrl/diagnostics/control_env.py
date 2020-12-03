@@ -6,6 +6,7 @@ from typing import Sequence, Tuple, cast
 
 import gym.wrappers
 import numpy as np
+import omegaconf
 import skvideo.io
 import torch
 
@@ -71,15 +72,24 @@ if __name__ == "__main__":
     eval_env.seed(args.seed)
     current_obs = eval_env.reset()
 
+    optimizer_cfg = omegaconf.OmegaConf.create(
+        {
+            "_target_": "mbrl.planning.CEMOptimizer",
+            "device": "cpu",
+            "num_iterations": 5,
+            "elite_ratio": 0.1,
+            "population_size": args.num_processes * args.samples_per_process,
+            "alpha": 0.1,
+            "lower_bound": "???",
+            "upper_bound": "???",
+        }
+    )
+
     controller = mbrl.planning.TrajectoryOptimizer(
+        optimizer_cfg,
         eval_env.action_space.low,
         eval_env.action_space.high,
         args.control_horizon,
-        5,
-        0.1,
-        args.num_processes * args.samples_per_process,
-        0.1,
-        torch.device("cpu"),
     )
 
     with mp.Pool(
