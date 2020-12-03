@@ -1,5 +1,4 @@
 import abc
-import functools
 import pathlib
 import time
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
@@ -15,9 +14,7 @@ import torch.distributions
 
 import mbrl.math
 import mbrl.models
-
-# TODO rename this module as "control.py", re-organize agents under a common
-#   interface (name it Controller)
+import mbrl.types
 
 
 # ------------------------------------------------------------------------ #
@@ -193,27 +190,46 @@ class SACAgent(Agent):
 class TrajectoryOptimizerAgent(Agent):
     def __init__(
         self,
-        planner_cfg: omegaconf.DictConfig,
-        trajectory_eval_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        optimizer_cfg: omegaconf.DictConfig,
+        action_lb: Sequence[float],
+        action_ub: Sequence[float],
+        planning_horizon: int = 1,
         replan_freq: int = 1,
         verbose: bool = False,
     ):
-        # trajectory_eval_should have signature fn(initial_state, action_sequences)
-        self.planner = hydra.utils.instantiate(planner_cfg)
-        self.trajectory_eval_fn = trajectory_eval_fn
+        self.optimizer = TrajectoryOptimizer(
+            optimizer_cfg,
+            np.array(action_lb),
+            np.array(action_ub),
+            planning_horizon=planning_horizon,
+            replan_freq=replan_freq,
+        )
+        self.trajectory_eval_fn: mbrl.types.TrajectoryEvalFnType = None
         self.actions_to_use: List[np.ndarray] = []
         self.replan_freq = replan_freq
         self.verbose = verbose
 
+    def set_trajectory_eval_fn(
+        self, trajectory_eval_fn: mbrl.types.TrajectoryEvalFnType
+    ):
+        self.trajectory_eval_fn = trajectory_eval_fn
+
     def reset(self):
-        self.planner.reset()
+        self.optimizer.reset()
 
     def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+        if self.trajectory_eval_fn is None:
+            raise RuntimeError(
+                "Please call `set_trajectory_eval_fn()` before using TrajectoryOptimizerAgent"
+            )
         plan_time = 0.0
         if not self.actions_to_use:  # re-plan is necessary
-            trajectory_eval_fn = functools.partial(self.trajectory_eval_fn, obs)
+
+            def trajectory_eval_fn(action_sequences):
+                return self.trajectory_eval_fn(obs, action_sequences)
+
             start_time = time.time()
-            plan, _ = self.planner.optimize(trajectory_eval_fn)
+            plan, _ = self.optimizer.optimize(trajectory_eval_fn)
             plan_time = time.time() - start_time
 
             self.actions_to_use.extend([a for a in plan[: self.replan_freq]])

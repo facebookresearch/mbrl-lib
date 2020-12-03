@@ -1,12 +1,16 @@
 # @package _group_
 name: "pets"
 
-planner:
-  _target_: mbrl.planning.TrajectoryOptimizer
+# TODO, remove this block, PETS always uses trajectoryoptimizer agent
+#  make planning horizon a param, and leave only optimizer config
+agent:
+  _target_: mbrl.planning.TrajectoryOptimizerAgent
   action_lb: ???
   action_ub: ???
   planning_horizon: 15
   optimizer_cfg: ${algorithm.optimizer}
+  replan_freq: 1
+  verbose: ${debug_mode}
 
 optimizer:
   _target_: mbrl.planning.CEMOptimizer
@@ -28,4 +32,3 @@ learned_rewards: ${overrides.learned_rewards}
 
 num_particles: 25
 propagation_method: "fixed_model"
-replan_freq: 1

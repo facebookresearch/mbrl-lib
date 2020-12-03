@@ -2,6 +2,7 @@ import os
 from typing import cast
 
 import gym
+import hydra
 import numpy as np
 import omegaconf
 import pytorch_sac
@@ -96,13 +97,9 @@ def train(
             propagation_method=cfg.algorithm.propagation_method,
         )
 
-    mbrl.planning.complete_agent_cfg(env, cfg.algorithm.planner)
-    planner = mbrl.planning.TrajectoryOptimizerAgent(
-        cfg.algorithm.planner,
-        trajectory_eval_fn,
-        replan_freq=cfg.algorithm.replan_freq,
-        verbose=debug_mode,
-    )
+    mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
+    agent = hydra.utils.instantiate(cfg.algorithm.agent)
+    agent.set_trajectory_eval_fn(trajectory_eval_fn)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -111,7 +108,7 @@ def train(
     max_total_reward = -np.inf
     for trial in range(cfg.overrides.num_trials):
         obs = env.reset()
-        planner.reset()
+        agent.reset()
         done = False
         total_reward = 0.0
         steps_trial = 0
@@ -129,7 +126,7 @@ def train(
                     logger,
                 )
 
-            # --- Doing env step using the planner and adding to model dataset ---
+            # --- Doing env step using the agent and adding to model dataset ---
             dataset_to_update = mbrl.util.select_dataset_to_update(
                 dataset_train,
                 dataset_val,
@@ -140,7 +137,7 @@ def train(
             next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
                 env,
                 obs,
-                planner,
+                agent,
                 {},
                 dataset_to_update,
                 dynamics_model.update_normalizer,
