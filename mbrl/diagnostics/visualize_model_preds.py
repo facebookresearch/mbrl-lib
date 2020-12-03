@@ -10,6 +10,7 @@ import numpy as np
 
 import mbrl
 import mbrl.models
+import mbrl.planning
 import mbrl.util
 
 VisData = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
@@ -45,7 +46,7 @@ class Visualizer:
         self.cfg = mbrl.util.get_hydra_cfg(self.results_path)
 
         self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
-        self.reference_agent = mbrl.util.load_agent(
+        self.reference_agent = mbrl.planning.load_agent(
             self.agent_path,
             self.env,
             agent_type,

@@ -88,7 +88,8 @@ def train(
         log_frequency=cfg.log_frequency_model,
     )
 
-    planner = mbrl.planning.ModelEnvSamplerAgent(model_env, cfg.algorithm.planner)
+    mbrl.planning.complete_agent_cfg(env, cfg.algorithm.planner)
+    planner = mbrl.planning.TrajectoryOptimizerAgent(model_env, cfg.algorithm.planner)
     planner_args = {
         "num_particles": cfg.algorithm.num_particles,
         "replan_freq": cfg.algorithm.replan_freq,

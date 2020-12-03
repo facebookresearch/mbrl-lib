@@ -122,7 +122,7 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    util.complete_sac_cfg(env, cfg)
+    mbrl.planning.complete_agent_cfg(env, cfg.agent)
     agent = hydra.utils.instantiate(cfg.agent)
 
     work_dir = os.getcwd()

@@ -1,7 +1,8 @@
 import abc
 import functools
+import pathlib
 import time
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import gym
 import hydra
@@ -189,12 +190,10 @@ class SACAgent(Agent):
             return self.sac_agent.act(obs, sample=sample, batched=batched)
 
 
-class ModelEnvSamplerAgent(Agent):
+class TrajectoryOptimizerAgent(Agent):
     def __init__(
         self, model_env: mbrl.models.ModelEnv, planner_cfg: omegaconf.DictConfig
     ):
-        planner_cfg.action_lb = model_env.action_space.low.tolist()
-        planner_cfg.action_ub = model_env.action_space.high.tolist()
         self.planner = hydra.utils.instantiate(planner_cfg)
         self.model_env = model_env
         self.cfg = planner_cfg
@@ -230,3 +229,42 @@ class ModelEnvSamplerAgent(Agent):
         if verbose:
             print(f"Planning time: {plan_time:.3f}")
         return action
+
+
+def complete_agent_cfg(env: gym.Env, agent_cfg: omegaconf.DictConfig):
+    obs_shape = env.observation_space.shape
+    act_shape = env.action_space.shape
+
+    if "obs_dim" in agent_cfg.keys() and "obs_dim" not in agent_cfg:
+        agent_cfg.obs_dim = obs_shape[0]
+    if "action_dim" in agent_cfg.keys() and "action_dim" not in agent_cfg:
+        agent_cfg.action_dim = act_shape[0]
+    if "action_range" in agent_cfg.keys() and "action_range" not in agent_cfg:
+        agent_cfg.action_range = [
+            float(env.action_space.low.min()),
+            float(env.action_space.high.max()),
+        ]
+    if "action_lb" in agent_cfg.keys() and "action_lb" not in agent_cfg:
+        agent_cfg.action_lb = env.action_space.low.tolist()
+    if "action_ub" in agent_cfg.keys() and "action_ub" not in agent_cfg:
+        agent_cfg.action_ub = env.action_space.high.tolist()
+
+    return agent_cfg
+
+
+def load_agent(
+    agent_path: Union[str, pathlib.Path], env: gym.Env, agent_type: str
+) -> Agent:
+    agent_path = pathlib.Path(agent_path)
+    if agent_type == "pytorch_sac":
+        cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
+        cfg.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
+        complete_agent_cfg(env, cfg)
+        agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.agent)
+        agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
+        agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
+        return mbrl.planning.SACAgent(agent)
+    else:
+        raise ValueError(
+            f"Invalid agent type {agent_type}. Supported options are: 'pytorch_sac'."
+        )

@@ -17,10 +17,11 @@ import mbrl.planning
 import mbrl.replay_buffer
 import mbrl.types
 
-
 # ------------------------------------------------------------------------ #
 # Generic utilities
 # ------------------------------------------------------------------------ #
+
+
 def make_env(
     cfg: omegaconf.DictConfig,
 ) -> Tuple[gym.Env, Callable, Callable]:
@@ -402,40 +403,3 @@ def populate_buffers_with_agent_trajectories(
                 return
             if trial_length and step % trial_length == 0:
                 break
-
-
-# ------------------------------------------------------------------------ #
-# Utilities for agents
-# ------------------------------------------------------------------------ #
-# TODO unify this with planner configuration (probably have cem planner under a common base
-#   config, both using action_lb, action_ub. Refactor SAC agent accordingly)
-def complete_sac_cfg(env: gym.Env, cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
-    obs_shape = env.observation_space.shape
-    act_shape = env.action_space.shape
-
-    cfg.agent.obs_dim = obs_shape[0]
-    cfg.agent.action_dim = act_shape[0]
-    cfg.agent.action_range = [
-        float(env.action_space.low.min()),
-        float(env.action_space.high.max()),
-    ]
-
-    return cfg
-
-
-def load_agent(
-    agent_path: Union[str, pathlib.Path], env: gym.Env, agent_type: str
-) -> mbrl.planning.Agent:
-    agent_path = pathlib.Path(agent_path)
-    if agent_type == "pytorch_sac":
-        cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
-        cfg.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
-        cfg = complete_sac_cfg(env, cfg)
-        agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.agent)
-        agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
-        agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
-        return mbrl.planning.SACAgent(agent)
-    else:
-        raise ValueError(
-            f"Invalid agent type {agent_type}. Supported options are: 'pytorch_sac'."
-        )
