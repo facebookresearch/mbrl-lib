@@ -1,0 +1,13 @@
+# @package _group_
+env: "cartpole_continuous"
+term_fn: "cartpole"
+learned_rewards: false
+trial_length: 200
+num_trials: 100
+
+model_lr: 1e-4
+model_wd: 1e-5
+model_batch_size: 256
+validation_ratio: 0.05
+num_epochs_train_model: 50
+patience: 50

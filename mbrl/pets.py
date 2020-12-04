@@ -92,13 +92,13 @@ def train(
         eval_format=EVAL_LOG_FORMAT,
     )
 
-    cfg.planner.action_lb = env.action_space.low.tolist()
-    cfg.planner.action_ub = env.action_space.high.tolist()
-    planner = hydra.utils.instantiate(cfg.planner)
+    cfg.algorithm.planner.action_lb = env.action_space.low.tolist()
+    cfg.algorithm.planner.action_ub = env.action_space.high.tolist()
+    planner = hydra.utils.instantiate(cfg.algorithm.planner)
 
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
-    # -------- Create and populate initial env. dataset --------
+    # -------- Create and populate initial overrides. dataset --------
     env_dataset_train, env_dataset_val = mbrl.util.create_ensemble_buffers(
         cfg, obs_shape, act_shape
     )
@@ -108,10 +108,10 @@ def train(
         env_dataset_train,
         env_dataset_val,
         dynamics_model,
-        cfg.initial_exploration_steps,
-        cfg.validation_ratio,
+        cfg.algorithm.initial_exploration_steps,
+        cfg.overrides.validation_ratio,
         rng,
-        trial_length=cfg.trial_length,
+        trial_length=cfg.overrides.trial_length,
     )
     mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
 
@@ -131,7 +131,7 @@ def train(
     steps_since_model_train = 0
     current_trial = 0
     max_total_reward = -np.inf
-    for trial in range(cfg.num_trials):
+    for trial in range(cfg.overrides.num_trials):
         obs = env.reset()
         planner.reset()
         actions_to_use: List[np.ndarray] = []
@@ -143,7 +143,7 @@ def train(
             # TODO move this to a separate function, replace also in mbpo
             #   requires refactoring logger
             if steps_trial == 0 or (
-                steps_since_model_train % cfg.freq_train_dyn_model == 0
+                steps_since_model_train % cfg.algorithm.freq_train_model == 0
             ):
                 pets_logger.log(
                     "train/train_dataset_size", env_dataset_train.num_stored, env_steps
@@ -152,8 +152,8 @@ def train(
                     "train/val_dataset_size", env_dataset_val.num_stored, env_steps
                 )
                 model_trainer.train(
-                    num_epochs=cfg.get("num_epochs_train_dyn_model", None),
-                    patience=cfg.patience,
+                    num_epochs=cfg.overrides.get("num_epochs_train_model", None),
+                    patience=cfg.overrides.patience,
                 )
                 dynamics_model.save(work_dir)
                 mbrl.util.save_buffers(env_dataset_train, env_dataset_val, work_dir)
@@ -169,23 +169,26 @@ def train(
                 trajectory_eval_fn = functools.partial(
                     model_env.evaluate_action_sequences,
                     initial_state=obs,
-                    num_particles=cfg.num_particles,
-                    propagation_method=cfg.propagation_method,
+                    num_particles=cfg.algorithm.num_particles,
+                    propagation_method=cfg.algorithm.propagation_method,
                 )
                 start_time = time.time()
                 plan, _ = planner.plan(
                     model_env.action_space.shape,
-                    cfg.planning_horizon,
+                    cfg.algorithm.planning_horizon,
                     trajectory_eval_fn,
                 )
                 plan_time = time.time() - start_time
 
-                actions_to_use.extend([a for a in plan[: cfg.replan_freq]])
+                actions_to_use.extend([a for a in plan[: cfg.algorithm.replan_freq]])
             action = actions_to_use.pop(0)
 
-            # --- Doing env step and adding to model dataset ---
+            # --- Doing overrides step and adding to model dataset ---
             next_obs, reward, done, _ = env.step(action)
-            if cfg.increase_val_set and rng.random() < cfg.validation_ratio:
+            if (
+                cfg.algorithm.increase_val_set
+                and rng.random() < cfg.overrides.validation_ratio
+            ):
                 env_dataset_val.add(obs, action, next_obs, reward, done)
             else:
                 env_dataset_train.add(obs, action, next_obs, reward, done)
@@ -194,7 +197,7 @@ def train(
             total_reward += reward
             steps_trial += 1
             env_steps += 1
-            if steps_trial == cfg.trial_length:
+            if steps_trial == cfg.overrides.trial_length:
                 break
 
             if debug_mode:

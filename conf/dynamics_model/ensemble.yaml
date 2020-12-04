@@ -1,0 +1,19 @@
+# @package _group_
+model:
+  _target_: mbrl.models.Ensemble
+  ensemble_size: 5
+  in_size: ???
+  out_size: ???
+  member_cfg: ${dynamics_model.member_cfg}
+  device: ${device}
+  optim_lr: ${overrides.model_lr}
+  optim_wd: ${overrides.model_wd}
+
+member_cfg:
+  _target_: mbrl.models.GaussianMLP
+  device: ${device}
+  num_layers: 4
+  in_size: ${dynamics_model.model.in_size}
+  out_size: ${dynamics_model.model.out_size}
+  hid_size: 200
+  use_silu: true

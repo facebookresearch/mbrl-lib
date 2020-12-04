@@ -111,7 +111,7 @@ class GaussianMLP(Model):
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
-            return F.mse_loss(pred_mean, target, reduce=False).mean(dim=1)
+            return F.mse_loss(pred_mean, target, reduction="none").mean(dim=1)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
