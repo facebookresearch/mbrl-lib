@@ -163,6 +163,10 @@ class Agent:
     @abc.abstractmethod
     def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
         """Issues an action given an observation."""
+        pass
+
+    def plan(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+        return self.act(obs, **_kwargs)
 
     def reset(self):
         pass
@@ -239,8 +243,22 @@ class TrajectoryOptimizerAgent(Agent):
             print(f"Planning time: {plan_time:.3f}")
         return action
 
+    def plan(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+        if self.trajectory_eval_fn is None:
+            raise RuntimeError(
+                "Please call `set_trajectory_eval_fn()` before using TrajectoryOptimizerAgent"
+            )
 
-def complete_agent_cfg(env: gym.Env, agent_cfg: omegaconf.DictConfig):
+        def trajectory_eval_fn(action_sequences):
+            return self.trajectory_eval_fn(obs, action_sequences)
+
+        plan, _ = self.optimizer.optimize(trajectory_eval_fn)
+        return plan
+
+
+def complete_agent_cfg(
+    env: Union[gym.Env, mbrl.models.ModelEnv], agent_cfg: omegaconf.DictConfig
+):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
@@ -268,7 +286,7 @@ def load_agent(
     if agent_type == "pytorch_sac":
         cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
         cfg.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
-        complete_agent_cfg(env, cfg)
+        complete_agent_cfg(env, cfg.agent)
         agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.agent)
         agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
         agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
@@ -277,3 +295,24 @@ def load_agent(
         raise ValueError(
             f"Invalid agent type {agent_type}. Supported options are: 'pytorch_sac'."
         )
+
+
+def create_trajectory_optim_agent_for_model(
+    model_env: mbrl.models.ModelEnv,
+    agent_cfg: omegaconf.DictConfig,
+    num_particles: int = 1,
+    propagation_method: str = "random_model",
+) -> TrajectoryOptimizerAgent:
+    mbrl.planning.complete_agent_cfg(model_env, agent_cfg)
+    agent = hydra.utils.instantiate(agent_cfg)
+
+    def trajectory_eval_fn(initial_state, action_sequences):
+        return model_env.evaluate_action_sequences(
+            action_sequences,
+            initial_state=initial_state,
+            num_particles=num_particles,
+            propagation_method=propagation_method,
+        )
+
+    agent.set_trajectory_eval_fn(trajectory_eval_fn)
+    return agent

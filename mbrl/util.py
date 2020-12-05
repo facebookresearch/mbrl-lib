@@ -109,6 +109,7 @@ def create_dynamics_model(
     return dynamics_model
 
 
+# TODO rename as load_hydra_cfg
 def get_hydra_cfg(results_dir: Union[str, pathlib.Path]):
     results_dir = pathlib.Path(results_dir)
     cfg_file = results_dir / ".hydra" / "config.yaml"
@@ -303,23 +304,13 @@ def rollout_model_env(
     model_env: mbrl.models.ModelEnv,
     initial_obs: np.ndarray,
     plan: Optional[np.ndarray] = None,
-    planner: Optional[mbrl.planning.TrajectoryOptimizer] = None,
-    cfg: Optional[omegaconf.DictConfig] = None,
+    agent: Optional[mbrl.planning.Agent] = None,
     num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     obs_history = []
     reward_history = []
-    if planner:
-
-        def trajectory_eval_fn(action_sequence: torch.Tensor) -> torch.Tensor:
-            return model_env.evaluate_action_sequences(
-                action_sequence,
-                initial_state=initial_obs[None, :],
-                num_particles=cfg.algorithm.num_particles,
-                propagation_method=cfg.algorithm.propagation_method,
-            )
-
-        plan, _ = planner.optimize(trajectory_eval_fn)
+    if agent:
+        plan = agent.plan(initial_obs[None, :])
     obs0 = model_env.reset(
         np.tile(initial_obs, (num_samples, 1)),
         propagation_method="random_model",

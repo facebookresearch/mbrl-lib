@@ -2,7 +2,6 @@ import os
 from typing import cast
 
 import gym
-import hydra
 import numpy as np
 import omegaconf
 import pytorch_sac
@@ -89,17 +88,12 @@ def train(
         log_frequency=cfg.log_frequency_model,
     )
 
-    def trajectory_eval_fn(initial_state, action_sequences):
-        return model_env.evaluate_action_sequences(
-            action_sequences,
-            initial_state=initial_state,
-            num_particles=cfg.algorithm.num_particles,
-            propagation_method=cfg.algorithm.propagation_method,
-        )
-
-    mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
-    agent = hydra.utils.instantiate(cfg.algorithm.agent)
-    agent.set_trajectory_eval_fn(trajectory_eval_fn)
+    agent = mbrl.planning.create_trajectory_optim_agent_for_model(
+        model_env,
+        cfg.algorithm.agent,
+        num_particles=cfg.algorithm.num_particles,
+        propagation_method=cfg.algorithm.propagation_method,
+    )
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
