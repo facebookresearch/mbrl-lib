@@ -35,14 +35,14 @@ class Model(nn.Module):
         self,
         in_size: int,
         out_size: int,
-        device: torch.device,
+        device: Union[str, torch.device],
         *args,
         **kwargs,
     ):
         super().__init__()
         self.in_size = in_size
         self.out_size = out_size
-        self.device = device
+        self.device = torch.device(device)
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         pass
@@ -70,7 +70,7 @@ class GaussianMLP(Model):
         self,
         in_size: int,
         out_size: int,
-        device: torch.device,
+        device: Union[str, torch.device],
         num_layers: int = 4,
         hid_size: int = 200,
         use_silu: bool = False,
@@ -126,7 +126,7 @@ class Ensemble(Model):
         ensemble_size: int,
         in_size: int,
         out_size: int,
-        device: torch.device,
+        device: Union[str, torch.device],
         member_cfg: omegaconf.DictConfig,
         optim_lr: float = 0.0075,
         optim_wd: float = 0.0001,
@@ -136,7 +136,7 @@ class Ensemble(Model):
         self.optimizers = []
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
-            self.members.append(model.to(device))
+            self.members.append(model.to(self.device))
             self.optimizers.append(
                 optim.Adam(model.parameters(), lr=optim_lr, weight_decay=optim_wd)
             )

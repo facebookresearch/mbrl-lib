@@ -10,6 +10,7 @@ import pytorch_sac.utils
 import torch
 
 import mbrl.models as models
+import mbrl.planning
 import mbrl.replay_buffer as replay_buffer
 import mbrl.types
 import mbrl.util as util
@@ -60,37 +61,6 @@ def get_rollout_length(rollout_schedule: List[int], epoch: int):
     return int(y)
 
 
-# TODO replace this with mbrl.util.populate_buffer_with_agent_trajectories
-#   and a random agent
-def collect_random_trajectories(
-    env: gym.Env,
-    env_dataset_train: replay_buffer.BootstrapReplayBuffer,
-    env_dataset_test: replay_buffer.IterableReplayBuffer,
-    steps_to_collect: int,
-    val_ratio: float,
-    rng: np.random.RandomState,
-):
-    indices = rng.permutation(steps_to_collect)
-    n_train = int(steps_to_collect * (1 - val_ratio))
-    indices_train = set(indices[:n_train])
-
-    step = 0
-    while True:
-        obs = env.reset()
-        done = False
-        while not done:
-            action = env.action_space.sample()
-            next_obs, reward, done, info = env.step(action)
-            if step in indices_train:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_test.add(obs, action, next_obs, reward, done)
-            obs = next_obs
-            step += 1
-            if step == steps_to_collect:
-                return
-
-
 def rollout_model_and_populate_sac_buffer(
     model_env: models.ModelEnv,
     env_dataset: replay_buffer.BootstrapReplayBuffer,
@@ -139,24 +109,6 @@ def evaluate(
     return avg_episode_reward / num_episodes
 
 
-def evaluate_on_model(
-    current_obs: np.ndarray,
-    agent: pytorch_sac.Agent,
-    model_env: models.ModelEnv,
-    rollout_length: int,
-    batch_size: int = 256,
-) -> float:
-    initial_batch = current_obs * np.ones((batch_size, len(current_obs)))
-    obs = model_env.reset(initial_obs_batch=initial_batch.astype(np.float32))
-    episode_reward: np.ndarray = 0
-    for i in range(rollout_length):
-        with pytorch_sac.utils.eval_mode(), torch.no_grad():
-            action = agent.act(obs, batched=True)
-        obs, reward, done, _ = model_env.step(action)
-        episode_reward += reward * ~done
-    return episode_reward.mean()
-
-
 def train(
     env: gym.Env,
     test_env: gym.Env,
@@ -170,7 +122,7 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    util.complete_sac_cfg(env, cfg)
+    mbrl.planning.complete_agent_cfg(env, cfg.agent)
     agent = hydra.utils.instantiate(cfg.agent)
 
     work_dir = os.getcwd()
@@ -191,20 +143,21 @@ def train(
     )
     video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
 
-    rng = np.random.RandomState(cfg.seed)
+    rng = np.random.default_rng(seed=cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
     env_dataset_train, env_dataset_val = util.create_ensemble_buffers(
         cfg, obs_shape, act_shape
     )
     env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
-    # TODO replace this with some exploration policy
-    collect_random_trajectories(
+    mbrl.util.populate_buffers_with_agent_trajectories(
         env,
         env_dataset_train,
         env_dataset_val,
         cfg.algorithm.initial_exploration_steps,
         cfg.overrides.validation_ratio,
+        mbrl.planning.RandomAgent(env),
+        {},
         rng,
     )
 
@@ -232,32 +185,35 @@ def train(
         obs = env.reset()
         done = False
         while not done:
-            # --- Doing overrides step and adding to model dataset ---
-            with pytorch_sac.utils.eval_mode(), torch.no_grad():
-                action = agent.act(obs)
-            next_obs, reward, done, _ = env.step(action)
-            if (
-                cfg.algorithm.increase_val_set
-                and rng.random() < cfg.overrides.validation_ratio
-            ):
-                env_dataset_val.add(obs, action, next_obs, reward, done)
-            else:
-                env_dataset_train.add(obs, action, next_obs, reward, done)
+            # --- Doing env step and adding to model dataset ---
+            dataset_to_update = mbrl.util.select_dataset_to_update(
+                env_dataset_train,
+                env_dataset_val,
+                cfg.algorithm.increase_val_set,
+                cfg.overrides.validation_ratio,
+                rng,
+            )
+            next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
+                env,
+                obs,
+                agent,
+                {},
+                dataset_to_update,
+                normalizer_callback=dynamics_model.update_normalizer,
+            )
 
             # --------------- Model Training -----------------
             if env_steps % cfg.overrides.freq_train_model == 0:
-                mbpo_logger.log(
-                    "train/train_dataset_size", env_dataset_train.num_stored, env_steps
+                mbrl.util.train_model_and_save_model_and_data(
+                    dynamics_model,
+                    model_trainer,
+                    cfg,
+                    env_dataset_train,
+                    env_dataset_val,
+                    work_dir,
+                    env_steps,
+                    mbpo_logger,
                 )
-                mbpo_logger.log(
-                    "train/val_dataset_size", env_dataset_val.num_stored, env_steps
-                )
-                model_trainer.train(
-                    num_epochs=cfg.overrides.get("num_epochs_train_model", None),
-                    patience=cfg.overrides.patience,
-                )
-                dynamics_model.save(work_dir)
-                mbpo_logger.dump(env_steps, save=True)
 
                 # --------- Rollout new model and store imagined trajectories --------
                 # Batch all rollouts for the next freq_train_model steps together

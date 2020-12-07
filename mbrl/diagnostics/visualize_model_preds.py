@@ -3,13 +3,13 @@ import pathlib
 from typing import Generator, List, Optional, Tuple, cast
 
 import gym.wrappers
-import hydra
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
 import mbrl
 import mbrl.models
+import mbrl.planning
 import mbrl.util
 
 VisData = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
@@ -45,7 +45,7 @@ class Visualizer:
         self.cfg = mbrl.util.get_hydra_cfg(self.results_path)
 
         self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
-        self.reference_agent = mbrl.util.load_agent(
+        self.reference_agent = mbrl.planning.load_agent(
             self.agent_path,
             self.env,
             agent_type,
@@ -62,9 +62,13 @@ class Visualizer:
             self.env, self.dynamics_model, term_fn, reward_fn
         )
 
-        self.cfg.algorithm.planner.action_lb = self.env.action_space.low.tolist()
-        self.cfg.algorithm.planner.action_ub = self.env.action_space.high.tolist()
-        self.planner = hydra.utils.instantiate(self.cfg.algorithm.planner)
+        self.cfg.algorithm.agent.planning_horizon = lookahead
+        self.agent = mbrl.planning.create_trajectory_optim_agent_for_model(
+            self.model_env,
+            self.cfg.algorithm.agent,
+            num_particles=self.cfg.algorithm.num_particles,
+            propagation_method=self.cfg.algorithm.propagation_method,
+        )
 
         self.fig = None
         self.axs: List[plt.Axes] = []
@@ -81,8 +85,7 @@ class Visualizer:
                 self.model_env,
                 obs,
                 plan=None,
-                planner=self.planner,
-                cfg=self.cfg,
+                agent=self.agent,
                 num_samples=self.num_model_samples,
             )
             real_obses, real_rewards, _ = mbrl.util.rollout_env(
