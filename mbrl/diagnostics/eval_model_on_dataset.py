@@ -50,7 +50,7 @@ class DatasetEvaluator:
             ) = self.dynamics_model.get_output_and_targets_from_simple_batch(batch)
 
             for i in range(num_members):
-                all_means[i].append(outputs[i][0].cpu().numpy())
+                all_means[i].append(outputs[0][i].cpu().numpy())
             all_targets.append(target.cpu().numpy())
         # Consolidating targets and predictions
         all_means_np = []
