@@ -14,7 +14,6 @@ effective_model_rollouts_per_step: 400
 rollout_schedule: [20, 150, 1, 1]
 num_sac_updates_per_step: 20
 
-
 sac_alpha_lr: 3e-4
 sac_actor_lr: 3e-4
 sac_actor_update_frequency: 16

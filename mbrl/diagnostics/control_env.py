@@ -6,6 +6,7 @@ from typing import Sequence, Tuple, cast
 
 import gym.wrappers
 import numpy as np
+import omegaconf
 import skvideo.io
 import torch
 
@@ -62,6 +63,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_processes", type=int, default=1)
     parser.add_argument("--num_steps", type=int, default=1000)
     parser.add_argument("--samples_per_process", type=int, default=512)
+    parser.add_argument("--render", action="store_true")
     parser.add_argument("--output_dir", type=str, default=None)
     args = parser.parse_args()
 
@@ -70,14 +72,24 @@ if __name__ == "__main__":
     eval_env.seed(args.seed)
     current_obs = eval_env.reset()
 
-    controller = mbrl.planning.CEMPlanner(
-        5,
-        0.1,
-        args.num_processes * args.samples_per_process,
+    optimizer_cfg = omegaconf.OmegaConf.create(
+        {
+            "_target_": "mbrl.planning.CEMOptimizer",
+            "device": "cpu",
+            "num_iterations": 5,
+            "elite_ratio": 0.1,
+            "population_size": args.num_processes * args.samples_per_process,
+            "alpha": 0.1,
+            "lower_bound": "???",
+            "upper_bound": "???",
+        }
+    )
+
+    controller = mbrl.planning.TrajectoryOptimizer(
+        optimizer_cfg,
         eval_env.action_space.low,
         eval_env.action_space.high,
-        0.1,
-        torch.device("cpu"),
+        args.control_horizon,
     )
 
     with mp.Pool(
@@ -87,7 +99,8 @@ if __name__ == "__main__":
         total_reward__ = 0
         frames = []
         for t in range(args.num_steps):
-            frames.append(eval_env.render(mode="rgb_array"))
+            if args.render:
+                frames.append(eval_env.render(mode="rgb_array"))
             start = time.time()
 
             current_state__ = mbrl.util.get_current_state(
@@ -101,9 +114,7 @@ if __name__ == "__main__":
                     current_state__,
                 )
 
-            plan, pred_value = controller.plan(
-                eval_env.action_space.shape, args.control_horizon, trajectory_eval_fn
-            )
+            plan, pred_value = controller.optimize(trajectory_eval_fn)
             action__ = plan[0]
             next_obs__, reward__, done__, _ = eval_env.step(action__)
 
@@ -113,10 +124,13 @@ if __name__ == "__main__":
                 f"step: {t}, time: {time.time() - start: .3f}, "
                 f"reward: {reward__: .3f}, pred_value: {pred_value: .3f}"
             )
-        frames_np = np.stack(frames)
-        writer = skvideo.io.FFmpegWriter(pathlib.Path(args.output_dir) / "video.mp4")
-        for i in range(len(frames_np)):
-            writer.writeFrame(frames_np[i, :, :, :])
-        writer.close()
+        if args.render:
+            frames_np = np.stack(frames)
+            writer = skvideo.io.FFmpegWriter(
+                pathlib.Path(args.output_dir) / "video.mp4"
+            )
+            for i in range(len(frames_np)):
+                writer.writeFrame(frames_np[i, :, :, :])
+            writer.close()
 
         print("total_reward: ", total_reward__)

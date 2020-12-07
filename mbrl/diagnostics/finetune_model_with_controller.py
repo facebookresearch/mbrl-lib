@@ -36,7 +36,7 @@ class FineTuner:
             self.env.action_space.shape,
             model_dir=None if new_model else model_dir,
         )
-        self.agent = mbrl.util.load_agent(agent_dir, self.env, agent_type)
+        self.agent = mbrl.planning.load_agent(agent_dir, self.env, agent_type)
         self.dataset_train, self.dataset_val = mbrl.util.create_ensemble_buffers(
             self.cfg,
             self.env.observation_space.shape,
