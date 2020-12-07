@@ -414,11 +414,11 @@ class DynamicsModelWrapper:
 # ------------------------------------------------------------------------ #
 # Model trainer
 # ------------------------------------------------------------------------ #
-class EnsembleTrainer:
+class DynamicsModelTrainer:
     def __init__(
         self,
         dynamics_model: DynamicsModelWrapper,
-        dataset_train: replay_buffer.BootstrapReplayBuffer,
+        dataset_train: replay_buffer.IterableReplayBuffer,
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         logger: Optional[pytorch_sac.Logger] = None,
         log_frequency: int = 1,

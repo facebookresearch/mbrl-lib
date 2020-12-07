@@ -173,7 +173,7 @@ def save_buffers(
 
 def train_model_and_save_model_and_data(
     dynamics_model: mbrl.models.DynamicsModelWrapper,
-    model_trainer: mbrl.models.EnsembleTrainer,
+    model_trainer: mbrl.models.DynamicsModelTrainer,
     cfg: omegaconf.DictConfig,
     dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
     dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,

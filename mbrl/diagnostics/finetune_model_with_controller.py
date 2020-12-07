@@ -76,7 +76,7 @@ class FineTuner:
             eval_format=LOG_FORMAT,
         )
 
-        model_trainer = mbrl.models.EnsembleTrainer(
+        model_trainer = mbrl.models.DynamicsModelTrainer(
             self.dynamics_model,
             cast(mbrl.replay_buffer.BootstrapReplayBuffer, self.dataset_train),
             dataset_val=self.dataset_val,

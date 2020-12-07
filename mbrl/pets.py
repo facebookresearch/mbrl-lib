@@ -83,7 +83,7 @@ def train(
     model_env = models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
     )
-    model_trainer = models.EnsembleTrainer(
+    model_trainer = models.DynamicsModelTrainer(
         dynamics_model,
         dataset_train,
         dataset_val=dataset_val,

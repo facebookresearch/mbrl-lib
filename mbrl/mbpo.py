@@ -168,7 +168,7 @@ def train(
     updates_made = 0
     env_steps = 0
     model_env = models.ModelEnv(env, dynamics_model, termination_fn, None)
-    model_trainer = models.EnsembleTrainer(
+    model_trainer = models.DynamicsModelTrainer(
         dynamics_model,
         env_dataset_train,
         dataset_val=env_dataset_val,
