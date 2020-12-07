@@ -279,7 +279,7 @@ class DynamicsModelWrapper:
         self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
 
-    def update_normalizer(self, batch: Tuple):
+    def update_normalizer(self, batch: mbrl.types.RLBatch):
         obs, action, next_obs, reward, _ = batch
         if obs.ndim == 1:
             obs = obs[None, :]
@@ -310,7 +310,7 @@ class DynamicsModelWrapper:
         return model_in
 
     def _get_model_input_and_target_from_batch(
-        self, batch: Tuple
+        self, batch: mbrl.types.RLBatch
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         obs, action, next_obs, reward, _ = batch
         if self.target_is_delta:
@@ -329,7 +329,7 @@ class DynamicsModelWrapper:
             target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
-    def loss_from_bootstrap_batch(self, bootstrap_batch: Tuple):
+    def loss_from_bootstrap_batch(self, bootstrap_batch: mbrl.types.RLEnsembleBatch):
         assert isinstance(self.model, Ensemble)
 
         model_ins = []
@@ -340,7 +340,7 @@ class DynamicsModelWrapper:
             targets.append(target)
         return self.model.loss(model_ins, targets)
 
-    def eval_score_from_simple_batch(self, batch: Tuple) -> torch.Tensor:
+    def eval_score_from_simple_batch(self, batch: mbrl.types.RLBatch) -> torch.Tensor:
         assert isinstance(self.model, Ensemble)
 
         model_in, target = self._get_model_input_and_target_from_batch(batch)
@@ -349,7 +349,7 @@ class DynamicsModelWrapper:
         return self.model.eval_score(model_ins, targets)
 
     def get_output_and_targets_from_simple_batch(
-        self, batch: Tuple
+        self, batch: mbrl.types.RLBatch
     ) -> Tuple[List[torch.Tensor], torch.Tensor]:
         assert isinstance(self.model, Ensemble)
         with torch.no_grad():
