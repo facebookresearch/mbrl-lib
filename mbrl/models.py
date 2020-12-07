@@ -50,7 +50,11 @@ class Model(nn.Module):
         pass
 
     @abc.abstractmethod
-    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def loss(
+        self,
+        model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
+        target: Union[torch.Tensor, Sequence[torch.Tensor]],
+    ) -> torch.Tensor:
         pass
 
     @abc.abstractmethod
@@ -65,6 +69,21 @@ class Model(nn.Module):
     @abc.abstractmethod
     def load(self, path: str):
         pass
+
+    def update(
+        self,
+        model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
+        target: Union[torch.Tensor, Sequence[torch.Tensor]],
+        optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+    ) -> float:
+        assert not isinstance(optimizer, Sequence)
+        optimizer = cast(torch.optim.Optimizer, optimizer)
+        self.train()
+        optimizer.zero_grad()
+        loss = self.loss(model_in, target)
+        loss.backward()
+        optimizer.step(None)
+        return loss.item()
 
 
 class GaussianMLP(Model):
@@ -131,19 +150,13 @@ class Ensemble(Model):
         out_size: int,
         device: Union[str, torch.device],
         member_cfg: omegaconf.DictConfig,
-        optim_lr: float = 0.0075,
-        optim_wd: float = 0.0001,
     ):
         super().__init__(in_size, out_size, device)
         self.is_ensemble = True
         self.members = []
-        self.optimizers = []
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model)
-            self.optimizers.append(
-                optim.Adam(model.parameters(), lr=optim_lr, weight_decay=optim_wd)
-            )
         self.members = nn.ModuleList(self.members)
         self.to(device)
 
@@ -151,10 +164,10 @@ class Ensemble(Model):
         return len(self.members)
 
     def __getitem__(self, item):
-        return self.members[item], self.optimizers[item]
+        return self.members[item]
 
     def __iter__(self):
-        return iter(zip(self.members, self.optimizers))
+        return iter(self.members)
 
     def _default_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         predictions = [model(x) for model in self.members]
@@ -223,17 +236,31 @@ class Ensemble(Model):
             f"'random_model', 'fixed_model', 'expectation'."
         )
 
-    # TODO move optimizers outside of this (do optim step in a different func)
     def loss(
-        self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
+        self,
+        inputs: Sequence[torch.Tensor],
+        targets: Sequence[torch.Tensor],
+    ) -> torch.Tensor:
+        avg_ensemble_loss: torch.Tensor = 0.0
+        for i, model in enumerate(self.members):
+            model.train()
+            loss = model.loss(inputs[i], targets[i])
+            avg_ensemble_loss += loss
+        return avg_ensemble_loss / len(self.members)
+
+    def update(
+        self,
+        inputs: Sequence[torch.Tensor],
+        targets: Sequence[torch.Tensor],
+        optimizers: Sequence[torch.optim.Optimizer],
     ) -> float:
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
             model.train()
-            self.optimizers[i].zero_grad()
+            optimizers[i].zero_grad()
             loss = model.loss(inputs[i], targets[i])
             loss.backward()
-            self.optimizers[i].step(None)
+            optimizers[i].step(None)
             avg_ensemble_loss += loss.item()
         return avg_ensemble_loss / len(self.members)
 
@@ -331,7 +358,11 @@ class DynamicsModelWrapper:
             target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
-    def loss_from_bootstrap_batch(self, bootstrap_batch: mbrl.types.RLEnsembleBatch):
+    def update_from_bootstrap_batch(
+        self,
+        bootstrap_batch: mbrl.types.RLEnsembleBatch,
+        optimizers: Sequence[torch.optim.Optimizer],
+    ):
         if not hasattr(self.model, "members"):
             raise RuntimeError(
                 "Model must be ensemble to use `loss_from_bootstrap_batch`."
@@ -343,16 +374,18 @@ class DynamicsModelWrapper:
             model_in, target = self._get_model_input_and_target_from_batch(batch)
             model_ins.append(model_in)
             targets.append(target)
-        return self.model.loss(model_ins, targets)
+        return self.model.update(model_ins, targets, optimizers)
 
-    def loss_from_simple_batch(self, batch: mbrl.types.RLBatch):
+    def update_from_simple_batch(
+        self, batch: mbrl.types.RLBatch, optimizer: torch.optim.Optimizer
+    ):
         if hasattr(self.model, "members"):
             raise RuntimeError(
                 "Model must not be ensemble to use `loss_from_simple_batch`."
             )
 
         model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.loss(model_in, target)
+        return self.model.update(model_in, target, optimizer)
 
     def eval_score_from_simple_batch(self, batch: mbrl.types.RLBatch) -> torch.Tensor:
         model_in, target = self._get_model_input_and_target_from_batch(batch)
@@ -420,6 +453,8 @@ class DynamicsModelTrainer:
         dynamics_model: DynamicsModelWrapper,
         dataset_train: replay_buffer.IterableReplayBuffer,
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
+        optim_lr: float = 1e-4,
+        weight_decay: float = 1e-5,
         logger: Optional[pytorch_sac.Logger] = None,
         log_frequency: int = 1,
     ):
@@ -429,6 +464,23 @@ class DynamicsModelTrainer:
         self.dataset_val = dataset_val
         self.log_frequency = log_frequency
 
+        self.optimizers = None
+        if self.dynamics_model.model.is_ensemble:
+            ensemble = cast(Ensemble, self.dynamics_model.model)
+            self.optimizers = []
+            for i, model in enumerate(ensemble):
+                self.optimizers.append(
+                    optim.Adam(
+                        model.parameters(), lr=optim_lr, weight_decay=weight_decay
+                    )
+                )
+        else:
+            self.optimizers = optim.Adam(
+                self.dynamics_model.model.parameters(),
+                lr=optim_lr,
+                weight_decay=weight_decay,
+            )
+
     # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
     # `patience` epochs lapse w/o improvement.
     def train(
@@ -436,9 +488,9 @@ class DynamicsModelTrainer:
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
     ) -> Tuple[List[float], List[float]]:
-        loss_from_batch_fn = self.dynamics_model.loss_from_simple_batch
+        update_from_batch_fn = self.dynamics_model.update_from_simple_batch
         if isinstance(self.dynamics_model.model, Ensemble):
-            loss_from_batch_fn = self.dynamics_model.loss_from_bootstrap_batch  # type: ignore
+            update_from_batch_fn = self.dynamics_model.update_from_bootstrap_batch  # type: ignore
             if not self.dataset_train.is_train_compatible_with_ensemble(
                 len(self.dynamics_model.model)
             ):
@@ -459,9 +511,9 @@ class DynamicsModelTrainer:
         for epoch in epoch_iter:
             total_avg_loss = 0.0
             for bootstrap_batch in self.dataset_train:
-                # This call also updates the model.
-                # TODO refactor this to separate loss computation from update
-                avg_ensemble_loss = loss_from_batch_fn(bootstrap_batch)
+                avg_ensemble_loss = update_from_batch_fn(
+                    bootstrap_batch, self.optimizers
+                )
                 total_avg_loss += avg_ensemble_loss
             training_losses.append(total_avg_loss)
 
