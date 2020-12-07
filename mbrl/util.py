@@ -109,8 +109,7 @@ def create_dynamics_model(
     return dynamics_model
 
 
-# TODO rename as load_hydra_cfg
-def get_hydra_cfg(results_dir: Union[str, pathlib.Path]):
+def load_hydra_cfg(results_dir: Union[str, pathlib.Path]):
     results_dir = pathlib.Path(results_dir)
     cfg_file = results_dir / ".hydra" / "config.yaml"
     return omegaconf.OmegaConf.load(cfg_file)

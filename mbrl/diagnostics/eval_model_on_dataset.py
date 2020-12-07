@@ -16,7 +16,7 @@ class DatasetEvaluator:
         self.output_path = pathlib.Path(output_dir)
         pathlib.Path.mkdir(self.output_path, exist_ok=True)
 
-        self.cfg = mbrl.util.get_hydra_cfg(self.model_path)
+        self.cfg = mbrl.util.load_hydra_cfg(self.model_path)
 
         self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
         self.reward_fn = reward_fn

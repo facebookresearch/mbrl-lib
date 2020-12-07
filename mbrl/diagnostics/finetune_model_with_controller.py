@@ -28,7 +28,7 @@ class FineTuner:
         subdir: Optional[str] = None,
         new_model: bool = False,
     ):
-        self.cfg = mbrl.util.get_hydra_cfg(model_dir)
+        self.cfg = mbrl.util.load_hydra_cfg(model_dir)
         self.env, self.term_fn, self.reward_fn = mbrl.util.make_env(self.cfg)
         self.dynamics_model = mbrl.util.create_dynamics_model(
             self.cfg,

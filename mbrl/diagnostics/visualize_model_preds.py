@@ -42,7 +42,7 @@ class Visualizer:
         self.num_model_samples = num_model_samples
         self.num_steps = num_steps
 
-        self.cfg = mbrl.util.get_hydra_cfg(self.results_path)
+        self.cfg = mbrl.util.load_hydra_cfg(self.results_path)
 
         self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
         self.reference_agent = mbrl.planning.load_agent(
