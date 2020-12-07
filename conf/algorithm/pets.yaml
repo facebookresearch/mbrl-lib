@@ -1,8 +1,6 @@
 # @package _group_
 name: "pets"
 
-# TODO, remove this block, PETS always uses trajectoryoptimizer agent
-#  make planning horizon a param, and leave only optimizer config
 agent:
   _target_: mbrl.planning.TrajectoryOptimizerAgent
   action_lb: ???

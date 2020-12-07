@@ -116,6 +116,7 @@ def get_hydra_cfg(results_dir: Union[str, pathlib.Path]):
     return omegaconf.OmegaConf.load(cfg_file)
 
 
+# TODO rename as create_replay_buffers
 def create_ensemble_buffers(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int],
