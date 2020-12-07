@@ -28,7 +28,7 @@ class DatasetEvaluator:
             model_dir=self.model_path,
         )
 
-        self.training_data, self.val_data = mbrl.util.create_ensemble_buffers(
+        self.training_data, self.val_data = mbrl.util.create_replay_buffers(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,

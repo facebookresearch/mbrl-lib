@@ -57,7 +57,7 @@ def train(
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     # -------- Create and populate initial env dataset --------
-    dataset_train, dataset_val = mbrl.util.create_ensemble_buffers(
+    dataset_train, dataset_val = mbrl.util.create_replay_buffers(
         cfg,
         obs_shape,
         act_shape,

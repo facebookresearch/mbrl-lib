@@ -146,7 +146,7 @@ def train(
     rng = np.random.default_rng(seed=cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
-    env_dataset_train, env_dataset_val = util.create_ensemble_buffers(
+    env_dataset_train, env_dataset_val = util.create_replay_buffers(
         cfg, obs_shape, act_shape
     )
     env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
