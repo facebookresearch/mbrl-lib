@@ -12,3 +12,4 @@ TrajectoryEvalFnType = Callable[[TensorType, torch.Tensor], torch.Tensor]
 # obs, action, next_obs, reward, done
 RLBatch = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 RLEnsembleBatch = List[RLBatch]
+BatchTypes = Union[RLBatch, RLEnsembleBatch]

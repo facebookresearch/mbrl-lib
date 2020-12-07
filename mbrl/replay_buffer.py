@@ -1,4 +1,4 @@
-from typing import List, Sized, Tuple, Union
+from typing import List, Sized, Tuple
 
 import numpy as np
 
@@ -77,6 +77,9 @@ class SimpleReplayBuffer:
         self.num_stored = num_stored
         self.cur_idx = self.num_stored % self.capacity
 
+    def is_train_compatible_with_ensemble(self, ensemble_size: int):
+        return False
+
 
 class IterableReplayBuffer(SimpleReplayBuffer):
     def __init__(
@@ -128,7 +131,6 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         self._current_batch = 0
 
 
-# TODO Add a transition type to encapsulate this batch data
 class BootstrapReplayBuffer(IterableReplayBuffer):
     def __init__(
         self,
@@ -181,9 +183,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             batches.append(self._batch_from_indices(content_indices))
         return batches
 
-    def sample(
-        self, batch_size: int, ensemble=True
-    ) -> Union[mbrl.types.RLEnsembleBatch, mbrl.types.RLBatch]:
+    def sample(self, batch_size: int, ensemble=True) -> mbrl.types.BatchTypes:
         if ensemble:
             batches = []
             for member_idx in self.member_indices:
@@ -197,3 +197,6 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
 
     def toggle_bootstrap(self):
         self._bootstrap_iter = not self._bootstrap_iter
+
+    def is_train_compatible_with_ensemble(self, ensemble_size: int):
+        return len(self.member_indices) == ensemble_size
