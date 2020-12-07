@@ -120,26 +120,27 @@ def create_replay_buffers(
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
-    train_no_bootstrap: bool = False,
+    train_is_bootstrap: bool = True,
 ) -> Tuple[
     mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
 ]:
     dataset_size = cfg.algorithm.get("dataset_size", None)
     if not dataset_size:
         dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
-    if train_no_bootstrap:
-        train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
+    train_buffer: mbrl.replay_buffer.IterableReplayBuffer
+    if train_is_bootstrap:
+        train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
             dataset_size,
             cfg.overrides.model_batch_size,
+            cfg.dynamics_model.model.ensemble_size,
             obs_shape,
             act_shape,
             shuffle_each_epoch=True,
         )
     else:
-        train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
+        train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
             dataset_size,
             cfg.overrides.model_batch_size,
-            cfg.dynamics_model.model.ensemble_size,
             obs_shape,
             act_shape,
             shuffle_each_epoch=True,

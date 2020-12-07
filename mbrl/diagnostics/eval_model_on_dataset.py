@@ -33,7 +33,7 @@ class DatasetEvaluator:
             self.env.observation_space.shape,
             self.env.action_space.shape,
             dataset_dir,
-            train_no_bootstrap=True,
+            train_is_bootstrap=False,
         )
 
     def plot_dataset_results(
