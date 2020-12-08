@@ -211,8 +211,6 @@ def train(
                     env_dataset_train,
                     env_dataset_val,
                     work_dir,
-                    env_steps,
-                    mbpo_logger,
                 )
 
                 # --------- Rollout new model and store imagined trajectories --------
