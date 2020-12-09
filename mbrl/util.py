@@ -109,38 +109,38 @@ def create_dynamics_model(
     return dynamics_model
 
 
-# TODO rename as load_hydra_cfg
-def get_hydra_cfg(results_dir: Union[str, pathlib.Path]):
+def load_hydra_cfg(results_dir: Union[str, pathlib.Path]):
     results_dir = pathlib.Path(results_dir)
     cfg_file = results_dir / ".hydra" / "config.yaml"
     return omegaconf.OmegaConf.load(cfg_file)
 
 
-def create_ensemble_buffers(
+def create_replay_buffers(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
-    train_no_bootstrap: bool = False,
+    train_is_bootstrap: bool = True,
 ) -> Tuple[
     mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
 ]:
     dataset_size = cfg.algorithm.get("dataset_size", None)
     if not dataset_size:
         dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
-    if train_no_bootstrap:
-        train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
+    train_buffer: mbrl.replay_buffer.IterableReplayBuffer
+    if train_is_bootstrap:
+        train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
             dataset_size,
             cfg.overrides.model_batch_size,
+            cfg.dynamics_model.model.ensemble_size,
             obs_shape,
             act_shape,
             shuffle_each_epoch=True,
         )
     else:
-        train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
+        train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
             dataset_size,
             cfg.overrides.model_batch_size,
-            cfg.dynamics_model.model.ensemble_size,
             obs_shape,
             act_shape,
             shuffle_each_epoch=True,
@@ -173,7 +173,7 @@ def save_buffers(
 
 def train_model_and_save_model_and_data(
     dynamics_model: mbrl.models.DynamicsModelWrapper,
-    model_trainer: mbrl.models.EnsembleTrainer,
+    model_trainer: mbrl.models.DynamicsModelTrainer,
     cfg: omegaconf.DictConfig,
     dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
     dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,

@@ -1,7 +1,7 @@
 import abc
 import itertools
 import pathlib
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import gym
 import hydra.utils
@@ -43,12 +43,18 @@ class Model(nn.Module):
         self.in_size = in_size
         self.out_size = out_size
         self.device = torch.device(device)
+        self.is_ensemble = False
+        self.to(device)
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         pass
 
     @abc.abstractmethod
-    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def loss(
+        self,
+        model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
+        target: Union[torch.Tensor, Sequence[torch.Tensor]],
+    ) -> torch.Tensor:
         pass
 
     @abc.abstractmethod
@@ -63,6 +69,21 @@ class Model(nn.Module):
     @abc.abstractmethod
     def load(self, path: str):
         pass
+
+    def update(
+        self,
+        model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
+        target: Union[torch.Tensor, Sequence[torch.Tensor]],
+        optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+    ) -> float:
+        assert not isinstance(optimizer, Sequence)
+        optimizer = cast(torch.optim.Optimizer, optimizer)
+        self.train()
+        optimizer.zero_grad()
+        loss = self.loss(model_in, target)
+        loss.backward()
+        optimizer.step(None)
+        return loss.item()
 
 
 class GaussianMLP(Model):
@@ -93,6 +114,7 @@ class GaussianMLP(Model):
         self.out_size = out_size
 
         self.apply(truncated_normal_init)
+        self.to(self.device)
 
     def forward(self, x: torch.Tensor, **_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.hidden_layers(x)
@@ -128,27 +150,24 @@ class Ensemble(Model):
         out_size: int,
         device: Union[str, torch.device],
         member_cfg: omegaconf.DictConfig,
-        optim_lr: float = 0.0075,
-        optim_wd: float = 0.0001,
     ):
         super().__init__(in_size, out_size, device)
+        self.is_ensemble = True
         self.members = []
-        self.optimizers = []
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
-            self.members.append(model.to(self.device))
-            self.optimizers.append(
-                optim.Adam(model.parameters(), lr=optim_lr, weight_decay=optim_wd)
-            )
+            self.members.append(model)
+        self.members = nn.ModuleList(self.members)
+        self.to(device)
 
     def __len__(self):
         return len(self.members)
 
     def __getitem__(self, item):
-        return self.members[item], self.optimizers[item]
+        return self.members[item]
 
     def __iter__(self):
-        return iter(zip(self.members, self.optimizers))
+        return iter(self.members)
 
     def _default_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         predictions = [model(x) for model in self.members]
@@ -217,23 +236,38 @@ class Ensemble(Model):
             f"'random_model', 'fixed_model', 'expectation'."
         )
 
-    # TODO move optimizers outside of this (do optim step in a different func)
     def loss(
-        self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
+        self,
+        inputs: Sequence[torch.Tensor],
+        targets: Sequence[torch.Tensor],
+    ) -> torch.Tensor:
+        avg_ensemble_loss: torch.Tensor = 0.0
+        for i, model in enumerate(self.members):
+            model.train()
+            loss = model.loss(inputs[i], targets[i])
+            avg_ensemble_loss += loss
+        return avg_ensemble_loss / len(self.members)
+
+    def update(
+        self,
+        inputs: Sequence[torch.Tensor],
+        targets: Sequence[torch.Tensor],
+        optimizers: Sequence[torch.optim.Optimizer],
     ) -> float:
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
             model.train()
-            self.optimizers[i].zero_grad()
+            optimizers[i].zero_grad()
             loss = model.loss(inputs[i], targets[i])
             loss.backward()
-            self.optimizers[i].step(None)
+            optimizers[i].step(None)
             avg_ensemble_loss += loss.item()
         return avg_ensemble_loss / len(self.members)
 
-    def eval_score(
-        self, inputs: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
-    ) -> torch.Tensor:
+    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        inputs = [model_in for _ in range(len(self.members))]
+        targets = [target for _ in range(len(self.members))]
+
         with torch.no_grad():
             avg_ensemble_score = torch.tensor(0.0)
             for i, model in enumerate(self.members):
@@ -243,30 +277,25 @@ class Ensemble(Model):
             return avg_ensemble_score / len(self.members)
 
     def save(self, path: str):
-        state_dicts = [m.state_dict() for m in self.members]
-        torch.save(state_dicts, path)
+        torch.save(self.state_dict(), path)
 
     def load(self, path: str):
-        state_dicts = torch.load(path)
-        assert len(state_dicts) == len(self.members)
-        for i, m in enumerate(self.members):
-            m.load_state_dict(state_dicts[i])
+        state_dict = torch.load(path)
+        self.load_state_dict(state_dict)
 
 
-# TODO implement this for non-ensemble models
 class DynamicsModelWrapper:
     _MODEL_FNAME = "model.pth"
 
     def __init__(
         self,
-        model: Ensemble,
+        model: Model,
         target_is_delta: bool = True,
         normalize: bool = False,
         learned_rewards: bool = True,
         obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
         no_delta_list: Optional[List[int]] = None,
     ):
-        assert hasattr(model, "members")
         self.model = model
         self.normalizer: Optional[mbrl.math.Normalizer] = None
         if normalize:
@@ -279,7 +308,7 @@ class DynamicsModelWrapper:
         self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
 
-    def update_normalizer(self, batch: Tuple):
+    def update_normalizer(self, batch: mbrl.types.RLBatch):
         obs, action, next_obs, reward, _ = batch
         if obs.ndim == 1:
             obs = obs[None, :]
@@ -310,7 +339,7 @@ class DynamicsModelWrapper:
         return model_in
 
     def _get_model_input_and_target_from_batch(
-        self, batch: Tuple
+        self, batch: mbrl.types.RLBatch
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         obs, action, next_obs, reward, _ = batch
         if self.target_is_delta:
@@ -329,8 +358,15 @@ class DynamicsModelWrapper:
             target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
-    def loss_from_bootstrap_batch(self, bootstrap_batch: Tuple):
-        assert isinstance(self.model, Ensemble)
+    def update_from_bootstrap_batch(
+        self,
+        bootstrap_batch: mbrl.types.RLEnsembleBatch,
+        optimizers: Sequence[torch.optim.Optimizer],
+    ):
+        if not hasattr(self.model, "members"):
+            raise RuntimeError(
+                "Model must be ensemble to use `loss_from_bootstrap_batch`."
+            )
 
         model_ins = []
         targets = []
@@ -338,24 +374,30 @@ class DynamicsModelWrapper:
             model_in, target = self._get_model_input_and_target_from_batch(batch)
             model_ins.append(model_in)
             targets.append(target)
-        return self.model.loss(model_ins, targets)
+        return self.model.update(model_ins, targets, optimizers)
 
-    def eval_score_from_simple_batch(self, batch: Tuple) -> torch.Tensor:
-        assert isinstance(self.model, Ensemble)
+    def update_from_simple_batch(
+        self, batch: mbrl.types.RLBatch, optimizer: torch.optim.Optimizer
+    ):
+        if hasattr(self.model, "members"):
+            raise RuntimeError(
+                "Model must not be ensemble to use `loss_from_simple_batch`."
+            )
 
         model_in, target = self._get_model_input_and_target_from_batch(batch)
-        model_ins = [model_in for _ in range(len(self.model))]
-        targets = [target for _ in range(len(self.model))]
-        return self.model.eval_score(model_ins, targets)
+        return self.model.update(model_in, target, optimizer)
+
+    def eval_score_from_simple_batch(self, batch: mbrl.types.RLBatch) -> torch.Tensor:
+        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        return self.model.eval_score(model_in, target)
 
     def get_output_and_targets_from_simple_batch(
-        self, batch: Tuple
-    ) -> Tuple[List[torch.Tensor], torch.Tensor]:
-        assert isinstance(self.model, Ensemble)
+        self, batch: mbrl.types.RLBatch
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         with torch.no_grad():
             model_in, target = self._get_model_input_and_target_from_batch(batch)
-            outputs = [member(model_in) for member in self.model.members]
-        return outputs, target
+            output = self.model.forward(model_in)
+        return output, target
 
     def predict(
         self,
@@ -405,12 +447,14 @@ class DynamicsModelWrapper:
 # ------------------------------------------------------------------------ #
 # Model trainer
 # ------------------------------------------------------------------------ #
-class EnsembleTrainer:
+class DynamicsModelTrainer:
     def __init__(
         self,
         dynamics_model: DynamicsModelWrapper,
-        dataset_train: replay_buffer.BootstrapReplayBuffer,
+        dataset_train: replay_buffer.IterableReplayBuffer,
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
+        optim_lr: float = 1e-4,
+        weight_decay: float = 1e-5,
         logger: Optional[pytorch_sac.Logger] = None,
         log_frequency: int = 1,
     ):
@@ -420,6 +464,23 @@ class EnsembleTrainer:
         self.dataset_val = dataset_val
         self.log_frequency = log_frequency
 
+        self.optimizers = None
+        if self.dynamics_model.model.is_ensemble:
+            ensemble = cast(Ensemble, self.dynamics_model.model)
+            self.optimizers = []
+            for i, model in enumerate(ensemble):
+                self.optimizers.append(
+                    optim.Adam(
+                        model.parameters(), lr=optim_lr, weight_decay=weight_decay
+                    )
+                )
+        else:
+            self.optimizers = optim.Adam(
+                self.dynamics_model.model.parameters(),
+                lr=optim_lr,
+                weight_decay=weight_decay,
+            )
+
     # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
     # `patience` epochs lapse w/o improvement.
     def train(
@@ -427,7 +488,18 @@ class EnsembleTrainer:
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
     ) -> Tuple[List[float], List[float]]:
-        assert len(self.dynamics_model.model) == len(self.dataset_train.member_indices)
+        update_from_batch_fn = self.dynamics_model.update_from_simple_batch
+        if isinstance(self.dynamics_model.model, Ensemble):
+            update_from_batch_fn = self.dynamics_model.update_from_bootstrap_batch  # type: ignore
+            if not self.dataset_train.is_train_compatible_with_ensemble(
+                len(self.dynamics_model.model)
+            ):
+                raise RuntimeError(
+                    "Train dataset is not compatible with ensemble. "
+                    "Please use `BootstrapReplayBuffer` class to train ensemble model "
+                    "and make sure `buffer.num_members == model.num_members`."
+                )
+
         training_losses, train_eval_scores, val_losses = [], [], []
         best_weights = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
@@ -439,10 +511,8 @@ class EnsembleTrainer:
         for epoch in epoch_iter:
             total_avg_loss = 0.0
             for bootstrap_batch in self.dataset_train:
-                # This call also updates the model.
-                # TODO refactor this to separate loss computation from update
-                avg_ensemble_loss = self.dynamics_model.loss_from_bootstrap_batch(
-                    bootstrap_batch
+                avg_ensemble_loss = update_from_batch_fn(
+                    bootstrap_batch, self.optimizers
                 )
                 total_avg_loss += avg_ensemble_loss
             training_losses.append(total_avg_loss)
@@ -476,14 +546,14 @@ class EnsembleTrainer:
                 break
 
         if best_weights:
-            for i, (model, _) in enumerate(self.dynamics_model.model):
-                model.load_state_dict(best_weights[i])
+            self.dynamics_model.model.load_state_dict(best_weights)
         return training_losses, val_losses
 
     def evaluate(self, use_train_set: bool = False) -> float:
         dataset = self.dataset_val
         if use_train_set:
-            self.dataset_train.toggle_bootstrap()
+            if isinstance(self.dataset_train, replay_buffer.BootstrapReplayBuffer):
+                self.dataset_train.toggle_bootstrap()
             dataset = self.dataset_train
 
         total_avg_loss = torch.tensor(0.0)
@@ -493,21 +563,21 @@ class EnsembleTrainer:
                 avg_ensemble_loss.sum() / dataset.num_stored
             ) + total_avg_loss
 
-        if use_train_set:
+        if use_train_set and isinstance(
+            self.dataset_train, replay_buffer.BootstrapReplayBuffer
+        ):
             self.dataset_train.toggle_bootstrap()
         return total_avg_loss.item()
 
     def maybe_save_best_weights(
         self, best_val_loss: float, val_loss: float
-    ) -> Optional[List[Dict]]:
+    ) -> Optional[Dict]:
         best_weights = None
         improvement = (
             1 if np.isinf(best_val_loss) else (best_val_loss - val_loss) / best_val_loss
         )
         if improvement > 0.001:
-            best_weights = []
-            for model, _ in self.dynamics_model.model:
-                best_weights.append(model.state_dict())
+            best_weights = self.dynamics_model.model.state_dict()
         return best_weights
 
 
@@ -552,8 +622,9 @@ class ModelEnv:
 
         self._propagation_method = propagation_method
         if propagation_method == "fixed_model":
+            assert self.dynamics_model.model.is_ensemble
             self._model_indices = torch.randint(
-                len(self.dynamics_model.model),
+                len(cast(Ensemble, self.dynamics_model.model)),
                 (len(initial_obs_batch),),
                 generator=self._rng,
                 device=self.device,

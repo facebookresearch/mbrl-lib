@@ -26,7 +26,7 @@ def test_gaussian_ensemble_forward():
     batch_size = 4
     model_in = torch.zeros(batch_size, 2)
 
-    member_out_mean_ex, member_out_var_ex = ensemble[0][0](model_in)
+    member_out_mean_ex, member_out_var_ex = ensemble[0](model_in)
     assert member_out_mean_ex.shape == torch.Size([batch_size, model_out_size])
     assert member_out_var_ex.shape == torch.Size([batch_size, model_out_size])
 
@@ -36,8 +36,8 @@ def test_gaussian_ensemble_forward():
             torch.zeros_like(member_out_var_ex),
         )
 
-    ensemble[0][0].forward = functools.partial(mock_forward, v=1)
-    ensemble[1][0].forward = functools.partial(mock_forward, v=2)
+    ensemble[0].forward = functools.partial(mock_forward, v=1)
+    ensemble[1].forward = functools.partial(mock_forward, v=2)
 
     model_out = ensemble.forward(model_in, propagation="expectation")[0]
     assert model_out.shape == torch.Size([batch_size, model_out_size])

@@ -57,8 +57,11 @@ def train(
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     # -------- Create and populate initial env dataset --------
-    dataset_train, dataset_val = mbrl.util.create_ensemble_buffers(
-        cfg, obs_shape, act_shape
+    dataset_train, dataset_val = mbrl.util.create_replay_buffers(
+        cfg,
+        obs_shape,
+        act_shape,
+        train_is_bootstrap=hasattr(cfg.dynamics_model.model, "ensemble_size"),
     )
     dataset_train = cast(replay_buffer.BootstrapReplayBuffer, dataset_train)
     mbrl.util.populate_buffers_with_agent_trajectories(
@@ -80,7 +83,7 @@ def train(
     model_env = models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
     )
-    model_trainer = models.EnsembleTrainer(
+    model_trainer = models.DynamicsModelTrainer(
         dynamics_model,
         dataset_train,
         dataset_val=dataset_val,

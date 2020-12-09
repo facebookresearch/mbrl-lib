@@ -28,7 +28,7 @@ class FineTuner:
         subdir: Optional[str] = None,
         new_model: bool = False,
     ):
-        self.cfg = mbrl.util.get_hydra_cfg(model_dir)
+        self.cfg = mbrl.util.load_hydra_cfg(model_dir)
         self.env, self.term_fn, self.reward_fn = mbrl.util.make_env(self.cfg)
         self.dynamics_model = mbrl.util.create_dynamics_model(
             self.cfg,
@@ -37,7 +37,7 @@ class FineTuner:
             model_dir=None if new_model else model_dir,
         )
         self.agent = mbrl.planning.load_agent(agent_dir, self.env, agent_type)
-        self.dataset_train, self.dataset_val = mbrl.util.create_ensemble_buffers(
+        self.dataset_train, self.dataset_val = mbrl.util.create_replay_buffers(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
@@ -76,7 +76,7 @@ class FineTuner:
             eval_format=LOG_FORMAT,
         )
 
-        model_trainer = mbrl.models.EnsembleTrainer(
+        model_trainer = mbrl.models.DynamicsModelTrainer(
             self.dynamics_model,
             cast(mbrl.replay_buffer.BootstrapReplayBuffer, self.dataset_train),
             dataset_val=self.dataset_val,

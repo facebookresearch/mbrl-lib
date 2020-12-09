@@ -1,0 +1,9 @@
+# @package _group_
+model:
+  _target_: mbrl.models.GaussianMLP
+  device: ${device}
+  num_layers: 4
+  in_size: ???
+  out_size: ???
+  hid_size: 200
+  use_silu: true

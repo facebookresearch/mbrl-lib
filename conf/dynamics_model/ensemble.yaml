@@ -6,8 +6,6 @@ model:
   out_size: ???
   member_cfg: ${dynamics_model.member_cfg}
   device: ${device}
-  optim_lr: ${overrides.model_lr}
-  optim_wd: ${overrides.model_wd}
 
 member_cfg:
   _target_: mbrl.models.GaussianMLP

@@ -16,7 +16,7 @@ class DatasetEvaluator:
         self.output_path = pathlib.Path(output_dir)
         pathlib.Path.mkdir(self.output_path, exist_ok=True)
 
-        self.cfg = mbrl.util.get_hydra_cfg(self.model_path)
+        self.cfg = mbrl.util.load_hydra_cfg(self.model_path)
 
         self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
         self.reward_fn = reward_fn
@@ -28,12 +28,12 @@ class DatasetEvaluator:
             model_dir=self.model_path,
         )
 
-        self.training_data, self.val_data = mbrl.util.create_ensemble_buffers(
+        self.training_data, self.val_data = mbrl.util.create_replay_buffers(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
             dataset_dir,
-            train_no_bootstrap=True,
+            train_is_bootstrap=False,
         )
 
     def plot_dataset_results(
@@ -50,7 +50,7 @@ class DatasetEvaluator:
             ) = self.dynamics_model.get_output_and_targets_from_simple_batch(batch)
 
             for i in range(num_members):
-                all_means[i].append(outputs[i][0].cpu().numpy())
+                all_means[i].append(outputs[0][i].cpu().numpy())
             all_targets.append(target.cpu().numpy())
         # Consolidating targets and predictions
         all_means_np = []
