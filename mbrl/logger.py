@@ -1,7 +1,7 @@
+import collections
 import csv
 import pathlib
-from collections import defaultdict
-from typing import Dict, Mapping, Sequence, Tuple, Union
+from typing import Counter, Dict, Mapping, Sequence, Tuple, Union
 
 import termcolor
 import torch
@@ -12,6 +12,21 @@ import torch
 
 LogFormatType = Sequence[Tuple[str, str, str]]
 LogTypes = Union[int, float, torch.Tensor]
+
+EVAL_LOG_FORMAT = [
+    ("episode", "E", "int"),
+    ("model_reward", "MR", "float"),
+]
+
+SAC_TRAIN_LOG_FORMAT = [
+    ("step", "S", "int"),
+    ("batch_reward", "BR", "float"),
+    ("actor_loss", "ALOSS", "float"),
+    ("critic_loss", "CLOSS", "float"),
+    ("alpha_loss", "TLOSS", "float"),
+    ("alpha_value", "TVAL", "float"),
+    ("actor_entropy", "AENT", "float"),
+]
 
 
 class AverageMeter(object):
@@ -31,7 +46,7 @@ class MetersGroup(object):
     def __init__(self, file_name: Union[str, pathlib.Path], formatting: LogFormatType):
         self._csv_file_path = self._prepare_file(file_name, ".csv")
         self._formatting = formatting
-        self._meters: Dict[str, AverageMeter] = defaultdict(AverageMeter)
+        self._meters: Dict[str, AverageMeter] = collections.defaultdict(AverageMeter)
         self._csv_file = open(self._csv_file_path, "w")
         self._csv_writer = None
 
@@ -86,13 +101,14 @@ class MetersGroup(object):
 
 
 class Logger(object):
-    def __init__(
-        self,
-        log_dir: str,
-    ):
+    def __init__(self, log_dir: str, enable_back_compatible: bool = False):
         self._log_dir = pathlib.Path(log_dir)
         self._groups: Dict[str, Tuple[MetersGroup, int, str]] = {}
-        self._step = 0
+        self._group_steps: Counter[str] = collections.Counter()
+
+        if enable_back_compatible:
+            self.register_group("train", SAC_TRAIN_LOG_FORMAT)
+            self.register_group("eval", EVAL_LOG_FORMAT, color="green")
 
     def register_group(
         self,
@@ -106,8 +122,15 @@ class Logger(object):
             return
         new_group = MetersGroup(self._log_dir / group_name, formatting=log_format)
         self._groups[group_name] = (new_group, dump_frequency, color)
+        self._group_steps[group_name] = 0
 
-    def log(self, group_name: str, data: Mapping[str, LogTypes]):
+    def log_histogram(self, *_args):
+        pass
+
+    def log_param(self, *_args):
+        pass
+
+    def log_data(self, group_name: str, data: Mapping[str, LogTypes]):
         if group_name not in self._groups:
             raise ValueError(f"Group {group_name} has not been registered.")
         meter_group, dump_frequency, color = self._groups[group_name]
@@ -115,12 +138,41 @@ class Logger(object):
             if isinstance(value, torch.Tensor):
                 value = value.item()  # type: ignore
             meter_group.log(key, value)
-        self._step += 1
-        if self._step % dump_frequency == 0:
-            self.dump(group_name)
+        self._group_steps[group_name] += 1
+        if self._group_steps[group_name] % dump_frequency == 0:
+            self._dump(group_name)
 
-    def dump(self, group_name: str, save: bool = True):
+    def _dump(self, group_name: str, save: bool = True):
         if group_name not in self._groups:
             raise ValueError(f"Group {group_name} has not been registered.")
         meter_group, dump_frequency, color = self._groups[group_name]
-        meter_group.dump(self._step, group_name, save, color=color)
+        meter_group.dump(self._group_steps[group_name], group_name, save, color=color)
+
+    # ----------------------------------------------------------- #
+    # These methods are here for backward compatibility with pytorch_sac
+    @staticmethod
+    def _split_group_and_key(group_and_key: str) -> Tuple[str, str]:
+        assert group_and_key.startswith("train") or group_and_key.startswith("eval")
+        if group_and_key.startswith("train"):
+            key = f"{group_and_key[len('train') + 1:]}"
+            group_name = "train"
+        else:
+            key = f"{group_and_key[len('eval') + 1:]}"
+            group_name = "eval"
+        key = key.replace("/", "_")
+
+        return group_name, key
+
+    def log(self, group_and_key: str, value: LogTypes, _step: int):
+        group_name, key = self._split_group_and_key(group_and_key)
+
+        if isinstance(value, torch.Tensor):
+            value = value.item()  # type: ignore
+
+        meter_group, *_ = self._groups[group_name]
+        meter_group.log(key, value)
+
+    def dump(self, step, save=True):
+        for group_name in ["train", "eval"]:
+            meter_group, _, color = self._groups[group_name]
+            meter_group.dump(step, group_name, save, color=color)

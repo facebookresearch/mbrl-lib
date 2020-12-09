@@ -558,7 +558,7 @@ class DynamicsModelTrainer:
                 epochs_since_update += 1
 
             if self.logger:
-                self.logger.log(
+                self.logger.log_data(
                     self._LOG_GROUP_NAME,
                     {
                         "iteration": self._train_iteration,

@@ -131,7 +131,7 @@ def train(
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")
 
-        logger.log(
+        logger.log_data(
             "pets_eval", {"trial": current_trial, "episode_reward": total_reward}
         )
         current_trial += 1
