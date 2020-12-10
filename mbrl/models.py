@@ -286,6 +286,28 @@ class GaussianMLP(Model):
 
 
 class Ensemble(Model):
+    """Implements an ensemble of bootstrapped models.
+
+    This model is based on the ensemble of bootstrapped models described in the
+    Chua et al., NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf,
+    and includes support for different uncertainty propagation options (see :meth:`forward`).
+
+    All members of the ensemble will be identical, and they should be subclasses of :class:`Model`.
+
+    Members can be accessed using `ensemble[i]`, to recover the i-th model in the ensemble. Doing
+    `len(ensemble)` returns its size, and the ensemble can also be iterated over the models
+    (e.g., calling `for i, model in enumerate(ensemble)`.
+
+    Args:
+        ensemble_size (int): how many models to include in the ensemble.
+        in_size (int): size of model input.
+        out_size (int): size of model output.
+        device (str or torch.device): the device to use for the model.
+        member_cfg (omegaconf.DictConfig): the configuration needed to instantiate the models
+                                           in the ensemble. They will be instantiated using
+                                           `hydra.utils.instantiate(member_cfg)`.
+    """
+
     def __init__(
         self,
         ensemble_size: int,
@@ -363,6 +385,42 @@ class Ensemble(Model):
         propagation: Optional[str] = None,
         propagation_indices: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Computes the output of the ensemble.
+
+        The forward pass for the ensemble computes forward passes for of its models, and
+        aggregates the prediction in different ways, according to the desired
+        epistemic uncertainty ``propagation`` method.
+
+        If no propagation is desired (i.e., ``propagation is None``), then the outputs of
+        the model are stacked into single tensors (one for mean, one for logvar). The shape
+        of each output tensor will then be ``E x B x D``, where ``E``, ``B`` and ``D``
+        represent ensemble size, batch size, and output dimension, respectively.
+
+        Valid propagation options are:
+
+            - "random_model": for each output in the batch a model will be chosen at random.
+              This corresponds to TS1 propagation in the PETS paper.
+            - "fixed_model": for output j-th in the batch, the model will be chosen according to
+              the model index in `propagation_indices[j]`. This can be used to implement TSinf
+              propagation, described in the PETS paper.
+            - "expectation": the output for each element in the batch will be the mean across
+              models.
+
+        For all of these, the output is of size ``B x D``.
+
+        Args:
+            x (tensor): the input to the models (shape ``B x D``). The input will be
+                        evaluated over all models, then aggregated according to ``propagation``,
+                        as explained above.
+            propagation (str, optional): the desired propagation function. Defaults to ``None``.
+            propagation_indices (int, optional): the model indices for each element in the batch
+                                                 when ``propagation == "fixed_model"``.
+
+        Returns:
+            (tuple of two tensors): one for aggregated mean predictions, and one for aggregated
+            log variance prediction (or ``None`` if the ensemble members don't predict variance).
+
+        """
         if propagation is None:
             return self._default_forward(x)
         if propagation == "random_model":
@@ -385,6 +443,15 @@ class Ensemble(Model):
         inputs: Sequence[torch.Tensor],
         targets: Sequence[torch.Tensor],
     ) -> torch.Tensor:
+        """Computes average loss over the losses of all members of the ensemble.
+
+        Args:
+            inputs (sequence of tensors): one input for each model in the ensemble.
+            targets (sequence of tensors): one target for each model in the ensemble.
+
+        Returns:
+            (tensor): the average loss over all members.
+        """
         avg_ensemble_loss: torch.Tensor = 0.0
         for i, model in enumerate(self.members):
             model.train()
@@ -392,12 +459,26 @@ class Ensemble(Model):
             avg_ensemble_loss += loss
         return avg_ensemble_loss / len(self.members)
 
+    # TODO replace code inside loop with model.update()
     def update(
         self,
         inputs: Sequence[torch.Tensor],
         targets: Sequence[torch.Tensor],
         optimizers: Sequence[torch.optim.Optimizer],
     ) -> float:
+        """Updates all models of the ensemble.
+
+        Loops over the models in the ensemble and calls ``loss = ensemble[i].update()``.
+        Then returns the average loss value.
+
+        Args:
+            inputs (sequence of tensors): one input for each model in the ensemble.
+            targets (sequence of tensors): one target for each model.
+            optimizers (sequence of torch optimizers): one optimizer for each model.
+
+        Returns:
+            (float): the average loss over all members.
+        """
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
             model.train()
@@ -409,6 +490,17 @@ class Ensemble(Model):
         return avg_ensemble_loss / len(self.members)
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Computes the average score over all members given input/target.
+
+        The input and target tensors are replicated once for each model in the ensemble.
+
+        Args:
+            model_in (tensor): the inputs to the models.
+            target (tensor): the expected output for the given inputs.
+
+        Returns:
+            (tensor): the average score over all models.
+        """
         inputs = [model_in for _ in range(len(self.members))]
         targets = [target for _ in range(len(self.members))]
 
