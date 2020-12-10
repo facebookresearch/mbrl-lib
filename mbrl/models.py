@@ -35,7 +35,9 @@ MODEL_LOG_FORMAT = [
 # ------------------------------------------------------------------------ #
 
 
+# TODO move this to math.py module
 def truncated_normal_init(m: nn.Module):
+    """Initializes the weights of the given module using a truncated normal distribution."""
     if isinstance(m, nn.Linear):
         input_dim = m.weight.data.shape[0]
         stddev = 1 / (2 * np.sqrt(input_dim))
@@ -44,6 +46,23 @@ def truncated_normal_init(m: nn.Module):
 
 
 class Model(nn.Module):
+    """Base abstract class for all dynamics models.
+
+    All classes derived from `Model` must implement the following methods:
+
+        - ``forward``: computes the model output.
+        - ``loss``: computes a loss tensor that can be used for backpropagation.
+        - ``eval_score``: computes a non-reduced tensor that gives an evaluation score
+          for the model on the input data (e.g., squared error per element).
+        - ``save``: saves the model to a given path.
+        - ``load``: loads the model from a given path.
+
+    Args:
+        in_size (int): size of the input tensor.
+        out_size (int): size of the output tensor.
+        device (str or torch.device): device to use for the model.
+    """
+
     def __init__(
         self,
         in_size: int,
@@ -60,6 +79,15 @@ class Model(nn.Module):
         self.to(device)
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Computes the output of the dynamics model.
+
+        Args:
+            x (tensor): the input to the model.
+
+        Returns:
+            (tuple of two tensors): the predicted mean and  log variance of the output.
+            If the model does not predict uncertainty, the second output should be ``None``.
+        """
         pass
 
     @abc.abstractmethod
@@ -68,19 +96,51 @@ class Model(nn.Module):
         model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
         target: Union[torch.Tensor, Sequence[torch.Tensor]],
     ) -> torch.Tensor:
+        """Computes a loss that can be used to update the model using backpropagation.
+
+        Args:
+            model_in (tensor or sequence of tensors): the inputs to the model
+                                                      (or ensemble of models).
+            target (tensor or sequence of tensors): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a loss tensor.
+        """
         pass
 
     @abc.abstractmethod
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        # Returns the non-reduced score
+        """Computes an evaluation score for the model over the given input/target.
+
+        This method should compute a non-reduced score for the model, intended mostly for
+        logging/debugging purposes (so, it should not keep gradient information).
+        For example, the following could be a valid
+        implementation of ``eval_score``:
+
+        .. code-block:: python
+
+           with torch.no_grad():
+               return torch.functional.mse_loss(model(model_in), target, reduction="none")
+
+
+        Args:
+            model_in (tensor or sequence of tensors): the inputs to the model
+                                                      (or ensemble of models).
+            target (tensor or sequence of tensors): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a non-reduced tensor score.
+        """
         pass
 
     @abc.abstractmethod
     def save(self, path: str):
+        """Saves the model to the given path. """
         pass
 
     @abc.abstractmethod
     def load(self, path: str):
+        """Loads the model from the given path."""
         pass
 
     def update(
@@ -89,6 +149,21 @@ class Model(nn.Module):
         target: Union[torch.Tensor, Sequence[torch.Tensor]],
         optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
     ) -> float:
+        """Updates the model using backpropagation with given input and target tensors.
+
+        Provides a basic update function, following the steps below:
+
+        .. code-block:: python
+
+           optimizer.zero_grad()
+           loss = self.loss(model_in, target)
+           loss.backward()
+           optimizer.step()
+
+
+        Returns the numeric value of the computed loss.
+
+        """
         assert not isinstance(optimizer, Sequence)
         optimizer = cast(torch.optim.Optimizer, optimizer)
         self.train()
@@ -99,7 +174,29 @@ class Model(nn.Module):
         return loss.item()
 
 
+# TODO add support for other activation functions
 class GaussianMLP(Model):
+    """Implements a multi-layer perceptron that models a multivariate Gaussian distribution.
+
+    This model is based on the model described in the Chua et al., NeurIPS 2018 paper (PETS)
+    https://arxiv.org/pdf/1805.12114.pdf
+
+    It predicts per output mean and log variance, and its weights are updated using a Gaussian
+    negative log likelihood loss. The log variance is bounded between learned ``min_log_var``
+    and ``max_log_var`` parameters, trained as explained in Appendix A.1 of the paper.
+
+    Args:
+        in_size (int): size of model input.
+        out_size (int): size of model output.
+        device (str or torch.device): the device to use for the model.
+        num_layers (int): the number of layers in the model
+                          (e.g., if ``num_layers == 3``, then model graph looks like
+                          input -h1-> -h2-> -l3-> output).
+        hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
+        use_silu (bool): if ``True``, hidden layers will use SiLU activations, otherwise
+                         ReLU activations will be used.
+    """
+
     def __init__(
         self,
         in_size: int,
@@ -130,6 +227,15 @@ class GaussianMLP(Model):
         self.to(self.device)
 
     def forward(self, x: torch.Tensor, **_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Computes mean and logvar predictions for the given input.
+
+        Args:
+            x (tensor): the input to the model.
+
+        Returns:
+            (tuple of two tensors): the predicted mean and  log variance of the output.
+            If the model does not predict uncertainty, the second output should be ``None``.
+        """
         x = self.hidden_layers(x)
         mean_and_logvar = self.mean_and_logvar(x)
         mean = mean_and_logvar[:, : self.out_size]
@@ -139,11 +245,35 @@ class GaussianMLP(Model):
         return mean, logvar
 
     def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Computes Gaussian NLL loss.
+
+        It also includes terms for ``max_logvar`` and ``min_logvar`` with small weights,
+        with positive and negative signs, respectively.
+
+        Args:
+            model_in (tensor): the input to the model.
+            target (tensor): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a loss tensor representing the Gaussian negative log-likelihood of
+                      the model over the given input/target.
+        """
         pred_mean, pred_logvar = self.forward(model_in)
         nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
         return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Computes the squared error for the model over the given input/target.
+
+        Equivalent to `F.mse_loss(model(model_in, target), reduction="none")`.
+
+        Args:
+            model_in (tensor): the inputs to the model.
+            target (tensor): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a tensor with the squared error per output dimension.
+        """
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
             return F.mse_loss(pred_mean, target, reduction="none").mean(dim=1)
@@ -249,6 +379,7 @@ class Ensemble(Model):
             f"'random_model', 'fixed_model', 'expectation'."
         )
 
+    # TODO replace the input this with a single tensor (not a sequence)
     def loss(
         self,
         inputs: Sequence[torch.Tensor],
