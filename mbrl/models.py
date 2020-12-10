@@ -520,7 +520,46 @@ class Ensemble(Model):
         self.load_state_dict(state_dict)
 
 
+# TODO once util doc is ready, add info about how to create dynamics model directly
+#   using the utility function provided.
 class DynamicsModelWrapper:
+    """Wrapper class for all dynamics models.
+
+    This class wraps a :class:`Model`, providing utility operations that are common
+    when using and training dynamics models. Importantly, it provides interfaces with the
+    model at the level of transition batches (obs, action, next_obs, reward, done),
+    so that users don't have to manipulate the underlying model's inputs and outputs directly.
+
+    The wrapper assumes that dynamics model inputs/outputs will be consistent with
+
+        [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),
+
+    and it provides methods to construct model inputs and targets given a batch of transitions,
+    accordingly. Moreover provides options to perform diverse data manipulations every time
+    the model needs to be accessed (e.g., for prediction or training); for example,
+    input normalization, and observation pre-processing.
+
+    Args:
+        model (:class:`Model`): the model to wrap.
+        target_is_delta (bool): if ``True``, the predicted observations will represent
+            the difference respect to the input observations.
+            That is, ignoring rewards, pred_obs_{t + 1} = obs_t + model([obs_t, act_t]).
+            Defaults to ``True``. Can be deactivated per dimension using ``no_delta_list``.
+        normalize (bool): if true, the wrapper will create a normalizer for model inputs,
+            which will be used every time the model is called using the methods in this
+            class. To update the normalizer statistics, the user needs to call
+            :meth:`update_normalizer`. Defaults to ``False``.
+        learned_rewards (bool): if ``True``, the wrapper considers the last output of the model
+            to correspond to rewards predictions, and will use it to construct training
+            targets for the model and when returning model predictions. Defaults to ``True``.
+        obs_process_fn (callable, optional): if provided, observations will be passed through
+            this function before being given to the model (and before the normalizer also).
+            The processed observations should have the same dimensions as the original.
+            Defaults to ``None``.
+        no_delta_list (list(int), optional): if provided, represents a list of dimensions over
+            which the model predicts the actual observation and not just a delta.
+    """
+
     _MODEL_FNAME = "model.pth"
 
     def __init__(
@@ -543,17 +582,6 @@ class DynamicsModelWrapper:
         self.target_is_delta = target_is_delta
         self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
-
-    def update_normalizer(self, batch: mbrl.types.RLBatch):
-        obs, action, next_obs, reward, _ = batch
-        if obs.ndim == 1:
-            obs = obs[None, :]
-            action = action[None, :]
-        if self.obs_process_fn:
-            obs = self.obs_process_fn(obs)
-        model_in_np = np.concatenate([obs, action], axis=1)
-        if self.normalizer:
-            self.normalizer.update_stats(model_in_np)
 
     def _get_model_input_from_np(
         self, obs: np.ndarray, action: np.ndarray, device: torch.device
@@ -594,11 +622,46 @@ class DynamicsModelWrapper:
             target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
+    # TODO rename RLBatch as RL transition
+    def update_normalizer(self, transition: mbrl.types.RLBatch):
+        """Updates the normalizer statistics using the data in the transition.
+
+        The normalizer will update running mean and variance given the obs and action in
+        the transition. If an observation processing function has been provided, it will
+        be called on ``obs`` before updating the normalizer.
+
+        Args:
+            transition (tuple): contains obs, action, next_obs, reward, done. Only obs and
+                action will be used, since these are the inputs to the model.
+        """
+        obs, action, *_ = transition
+        if obs.ndim == 1:
+            obs = obs[None, :]
+            action = action[None, :]
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
+        model_in_np = np.concatenate([obs, action], axis=1)
+        if self.normalizer:
+            self.normalizer.update_stats(model_in_np)
+
     def update_from_bootstrap_batch(
         self,
         bootstrap_batch: mbrl.types.RLEnsembleBatch,
         optimizers: Sequence[torch.optim.Optimizer],
     ):
+        """Updates the model given a batch for bootstrapped models and optimizers.
+
+        This is method is only intended for models of type :class:`Ensemble`. It creates
+        inputs and targets for each model in the ensemble; that is, `batch[i]` will be
+        used to construct input/target for the i-th ensemble member. The method then calls
+        `self.model.update()` using these inputs and targets.
+
+        Args:
+            bootstrap_batch (sequence of transition batch): a list with batches of transitions,
+                one for each ensemble member.
+            optimizers (sequence of torch optimizers): one optimizer for each model in the
+                ensemble.
+        """
         if not hasattr(self.model, "members"):
             raise RuntimeError(
                 "Model must be ensemble to use `loss_from_bootstrap_batch`."
@@ -615,6 +678,15 @@ class DynamicsModelWrapper:
     def update_from_simple_batch(
         self, batch: mbrl.types.RLBatch, optimizer: torch.optim.Optimizer
     ):
+        """Updates the model given a batch of transitions and an optimizer.
+
+        This is method is only intended for **non-ensemble** models. It constructs input and
+        targets from the information in the batch, then calls `self.model.update()` on them.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+            optimizer (torch optimizer): the optimizer to use to update the model.
+        """
         if hasattr(self.model, "members"):
             raise RuntimeError(
                 "Model must not be ensemble to use `loss_from_simple_batch`."
@@ -624,12 +696,35 @@ class DynamicsModelWrapper:
         return self.model.update(model_in, target, optimizer)
 
     def eval_score_from_simple_batch(self, batch: mbrl.types.RLBatch) -> torch.Tensor:
+        """Evaluates the model score over a batch of transitions.
+
+        This method constructs input and targets from the information in the batch,
+        then calls `self.model.eval_score()` on them and returns the value.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+
+        Returns:
+            (tensor): as returned by `model.eval_score().`
+        """
         model_in, target = self._get_model_input_and_target_from_batch(batch)
         return self.model.eval_score(model_in, target)
 
     def get_output_and_targets_from_simple_batch(
         self, batch: mbrl.types.RLBatch
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+        """Returns the model output and the target tensors given a batch of transitions.
+
+        This method constructs input and targets from the information in the batch,
+        then calls `self.model.forward()` on them and returns the value. No gradient information
+        will be kept.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+
+        Returns:
+            (tensor): as returned by `model.eval_score().`
+        """
         with torch.no_grad():
             model_in, target = self._get_model_input_and_target_from_batch(batch)
             output = self.model.forward(model_in)
@@ -639,10 +734,27 @@ class DynamicsModelWrapper:
         self,
         obs: torch.Tensor,
         actions: torch.Tensor,
-        sample=True,
-        propagation_method="expectation",
-        propagation_indices=None,
+        sample: bool = True,
+        propagation_method: str = "expectation",
+        propagation_indices: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Predicts next observations and rewards given observations and actions.
+
+        Args:
+            obs (tensor): the input observations corresponding to o_t.
+            actions (tensor): the input actions corresponding to a_t.
+            sample (bool): if ``True``. the predictions will be sampled using moment matching
+                on the mean and logvar predicted by the model. If the model doesn't predict
+                log variance, an error will be thrown. If ``False``, the predictions will be
+                the first output of the model. Defaults to ``True``.
+            propagation_method (str): the propagation method to use for the model (only used if
+                the model is of type :class:`Ensemble`.
+            propagation_indices (tensor, optional): indices for propagation with
+                ``propagation == "fixed_model"``.
+
+        Returns:
+            (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
+        """
         model_in = self._get_model_input_from_tensors(obs, actions)
         means, logvars = self.model(
             model_in,
