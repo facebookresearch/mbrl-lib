@@ -85,7 +85,7 @@ class Model(nn.Module):
             x (tensor): the input to the model.
 
         Returns:
-            (tuple of two tensors): the predicted mean and  log variance of the output.
+            (tuple of two tensor): the predicted mean and  log variance of the output.
             If the model does not predict uncertainty, the second output should be ``None``.
         """
         pass
@@ -535,9 +535,9 @@ class DynamicsModelWrapper:
         [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),
 
     and it provides methods to construct model inputs and targets given a batch of transitions,
-    accordingly. Moreover provides options to perform diverse data manipulations every time
-    the model needs to be accessed (e.g., for prediction or training); for example,
-    input normalization, and observation pre-processing.
+    accordingly. Moreover, the constructor provides options to perform diverse data manipulations
+    that will be used every time the model needs to be accessed for prediction or training;
+    for example, input normalization, and observation pre-processing.
 
     Args:
         model (:class:`Model`): the model to wrap.
@@ -796,6 +796,20 @@ class DynamicsModelWrapper:
 # Model trainer
 # ------------------------------------------------------------------------ #
 class DynamicsModelTrainer:
+    """Trainer for dynamics models.
+
+    Args:
+        dynamics_model (:class:`DynamicsModelWrapper`): the wrapper to access the model to train.
+        dataset_train (:class:`mbrl.replay_buffer.IterableReplayBuffer`): the replay buffer
+            containing the training data. If the model is an ensemble, it should be an instance
+            of :class:`mbrl.replay_buffer.BootstrapReplayBuffer`.
+        dataset_val (:class:`mbrl.replay_buffer.IterableReplayBuffer`, optional): the replay
+            buffer containing the validation data (if provided). Defaults to ``None``.
+        optim_lr (float): the learning rate for the optimizer (using Adam).
+        weight_decay (float): the weight decay to use.
+        logger (:class:`mbrl.logger.Logger`, optional): the logger to use.
+    """
+
     _LOG_GROUP_NAME = "model_train"
 
     def __init__(
@@ -806,7 +820,6 @@ class DynamicsModelTrainer:
         optim_lr: float = 1e-4,
         weight_decay: float = 1e-5,
         logger: Optional[mbrl.logger.Logger] = None,
-        log_frequency: int = 1,
     ):
         self.dynamics_model = dynamics_model
         self.dataset_train = dataset_train
@@ -819,7 +832,7 @@ class DynamicsModelTrainer:
                 self._LOG_GROUP_NAME,
                 MODEL_LOG_FORMAT,
                 color="blue",
-                dump_frequency=log_frequency,
+                dump_frequency=1,
             )
 
         self.optimizers = None
@@ -839,13 +852,34 @@ class DynamicsModelTrainer:
                 weight_decay=weight_decay,
             )
 
-    # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
-    # `patience` epochs lapse w/o improvement.
     def train(
         self,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
     ) -> Tuple[List[float], List[float]]:
+        """Trains the dynamics model for some number of epochs.
+
+        This method iterates over the stored train dataset, one batch of transitions at a time,
+        and calls either :meth:`DynamicsModelWrapper.update_from_bootstrap_batch` or
+        :meth:`DynamicsModelWrapper.update_from_simple_batch`, depending on whether the
+        stored dynamics model is an ensemble or not, respectively.
+
+        If a validation dataset is provided in the constructor, this method will also evaluate
+        the model over the validation data once per training epoch. The method will keep track
+        of the weights with the best validation score, and after training the weights of the
+        model will be set to the best weights. If no validation dataset is provided, the method
+        will keep the model with the best loss over training data.
+
+        Args:
+            num_epochs (int, optional): if provided, the maximum number of epochs to train for.
+                Default is ``None``, which indicates there is no limit.
+            patience (int, optional): if provided, the patience to use for training. That is,
+                training will stop after ``patience`` number of epochs without improvement.
+
+        Returns:
+            (tuple of two list(float)): the history of training losses and validation losses.
+
+        """
         update_from_batch_fn = self.dynamics_model.update_from_simple_batch
         if isinstance(self.dynamics_model.model, Ensemble):
             update_from_batch_fn = self.dynamics_model.update_from_bootstrap_batch  # type: ignore
@@ -919,6 +953,18 @@ class DynamicsModelTrainer:
         return training_losses, val_losses
 
     def evaluate(self, use_train_set: bool = False) -> float:
+        """Evaluates the model on the validation dataset.
+
+        Iterates over validation dataset, one batch at a time, and calls
+        :meth:`DynamicsModelWrapper.eval_score_from_simple_batch` to compute the model score
+        over the batch. The method returns the average score over the whole dataset.
+
+        Args:
+            use_train_set (bool): If ``True``, the evaluation is done over the training data.
+
+        Returns:
+            (float): The average score of the model over the dataset.
+        """
         dataset = self.dataset_val
         if use_train_set:
             if isinstance(self.dataset_train, replay_buffer.BootstrapReplayBuffer):
@@ -939,13 +985,27 @@ class DynamicsModelTrainer:
         return total_avg_loss.item()
 
     def maybe_save_best_weights(
-        self, best_val_loss: float, val_loss: float
+        self, best_val_score: float, val_score: float, threshold: float = 0.001
     ) -> Optional[Dict]:
+        """Return the best weights if the validation score improves over the best value so far.
+
+        Args:
+            best_val_score (float): the current best validation loss.
+            val_score (float): the new validation loss.
+            threshold (float): the threshold for relative improvement.
+
+        Returns:
+            (dict, optional): if the validation score's relative improvement over the
+            best validation score is higher than the threshold, returns the state dictionary
+            of the stored dynamics model, otherwise returns ``None``.
+        """
         best_weights = None
         improvement = (
-            1 if np.isinf(best_val_loss) else (best_val_loss - val_loss) / best_val_loss
+            1
+            if np.isinf(best_val_score)
+            else (best_val_score - val_score) / best_val_score
         )
-        if improvement > 0.001:
+        if improvement > threshold:
             best_weights = self.dynamics_model.model.state_dict()
         return best_weights
 
@@ -954,13 +1014,27 @@ class DynamicsModelTrainer:
 # Model environment
 # ------------------------------------------------------------------------ #
 class ModelEnv:
+    """Wraps a dynamics model into a gym-like environment.
+
+    Args:
+        env (gym.Env): the original gym environment for which the model was trained.
+        model (:class:`DynamicsModelWrapper`): the dynamics model to wrap.
+        termination_fn (callable): a function that receives actions and observations, and
+            returns a boolean flag indicating whether the episode should end or not.
+        reward_fn (callable, optional): a function that receives actions and observations
+            and returns the value of the resulting reward in the environment.
+            Defaults to ``None``, in which case predicted rewards will be used.
+        seed (int, optional): An optional seed for the random number generator (based on
+            ``torch.Generator()``.
+    """
+
     def __init__(
         self,
         env: gym.Env,
         model: DynamicsModelWrapper,
-        termination_fn,
-        reward_fn,
-        seed=None,
+        termination_fn: mbrl.types.TermFnType,
+        reward_fn: Optional[mbrl.types.RewardFnType] = None,
+        seed: Optional[int] = None,
     ):
         self.dynamics_model = model
         self.termination_fn = termination_fn
@@ -984,6 +1058,25 @@ class ModelEnv:
         propagation_method: str = "expectation",
         return_as_np: bool = True,
     ) -> mbrl.types.TensorType:
+        """Resets the model environment.
+
+        Args:
+            initial_obs_batch (np.ndarray): a batch of initial observations. One episode for
+                each observation will be run in parallel. Shape should be ``B x D``, where
+                ``B`` is batch size, and ``D`` is the observation dimension.
+            propagation_method (str): the propagation method to use
+                (see :meth:`DynamicsModelWrapper.predict`). if "fixed_model" is used,
+                this method will create random indices for each model and keep them until
+                reset is called again. This allows to roll out the model using TSInf
+                propagation, as described in the PETS paper. Defaults to "expectation".
+            return_as_np (bool): if ``True``, this method and :meth:`step` will return
+                numpy arrays, otherwise it returns torch tensors in the same device as the
+                model. Defaults to ``True``.
+
+        Returns:
+            (torch.Tensor or np.ndarray): the initial observation in the type indicated
+            by ``return_as_np``.
+        """
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         self._current_obs = torch.from_numpy(
             np.copy(initial_obs_batch.astype(np.float32))
@@ -1004,7 +1097,25 @@ class ModelEnv:
             return self._current_obs.cpu().numpy()
         return self._current_obs
 
-    def step(self, actions: mbrl.types.TensorType, sample: bool = False):
+    def step(
+        self, actions: mbrl.types.TensorType, sample: bool = False
+    ) -> Tuple[mbrl.types.TensorType, mbrl.types.TensorType, np.ndarray, Dict]:
+        """Steps the model environment with the given batch of actions.
+
+        Args:
+            actions (torch.Tensor or np.ndarray): the actions for each "episode" to rollout.
+                Shape must be ``B x A``, where ``B`` is the batch size (i.e., number of episodes),
+                and ``A`` is the action dimension. Note that ``B`` must correspond to the
+                batch size used when calling :meth:`reset`. If a np.ndarray is given, it's
+                converted to a torch.Tensor and sent to the model device.
+            sample (bool): If ``True`` model predictions are sampled using gaussian
+                model matching. Defaults to ``False``.
+
+        Returns:
+            (tuple): contains the predicted next observation, reward, done flag and metadata.
+            The done flag is computed using the model's given termination_fn
+            (see :class:`DynamicsModelWrapper`).
+        """
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
@@ -1040,6 +1151,7 @@ class ModelEnv:
         num_particles: int,
         propagation_method: str,
     ) -> torch.Tensor:
+        """Evaluates a batch of action sequences on the model."""
         assert (
             len(action_sequences.shape) == 3
         )  # population_size, horizon, action_shape
