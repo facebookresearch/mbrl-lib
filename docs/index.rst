@@ -43,6 +43,7 @@ To test your installation, run
    :caption: Contents
 
    models.rst
+   planning.rst
    math.rst
 
 Indices and tables

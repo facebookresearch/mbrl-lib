@@ -1,0 +1,7 @@
+hydra-core>=1.0.3
+termcolor>=1.1.0
+tensorboard>=2.4.0
+imageio>=2.9.0
+numpy>=1.19.1
+gym==0.17.2
+dmc2gym@git+git://github.com/denisyarats/dmc2gym.git

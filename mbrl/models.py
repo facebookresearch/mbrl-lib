@@ -1151,7 +1151,22 @@ class ModelEnv:
         num_particles: int,
         propagation_method: str,
     ) -> torch.Tensor:
-        """Evaluates a batch of action sequences on the model."""
+        """Evaluates a batch of action sequences on the model.
+
+        Args:
+            action_sequences (torch.Tensor): a batch of action sequences to evaluate.  Shape must
+                be ``B x H x A``, where ``B``, ``H``, and ``A`` represent batch size, horizon,
+                and action dimension, respectively.
+            initial_state (np.ndarray): the initial state for the trajectories.
+            num_particles (int): number of times each action sequence is replicated. The final
+                value of the sequence will be the average over its particles values.
+            propagation_method (str): the propagation method to use (see :class:`Ensemble`
+                for a description of the different methods).
+
+        Returns:
+            (torch.Tensor): the accumulated reward for each action sequence, averaged over its
+            particles.
+        """
         assert (
             len(action_sequences.shape) == 3
         )  # population_size, horizon, action_shape
