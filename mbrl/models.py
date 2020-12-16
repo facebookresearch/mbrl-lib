@@ -93,15 +93,14 @@ class Model(nn.Module):
     @abc.abstractmethod
     def loss(
         self,
-        model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
-        target: Union[torch.Tensor, Sequence[torch.Tensor]],
+        model_in: torch.Tensor,
+        target: torch.Tensor,
     ) -> torch.Tensor:
         """Computes a loss that can be used to update the model using backpropagation.
 
         Args:
-            model_in (tensor or sequence of tensors): the inputs to the model
-                                                      (or ensemble of models).
-            target (tensor or sequence of tensors): the expected output for the given inputs.
+            model_in (tensor): the inputs to the model.
+            target (tensor): the expected output for the given inputs.
 
         Returns:
             (tensor): a loss tensor.
@@ -145,8 +144,8 @@ class Model(nn.Module):
 
     def update(
         self,
-        model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
-        target: Union[torch.Tensor, Sequence[torch.Tensor]],
+        model_in: torch.Tensor,
+        target: torch.Tensor,
         optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
     ) -> float:
         """Updates the model using backpropagation with given input and target tensors.
@@ -178,7 +177,7 @@ class Model(nn.Module):
 class GaussianMLP(Model):
     """Implements a multi-layer perceptron that models a multivariate Gaussian distribution.
 
-    This model is based on the model described in the Chua et al., NeurIPS 2018 paper (PETS)
+    This model is based on the one described in the Chua et al., NeurIPS 2018 paper (PETS)
     https://arxiv.org/pdf/1805.12114.pdf
 
     It predicts per output mean and log variance, and its weights are updated using a Gaussian
@@ -437,11 +436,10 @@ class Ensemble(Model):
             f"'random_model', 'fixed_model', 'expectation'."
         )
 
-    # TODO replace the input this with a single tensor (not a sequence)
     def loss(
         self,
-        inputs: Sequence[torch.Tensor],
-        targets: Sequence[torch.Tensor],
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
     ) -> torch.Tensor:
         """Computes average loss over the losses of all members of the ensemble.
 
@@ -459,11 +457,10 @@ class Ensemble(Model):
             avg_ensemble_loss += loss
         return avg_ensemble_loss / len(self.members)
 
-    # TODO replace code inside loop with model.update()
     def update(
         self,
-        inputs: Sequence[torch.Tensor],
-        targets: Sequence[torch.Tensor],
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
         optimizers: Sequence[torch.optim.Optimizer],
     ) -> float:
         """Updates all models of the ensemble.
@@ -472,8 +469,10 @@ class Ensemble(Model):
         Then returns the average loss value.
 
         Args:
-            inputs (sequence of tensors): one input for each model in the ensemble.
-            targets (sequence of tensors): one target for each model.
+            inputs (tensor): input tensor with shape ``E x B x Id``, where ``E``, ``B`` and
+                ``Id`` represent ensemble size, batch size, and input dimension, respectively .
+            targets (tensor): target tensor with shape ``E x B x Od``, where ``E``, ``B`` and
+                ``Od`` represent ensemble size, batch size, and output dimension, respectively .
             optimizers (sequence of torch optimizers): one optimizer for each model.
 
         Returns:
@@ -481,12 +480,7 @@ class Ensemble(Model):
         """
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
-            model.train()
-            optimizers[i].zero_grad()
-            loss = model.loss(inputs[i], targets[i])
-            loss.backward()
-            optimizers[i].step(None)
-            avg_ensemble_loss += loss.item()
+            avg_ensemble_loss += model.update(inputs[i], targets[i], optimizers[i])
         return avg_ensemble_loss / len(self.members)
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -673,6 +667,8 @@ class DynamicsModelWrapper:
             model_in, target = self._get_model_input_and_target_from_batch(batch)
             model_ins.append(model_in)
             targets.append(target)
+        model_ins = torch.stack(model_ins)
+        targets = torch.stack(targets)
         return self.model.update(model_ins, targets, optimizers)
 
     def update_from_simple_batch(
