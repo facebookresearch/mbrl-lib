@@ -38,11 +38,50 @@ MODEL_LOG_FORMAT = [
 # TODO move this to math.py module
 def truncated_normal_init(m: nn.Module):
     """Initializes the weights of the given module using a truncated normal distribution."""
+
     if isinstance(m, nn.Linear):
         input_dim = m.weight.data.shape[0]
         stddev = 1 / (2 * np.sqrt(input_dim))
         mbrl.math.truncated_normal_(m.weight.data, std=stddev)
         m.bias.data.fill_(0.0)
+    if isinstance(m, EnsembleLinearLayer):
+        num_members, input_dim, _ = m.weight.data.shape
+        stddev = 1 / (2 * np.sqrt(input_dim))
+        for i in range(num_members):
+            mbrl.math.truncated_normal_(m.weight.data[i], std=stddev)
+        m.bias.data.fill_(0.0)
+
+
+class EnsembleLinearLayer(nn.Module):
+    """Efficient linear layer for ensemble models."""
+
+    def __init__(
+        self, num_members: int, in_size: int, out_size: int, bias: bool = True
+    ):
+        super().__init__()
+        self.num_members = num_members
+        self.in_size = in_size
+        self.out_size = out_size
+        self.weight = nn.Parameter(
+            torch.rand(self.num_members, self.in_size, self.out_size)
+        )
+        if bias:
+            self.bias = nn.Parameter(torch.rand(self.num_members, 1, self.out_size))
+            self.use_bias = True
+        else:
+            self.use_bias = False
+
+    def forward(self, x):
+        if self.use_bias:
+            return x.matmul(self.weight) + self.bias
+        else:
+            return x.matmul(self.weight)
+
+    def extra_repr(self) -> str:
+        return (
+            f"num_members={self.num_members}, in_size={self.in_size}, "
+            f"out_size={self.out_size}, bias={self.use_bias}"
+        )
 
 
 class Model(nn.Module):
@@ -86,7 +125,7 @@ class Model(nn.Module):
 
         Returns:
             (tuple of two tensor): the predicted mean and  log variance of the output.
-            If the model does not predict uncertainty, the second output should be ``None``.
+            If the model does not predict uncertainty, the second output must be ``None``.
         """
         pass
 
@@ -172,6 +211,9 @@ class Model(nn.Module):
         optimizer.step(None)
         return loss.item()
 
+    def __len__(self):
+        return None
+
 
 # TODO add support for other activation functions
 class GaussianMLP(Model):
@@ -191,6 +233,7 @@ class GaussianMLP(Model):
         num_layers (int): the number of layers in the model
                           (e.g., if ``num_layers == 3``, then model graph looks like
                           input -h1-> -h2-> -l3-> output).
+        ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
         use_silu (bool): if ``True``, hidden layers will use SiLU activations, otherwise
                          ReLU activations will be used.
@@ -202,46 +245,148 @@ class GaussianMLP(Model):
         out_size: int,
         device: Union[str, torch.device],
         num_layers: int = 4,
+        ensemble_size: int = 1,
         hid_size: int = 200,
         use_silu: bool = False,
     ):
         super(GaussianMLP, self).__init__(in_size, out_size, device)
         activation_cls = nn.SiLU if use_silu else nn.ReLU
-        hidden_layers = [nn.Sequential(nn.Linear(in_size, hid_size), activation_cls())]
+
+        self.num_members = None
+        if ensemble_size > 1:
+            self.is_ensemble = True
+            self.num_members = ensemble_size
+
+        def create_linear_layer(l_in, l_out):
+            if ensemble_size > 1:
+                return EnsembleLinearLayer(ensemble_size, l_in, l_out)
+            else:
+                return nn.Linear(l_in, l_out)
+
+        hidden_layers = [
+            nn.Sequential(create_linear_layer(in_size, hid_size), activation_cls())
+        ]
         for i in range(num_layers - 1):
             hidden_layers.append(
-                nn.Sequential(nn.Linear(hid_size, hid_size), activation_cls())
+                nn.Sequential(
+                    create_linear_layer(hid_size, hid_size),
+                    activation_cls(),
+                )
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
-        self.mean_and_logvar = nn.Linear(hid_size, 2 * out_size)
+        self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
+        logvar_shape = (
+            (self.num_members, 1, out_size) if self.is_ensemble else (1, out_size)
+        )
         self.min_logvar = nn.Parameter(
-            -10 * torch.ones(1, out_size, requires_grad=True)
+            -10 * torch.ones(logvar_shape, requires_grad=True)
         )
         self.max_logvar = nn.Parameter(
-            0.5 * torch.ones(1, out_size, requires_grad=True)
+            0.5 * torch.ones(logvar_shape, requires_grad=True)
         )
         self.out_size = out_size
 
         self.apply(truncated_normal_init)
         self.to(self.device)
 
-    def forward(self, x: torch.Tensor, **_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Computes mean and logvar predictions for the given input.
-
-        Args:
-            x (tensor): the input to the model.
-
-        Returns:
-            (tuple of two tensors): the predicted mean and  log variance of the output.
-            If the model does not predict uncertainty, the second output should be ``None``.
-        """
+    def _default_forward(
+        self, x: torch.Tensor, **_kwargs
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.hidden_layers(x)
         mean_and_logvar = self.mean_and_logvar(x)
-        mean = mean_and_logvar[:, : self.out_size]
-        logvar = mean_and_logvar[:, self.out_size :]
+        mean = mean_and_logvar[..., : self.out_size]
+        logvar = mean_and_logvar[..., self.out_size :]
         logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
         logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
         return mean, logvar
+
+    def _forward_from_indices(
+        self, x: torch.Tensor, model_indices: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        batch_size = len(x)
+        input_batch_size = 0  # input that will be passed to default_forward
+        model_is_selected: List[torch.Tensor] = []
+        model_num_selected: List[int] = []
+        for i in range(len(self)):
+            model_idx = model_indices == i
+            model_is_selected.append(model_idx)
+            model_num_selected.append(model_idx.sum().item())
+            input_batch_size = max(input_batch_size, model_num_selected[-1])
+        model_input = torch.zeros(
+            (len(self), input_batch_size, self.in_size), device=self.device
+        )
+        for i in range(len(self)):
+            model_input[i, : model_num_selected[i], :] = x[model_is_selected[i]]
+        all_means, all_logvars = self._default_forward(model_input)
+
+        mean = torch.empty((batch_size, self.out_size), device=self.device)
+        logvar = torch.empty((batch_size, self.out_size), device=self.device)
+        for i in range(len(self)):
+            mean[model_is_selected[i]] = all_means[i, : model_num_selected[i]]
+            mean[model_is_selected[i]] = all_logvars[i, : model_num_selected[i]]
+        return mean, logvar
+
+    def _forward_ensemble(
+        self,
+        x: torch.Tensor,
+        propagation: Optional[str] = None,
+        propagation_indices: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if propagation is None:
+            return self._default_forward(x)
+        assert x.ndim == 2
+        if propagation == "random_model":
+            model_indices = torch.randint(len(self), size=(len(x),), device=self.device)
+            return self._forward_from_indices(x, model_indices)
+        if propagation == "fixed_model":
+            return self._forward_from_indices(x, propagation_indices)
+        if propagation == "expectation":
+            mean, logvar = self._default_forward(x.unsqueeze(0))
+            return mean.mean(dim=0), logvar.mean(dim=0)
+        raise ValueError(f"Invalid propagation method {propagation}.")
+
+    def forward(  # type: ignore
+        self,
+        x: torch.Tensor,
+        propagation: Optional[str] = None,
+        propagation_indices: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Computes mean and logvar predictions for the given input.
+
+        Valid propagation options are:
+
+            - "random_model": for each output in the batch a model will be chosen at random.
+              This corresponds to TS1 propagation in the PETS paper.
+            - "fixed_model": for output j-th in the batch, the model will be chosen according to
+              the model index in `propagation_indices[j]`. This can be used to implement TSinf
+              propagation, described in the PETS paper.
+            - "expectation": the output for each element in the batch will be the mean across
+              models.
+
+        Args:
+            x (tensor): the input to the model. For non-ensemble, the shape must be
+                ``B x Id``, where ``B`` and ``Id`` represent batch size,
+                and input dimension, respectively. For ensemble, if ``propagation`` is not ``None``,
+                then the shape must be same as above.
+                Otherwise, the shape can also be ``E x B x Id``,
+                where ``E``, ``B`` and ``Id`` represent ensemble size, batch size, and input
+                dimension, respectively.
+            propagation (str, optional): the desired propagation function. Defaults to ``None``.
+            propagation_indices (int, optional): the model indices for each element in the batch
+                                                 when ``propagation == "fixed_model"``.
+
+        Returns:
+            (tuple of two tensors): the predicted mean and log variance of the output. If
+            ``propagation`` is not ``None``, the output will have the same number of dimensions
+            as the input. Otherwise, the outputs will be 2-D, aggregated over models according
+            to the desired propagation method.
+
+        """
+        if self.is_ensemble:
+            return self._forward_ensemble(
+                x, propagation=propagation, propagation_indices=propagation_indices
+            )
+        return self._default_forward(x)
 
     def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """Computes Gaussian NLL loss.
@@ -250,38 +395,70 @@ class GaussianMLP(Model):
         with positive and negative signs, respectively.
 
         Args:
-            model_in (tensor): the input to the model.
-            target (tensor): the expected output for the given inputs.
+            model_in (tensor): input tensor. For ensemble, the shape must be ``E x B x Id``,
+                where ``E``, ``B`` and ``Id`` represent ensemble size, batch size, and input
+                dimension, respectively. For non-ensemble, the shape is as above, except
+                with the model dimension removed (``E``).
+            target (tensor): target tensor. For ensemble, the shape must be ``E x B x Od``,
+                where ``E``, ``B`` and ``Od`` represent ensemble size, batch size, and output
+                dimension, respectively. For non-ensemble, the shape is as above, except
+                with the model dimension removed (``E``).
 
         Returns:
             (tensor): a loss tensor representing the Gaussian negative log-likelihood of
-                      the model over the given input/target.
+                      the model over the given input/target. If the model is an ensemble, returns
+                      the average over all models.
         """
         pred_mean, pred_logvar = self.forward(model_in)
-        nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
-        return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
+        if self.is_ensemble:
+            assert model_in.ndim == 3 and target.ndim == 3
+            nll: torch.Tensor = 0.0
+            for i in range(self.num_members):
+                member_loss = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+                member_loss += (
+                    0.01 * self.max_logvar[i].sum() - 0.01 * self.min_logvar[i].sum()
+                )
+                nll += member_loss
+            return nll / self.num_members
+        else:
+            assert model_in.ndim == 2 and target.ndim == 2
+            nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+            return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """Computes the squared error for the model over the given input/target.
 
-        Equivalent to `F.mse_loss(model(model_in, target), reduction="none")`.
+        When model is not an ensemble, this is equivalent to
+        `F.mse_loss(model(model_in, target), reduction="none")`. If the model is ensemble,
+        then return value is averaged over the model dimension.
 
         Args:
-            model_in (tensor): the inputs to the model.
-            target (tensor): the expected output for the given inputs.
+            model_in (tensor): input tensor. The shape must be ``B x Id``, where `B`` and ``Id``
+                batch size, and input dimension, respectively.
+            target (tensor): target tensor. The shape must be ``B x Od``, where ``B`` and ``Od``
+                represent batch size, and output dimension, respectively.
 
         Returns:
-            (tensor): a tensor with the squared error per output dimension.
+            (tensor): a tensor with the squared error per output dimension, averaged over model.
         """
+        assert model_in.ndim == 2 and target.ndim == 2
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
-            return F.mse_loss(pred_mean, target, reduction="none").mean(dim=1)
+            if self.is_ensemble:
+                target = target.repeat((self.num_members, 1, 1))
+            score = F.mse_loss(pred_mean, target, reduction="none").mean(dim=1)
+            if score.ndim == 3:
+                score = score.mean(dim=0)
+            return score
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
 
     def load(self, path: str):
         self.load_state_dict(torch.load(path))
+
+    def __len__(self):
+        return self.num_members
 
 
 class Ensemble(Model):
@@ -291,7 +468,7 @@ class Ensemble(Model):
     Chua et al., NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf,
     and includes support for different uncertainty propagation options (see :meth:`forward`).
 
-    All members of the ensemble will be identical, and they should be subclasses of :class:`Model`.
+    All members of the ensemble will be identical, and they must be subclasses of :class:`Model`.
 
     Members can be accessed using `ensemble[i]`, to recover the i-th model in the ensemble. Doing
     `len(ensemble)` returns its size, and the ensemble can also be iterated over the models
@@ -316,12 +493,13 @@ class Ensemble(Model):
         member_cfg: omegaconf.DictConfig,
     ):
         super().__init__(in_size, out_size, device)
-        self.is_ensemble = True
         self.members = []
+        self.is_ensemble = True
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model)
         self.members = nn.ModuleList(self.members)
+        self.num_members = ensemble_size
         self.to(device)
 
     def __len__(self):
@@ -333,6 +511,10 @@ class Ensemble(Model):
     def __iter__(self):
         return iter(self.members)
 
+    # --------------------------------------------------------------------- #
+    #                        Propagation functions
+    # --------------------------------------------------------------------- #
+    # These are customized for this class, to avoid unnecessary computation
     def _default_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         predictions = [model(x) for model in self.members]
         all_means = torch.stack([p[0] for p in predictions], dim=0)
@@ -378,6 +560,9 @@ class Ensemble(Model):
         logvar = all_logvars.mean(dim=0) if all_logvars is not None else None
         return mean, logvar
 
+    # --------------------------------------------------------------------- #
+    #                            Public methods
+    # --------------------------------------------------------------------- #
     def forward(  # type: ignore
         self,
         x: torch.Tensor,
@@ -656,7 +841,7 @@ class DynamicsModelWrapper:
             optimizers (sequence of torch optimizers): one optimizer for each model in the
                 ensemble.
         """
-        if not hasattr(self.model, "members"):
+        if not self.model.is_ensemble:
             raise RuntimeError(
                 "Model must be ensemble to use `loss_from_bootstrap_batch`."
             )
@@ -683,7 +868,7 @@ class DynamicsModelWrapper:
             batch (transition batch): a batch of transition to train the model.
             optimizer (torch optimizer): the optimizer to use to update the model.
         """
-        if hasattr(self.model, "members"):
+        if self.model.is_ensemble:
             raise RuntimeError(
                 "Model must not be ensemble to use `loss_from_simple_batch`."
             )
@@ -752,11 +937,27 @@ class DynamicsModelWrapper:
             (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
         """
         model_in = self._get_model_input_from_tensors(obs, actions)
+
         means, logvars = self.model(
             model_in,
             propagation=propagation_method,
             propagation_indices=propagation_indices,
         )
+
+        # if isinstance(self.model, Ensemble):
+        #     # This model has its own propagation methods for efficiency considerations
+        #     means, logvars = self.model(
+        #         model_in,
+        #         propagation=propagation_method,
+        #         propagation_indices=propagation_indices,
+        #     )
+        # else:
+        #     means, logvars = self.model(model_in)
+        #     means, logvars = mbrl.math.propagate(
+        #         (means, logvars),
+        #         propagation_method=propagation_method,
+        #         propagation_indices=propagation_indices,
+        #     )
 
         if sample:
             assert logvars is not None
@@ -797,7 +998,7 @@ class DynamicsModelTrainer:
     Args:
         dynamics_model (:class:`DynamicsModelWrapper`): the wrapper to access the model to train.
         dataset_train (:class:`mbrl.replay_buffer.IterableReplayBuffer`): the replay buffer
-            containing the training data. If the model is an ensemble, it should be an instance
+            containing the training data. If the model is an ensemble, it must be an instance
             of :class:`mbrl.replay_buffer.BootstrapReplayBuffer`.
         dataset_val (:class:`mbrl.replay_buffer.IterableReplayBuffer`, optional): the replay
             buffer containing the validation data (if provided). Defaults to ``None``.
@@ -832,7 +1033,7 @@ class DynamicsModelTrainer:
             )
 
         self.optimizers = None
-        if self.dynamics_model.model.is_ensemble:
+        if isinstance(self.dynamics_model.model, Ensemble):
             ensemble = cast(Ensemble, self.dynamics_model.model)
             self.optimizers = []
             for i, model in enumerate(ensemble):
@@ -877,7 +1078,7 @@ class DynamicsModelTrainer:
 
         """
         update_from_batch_fn = self.dynamics_model.update_from_simple_batch
-        if isinstance(self.dynamics_model.model, Ensemble):
+        if self.dynamics_model.model.is_ensemble:
             update_from_batch_fn = self.dynamics_model.update_from_bootstrap_batch  # type: ignore
             if not self.dataset_train.is_train_compatible_with_ensemble(
                 len(self.dynamics_model.model)
@@ -885,7 +1086,7 @@ class DynamicsModelTrainer:
                 raise RuntimeError(
                     "Train dataset is not compatible with ensemble. "
                     "Please use `BootstrapReplayBuffer` class to train ensemble model "
-                    "and make sure `buffer.num_members == model.num_members`."
+                    "and make sure `buffer.num_members == len(model)."
                 )
 
         training_losses, train_eval_scores, val_losses = [], [], []
@@ -935,7 +1136,7 @@ class DynamicsModelTrainer:
                         "model_loss": total_avg_loss,
                         "model_score": train_score,
                         "model_val_score": eval_score,
-                        "best_val_score": best_val_score,
+                        "model_best_val_score": best_val_score,
                     },
                 )
 
@@ -1058,7 +1259,7 @@ class ModelEnv:
 
         Args:
             initial_obs_batch (np.ndarray): a batch of initial observations. One episode for
-                each observation will be run in parallel. Shape should be ``B x D``, where
+                each observation will be run in parallel. Shape must be ``B x D``, where
                 ``B`` is batch size, and ``D`` is the observation dimension.
             propagation_method (str): the propagation method to use
                 (see :meth:`DynamicsModelWrapper.predict`). if "fixed_model" is used,
@@ -1080,9 +1281,9 @@ class ModelEnv:
 
         self._propagation_method = propagation_method
         if propagation_method == "fixed_model":
-            assert self.dynamics_model.model.is_ensemble
+            assert hasattr(self.dynamics_model.model, "num_members")
             self._model_indices = torch.randint(
-                len(cast(Ensemble, self.dynamics_model.model)),
+                len(self.dynamics_model.model),
                 (len(initial_obs_batch),),
                 generator=self._rng,
                 device=self.device,
