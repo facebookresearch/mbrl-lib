@@ -214,6 +214,25 @@ class Model(nn.Module):
     def __len__(self):
         return None
 
+    def sample_propagation_indices(
+        self, batch_size: int, rng: torch.Generator
+    ) -> Optional[torch.Tensor]:
+        """Samples propagation indices used for "fixed_model" propagation.
+
+        This method should be overridden by all ensemble classes, so that indices for
+        "fixed_model" style propagation are sampled (equivalent to TSinf propagation in the
+        PETS paper). This allow each type of ensemble to have its own propagation logic.
+
+        Args:
+            batch_size (int): the batch size to use for the indices.
+            rng (torch.Generator): random number generator.
+        """
+        if self.is_ensemble:
+            raise NotImplementedError(
+                "This method must be implemented by all ensemble classes."
+            )
+        return None
+
 
 # TODO add support for other activation functions
 class GaussianMLP(Model):
@@ -458,6 +477,16 @@ class GaussianMLP(Model):
     def __len__(self):
         return self.num_members
 
+    def sample_propagation_indices(
+        self, batch_size: int, rng: torch.Generator
+    ) -> torch.Tensor:
+        return torch.randint(
+            len(self),
+            (batch_size,),
+            generator=rng,
+            device=self.device,
+        )
+
 
 class Ensemble(Model):
     """Implements an ensemble of bootstrapped models.
@@ -695,6 +724,16 @@ class Ensemble(Model):
     def load(self, path: str):
         state_dict = torch.load(path)
         self.load_state_dict(state_dict)
+
+    def sample_propagation_indices(
+        self, batch_size: int, rng: torch.Generator
+    ) -> torch.Tensor:
+        return torch.randint(
+            len(self),
+            (batch_size,),
+            generator=rng,
+            device=self.device,
+        )
 
 
 # TODO once util doc is ready, add info about how to create dynamics model directly
@@ -1279,12 +1318,9 @@ class ModelEnv:
 
         self._propagation_method = propagation_method
         if propagation_method == "fixed_model":
-            assert hasattr(self.dynamics_model.model, "num_members")
-            self._model_indices = torch.randint(
-                len(self.dynamics_model.model),
-                (len(initial_obs_batch),),
-                generator=self._rng,
-                device=self.device,
+            assert self.dynamics_model.model.is_ensemble
+            self._model_indices = self.dynamics_model.model.sample_propagation_indices(
+                len(initial_obs_batch), self._rng
             )
 
         self._return_as_np = return_as_np
