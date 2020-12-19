@@ -304,16 +304,14 @@ class GaussianMLP(Model):
         self, x: torch.Tensor, model_indices: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = len(x)
-        input_batch_size = 0  # input that will be passed to default_forward
         model_is_selected: List[torch.Tensor] = []
         model_num_selected: List[int] = []
         for i in range(len(self)):
             model_idx = model_indices == i
             model_is_selected.append(model_idx)
             model_num_selected.append(model_idx.sum().item())
-            input_batch_size = max(input_batch_size, model_num_selected[-1])
         model_input = torch.zeros(
-            (len(self), input_batch_size, self.in_size), device=self.device
+            (len(self), max(model_num_selected), self.in_size), device=self.device
         )
         for i in range(len(self)):
             model_input[i, : model_num_selected[i], :] = x[model_is_selected[i]]
@@ -323,7 +321,7 @@ class GaussianMLP(Model):
         logvar = torch.empty((batch_size, self.out_size), device=self.device)
         for i in range(len(self)):
             mean[model_is_selected[i]] = all_means[i, : model_num_selected[i]]
-            mean[model_is_selected[i]] = all_logvars[i, : model_num_selected[i]]
+            logvar[model_is_selected[i]] = all_logvars[i, : model_num_selected[i]]
         return mean, logvar
 
     def _forward_ensemble(
@@ -1385,4 +1383,4 @@ class ModelEnv:
             total_rewards += rewards
 
         total_rewards = total_rewards.reshape(-1, num_particles)
-        return total_rewards.mean(axis=1)
+        return total_rewards.mean(dim=1)
