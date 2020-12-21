@@ -26,7 +26,7 @@ def test_basic_ensemble_gaussian_forward():
     batch_size = 4
     model_in = torch.zeros(batch_size, 2)
 
-    member_out_mean_ex, member_out_var_ex = ensemble[0](model_in)
+    member_out_mean_ex, member_out_var_ex = ensemble[0].forward(model_in)
     assert member_out_mean_ex.shape == torch.Size([batch_size, model_out_size])
     assert member_out_var_ex.shape == torch.Size([batch_size, model_out_size])
 
@@ -48,6 +48,94 @@ def test_basic_ensemble_gaussian_forward():
     assert model_out.shape == torch.Size([2, batch_size, model_out_size])
     assert model_out[0].sum().item() == expected_tensor_sum
     assert model_out[1].sum().item() == 2 * expected_tensor_sum
+
+
+def _create_gaussian_ensemble_mock(ensemble_size, as_float=False):
+    model = models.GaussianMLP(1, 1, "cpu", num_layers=2, ensemble_size=ensemble_size)
+
+    # With this we can use the output value to identify which model produced the output
+    def mock_fwd(_x):
+        output = torch.ones(ensemble_size, _x.shape[1], 1)
+        for i in range(ensemble_size):
+            output[i] *= i
+        if as_float:
+            return output.float(), output.float()
+        return output.int(), output.int()
+
+    model._default_forward = mock_fwd
+
+    return model
+
+
+def _check_output_counts_and_update_history(
+    model_output, ensemble_size, batch_size, history
+):
+    counts = np.zeros(ensemble_size)
+    for i in range(batch_size):
+        counts[model_output[i]] += 1
+        history[i] += str(model_output[i].item())
+    # asert that all models produced the same number of outputs
+    for i in range(ensemble_size):
+        assert counts[i] == batch_size // ensemble_size
+    return history
+
+
+def test_gaussian_mlp_ensemble_random_model_propagation():
+    ensemble_size = 5
+    model = _create_gaussian_ensemble_mock(ensemble_size)
+
+    batch_size = 100
+    num_reps = 200
+    batch = torch.zeros(batch_size, 1)
+    history = ["" for _ in range(batch_size)]
+    with torch.no_grad():
+        for _ in range(num_reps):
+            y = model.forward(batch, propagation="random_model")[0]
+            history = _check_output_counts_and_update_history(
+                y, ensemble_size, batch_size, history
+            )
+    # This is really hacky, but it's a cheap test to see if the history of models used
+    # varied over the batch
+    seen = set([h for h in history])
+    assert len(seen) == batch_size
+
+
+def test_gaussian_mlp_ensemble_fixed_model_propagation():
+    ensemble_size = 5
+    model = _create_gaussian_ensemble_mock(ensemble_size)
+
+    batch_size = 100
+    num_reps = 200
+    batch = torch.zeros(batch_size, 1)
+    history = ["" for _ in range(batch_size)]
+    indices = model.sample_propagation_indices(batch_size, None)
+    with torch.no_grad():
+        for _ in range(num_reps):
+            y = model.forward(
+                batch, propagation="fixed_model", propagation_indices=indices
+            )[0]
+            history = _check_output_counts_and_update_history(
+                y, ensemble_size, batch_size, history
+            )
+            for i in range(batch_size):
+                assert history[i][-1] == history[i][0]
+
+
+def test_gaussian_mlp_ensemble_expectation_propagation():
+    ensemble_size = 5
+    model = _create_gaussian_ensemble_mock(ensemble_size, as_float=True)
+
+    batch_size = 100
+    num_reps = 200
+    batch = torch.zeros(batch_size, 1)
+    with torch.no_grad():
+        for _ in range(num_reps):
+            y = model.forward(batch, propagation="expectation")[0]
+            print(y.shape, flush=True)
+            for i in range(batch_size):
+                np.testing.assert_almost_equal(
+                    y[i], ensemble_size * (ensemble_size - 1) / ensemble_size / 2
+                )
 
 
 mock_obs_dim = 1

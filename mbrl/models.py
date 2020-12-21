@@ -339,8 +339,8 @@ class GaussianMLP(Model):
         logvar = logvar.view(batch_size, -1)
 
         # invert the shuffle
-        mean[model_indices] = mean
-        logvar[model_indices] = logvar
+        mean[model_indices] = mean.clone()
+        logvar[model_indices] = logvar.clone()
 
         return mean, logvar
 
@@ -359,12 +359,12 @@ class GaussianMLP(Model):
         if propagation == "random_model":
             # passing generator causes segmentation fault
             # see https://github.com/pytorch/pytorch/issues/44714
-            model_indices = torch.randperm(len(x), device=self.device)
+            model_indices = torch.randperm(x.shape[1], device=self.device)
             return self._forward_from_indices(x, model_indices)
         if propagation == "fixed_model":
             return self._forward_from_indices(x, propagation_indices)
         if propagation == "expectation":
-            mean, logvar = self._default_forward(x.unsqueeze(0))
+            mean, logvar = self._default_forward(x)
             return mean.mean(dim=0), logvar.mean(dim=0)
         raise ValueError(f"Invalid propagation method {propagation}.")
 
