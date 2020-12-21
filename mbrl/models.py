@@ -7,16 +7,32 @@ import gym
 import hydra.utils
 import numpy as np
 import omegaconf
-import pytorch_sac
 import torch
 from torch import nn as nn
 from torch import optim as optim
 from torch.nn import functional as F
 
+import mbrl.logger
 import mbrl.math
 import mbrl.types
 
 from . import replay_buffer
+
+MODEL_LOG_FORMAT = [
+    ("train_iteration", "I", "int"),
+    ("epoch", "E", "int"),
+    ("train_dataset_size", "TD", "int"),
+    ("val_dataset_size", "VD", "int"),
+    ("model_loss", "MLOSS", "float"),
+    ("model_score", "MSCORE", "float"),
+    ("model_val_score", "MVSCORE", "float"),
+    ("model_best_val_score", "MBVSCORE", "float"),
+]
+
+
+# ------------------------------------------------------------------------ #
+# Model classes
+# ------------------------------------------------------------------------ #
 
 
 def truncated_normal_init(m: nn.Module):
@@ -27,9 +43,6 @@ def truncated_normal_init(m: nn.Module):
         m.bias.data.fill_(0.0)
 
 
-# ------------------------------------------------------------------------ #
-# Model classes
-# ------------------------------------------------------------------------ #
 class Model(nn.Module):
     def __init__(
         self,
@@ -448,6 +461,8 @@ class DynamicsModelWrapper:
 # Model trainer
 # ------------------------------------------------------------------------ #
 class DynamicsModelTrainer:
+    _LOG_GROUP_NAME = "model_train"
+
     def __init__(
         self,
         dynamics_model: DynamicsModelWrapper,
@@ -455,14 +470,22 @@ class DynamicsModelTrainer:
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         optim_lr: float = 1e-4,
         weight_decay: float = 1e-5,
-        logger: Optional[pytorch_sac.Logger] = None,
+        logger: Optional[mbrl.logger.Logger] = None,
         log_frequency: int = 1,
     ):
         self.dynamics_model = dynamics_model
-        self.logger = logger
         self.dataset_train = dataset_train
         self.dataset_val = dataset_val
-        self.log_frequency = log_frequency
+        self._train_iteration = 0
+
+        self.logger = logger
+        if self.logger:
+            self.logger.register_group(
+                self._LOG_GROUP_NAME,
+                MODEL_LOG_FORMAT,
+                color="blue",
+                dump_frequency=log_frequency,
+            )
 
         self.optimizers = None
         if self.dynamics_model.model.is_ensemble:
@@ -534,19 +557,30 @@ class DynamicsModelTrainer:
             else:
                 epochs_since_update += 1
 
-            if self.logger and epoch % self.log_frequency == 0:
-                self.logger.log("train/epoch", epoch, epoch)
-                self.logger.log("train/model_loss", total_avg_loss, epoch)
-                self.logger.log("train/model_score", train_score, epoch)
-                self.logger.log("train/model_val_score", eval_score, epoch)
-                self.logger.log("train/model_best_val_score", best_val_score, epoch)
-                self.logger.dump(epoch, save=True)
+            if self.logger:
+                self.logger.log_data(
+                    self._LOG_GROUP_NAME,
+                    {
+                        "iteration": self._train_iteration,
+                        "epoch": epoch,
+                        "train_dataset_size": self.dataset_train.num_stored,
+                        "val_dataset_size": self.dataset_val.num_stored
+                        if has_val_dataset
+                        else 0,
+                        "model_loss": total_avg_loss,
+                        "model_score": train_score,
+                        "model_val_score": eval_score,
+                        "best_val_score": best_val_score,
+                    },
+                )
 
             if epochs_since_update >= patience:
                 break
 
         if best_weights:
             self.dynamics_model.model.load_state_dict(best_weights)
+
+        self._train_iteration += 1
         return training_losses, val_losses
 
     def evaluate(self, use_train_set: bool = False) -> float:
