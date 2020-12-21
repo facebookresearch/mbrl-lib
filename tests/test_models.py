@@ -9,7 +9,7 @@ import torch.nn as nn
 import mbrl.models as models
 
 
-def test_gaussian_ensemble_forward():
+def test_basic_ensemble_gaussian_forward():
     model_in_size = 2
     model_out_size = 2
     member_cfg = omegaconf.OmegaConf.create(
@@ -20,7 +20,7 @@ def test_gaussian_ensemble_forward():
             "out_size": model_out_size,
         }
     )
-    ensemble = models.Ensemble(
+    ensemble = models.BasicEnsemble(
         2, model_in_size, model_out_size, torch.device("cpu"), member_cfg
     )
     batch_size = 4
@@ -82,7 +82,7 @@ def get_mock_env():
         {"_target_": "tests.test_models.MockProbModel"}
     )
     num_members = 3
-    ensemble = models.Ensemble(
+    ensemble = models.BasicEnsemble(
         num_members,
         mock_obs_dim + mock_act_dim,
         mock_obs_dim + 1,

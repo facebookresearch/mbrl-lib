@@ -516,12 +516,14 @@ class GaussianMLP(Model):
         return torch.randperm(batch_size, device=self.device)
 
 
-class Ensemble(Model):
+class BasicEnsemble(Model):
     """Implements an ensemble of bootstrapped models.
 
-    This model is based on the ensemble of bootstrapped models described in the
+    This model is a basic implementation of the ensemble of bootstrapped models described in the
     Chua et al., NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf,
     and includes support for different uncertainty propagation options (see :meth:`forward`).
+    The underlying model can be any subclass of :class:`Model`, and the ensemble forward simply
+    loops over all models during the forward and backward pass (hence the term basic).
 
     All members of the ensemble will be identical, and they must be subclasses of :class:`Model`.
 
@@ -899,7 +901,7 @@ class DynamicsModelWrapper:
     ):
         """Updates the model given a batch for bootstrapped models and optimizers.
 
-        This is method is only intended for models of type :class:`Ensemble`. It creates
+        This is method is only intended for ensemble models. It creates
         inputs and targets for each model in the ensemble; that is, `batch[i]` will be
         used to construct input/target for the i-th ensemble member. The method then calls
         `self.model.update()` using these inputs and targets.
@@ -999,7 +1001,7 @@ class DynamicsModelWrapper:
                 log variance, an error will be thrown. If ``False``, the predictions will be
                 the first output of the model. Defaults to ``True``.
             propagation_method (str): the propagation method to use for the model (only used if
-                the model is of type :class:`Ensemble`.
+                the model is of type :class:`BasicEnsemble`.
             propagation_indices (tensor, optional): indices for propagation with
                 ``propagation == "fixed_model"``.
             rng (torch.Generator, optional): random number generator for uncertainty propagation.
@@ -1090,8 +1092,8 @@ class DynamicsModelTrainer:
             )
 
         self.optimizers = None
-        if isinstance(self.dynamics_model.model, Ensemble):
-            ensemble = cast(Ensemble, self.dynamics_model.model)
+        if isinstance(self.dynamics_model.model, BasicEnsemble):
+            ensemble = cast(BasicEnsemble, self.dynamics_model.model)
             self.optimizers = []
             for i, model in enumerate(ensemble):
                 self.optimizers.append(
@@ -1412,8 +1414,7 @@ class ModelEnv:
             initial_state (np.ndarray): the initial state for the trajectories.
             num_particles (int): number of times each action sequence is replicated. The final
                 value of the sequence will be the average over its particles values.
-            propagation_method (str): the propagation method to use (see :class:`Ensemble`
-                for a description of the different methods).
+            propagation_method (str): the propagation method to use.
 
         Returns:
             (torch.Tensor): the accumulated reward for each action sequence, averaged over its

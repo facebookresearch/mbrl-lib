@@ -551,8 +551,7 @@ def create_trajectory_optim_agent_for_model(
         agent_cfg (omegaconf.DictConfig): the agent's configuration.
         num_particles (int): the number of particles for taking averages of action sequences'
             total rewards.
-        propagation_method (str): the uncertainty propagation method. See
-            :class:`mbrl.models.Ensemble` for an explanation of the possible options.
+        propagation_method (str): the uncertainty propagation method.
 
     Returns:
         (:class:`TrajectoryOptimizerAgent`): the agent.
