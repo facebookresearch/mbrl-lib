@@ -2,6 +2,7 @@ import argparse
 import pathlib
 from typing import Optional, cast
 
+import dynamics_models
 import numpy as np
 import pytorch_sac
 
@@ -76,7 +77,7 @@ class FineTuner:
             eval_format=LOG_FORMAT,
         )
 
-        model_trainer = mbrl.models.DynamicsModelTrainer(
+        model_trainer = dynamics_models.DynamicsModelTrainer(
             self.dynamics_model,
             cast(mbrl.replay_buffer.BootstrapReplayBuffer, self.dataset_train),
             dataset_val=self.dataset_val,

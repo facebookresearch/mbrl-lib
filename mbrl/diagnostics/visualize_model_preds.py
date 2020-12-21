@@ -5,6 +5,7 @@ from typing import Generator, List, Optional, Tuple, cast
 import gym.wrappers
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+import model_env
 import numpy as np
 
 import mbrl
@@ -58,7 +59,7 @@ class Visualizer:
             self.env.action_space.shape,
             model_dir=self.model_path,
         )
-        self.model_env = mbrl.models.ModelEnv(
+        self.model_env = model_env.ModelEnv(
             self.env, self.dynamics_model, term_fn, reward_fn
         )
 

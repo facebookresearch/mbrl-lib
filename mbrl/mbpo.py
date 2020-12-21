@@ -9,11 +9,11 @@ import pytorch_sac.utils
 import torch
 
 import mbrl.logger
-import mbrl.models as models
+import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer as replay_buffer
+import mbrl.replay_buffer
 import mbrl.types
-import mbrl.util as util
+import mbrl.util
 
 MBPO_LOG_FORMAT = [
     ("epoch", "E", "int"),
@@ -37,8 +37,8 @@ def get_rollout_length(rollout_schedule: List[int], epoch: int):
 
 
 def rollout_model_and_populate_sac_buffer(
-    model_env: models.ModelEnv,
-    env_dataset: replay_buffer.BootstrapReplayBuffer,
+    model_env: mbrl.models.ModelEnv,
+    env_dataset: mbrl.replay_buffer.BootstrapReplayBuffer,
     agent: pytorch_sac.Agent,
     sac_buffer: pytorch_sac.ReplayBuffer,
     sac_samples_action: bool,
@@ -109,13 +109,15 @@ def train(
     rng = np.random.default_rng(seed=cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
-    env_dataset_train, env_dataset_val = util.create_replay_buffers(
+    env_dataset_train, env_dataset_val = mbrl.util.create_replay_buffers(
         cfg,
         obs_shape,
         act_shape,
         train_is_bootstrap=(cfg.dynamics.model_model.get("ensemble_size", 1) > 1),
     )
-    env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
+    env_dataset_train = cast(
+        mbrl.replay_buffer.BootstrapReplayBuffer, env_dataset_train
+    )
     mbrl.util.populate_buffers_with_agent_trajectories(
         env,
         env_dataset_train,
@@ -129,12 +131,12 @@ def train(
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    dynamics_model = util.create_dynamics_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     updates_made = 0
     env_steps = 0
-    model_env = models.ModelEnv(env, dynamics_model, termination_fn, None)
-    model_trainer = models.DynamicsModelTrainer(
+    model_env = mbrl.models.ModelEnv(env, dynamics_model, termination_fn, None)
+    model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model, env_dataset_train, dataset_val=env_dataset_val, logger=logger
     )
     best_eval_reward = -np.inf

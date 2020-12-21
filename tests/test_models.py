@@ -6,7 +6,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-import mbrl.models as models
+import mbrl.models
 
 
 def test_basic_ensemble_gaussian_forward():
@@ -20,7 +20,7 @@ def test_basic_ensemble_gaussian_forward():
             "out_size": model_out_size,
         }
     )
-    ensemble = models.BasicEnsemble(
+    ensemble = mbrl.models.BasicEnsemble(
         2, model_in_size, model_out_size, torch.device("cpu"), member_cfg
     )
     batch_size = 4
@@ -51,7 +51,9 @@ def test_basic_ensemble_gaussian_forward():
 
 
 def _create_gaussian_ensemble_mock(ensemble_size, as_float=False):
-    model = models.GaussianMLP(1, 1, "cpu", num_layers=2, ensemble_size=ensemble_size)
+    model = mbrl.models.GaussianMLP(
+        1, 1, "cpu", num_layers=2, ensemble_size=ensemble_size
+    )
 
     # With this we can use the output value to identify which model produced the output
     def mock_fwd(_x):
@@ -131,7 +133,6 @@ def test_gaussian_mlp_ensemble_expectation_propagation():
     with torch.no_grad():
         for _ in range(num_reps):
             y = model.forward(batch, propagation="expectation")[0]
-            print(y.shape, flush=True)
             for i in range(batch_size):
                 np.testing.assert_almost_equal(
                     y[i], ensemble_size * (ensemble_size - 1) / ensemble_size / 2
@@ -170,14 +171,14 @@ def get_mock_env():
         {"_target_": "tests.test_models.MockProbModel"}
     )
     num_members = 3
-    ensemble = models.BasicEnsemble(
+    ensemble = mbrl.models.BasicEnsemble(
         num_members,
         mock_obs_dim + mock_act_dim,
         mock_obs_dim + 1,
         torch.device("cpu"),
         member_cfg,
     )
-    dynamics_model = models.DynamicsModelWrapper(
+    dynamics_model = mbrl.models.DynamicsModelWrapper(
         ensemble, target_is_delta=True, normalize=False, obs_process_fn=None
     )
     # With value we can uniquely id the output of each member
@@ -185,7 +186,7 @@ def get_mock_env():
     for i in range(num_members):
         ensemble.members[i].value = member_incs[i]
 
-    model_env = models.ModelEnv(MockEnv(), dynamics_model, mock_term_fn, None)
+    model_env = mbrl.models.ModelEnv(MockEnv(), dynamics_model, mock_term_fn, None)
     return model_env, member_incs
 
 
