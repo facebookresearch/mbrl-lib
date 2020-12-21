@@ -236,7 +236,7 @@ class Model(nn.Module):
 
 # TODO add support for other activation functions
 class GaussianMLP(Model):
-    """Implements a multi-layer perceptron that models a multivariate Gaussian distribution.
+    """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.
 
     This model is based on the one described in the Chua et al., NeurIPS 2018 paper (PETS)
     https://arxiv.org/pdf/1805.12114.pdf
@@ -244,6 +244,11 @@ class GaussianMLP(Model):
     It predicts per output mean and log variance, and its weights are updated using a Gaussian
     negative log likelihood loss. The log variance is bounded between learned ``min_log_var``
     and ``max_log_var`` parameters, trained as explained in Appendix A.1 of the paper.
+
+    This class can also be used to build an ensemble of GaussianMLP models, by setting
+    ``ensemble_size > 1`` in the constructor. Then, a single forward pass can be used to evaluate
+    multiple independent MLPs at the same time. When this mode is active, the constructor will
+    set ``self.num_members = ensemble_size`` and ``self.is_ensemble = True``.
 
     Args:
         in_size (int): size of model input.
@@ -322,25 +327,21 @@ class GaussianMLP(Model):
     def _forward_from_indices(
         self, x: torch.Tensor, model_indices: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        batch_size = len(x)
-        model_is_selected: List[torch.Tensor] = []
-        model_num_selected: List[int] = []
-        for i in range(len(self)):
-            model_idx = model_indices == i
-            model_is_selected.append(model_idx)
-            model_num_selected.append(model_idx.sum().item())
-        model_input = torch.zeros(
-            (len(self), max(model_num_selected), self.in_size), device=self.device
-        )
-        for i in range(len(self)):
-            model_input[i, : model_num_selected[i], :] = x[model_is_selected[i]]
-        all_means, all_logvars = self._default_forward(model_input)
+        _, batch_size, _ = x.shape
 
-        mean = torch.empty((batch_size, self.out_size), device=self.device)
-        logvar = torch.empty((batch_size, self.out_size), device=self.device)
-        for i in range(len(self)):
-            mean[model_is_selected[i]] = all_means[i, : model_num_selected[i]]
-            logvar[model_is_selected[i]] = all_logvars[i, : model_num_selected[i]]
+        shuffled_x = x[:, model_indices, ...].view(
+            len(self), batch_size // len(self), -1
+        )
+
+        # these are shuffled
+        mean, logvar = self._default_forward(shuffled_x)
+        mean = mean.view(batch_size, -1)
+        logvar = logvar.view(batch_size, -1)
+
+        # invert the shuffle
+        mean[model_indices] = mean
+        logvar[model_indices] = logvar
+
         return mean, logvar
 
     def _forward_ensemble(
@@ -348,12 +349,17 @@ class GaussianMLP(Model):
         x: torch.Tensor,
         propagation: Optional[str] = None,
         propagation_indices: Optional[torch.Tensor] = None,
+        rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         if propagation is None:
             return self._default_forward(x)
         assert x.ndim == 2
+        assert x.shape[0] % len(self) == 0
+        x = x.unsqueeze(0)
         if propagation == "random_model":
-            model_indices = torch.randint(len(self), size=(len(x),), device=self.device)
+            # passing generator causes segmentation fault
+            # see https://github.com/pytorch/pytorch/issues/44714
+            model_indices = torch.randperm(len(x), device=self.device)
             return self._forward_from_indices(x, model_indices)
         if propagation == "fixed_model":
             return self._forward_from_indices(x, propagation_indices)
@@ -367,9 +373,12 @@ class GaussianMLP(Model):
         x: torch.Tensor,
         propagation: Optional[str] = None,
         propagation_indices: Optional[torch.Tensor] = None,
+        rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes mean and logvar predictions for the given input.
 
+        When ``self.is_ensemble = True``, the model supports uncertainty propagation options
+        that can be used to aggregate the outputs of the different models in the ensemble.
         Valid propagation options are:
 
             - "random_model": for each output in the batch a model will be chosen at random.
@@ -380,28 +389,45 @@ class GaussianMLP(Model):
             - "expectation": the output for each element in the batch will be the mean across
               models.
 
+        When ``propagation is None``, the forward pass will return one output for each model.
+
         Args:
             x (tensor): the input to the model. For non-ensemble, the shape must be
                 ``B x Id``, where ``B`` and ``Id`` represent batch size,
-                and input dimension, respectively. For ensemble, if ``propagation`` is not ``None``,
+                and input dimension, respectively. For ensemble, if ``propagation is not None``,
                 then the shape must be same as above.
-                Otherwise, the shape can also be ``E x B x Id``,
+                When ``propagation is None``, the shape can also be ``E x B x Id``,
                 where ``E``, ``B`` and ``Id`` represent ensemble size, batch size, and input
-                dimension, respectively.
+                dimension, respectively. In this case, each model in the ensemble will get one
+                slice from the first dimension (e.g., the i-th ensemble member gets ``x[i]``).
             propagation (str, optional): the desired propagation function. Defaults to ``None``.
             propagation_indices (int, optional): the model indices for each element in the batch
                                                  when ``propagation == "fixed_model"``.
+            rng (torch.Generator, optional): random number generator to use for "random_model"
+                                             propagation.
 
         Returns:
             (tuple of two tensors): the predicted mean and log variance of the output. If
-            ``propagation`` is not ``None``, the output will have the same number of dimensions
-            as the input. Otherwise, the outputs will be 2-D, aggregated over models according
-            to the desired propagation method.
+            ``propagation is not None``, the output will be 2-D (batch size, and output dimension).
+            Otherwise, the outputs will have shape ``E x B x Od``, where ``Od`` represents
+            output dimension.
+
+        Note:
+            For efficiency considerations, the propagation method used by this class is an
+            approximate version of that described by Chua et al. In particular, instead of
+            sampling models independently for each input in the batch, we ensure that each
+            model gets exactly the same number of samples (which are assigned randomly
+            with equal probability), resulting in a smaller batch size which we use for the forward
+            pass. If this is a concern, consider using ``propagation=None``, and passing
+            the output to :function:`mbrl.math.propagate`.
 
         """
         if self.is_ensemble:
             return self._forward_ensemble(
-                x, propagation=propagation, propagation_indices=propagation_indices
+                x,
+                propagation=propagation,
+                propagation_indices=propagation_indices,
+                rng=rng,
             )
         return self._default_forward(x)
 
@@ -478,14 +504,16 @@ class GaussianMLP(Model):
         return self.num_members
 
     def sample_propagation_indices(
-        self, batch_size: int, rng: torch.Generator
+        self, batch_size: int, _rng: torch.Generator
     ) -> torch.Tensor:
-        return torch.randint(
-            len(self),
-            (batch_size,),
-            generator=rng,
-            device=self.device,
-        )
+        """Returns a random permutation of integers in [0, ``batch_size``)."""
+        if batch_size % len(self) != 0:
+            raise ValueError(
+                "To use GaussianMLP's ensemble propagation, the batch size must "
+                "be a multiple of the number of models in the ensemble."
+            )
+        # rng causes segmentation fault, see https://github.com/pytorch/pytorch/issues/44714
+        return torch.randperm(batch_size, device=self.device)
 
 
 class Ensemble(Model):
@@ -571,11 +599,11 @@ class Ensemble(Model):
         return means, logvars
 
     def _forward_random_model(
-        self, x: torch.Tensor
+        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = len(x)
         model_indices = torch.randint(
-            len(self.members), size=(batch_size,), device=self.device
+            len(self.members), size=(batch_size,), device=self.device, generator=rng
         )
         return self._forward_from_indices(x, model_indices)
 
@@ -595,6 +623,7 @@ class Ensemble(Model):
         x: torch.Tensor,
         propagation: Optional[str] = None,
         propagation_indices: Optional[torch.Tensor] = None,
+        rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes the output of the ensemble.
 
@@ -626,6 +655,8 @@ class Ensemble(Model):
             propagation (str, optional): the desired propagation function. Defaults to ``None``.
             propagation_indices (int, optional): the model indices for each element in the batch
                                                  when ``propagation == "fixed_model"``.
+            rng (torch.Generator, optional): random number generator to use for "random_model"
+                                             propagation.
 
         Returns:
             (tuple of two tensors): one for aggregated mean predictions, and one for aggregated
@@ -635,7 +666,7 @@ class Ensemble(Model):
         if propagation is None:
             return self._default_forward(x)
         if propagation == "random_model":
-            return self._forward_random_model(x)
+            return self._forward_random_model(x, rng)
         if propagation == "fixed_model":
             assert (
                 propagation_indices is not None
@@ -728,6 +759,7 @@ class Ensemble(Model):
     def sample_propagation_indices(
         self, batch_size: int, rng: torch.Generator
     ) -> torch.Tensor:
+        """Returns a tensor with ``batch_size`` integers from [0, ``self.num_members``)."""
         return torch.randint(
             len(self),
             (batch_size,),
@@ -955,6 +987,7 @@ class DynamicsModelWrapper:
         sample: bool = True,
         propagation_method: str = "expectation",
         propagation_indices: Optional[torch.Tensor] = None,
+        rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Predicts next observations and rewards given observations and actions.
 
@@ -969,6 +1002,7 @@ class DynamicsModelWrapper:
                 the model is of type :class:`Ensemble`.
             propagation_indices (tensor, optional): indices for propagation with
                 ``propagation == "fixed_model"``.
+            rng (torch.Generator, optional): random number generator for uncertainty propagation.
 
         Returns:
             (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
@@ -979,22 +1013,8 @@ class DynamicsModelWrapper:
             model_in,
             propagation=propagation_method,
             propagation_indices=propagation_indices,
+            rng=rng,
         )
-
-        # if isinstance(self.model, Ensemble):
-        #     # This model has its own propagation methods for efficiency considerations
-        #     means, logvars = self.model(
-        #         model_in,
-        #         propagation=propagation_method,
-        #         propagation_indices=propagation_indices,
-        #     )
-        # else:
-        #     means, logvars = self.model(model_in)
-        #     means, logvars = mbrl.math.propagate(
-        #         (means, logvars),
-        #         propagation_method=propagation_method,
-        #         propagation_indices=propagation_indices,
-        #     )
 
         if sample:
             assert logvars is not None
@@ -1358,6 +1378,7 @@ class ModelEnv:
                 sample=sample,
                 propagation_method=self._propagation_method,
                 propagation_indices=self._model_indices,
+                rng=self._rng,
             )
             rewards = (
                 pred_rewards

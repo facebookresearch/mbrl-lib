@@ -25,7 +25,8 @@ target_is_delta: true
 increase_val_set: true
 dataset_size: ???
 initial_exploration_steps: ${overrides.trial_length}
-freq_train_model: 1234567890  # PETS always  trains at the start of each trial
+# PETS always trains at the start of each trial no matter what this value is
+freq_train_model: 1234567890
 learned_rewards: ${overrides.learned_rewards}
 
 num_particles: 25

@@ -1,7 +1,7 @@
 import dataclasses
 import pathlib
 import pickle
-from typing import Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -166,3 +166,133 @@ class Normalizer:
             pickle.dump(
                 {"mean": mean.cpu().numpy(), "m2": m2.cpu().numpy(), "count": count}, f
             )
+
+
+# ------------------------------------------------------------------------ #
+# Uncertainty propagation functions
+# ------------------------------------------------------------------------ #
+def propagate_from_indices(
+    predicted_tensor: torch.Tensor, indices: torch.Tensor
+) -> torch.Tensor:
+    """Propagates ensemble outputs using the given indices.
+
+    Args:
+        predicted_tensor (tensor): the prediction to propagate. Shape must
+            be ``E x B x Od``, where ``E``, ``B``, and ``Od`` represent the
+            number of models, batch size, and output dimension, respectively.
+        indices (tensor): the model indices to choose.
+
+    Returns:
+        (tensor): the chosen prediction, so that
+            `output[i, :] = predicted_tensor[indices[i], i, :].
+    """
+    return predicted_tensor[indices, torch.arange(predicted_tensor.shape[1]), :]
+
+
+def propagate_random_model(
+    predictions: Tuple[torch.Tensor, ...]
+) -> Tuple[torch.Tensor, ...]:
+    """Propagates ensemble outputs by choosing a random model.
+
+    Args:
+        predictions (tuple of tensors): the predictions to propagate. Each tensor's
+            shape must be ``E x B x Od``, where ``E``, ``B``, and ``Od`` represent the
+            number of models, batch size, and output dimension, respectively.
+
+    Returns:
+        (tuple of tensors): the chosen predictions, so that
+            `output[k][i, :] = predictions[k][random_choice, i, :].
+    """
+    output: List[torch.Tensor] = []
+    for i, predicted_tensor in enumerate(predictions):
+        assert predicted_tensor.ndim == 3
+        num_models, batch_size, pred_dim = predicted_tensor.shape
+        model_indices = torch.randint(
+            num_models, size=(batch_size,), device=predicted_tensor.device
+        )
+        output.append(propagate_from_indices(predicted_tensor, model_indices))
+    return tuple(output)
+
+
+def propagate_expectation(
+    predictions: Tuple[torch.Tensor, ...]
+) -> Tuple[torch.Tensor, ...]:
+    """Propagates ensemble outputs by taking expectation over model predictions.
+
+    Args:
+        predictions (tuple of tensors): the predictions to propagate. Each tensor's
+            shape must be ``E x B x Od``, where ``E``, ``B``, and ``Od`` represent the
+            number of models, batch size, and output dimension, respectively.
+
+    Returns:
+        (tuple of tensors): the chosen predictions, so that
+            `output[k][i, :] = predictions[k].mean(dim=0)`
+    """
+    output: List[torch.Tensor] = []
+    for i, predicted_tensor in enumerate(predictions):
+        assert predicted_tensor.ndim == 3
+        output.append(predicted_tensor.mean(dim=0))
+    return tuple(output)
+
+
+def propagate_fixed_model(
+    predictions: Tuple[torch.Tensor, ...], propagation_indices: torch.Tensor
+) -> Tuple[torch.Tensor, ...]:
+    """Propagates ensemble outputs by taking expectation over model predictions.
+
+    Args:
+        predictions (tuple of tensors): the predictions to propagate. Each tensor's
+            shape must be ``E x B x Od``, where ``E``, ``B``, and ``Od`` represent the
+            number of models, batch size, and output dimension, respectively.
+        propagation_indices (tensor): the model indices to choose (will use the same for all
+            predictions).
+
+    Returns:
+        (tuple of tensors): the chosen predictions, so that
+            `output[k][i, :] = predictions[k].mean(dim=0)`
+    """
+    output: List[torch.Tensor] = []
+    for i, predicted_tensor in enumerate(predictions):
+        assert predicted_tensor.ndim == 3
+        output.append(propagate_from_indices(predicted_tensor, propagation_indices))
+    return tuple(output)
+
+
+def propagate(
+    predictions: Tuple[torch.Tensor, ...],
+    propagation_method: str = "expectation",
+    propagation_indices: Optional[torch.Tensor] = None,
+) -> Tuple[torch.Tensor, ...]:
+    """Propagates ensemble outputs according to desired method.
+
+    Implements propagations options as described in  Chua et al., NeurIPS 2018 paper (PETS)
+    https://arxiv.org/pdf/1805.12114.pdf
+
+    Valid propagation options are:
+
+        - "random_model": equivalent to :meth:`propagate_random_model`.
+          This corresponds to TS1 propagation in the PETS paper.
+        - "fixed_model": equivalent to :meth:`propagate_fixed_model`.
+          This can be used to implement TSinf propagation, described in the PETS paper.
+        - "expectation": equivalent to :meth:`propagate_expectation`.
+
+
+    Args:
+        predictions (tuple of tensors): the predictions to propagate. Each tensor's
+            shape must be ``E x B x Od``, where ``E``, ``B``, and ``Od`` represent the
+            number of models, batch size, and output dimension, respectively.
+        propagation_method (str): the propagation method to use.
+        propagation_indices (tensor, optional): the model indices to choose
+            (will use the same for all predictions).
+            Only needed if ``propagation == "fixed_model".
+
+    Returns:
+        (tuple of tensors): the propagated predictions.
+    """
+    if propagation_method == "random_model":
+        return propagate_random_model(predictions)
+    if propagation_method == "fixed_model":
+        return propagate_fixed_model(predictions, propagation_indices)
+    if propagation_method == "expectation":
+        return propagate_expectation(predictions)
+    raise ValueError(f"Invalid propagation method {propagation_method}.")
