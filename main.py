@@ -4,8 +4,8 @@ import omegaconf
 import torch
 
 import mbrl.env
-import mbrl.mbpo as mbpo
-import mbrl.pets as pets
+import mbrl.algorithms.mbpo as mbpo
+import mbrl.algorithms.pets as pets
 import mbrl.util as util
 
 

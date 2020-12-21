@@ -113,7 +113,7 @@ def train(
         cfg,
         obs_shape,
         act_shape,
-        train_is_bootstrap=(cfg.dynamics.model_model.get("ensemble_size", 1) > 1),
+        train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
     )
     env_dataset_train = cast(
         mbrl.replay_buffer.BootstrapReplayBuffer, env_dataset_train
