@@ -35,7 +35,9 @@ MODEL_LOG_FORMAT = [
 # ------------------------------------------------------------------------ #
 
 
+# TODO move this to math.py module
 def truncated_normal_init(m: nn.Module):
+    """Initializes the weights of the given module using a truncated normal distribution."""
     if isinstance(m, nn.Linear):
         input_dim = m.weight.data.shape[0]
         stddev = 1 / (2 * np.sqrt(input_dim))
@@ -44,6 +46,23 @@ def truncated_normal_init(m: nn.Module):
 
 
 class Model(nn.Module):
+    """Base abstract class for all dynamics models.
+
+    All classes derived from `Model` must implement the following methods:
+
+        - ``forward``: computes the model output.
+        - ``loss``: computes a loss tensor that can be used for backpropagation.
+        - ``eval_score``: computes a non-reduced tensor that gives an evaluation score
+          for the model on the input data (e.g., squared error per element).
+        - ``save``: saves the model to a given path.
+        - ``load``: loads the model from a given path.
+
+    Args:
+        in_size (int): size of the input tensor.
+        out_size (int): size of the output tensor.
+        device (str or torch.device): device to use for the model.
+    """
+
     def __init__(
         self,
         in_size: int,
@@ -60,6 +79,15 @@ class Model(nn.Module):
         self.to(device)
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Computes the output of the dynamics model.
+
+        Args:
+            x (tensor): the input to the model.
+
+        Returns:
+            (tuple of two tensor): the predicted mean and  log variance of the output.
+            If the model does not predict uncertainty, the second output should be ``None``.
+        """
         pass
 
     @abc.abstractmethod
@@ -68,19 +96,51 @@ class Model(nn.Module):
         model_in: Union[torch.Tensor, Sequence[torch.Tensor]],
         target: Union[torch.Tensor, Sequence[torch.Tensor]],
     ) -> torch.Tensor:
+        """Computes a loss that can be used to update the model using backpropagation.
+
+        Args:
+            model_in (tensor or sequence of tensors): the inputs to the model
+                                                      (or ensemble of models).
+            target (tensor or sequence of tensors): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a loss tensor.
+        """
         pass
 
     @abc.abstractmethod
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        # Returns the non-reduced score
+        """Computes an evaluation score for the model over the given input/target.
+
+        This method should compute a non-reduced score for the model, intended mostly for
+        logging/debugging purposes (so, it should not keep gradient information).
+        For example, the following could be a valid
+        implementation of ``eval_score``:
+
+        .. code-block:: python
+
+           with torch.no_grad():
+               return torch.functional.mse_loss(model(model_in), target, reduction="none")
+
+
+        Args:
+            model_in (tensor or sequence of tensors): the inputs to the model
+                                                      (or ensemble of models).
+            target (tensor or sequence of tensors): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a non-reduced tensor score.
+        """
         pass
 
     @abc.abstractmethod
     def save(self, path: str):
+        """Saves the model to the given path. """
         pass
 
     @abc.abstractmethod
     def load(self, path: str):
+        """Loads the model from the given path."""
         pass
 
     def update(
@@ -89,6 +149,21 @@ class Model(nn.Module):
         target: Union[torch.Tensor, Sequence[torch.Tensor]],
         optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
     ) -> float:
+        """Updates the model using backpropagation with given input and target tensors.
+
+        Provides a basic update function, following the steps below:
+
+        .. code-block:: python
+
+           optimizer.zero_grad()
+           loss = self.loss(model_in, target)
+           loss.backward()
+           optimizer.step()
+
+
+        Returns the numeric value of the computed loss.
+
+        """
         assert not isinstance(optimizer, Sequence)
         optimizer = cast(torch.optim.Optimizer, optimizer)
         self.train()
@@ -99,7 +174,29 @@ class Model(nn.Module):
         return loss.item()
 
 
+# TODO add support for other activation functions
 class GaussianMLP(Model):
+    """Implements a multi-layer perceptron that models a multivariate Gaussian distribution.
+
+    This model is based on the model described in the Chua et al., NeurIPS 2018 paper (PETS)
+    https://arxiv.org/pdf/1805.12114.pdf
+
+    It predicts per output mean and log variance, and its weights are updated using a Gaussian
+    negative log likelihood loss. The log variance is bounded between learned ``min_log_var``
+    and ``max_log_var`` parameters, trained as explained in Appendix A.1 of the paper.
+
+    Args:
+        in_size (int): size of model input.
+        out_size (int): size of model output.
+        device (str or torch.device): the device to use for the model.
+        num_layers (int): the number of layers in the model
+                          (e.g., if ``num_layers == 3``, then model graph looks like
+                          input -h1-> -h2-> -l3-> output).
+        hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
+        use_silu (bool): if ``True``, hidden layers will use SiLU activations, otherwise
+                         ReLU activations will be used.
+    """
+
     def __init__(
         self,
         in_size: int,
@@ -130,6 +227,15 @@ class GaussianMLP(Model):
         self.to(self.device)
 
     def forward(self, x: torch.Tensor, **_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Computes mean and logvar predictions for the given input.
+
+        Args:
+            x (tensor): the input to the model.
+
+        Returns:
+            (tuple of two tensors): the predicted mean and  log variance of the output.
+            If the model does not predict uncertainty, the second output should be ``None``.
+        """
         x = self.hidden_layers(x)
         mean_and_logvar = self.mean_and_logvar(x)
         mean = mean_and_logvar[:, : self.out_size]
@@ -139,11 +245,35 @@ class GaussianMLP(Model):
         return mean, logvar
 
     def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Computes Gaussian NLL loss.
+
+        It also includes terms for ``max_logvar`` and ``min_logvar`` with small weights,
+        with positive and negative signs, respectively.
+
+        Args:
+            model_in (tensor): the input to the model.
+            target (tensor): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a loss tensor representing the Gaussian negative log-likelihood of
+                      the model over the given input/target.
+        """
         pred_mean, pred_logvar = self.forward(model_in)
         nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
         return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Computes the squared error for the model over the given input/target.
+
+        Equivalent to `F.mse_loss(model(model_in, target), reduction="none")`.
+
+        Args:
+            model_in (tensor): the inputs to the model.
+            target (tensor): the expected output for the given inputs.
+
+        Returns:
+            (tensor): a tensor with the squared error per output dimension.
+        """
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
             return F.mse_loss(pred_mean, target, reduction="none").mean(dim=1)
@@ -156,6 +286,28 @@ class GaussianMLP(Model):
 
 
 class Ensemble(Model):
+    """Implements an ensemble of bootstrapped models.
+
+    This model is based on the ensemble of bootstrapped models described in the
+    Chua et al., NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf,
+    and includes support for different uncertainty propagation options (see :meth:`forward`).
+
+    All members of the ensemble will be identical, and they should be subclasses of :class:`Model`.
+
+    Members can be accessed using `ensemble[i]`, to recover the i-th model in the ensemble. Doing
+    `len(ensemble)` returns its size, and the ensemble can also be iterated over the models
+    (e.g., calling `for i, model in enumerate(ensemble)`.
+
+    Args:
+        ensemble_size (int): how many models to include in the ensemble.
+        in_size (int): size of model input.
+        out_size (int): size of model output.
+        device (str or torch.device): the device to use for the model.
+        member_cfg (omegaconf.DictConfig): the configuration needed to instantiate the models
+                                           in the ensemble. They will be instantiated using
+                                           `hydra.utils.instantiate(member_cfg)`.
+    """
+
     def __init__(
         self,
         ensemble_size: int,
@@ -233,6 +385,42 @@ class Ensemble(Model):
         propagation: Optional[str] = None,
         propagation_indices: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Computes the output of the ensemble.
+
+        The forward pass for the ensemble computes forward passes for of its models, and
+        aggregates the prediction in different ways, according to the desired
+        epistemic uncertainty ``propagation`` method.
+
+        If no propagation is desired (i.e., ``propagation is None``), then the outputs of
+        the model are stacked into single tensors (one for mean, one for logvar). The shape
+        of each output tensor will then be ``E x B x D``, where ``E``, ``B`` and ``D``
+        represent ensemble size, batch size, and output dimension, respectively.
+
+        Valid propagation options are:
+
+            - "random_model": for each output in the batch a model will be chosen at random.
+              This corresponds to TS1 propagation in the PETS paper.
+            - "fixed_model": for output j-th in the batch, the model will be chosen according to
+              the model index in `propagation_indices[j]`. This can be used to implement TSinf
+              propagation, described in the PETS paper.
+            - "expectation": the output for each element in the batch will be the mean across
+              models.
+
+        For all of these, the output is of size ``B x D``.
+
+        Args:
+            x (tensor): the input to the models (shape ``B x D``). The input will be
+                        evaluated over all models, then aggregated according to ``propagation``,
+                        as explained above.
+            propagation (str, optional): the desired propagation function. Defaults to ``None``.
+            propagation_indices (int, optional): the model indices for each element in the batch
+                                                 when ``propagation == "fixed_model"``.
+
+        Returns:
+            (tuple of two tensors): one for aggregated mean predictions, and one for aggregated
+            log variance prediction (or ``None`` if the ensemble members don't predict variance).
+
+        """
         if propagation is None:
             return self._default_forward(x)
         if propagation == "random_model":
@@ -249,11 +437,21 @@ class Ensemble(Model):
             f"'random_model', 'fixed_model', 'expectation'."
         )
 
+    # TODO replace the input this with a single tensor (not a sequence)
     def loss(
         self,
         inputs: Sequence[torch.Tensor],
         targets: Sequence[torch.Tensor],
     ) -> torch.Tensor:
+        """Computes average loss over the losses of all members of the ensemble.
+
+        Args:
+            inputs (sequence of tensors): one input for each model in the ensemble.
+            targets (sequence of tensors): one target for each model in the ensemble.
+
+        Returns:
+            (tensor): the average loss over all members.
+        """
         avg_ensemble_loss: torch.Tensor = 0.0
         for i, model in enumerate(self.members):
             model.train()
@@ -261,12 +459,26 @@ class Ensemble(Model):
             avg_ensemble_loss += loss
         return avg_ensemble_loss / len(self.members)
 
+    # TODO replace code inside loop with model.update()
     def update(
         self,
         inputs: Sequence[torch.Tensor],
         targets: Sequence[torch.Tensor],
         optimizers: Sequence[torch.optim.Optimizer],
     ) -> float:
+        """Updates all models of the ensemble.
+
+        Loops over the models in the ensemble and calls ``loss = ensemble[i].update()``.
+        Then returns the average loss value.
+
+        Args:
+            inputs (sequence of tensors): one input for each model in the ensemble.
+            targets (sequence of tensors): one target for each model.
+            optimizers (sequence of torch optimizers): one optimizer for each model.
+
+        Returns:
+            (float): the average loss over all members.
+        """
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
             model.train()
@@ -278,6 +490,17 @@ class Ensemble(Model):
         return avg_ensemble_loss / len(self.members)
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Computes the average score over all members given input/target.
+
+        The input and target tensors are replicated once for each model in the ensemble.
+
+        Args:
+            model_in (tensor): the inputs to the models.
+            target (tensor): the expected output for the given inputs.
+
+        Returns:
+            (tensor): the average score over all models.
+        """
         inputs = [model_in for _ in range(len(self.members))]
         targets = [target for _ in range(len(self.members))]
 
@@ -297,7 +520,46 @@ class Ensemble(Model):
         self.load_state_dict(state_dict)
 
 
+# TODO once util doc is ready, add info about how to create dynamics model directly
+#   using the utility function provided.
 class DynamicsModelWrapper:
+    """Wrapper class for all dynamics models.
+
+    This class wraps a :class:`Model`, providing utility operations that are common
+    when using and training dynamics models. Importantly, it provides interfaces with the
+    model at the level of transition batches (obs, action, next_obs, reward, done),
+    so that users don't have to manipulate the underlying model's inputs and outputs directly.
+
+    The wrapper assumes that dynamics model inputs/outputs will be consistent with
+
+        [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),
+
+    and it provides methods to construct model inputs and targets given a batch of transitions,
+    accordingly. Moreover, the constructor provides options to perform diverse data manipulations
+    that will be used every time the model needs to be accessed for prediction or training;
+    for example, input normalization, and observation pre-processing.
+
+    Args:
+        model (:class:`Model`): the model to wrap.
+        target_is_delta (bool): if ``True``, the predicted observations will represent
+            the difference respect to the input observations.
+            That is, ignoring rewards, pred_obs_{t + 1} = obs_t + model([obs_t, act_t]).
+            Defaults to ``True``. Can be deactivated per dimension using ``no_delta_list``.
+        normalize (bool): if true, the wrapper will create a normalizer for model inputs,
+            which will be used every time the model is called using the methods in this
+            class. To update the normalizer statistics, the user needs to call
+            :meth:`update_normalizer`. Defaults to ``False``.
+        learned_rewards (bool): if ``True``, the wrapper considers the last output of the model
+            to correspond to rewards predictions, and will use it to construct training
+            targets for the model and when returning model predictions. Defaults to ``True``.
+        obs_process_fn (callable, optional): if provided, observations will be passed through
+            this function before being given to the model (and before the normalizer also).
+            The processed observations should have the same dimensions as the original.
+            Defaults to ``None``.
+        no_delta_list (list(int), optional): if provided, represents a list of dimensions over
+            which the model predicts the actual observation and not just a delta.
+    """
+
     _MODEL_FNAME = "model.pth"
 
     def __init__(
@@ -320,17 +582,6 @@ class DynamicsModelWrapper:
         self.target_is_delta = target_is_delta
         self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
-
-    def update_normalizer(self, batch: mbrl.types.RLBatch):
-        obs, action, next_obs, reward, _ = batch
-        if obs.ndim == 1:
-            obs = obs[None, :]
-            action = action[None, :]
-        if self.obs_process_fn:
-            obs = self.obs_process_fn(obs)
-        model_in_np = np.concatenate([obs, action], axis=1)
-        if self.normalizer:
-            self.normalizer.update_stats(model_in_np)
 
     def _get_model_input_from_np(
         self, obs: np.ndarray, action: np.ndarray, device: torch.device
@@ -371,11 +622,46 @@ class DynamicsModelWrapper:
             target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
+    # TODO rename RLBatch as RL transition
+    def update_normalizer(self, transition: mbrl.types.RLBatch):
+        """Updates the normalizer statistics using the data in the transition.
+
+        The normalizer will update running mean and variance given the obs and action in
+        the transition. If an observation processing function has been provided, it will
+        be called on ``obs`` before updating the normalizer.
+
+        Args:
+            transition (tuple): contains obs, action, next_obs, reward, done. Only obs and
+                action will be used, since these are the inputs to the model.
+        """
+        obs, action, *_ = transition
+        if obs.ndim == 1:
+            obs = obs[None, :]
+            action = action[None, :]
+        if self.obs_process_fn:
+            obs = self.obs_process_fn(obs)
+        model_in_np = np.concatenate([obs, action], axis=1)
+        if self.normalizer:
+            self.normalizer.update_stats(model_in_np)
+
     def update_from_bootstrap_batch(
         self,
         bootstrap_batch: mbrl.types.RLEnsembleBatch,
         optimizers: Sequence[torch.optim.Optimizer],
     ):
+        """Updates the model given a batch for bootstrapped models and optimizers.
+
+        This is method is only intended for models of type :class:`Ensemble`. It creates
+        inputs and targets for each model in the ensemble; that is, `batch[i]` will be
+        used to construct input/target for the i-th ensemble member. The method then calls
+        `self.model.update()` using these inputs and targets.
+
+        Args:
+            bootstrap_batch (sequence of transition batch): a list with batches of transitions,
+                one for each ensemble member.
+            optimizers (sequence of torch optimizers): one optimizer for each model in the
+                ensemble.
+        """
         if not hasattr(self.model, "members"):
             raise RuntimeError(
                 "Model must be ensemble to use `loss_from_bootstrap_batch`."
@@ -392,6 +678,15 @@ class DynamicsModelWrapper:
     def update_from_simple_batch(
         self, batch: mbrl.types.RLBatch, optimizer: torch.optim.Optimizer
     ):
+        """Updates the model given a batch of transitions and an optimizer.
+
+        This is method is only intended for **non-ensemble** models. It constructs input and
+        targets from the information in the batch, then calls `self.model.update()` on them.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+            optimizer (torch optimizer): the optimizer to use to update the model.
+        """
         if hasattr(self.model, "members"):
             raise RuntimeError(
                 "Model must not be ensemble to use `loss_from_simple_batch`."
@@ -401,12 +696,35 @@ class DynamicsModelWrapper:
         return self.model.update(model_in, target, optimizer)
 
     def eval_score_from_simple_batch(self, batch: mbrl.types.RLBatch) -> torch.Tensor:
+        """Evaluates the model score over a batch of transitions.
+
+        This method constructs input and targets from the information in the batch,
+        then calls `self.model.eval_score()` on them and returns the value.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+
+        Returns:
+            (tensor): as returned by `model.eval_score().`
+        """
         model_in, target = self._get_model_input_and_target_from_batch(batch)
         return self.model.eval_score(model_in, target)
 
     def get_output_and_targets_from_simple_batch(
         self, batch: mbrl.types.RLBatch
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+        """Returns the model output and the target tensors given a batch of transitions.
+
+        This method constructs input and targets from the information in the batch,
+        then calls `self.model.forward()` on them and returns the value. No gradient information
+        will be kept.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+
+        Returns:
+            (tensor): as returned by `model.eval_score().`
+        """
         with torch.no_grad():
             model_in, target = self._get_model_input_and_target_from_batch(batch)
             output = self.model.forward(model_in)
@@ -416,10 +734,27 @@ class DynamicsModelWrapper:
         self,
         obs: torch.Tensor,
         actions: torch.Tensor,
-        sample=True,
-        propagation_method="expectation",
-        propagation_indices=None,
+        sample: bool = True,
+        propagation_method: str = "expectation",
+        propagation_indices: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Predicts next observations and rewards given observations and actions.
+
+        Args:
+            obs (tensor): the input observations corresponding to o_t.
+            actions (tensor): the input actions corresponding to a_t.
+            sample (bool): if ``True``. the predictions will be sampled using moment matching
+                on the mean and logvar predicted by the model. If the model doesn't predict
+                log variance, an error will be thrown. If ``False``, the predictions will be
+                the first output of the model. Defaults to ``True``.
+            propagation_method (str): the propagation method to use for the model (only used if
+                the model is of type :class:`Ensemble`.
+            propagation_indices (tensor, optional): indices for propagation with
+                ``propagation == "fixed_model"``.
+
+        Returns:
+            (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
+        """
         model_in = self._get_model_input_from_tensors(obs, actions)
         means, logvars = self.model(
             model_in,
@@ -461,6 +796,20 @@ class DynamicsModelWrapper:
 # Model trainer
 # ------------------------------------------------------------------------ #
 class DynamicsModelTrainer:
+    """Trainer for dynamics models.
+
+    Args:
+        dynamics_model (:class:`DynamicsModelWrapper`): the wrapper to access the model to train.
+        dataset_train (:class:`mbrl.replay_buffer.IterableReplayBuffer`): the replay buffer
+            containing the training data. If the model is an ensemble, it should be an instance
+            of :class:`mbrl.replay_buffer.BootstrapReplayBuffer`.
+        dataset_val (:class:`mbrl.replay_buffer.IterableReplayBuffer`, optional): the replay
+            buffer containing the validation data (if provided). Defaults to ``None``.
+        optim_lr (float): the learning rate for the optimizer (using Adam).
+        weight_decay (float): the weight decay to use.
+        logger (:class:`mbrl.logger.Logger`, optional): the logger to use.
+    """
+
     _LOG_GROUP_NAME = "model_train"
 
     def __init__(
@@ -471,7 +820,6 @@ class DynamicsModelTrainer:
         optim_lr: float = 1e-4,
         weight_decay: float = 1e-5,
         logger: Optional[mbrl.logger.Logger] = None,
-        log_frequency: int = 1,
     ):
         self.dynamics_model = dynamics_model
         self.dataset_train = dataset_train
@@ -484,7 +832,7 @@ class DynamicsModelTrainer:
                 self._LOG_GROUP_NAME,
                 MODEL_LOG_FORMAT,
                 color="blue",
-                dump_frequency=log_frequency,
+                dump_frequency=1,
             )
 
         self.optimizers = None
@@ -504,13 +852,34 @@ class DynamicsModelTrainer:
                 weight_decay=weight_decay,
             )
 
-    # If num_epochs is passed, the function runs for num_epochs. Otherwise trains until
-    # `patience` epochs lapse w/o improvement.
     def train(
         self,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
     ) -> Tuple[List[float], List[float]]:
+        """Trains the dynamics model for some number of epochs.
+
+        This method iterates over the stored train dataset, one batch of transitions at a time,
+        and calls either :meth:`DynamicsModelWrapper.update_from_bootstrap_batch` or
+        :meth:`DynamicsModelWrapper.update_from_simple_batch`, depending on whether the
+        stored dynamics model is an ensemble or not, respectively.
+
+        If a validation dataset is provided in the constructor, this method will also evaluate
+        the model over the validation data once per training epoch. The method will keep track
+        of the weights with the best validation score, and after training the weights of the
+        model will be set to the best weights. If no validation dataset is provided, the method
+        will keep the model with the best loss over training data.
+
+        Args:
+            num_epochs (int, optional): if provided, the maximum number of epochs to train for.
+                Default is ``None``, which indicates there is no limit.
+            patience (int, optional): if provided, the patience to use for training. That is,
+                training will stop after ``patience`` number of epochs without improvement.
+
+        Returns:
+            (tuple of two list(float)): the history of training losses and validation losses.
+
+        """
         update_from_batch_fn = self.dynamics_model.update_from_simple_batch
         if isinstance(self.dynamics_model.model, Ensemble):
             update_from_batch_fn = self.dynamics_model.update_from_bootstrap_batch  # type: ignore
@@ -584,6 +953,18 @@ class DynamicsModelTrainer:
         return training_losses, val_losses
 
     def evaluate(self, use_train_set: bool = False) -> float:
+        """Evaluates the model on the validation dataset.
+
+        Iterates over validation dataset, one batch at a time, and calls
+        :meth:`DynamicsModelWrapper.eval_score_from_simple_batch` to compute the model score
+        over the batch. The method returns the average score over the whole dataset.
+
+        Args:
+            use_train_set (bool): If ``True``, the evaluation is done over the training data.
+
+        Returns:
+            (float): The average score of the model over the dataset.
+        """
         dataset = self.dataset_val
         if use_train_set:
             if isinstance(self.dataset_train, replay_buffer.BootstrapReplayBuffer):
@@ -604,13 +985,27 @@ class DynamicsModelTrainer:
         return total_avg_loss.item()
 
     def maybe_save_best_weights(
-        self, best_val_loss: float, val_loss: float
+        self, best_val_score: float, val_score: float, threshold: float = 0.001
     ) -> Optional[Dict]:
+        """Return the best weights if the validation score improves over the best value so far.
+
+        Args:
+            best_val_score (float): the current best validation loss.
+            val_score (float): the new validation loss.
+            threshold (float): the threshold for relative improvement.
+
+        Returns:
+            (dict, optional): if the validation score's relative improvement over the
+            best validation score is higher than the threshold, returns the state dictionary
+            of the stored dynamics model, otherwise returns ``None``.
+        """
         best_weights = None
         improvement = (
-            1 if np.isinf(best_val_loss) else (best_val_loss - val_loss) / best_val_loss
+            1
+            if np.isinf(best_val_score)
+            else (best_val_score - val_score) / best_val_score
         )
-        if improvement > 0.001:
+        if improvement > threshold:
             best_weights = self.dynamics_model.model.state_dict()
         return best_weights
 
@@ -619,13 +1014,27 @@ class DynamicsModelTrainer:
 # Model environment
 # ------------------------------------------------------------------------ #
 class ModelEnv:
+    """Wraps a dynamics model into a gym-like environment.
+
+    Args:
+        env (gym.Env): the original gym environment for which the model was trained.
+        model (:class:`DynamicsModelWrapper`): the dynamics model to wrap.
+        termination_fn (callable): a function that receives actions and observations, and
+            returns a boolean flag indicating whether the episode should end or not.
+        reward_fn (callable, optional): a function that receives actions and observations
+            and returns the value of the resulting reward in the environment.
+            Defaults to ``None``, in which case predicted rewards will be used.
+        seed (int, optional): An optional seed for the random number generator (based on
+            ``torch.Generator()``.
+    """
+
     def __init__(
         self,
         env: gym.Env,
         model: DynamicsModelWrapper,
-        termination_fn,
-        reward_fn,
-        seed=None,
+        termination_fn: mbrl.types.TermFnType,
+        reward_fn: Optional[mbrl.types.RewardFnType] = None,
+        seed: Optional[int] = None,
     ):
         self.dynamics_model = model
         self.termination_fn = termination_fn
@@ -649,6 +1058,25 @@ class ModelEnv:
         propagation_method: str = "expectation",
         return_as_np: bool = True,
     ) -> mbrl.types.TensorType:
+        """Resets the model environment.
+
+        Args:
+            initial_obs_batch (np.ndarray): a batch of initial observations. One episode for
+                each observation will be run in parallel. Shape should be ``B x D``, where
+                ``B`` is batch size, and ``D`` is the observation dimension.
+            propagation_method (str): the propagation method to use
+                (see :meth:`DynamicsModelWrapper.predict`). if "fixed_model" is used,
+                this method will create random indices for each model and keep them until
+                reset is called again. This allows to roll out the model using TSInf
+                propagation, as described in the PETS paper. Defaults to "expectation".
+            return_as_np (bool): if ``True``, this method and :meth:`step` will return
+                numpy arrays, otherwise it returns torch tensors in the same device as the
+                model. Defaults to ``True``.
+
+        Returns:
+            (torch.Tensor or np.ndarray): the initial observation in the type indicated
+            by ``return_as_np``.
+        """
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         self._current_obs = torch.from_numpy(
             np.copy(initial_obs_batch.astype(np.float32))
@@ -669,7 +1097,25 @@ class ModelEnv:
             return self._current_obs.cpu().numpy()
         return self._current_obs
 
-    def step(self, actions: mbrl.types.TensorType, sample: bool = False):
+    def step(
+        self, actions: mbrl.types.TensorType, sample: bool = False
+    ) -> Tuple[mbrl.types.TensorType, mbrl.types.TensorType, np.ndarray, Dict]:
+        """Steps the model environment with the given batch of actions.
+
+        Args:
+            actions (torch.Tensor or np.ndarray): the actions for each "episode" to rollout.
+                Shape must be ``B x A``, where ``B`` is the batch size (i.e., number of episodes),
+                and ``A`` is the action dimension. Note that ``B`` must correspond to the
+                batch size used when calling :meth:`reset`. If a np.ndarray is given, it's
+                converted to a torch.Tensor and sent to the model device.
+            sample (bool): If ``True`` model predictions are sampled using gaussian
+                model matching. Defaults to ``False``.
+
+        Returns:
+            (tuple): contains the predicted next observation, reward, done flag and metadata.
+            The done flag is computed using the model's given termination_fn
+            (see :class:`DynamicsModelWrapper`).
+        """
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
@@ -705,6 +1151,22 @@ class ModelEnv:
         num_particles: int,
         propagation_method: str,
     ) -> torch.Tensor:
+        """Evaluates a batch of action sequences on the model.
+
+        Args:
+            action_sequences (torch.Tensor): a batch of action sequences to evaluate.  Shape must
+                be ``B x H x A``, where ``B``, ``H``, and ``A`` represent batch size, horizon,
+                and action dimension, respectively.
+            initial_state (np.ndarray): the initial state for the trajectories.
+            num_particles (int): number of times each action sequence is replicated. The final
+                value of the sequence will be the average over its particles values.
+            propagation_method (str): the propagation method to use (see :class:`Ensemble`
+                for a description of the different methods).
+
+        Returns:
+            (torch.Tensor): the accumulated reward for each action sequence, averaged over its
+            particles.
+        """
         assert (
             len(action_sequences.shape) == 3
         )  # population_size, horizon, action_shape

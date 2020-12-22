@@ -132,11 +132,7 @@ def train(
     env_steps = 0
     model_env = models.ModelEnv(env, dynamics_model, termination_fn, None)
     model_trainer = models.DynamicsModelTrainer(
-        dynamics_model,
-        env_dataset_train,
-        dataset_val=env_dataset_val,
-        logger=logger,
-        log_frequency=cfg.log_frequency_model,
+        dynamics_model, env_dataset_train, dataset_val=env_dataset_val, logger=logger
     )
     best_eval_reward = -np.inf
     sac_buffer = None
