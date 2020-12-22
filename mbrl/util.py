@@ -213,7 +213,18 @@ def create_dynamics_model(
     return dynamics_model
 
 
-def load_hydra_cfg(results_dir: Union[str, pathlib.Path]):
+def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfig:
+    """Loads a Hydra configuration from the given directory path.
+
+    Tries to load the configuration from "results_dir/.hydra/config.yaml".
+
+    Args:
+        results_dir (str or pathlib.Path): the path to the directory containing the config.
+
+    Returns:
+        (omegaconf.DictConfig): the loaded configuration.
+
+    """
     results_dir = pathlib.Path(results_dir)
     cfg_file = results_dir / ".hydra" / "config.yaml"
     return omegaconf.OmegaConf.load(cfg_file)
@@ -228,6 +239,44 @@ def create_replay_buffers(
 ) -> Tuple[
     mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
 ]:
+    """Creates replay buffers from a given configuration.
+
+    The configuration should be structured as follows::
+
+        -cfg
+          -dynamics_model
+            -model
+              -ensemble_size (int, optional): the number of members (if model is ensemble)
+          -algorithm
+            -dataset_size (int, optional): the maximum size of the train dataset/buffer
+          -overrides
+            -trial_length (int, optional): the length of a trial/episode in the environment
+            -num_trials (int, optional): how many trial/episodes will be run
+            -model_batch_size (int): the batch size to use when training the model
+            -validation_ratio (float): size of the val. dataset in proportion to training dataset
+
+    The size of the training/validation buffers can be determined by either providing
+    ``cfg.algorithm.dataset_size``, or providing both ``cfg.overrides.trial_length`` and
+    ``cfg.overrides.num_trials``, in which case it's set to the product of the two.
+    The second method (using overrides) is more convenient, but the first one takes precedence
+    (i.e., if the user provides a size, it will be respected).
+
+    Args:
+        cfg (omegaconf.DictConfig): the configuration to use.
+        obs_shape (tuple of ints): the shape of observation arrays.
+        act_shape (tuple of ints): the shape of action arrays.
+        load_dir (optional str or pathlib.Path): if provided, the function will attempt to
+            populate the buffers from "load_dir/replay_buffer_train.npz" (training), and
+            "load_dir/replay_buffer_val.npz" (validation).
+        train_is_bootstrap (bool, optional): if ``True``, indicates that the training data will
+            be used to train an ensemble of bootstrapped models, in which case the training
+            buffer will be an instance of :class:`mbrl.replay_buffer.BootstrapReplayBuffer`.
+            Otherwise, it will be an instance of :class:`mbrl.replay_buffer.IterableReplayBuffer`.
+
+    Returns:
+        (tuple of :class:`mbrl.replay_buffer.IterableReplayBuffer`): the training and validation
+        buffers, respectively.
+    """
     dataset_size = cfg.algorithm.get("dataset_size", None)
     if not dataset_size:
         dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
