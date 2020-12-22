@@ -5,11 +5,10 @@ import gym
 import numpy as np
 import omegaconf
 
-# TODO remove all the "as xxxxx"
 import mbrl.logger
-import mbrl.models as models
+import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer as replay_buffer
+import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
 
@@ -46,7 +45,7 @@ def train(
         act_shape,
         train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
     )
-    dataset_train = cast(replay_buffer.BootstrapReplayBuffer, dataset_train)
+    dataset_train = cast(mbrl.replay_buffer.BootstrapReplayBuffer, dataset_train)
     mbrl.util.populate_buffers_with_agent_trajectories(
         env,
         dataset_train,
@@ -63,10 +62,10 @@ def train(
 
     # ---------------------------------------------------------
     # ---------- Create model environment and agent -----------
-    model_env = models.ModelEnv(
+    model_env = mbrl.models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
     )
-    model_trainer = models.DynamicsModelTrainer(
+    model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model, dataset_train, dataset_val=dataset_val, logger=logger
     )
 

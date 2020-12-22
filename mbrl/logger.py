@@ -101,7 +101,9 @@ class MetersGroup(object):
 
 
 class Logger(object):
-    def __init__(self, log_dir: str, enable_back_compatible: bool = False):
+    def __init__(
+        self, log_dir: Union[str, pathlib.Path], enable_back_compatible: bool = False
+    ):
         self._log_dir = pathlib.Path(log_dir)
         self._groups: Dict[str, Tuple[MetersGroup, int, str]] = {}
         self._group_steps: Counter[str] = collections.Counter()

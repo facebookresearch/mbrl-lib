@@ -16,11 +16,10 @@ import mbrl.planning
 import mbrl.replay_buffer
 import mbrl.types
 
+
 # ------------------------------------------------------------------------ #
 # Generic utilities
 # ------------------------------------------------------------------------ #
-
-
 def make_env(
     cfg: omegaconf.DictConfig,
 ) -> Tuple[gym.Env, Callable, Callable]:
