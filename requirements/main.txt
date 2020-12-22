@@ -4,4 +4,6 @@ tensorboard>=2.4.0
 imageio>=2.9.0
 numpy>=1.19.1
 gym==0.17.2
-dmc2gym@git+git://github.com/denisyarats/dmc2gym.git
+torch>=1.7.0
+mujoco-py>=2.0.0
+pytorch_sac@git+https://github.com/luisenp/pytorch_sac.git
