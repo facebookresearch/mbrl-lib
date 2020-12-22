@@ -87,7 +87,7 @@ def create_dynamics_model(
         cfg.dynamics_model.model.out_size = obs_shape[0]
     if cfg.algorithm.learned_rewards:
         cfg.dynamics_model.model.out_size += 1
-    ensemble = hydra.utils.instantiate(cfg.dynamics_model.model)
+    model = hydra.utils.instantiate(cfg.dynamics_model.model)
 
     name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
     if name_obs_process_fn:
@@ -95,7 +95,7 @@ def create_dynamics_model(
     else:
         obs_process_fn = None
     dynamics_model = mbrl.models.DynamicsModelWrapper(
-        ensemble,
+        model,
         target_is_delta=cfg.algorithm.target_is_delta,
         normalize=cfg.algorithm.normalize,
         learned_rewards=cfg.algorithm.learned_rewards,

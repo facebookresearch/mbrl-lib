@@ -44,7 +44,7 @@ def train(
         cfg,
         obs_shape,
         act_shape,
-        train_is_bootstrap=hasattr(cfg.dynamics_model.model, "ensemble_size"),
+        train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
     )
     dataset_train = cast(replay_buffer.BootstrapReplayBuffer, dataset_train)
     mbrl.util.populate_buffers_with_agent_trajectories(

@@ -110,7 +110,10 @@ def train(
 
     # -------------- Create initial overrides. dataset --------------
     env_dataset_train, env_dataset_val = util.create_replay_buffers(
-        cfg, obs_shape, act_shape
+        cfg,
+        obs_shape,
+        act_shape,
+        train_is_bootstrap=(cfg.dynamics.model_model.get("ensemble_size", 1) > 1),
     )
     env_dataset_train = cast(replay_buffer.BootstrapReplayBuffer, env_dataset_train)
     mbrl.util.populate_buffers_with_agent_trajectories(
