@@ -100,6 +100,23 @@ def make_env(
 
 
 def make_env_from_str(env_name: str) -> gym.Env:
+    """Creates a new environment from its string description.
+
+    Args:
+        env_name (str): the string description of the environment. Valid options are:
+
+          - "dmcontrol___<domain>--<task>": a Deep-Mind Control suite environment
+            with the indicated domain and task (e.g., "dmcontrol___cheetah--run".
+          - "gym___<env_name>": a Gym environment (e.g., "gym___HalfCheetah-v2").
+          - "cartpole_continuous": a continuous version of gym's Cartpole environment.
+          - "pets_halfcheetah": the implementation of HalfCheetah used in Chua et al.,
+            PETS paper.
+          - "ant_truncated_obs": the implementation of Ant environment used in Janner et al.,
+            MBPO paper.
+
+    Returns:
+        (gym.Env): the created environment.
+    """
     if "dmcontrol___" in env_name:
         domain, task = env_name.split("___")[1].split("--")
         env = dmc2gym.make(domain_name=domain, task_name=task)
@@ -122,6 +139,51 @@ def create_dynamics_model(
     act_shape: Tuple[int],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
+    """Creates a dynamics model from a given configuration.
+
+    This method creates a new model from the given configuration and wraps it into a
+    :class:`mbrl.models.DynamicsModelWrapper` (see its documentation for explanation of some
+    of the config args under ``cfg.algorithm``).
+    The configuration should be structured as follows::
+
+        -cfg
+          -dynamics_model
+            -model
+              -_target_ (str): model Python class
+              -in_size (int, optional): input size
+              -out_size (int, optional): output size
+              -model_arg_1
+               ...
+              -model_arg_n
+          -algorithm
+            -learned_rewards (bool): whether rewards should be learned or not
+            -target_is_delta (bool): to be passed to the dynamics model wrapper
+            -normalize (bool): to be passed to the dynamics model wrapper
+            -no_delta_list (list[int], optional): to be passed to the dynamics model wrapper
+          -overrides
+            -obs_process_fn (str, optional): a Python function to pre-process observations
+
+    If ``cfg.dynamics_model.model.in_size`` is not provided, it will be automatically set to
+    `obs_shape[0] + act_shape[0]`. If ``cfg.dynamics_model.model.out_size`` is not provided,
+    it will be automatically set to `obs_shape[0] + int(cfg.algorithm.learned_rewards)`.
+
+    The model will be instantiated using :func:`hydra.utils.instantiate` function.
+
+    Args:
+        cfg (omegaconf.DictConfig): the configuration to read.
+        obs_shape (tuple of ints): the shape of the observations (only used if the model
+            input or output sizes are not provided in the configuration).
+        act_shape (tuple of ints): the shape of the actions (only used if the model input
+            is not provided in the configuration).
+        model_dir (str or pathlib.Path): If provided, the model will attempt to load its
+            weights and normalization information from "model_dir / model.pth" and
+            "model_dir / env_stats.pickle", respectively.
+
+    Returns:
+        (:class:`mbrl.models.DynamicsModelWrapper`): the dynamics model wrapper for the model
+        created.
+
+    """
     if cfg.dynamics_model.model.get("in_size", None) is None:
         cfg.dynamics_model.model.in_size = obs_shape[0] + (
             act_shape[0] if act_shape else 1
@@ -143,7 +205,7 @@ def create_dynamics_model(
         normalize=cfg.algorithm.normalize,
         learned_rewards=cfg.algorithm.learned_rewards,
         obs_process_fn=obs_process_fn,
-        no_delta_list=cfg.get("no_delta_list", None),
+        no_delta_list=cfg.algorithm.get("no_delta_list", None),
     )
     if model_dir:
         dynamics_model.load(model_dir)

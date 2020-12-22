@@ -229,8 +229,8 @@ class GaussianMLP(base_models.Model):
 
         Returns:
             (tensor): a loss tensor representing the Gaussian negative log-likelihood of
-                      the model over the given input/target. If the model is an ensemble, returns
-                      the average over all models.
+            the model over the given input/target. If the model is an ensemble, returns
+            the average over all models.
         """
         pred_mean, pred_logvar = self.forward(model_in)
         if self.is_ensemble:
