@@ -22,20 +22,64 @@ import mbrl.types
 # ------------------------------------------------------------------------ #
 def make_env(
     cfg: omegaconf.DictConfig,
-) -> Tuple[gym.Env, Callable, Callable]:
+) -> Tuple[gym.Env, mbrl.types.TermFnType, Optional[mbrl.types.RewardFnType]]:
+    """Creates an environment from a given OmegaConf configuration object.
+
+    This method expects the configuration, ``cfg``,
+    to have the following attributes (some are optional):
+
+        - ``cfg.overrides.env``: the string description of the environment.
+          Valid options are:
+
+          - "dmcontrol___<domain>--<task>": a Deep-Mind Control suite environment
+            with the indicated domain and task (e.g., "dmcontrol___cheetah--run".
+          - "gym___<env_name>": a Gym environment (e.g., "gym___HalfCheetah-v2").
+          - "cartpole_continuous": a continuous version of gym's Cartpole environment.
+          - "pets_halfcheetah": the implementation of HalfCheetah used in Chua et al.,
+            PETS paper.
+          - "ant_truncated_obs": the implementation of Ant environment used in Janner et al.,
+            MBPO paper.
+
+        - ``cfg.overrides.term_fn``: (only for dmcontrol and gym environments) a string
+          indicating the environment's termination function to use when simulating the
+          environment with the model. It should correspond to the name of a function in
+          :mod:`mbrl.env.termination_fns`.
+        - ``cfg.overrides.reward_fn``: (only for dmcontrol and gym environments)
+          a string indicating the environment's reward function to use when simulating the
+          environment with the model. If not present, it will try to use ``cfg.overrides.term_fn``.
+          If that's not present either, it will return a ``None`` reward function.
+          If provided, it should correspond to the name of a function in
+          :mod:`mbrl.env.reward_fns`.
+        - ``cfg.learned_rewards``: (optional) if present indicates that the reward function
+          will be learned, in which case the method will return a ``None`` reward function.
+
+    Args:
+        cfg (omegaconf.DictConf): the configuration to use.
+
+    Returns:
+        (tuple of env, termination function, reward function): returns the new environment,
+        the termination function to use, and the reward function to use (or ``None`` if
+        ``cfg.learned_rewards == True``).
+    """
     if "dmcontrol___" in cfg.overrides.env:
         domain, task = cfg.overrides.env.split("___")[1].split("--")
         term_fn = getattr(mbrl.env.termination_fns, domain)
-        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+        if hasattr(cfg.overrides, "reward_fn"):
+            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
+        else:
+            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
         env = dmc2gym.make(domain_name=domain, task_name=task)
     elif "gym___" in cfg.overrides.env:
         env = gym.make(cfg.overrides.env.split("___")[1])
         term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
-        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+        if hasattr(cfg.overrides, "reward_fn"):
+            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
+        else:
+            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
     elif cfg.overrides.env == "cartpole_continuous":
         env = mbrl.env.cartpole_continuous.CartPoleEnv()
-        term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
-        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+        term_fn = mbrl.env.termination_fns.cartpole
+        reward_fn = mbrl.env.reward_fns.cartpole
     elif cfg.overrides.env == "pets_halfcheetah":
         env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
         term_fn = mbrl.env.termination_fns.no_termination

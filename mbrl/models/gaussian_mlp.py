@@ -199,7 +199,7 @@ class GaussianMLP(base_models.Model):
             model gets exactly the same number of samples (which are assigned randomly
             with equal probability), resulting in a smaller batch size which we use for the forward
             pass. If this is a concern, consider using ``propagation=None``, and passing
-            the output to :function:`mbrl.math.propagate`.
+            the output to :func:`mbrl.math.propagate`.
 
         """
         if self.is_ensemble:

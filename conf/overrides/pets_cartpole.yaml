@@ -1,6 +1,5 @@
 # @package _group_
 env: "cartpole_continuous"
-term_fn: "cartpole"
 learned_rewards: false
 trial_length: 200
 num_trials: 100

@@ -184,7 +184,7 @@ def propagate_from_indices(
 
     Returns:
         (tensor): the chosen prediction, so that
-            `output[i, :] = predicted_tensor[indices[i], i, :].
+            `output[i, :] = predicted_tensor[indices[i], i, :]`.
     """
     return predicted_tensor[indices, torch.arange(predicted_tensor.shape[1]), :]
 
@@ -201,7 +201,7 @@ def propagate_random_model(
 
     Returns:
         (tuple of tensors): the chosen predictions, so that
-            `output[k][i, :] = predictions[k][random_choice, i, :].
+            `output[k][i, :] = predictions[k][random_choice, i, :]`.
     """
     output: List[torch.Tensor] = []
     for i, predicted_tensor in enumerate(predictions):
@@ -276,7 +276,6 @@ def propagate(
           This can be used to implement TSinf propagation, described in the PETS paper.
         - "expectation": equivalent to :meth:`propagate_expectation`.
 
-
     Args:
         predictions (tuple of tensors): the predictions to propagate. Each tensor's
             shape must be ``E x B x Od``, where ``E``, ``B``, and ``Od`` represent the
@@ -284,7 +283,7 @@ def propagate(
         propagation_method (str): the propagation method to use.
         propagation_indices (tensor, optional): the model indices to choose
             (will use the same for all predictions).
-            Only needed if ``propagation == "fixed_model".
+            Only needed if ``propagation == "fixed_model"``.
 
     Returns:
         (tuple of tensors): the propagated predictions.
