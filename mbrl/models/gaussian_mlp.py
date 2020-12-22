@@ -129,7 +129,12 @@ class GaussianMLP(base_models.Model):
         if propagation is None:
             return self._default_forward(x)
         assert x.ndim == 2
-        assert x.shape[0] % len(self) == 0
+        if x.shape[0] % len(self) != 0:
+            raise ValueError(
+                f"GaussianMLP ensemble requires batch size to be a multiple of the "
+                f"number of models. Current batch size is {x.shape[0]} for "
+                f"{len(self)} models."
+            )
         x = x.unsqueeze(0)
         if propagation == "random_model":
             # passing generator causes segmentation fault

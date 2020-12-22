@@ -5,7 +5,6 @@ from typing import Generator, List, Optional, Tuple, cast
 import gym.wrappers
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
-import model_env
 import numpy as np
 
 import mbrl
@@ -34,8 +33,9 @@ class Visualizer:
         self.vis_path = self.results_path / "diagnostics"
         if model_subdir:
             self.model_path /= model_subdir
+            # If model subdir is child of diagnostics, remove "diagnostics" before
+            # appending to vis_path
             if "diagnostics" in model_subdir:
-                # The model may have been created by another diagnostics script
                 model_subdir = pathlib.Path(model_subdir).name
             self.vis_path /= model_subdir
         pathlib.Path.mkdir(self.vis_path, exist_ok=True)
@@ -59,7 +59,7 @@ class Visualizer:
             self.env.action_space.shape,
             model_dir=self.model_path,
         )
-        self.model_env = model_env.ModelEnv(
+        self.model_env = mbrl.models.ModelEnv(
             self.env, self.dynamics_model, term_fn, reward_fn
         )
 
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_model_samples",
         type=int,
-        default=32,
+        default=35,
         help="Number of samples from the model, to visualize uncertainty.",
     )
     args = parser.parse_args()

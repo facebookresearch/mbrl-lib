@@ -2,10 +2,9 @@ import argparse
 import pathlib
 from typing import Optional, cast
 
-import dynamics_models
 import numpy as np
-import pytorch_sac
 
+import mbrl.logger
 import mbrl.models
 import mbrl.planning
 import mbrl.replay_buffer
@@ -68,16 +67,9 @@ class FineTuner:
             self.rng,
         )
 
-        logger = pytorch_sac.Logger(
-            self.outdir,
-            save_tb=False,
-            log_frequency=None,
-            agent="finetunig",
-            train_format=LOG_FORMAT,
-            eval_format=LOG_FORMAT,
-        )
+        logger = mbrl.logger.Logger(self.outdir)
 
-        model_trainer = dynamics_models.DynamicsModelTrainer(
+        model_trainer = mbrl.models.DynamicsModelTrainer(
             self.dynamics_model,
             cast(mbrl.replay_buffer.BootstrapReplayBuffer, self.dataset_train),
             dataset_val=self.dataset_val,
