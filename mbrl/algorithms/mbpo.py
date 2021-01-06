@@ -149,20 +149,17 @@ def train(
         done = False
         while not done:
             # --- Doing env step and adding to model dataset ---
-            dataset_to_update = mbrl.util._select_dataset_to_update(
-                env_dataset_train,
-                env_dataset_val,
-                cfg.algorithm.increase_val_set,
-                cfg.overrides.validation_ratio,
-                rng,
-            )
             next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
                 env,
                 obs,
                 agent,
                 {},
-                dataset_to_update,
-                normalizer_callback=dynamics_model.update_normalizer,
+                env_dataset_train,
+                env_dataset_val,
+                cfg.algorithm.increase_val_set,
+                cfg.overrides.validation_ratio,
+                rng,
+                callback=dynamics_model.update_normalizer,
             )
 
             # --------------- Model Training -----------------
