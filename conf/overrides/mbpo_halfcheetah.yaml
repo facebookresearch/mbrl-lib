@@ -1,8 +1,8 @@
 # @package _group_
-env: "gym___Walker2d-v2"
-term_fn: "walker2d"
+env: "gym___HalfCheetah-v2"
+term_fn: "no_termination"
 
-num_trials: 300
+num_trials: 400
 trial_length: 1000
 patience: 5
 model_lr: 5e-4
@@ -12,7 +12,7 @@ validation_ratio: 0.2
 freq_train_model: 250
 effective_model_rollouts_per_step: 400
 rollout_schedule: [20, 150, 1, 1]
-num_sac_updates_per_step: 20
+num_sac_updates_per_step: 40
 
 sac_alpha_lr: 3e-4
 sac_actor_lr: 3e-4

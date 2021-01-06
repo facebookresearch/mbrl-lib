@@ -45,8 +45,11 @@ def evaluate_sequence_fn(action_sequence: np.ndarray, current_state: Tuple) -> f
     global env__
     # obs0__ is not used (only here for compatibility with rollout_env)
     obs0 = env__.observation_space.sample()
-    mbrl.util.set_env_state(current_state, env__)
-    _, rewards_, _ = mbrl.util.rollout_env(env__, obs0, None, -1, plan=action_sequence)
+    env = cast(gym.wrappers.TimeLimit, env__)
+    mbrl.util.set_env_state(current_state, env)
+    _, rewards_, _ = mbrl.util.rollout_env(
+        env, obs0, -1, agent=None, plan=action_sequence
+    )
     return rewards_.sum().item()
 
 

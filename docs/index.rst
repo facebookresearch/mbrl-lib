@@ -45,6 +45,7 @@ To test your installation, run
    models.rst
    planning.rst
    math.rst
+   util.rst
 
 Indices and tables
 ==================

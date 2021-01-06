@@ -199,7 +199,7 @@ class GaussianMLP(base_models.Model):
             model gets exactly the same number of samples (which are assigned randomly
             with equal probability), resulting in a smaller batch size which we use for the forward
             pass. If this is a concern, consider using ``propagation=None``, and passing
-            the output to :function:`mbrl.math.propagate`.
+            the output to :func:`mbrl.math.propagate`.
 
         """
         if self.is_ensemble:
@@ -229,8 +229,8 @@ class GaussianMLP(base_models.Model):
 
         Returns:
             (tensor): a loss tensor representing the Gaussian negative log-likelihood of
-                      the model over the given input/target. If the model is an ensemble, returns
-                      the average over all models.
+            the model over the given input/target. If the model is an ensemble, returns
+            the average over all models.
         """
         pred_mean, pred_logvar = self.forward(model_in)
         if self.is_ensemble:
