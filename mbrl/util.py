@@ -315,13 +315,30 @@ def create_replay_buffers(
 
 
 def save_buffers(
-    env_dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
-    env_dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,
+    train_buffer: mbrl.replay_buffer.SimpleReplayBuffer,
+    val_buffer: mbrl.replay_buffer.SimpleReplayBuffer,
     work_dir: Union[str, pathlib.Path],
+    prefix: Optional[str] = None,
 ):
+    """Saves the replay buffers/datasets to the specified directory.
+
+    Saves the training buffer to "work_dir/<prefix>_train.npz" and the validation buffer
+    to "work_dir/<prefix>_val.npz". If prefix is None, the default prefix is "replay_buffer".
+
+    Args:
+        train_buffer (:class:`mbrl.replay_buffer.SimpleReplayBuffer`):
+            the replay buffer with training data.
+        val_buffer (:class:`mbrl.replay_buffer.SimpleReplayBuffer`):
+            the replay buffer with validation data.
+        work_dir (str or pathlib.Path): the directory to save the data into.
+        prefix (str, optional): The prefix for the file name. Defaults to "replay_buffer".
+    """
+
+    if not prefix:
+        prefix = "replay_buffer"
     work_path = pathlib.Path(work_dir)
-    env_dataset_train.save(str(work_path / "replay_buffer_train"))
-    env_dataset_val.save(str(work_path / "replay_buffer_val"))
+    train_buffer.save(str(work_path / f"{prefix}_train"))
+    val_buffer.save(str(work_path / f"{prefix}_val"))
 
 
 def train_model_and_save_model_and_data(
@@ -332,6 +349,24 @@ def train_model_and_save_model_and_data(
     dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,
     work_dir: Union[str, pathlib.Path],
 ):
+    """Convenience function for training a model and saving results.
+
+    Runs `model_trainer.train()`, then saves the resulting model and the data used.
+
+    Args:
+        dynamics_model (:class:`mbrl.models.DynamicsModelWrapper`): the model to train.
+        model_trainer (:class:`mbrl.models.DynamicsModelTrainer`): the model trainer.
+        cfg (:class:`omegaconf.DictConfig`): configuration to use for training.
+            Fields ``cfg.overrides.num_epochs_train_model`` and ``cfg.overrides.patience``
+            will be passed to the model trainer (as ``num_epochs`` and ``patience`` kwargs,
+            respectively).
+        dataset_train (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the dataset to use
+            for training.
+        dataset_val (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the dataset to use
+            for validation.
+        work_dir (str or pathlib.Path): directory to save model and datasets to.
+
+    """
     model_trainer.train(
         num_epochs=cfg.overrides.get("num_epochs_train_model", None),
         patience=cfg.overrides.patience,
@@ -344,6 +379,30 @@ def train_model_and_save_model_and_data(
 # Utilities to roll out environments
 # ------------------------------------------------------------------------ #
 class freeze_mujoco_env:
+    """Provides a context to freeze a Mujoco environment.
+
+    This context allows the user to manipulate the state of a Mujoco environment and return it
+    to its original state upon exiting the context.
+
+    Works with mujoco gym and dm_control environments
+    (with `dmc2gym <https://github.com/denisyarats/dmc2gym>`_).
+
+    Example usage:
+
+    .. code-block:: python
+
+       env = gym.make("HalfCheetah-v2")
+       env.reset()
+       action = env.action_space.sample()
+       # o1_expected, *_ = env.step(action)
+       with freeze_mujoco_env(env):
+           step_the_env_a_bunch_of_times()
+       o1, *_ = env.step(action) # o1 will be equal to what o1_expected would have been
+
+    Args:
+        env (:class:`gym.wrappers.TimeLimit`): the environment to freeze.
+    """
+
     def __init__(self, env: gym.wrappers.TimeLimit):
         self._env = env
         self._init_state: np.ndarray = None
@@ -389,6 +448,23 @@ class freeze_mujoco_env:
 
 
 def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
+    """Returns the internal state of the environment.
+
+    Returns a tuple with information that can be passed to :func:set_env_state` to manually
+    set the environment (or a copy of it) to the same state it had when this function was called.
+
+    Works with mujoco gym and dm_control environments
+    (with `dmc2gym <https://github.com/denisyarats/dmc2gym>`_).
+
+    Args:
+        env (:class:`gym.wrappers.TimeLimit`): the environment.
+
+    Returns:
+        (tuple):  For mujoco gym environments, returns the internal state
+        (position and velocity), and the number of elapsed steps so far. For dm_control
+        environments it returns `physics.get_state().copy()`, elapsed steps and step_count.
+
+    """
     if isinstance(env.env, gym.envs.mujoco.MujocoEnv):
         state = (
             env.env.data.qpos.ravel().copy(),
@@ -403,11 +479,22 @@ def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
         return state, elapsed_steps, step_count
     else:
         raise ValueError(
-            "Only gym mujoco and dmcontrol environments supported by get_current_state"
+            "Only gym mujoco and dm_control environments supported by get_current_state."
         )
 
 
 def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
+    """Sets the state of the environment.
+
+    Assumes ``state`` was generated using :func:`get_current_state`.
+
+    Works with mujoco gym and dm_control environments
+    (with `dmc2gym <https://github.com/denisyarats/dmc2gym>`_).
+
+    Args:
+        state (tuple): see :func:`get_current_state` for a description.
+        env (:class:`gym.wrappers.TimeLimit`): the environment.
+    """
     if isinstance(env.env, gym.envs.mujoco.MujocoEnv):
         env.set_state(*state[0])
         env._elapsed_steps = state[1]
@@ -422,10 +509,29 @@ def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
 def rollout_env(
     env: gym.wrappers.TimeLimit,
     initial_obs: np.ndarray,
-    agent: mbrl.planning.Agent,
     lookahead: int,
+    agent: Optional[mbrl.planning.Agent] = None,
     plan: Optional[Sequence[np.ndarray]] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Runs the environment for some number of steps then returns it to its original state.
+
+    Works with mujoco gym and dm_control environments
+    (with `dmc2gym <https://github.com/denisyarats/dmc2gym>`_).
+
+    Args:
+        env (:class:`gym.wrappers.TimeLimit`): the environment.
+        initial_obs (np.ndarray): the latest observation returned by the environment (only
+            needed when ``agent is not None``, to get the first action).
+        lookahead (int): the number of steps to run. If ``plan is not None``,
+            it is overridden by `len(plan)`.
+        agent (:class:`mbrl.planning.Agent`, optional): if given, an agent to obtain actions.
+        plan (sequence of np.ndarray, optional): if given, a sequence of actions to execute.
+            Takes precedence over ``agent`` when both are given.
+
+    Returns:
+        (tuple of np.ndarray): the observations, rewards, and actions observed, respectively.
+
+    """
     actions = []
     real_obses = []
     rewards = []
@@ -455,6 +561,24 @@ def rollout_model_env(
     agent: Optional[mbrl.planning.Agent] = None,
     num_samples: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Rolls out an environment model.
+
+    Executes a plan on a dynamics model.
+
+    Args:
+         model_env (:class:`mbrl.models.ModelEnv`): the dynamics model environment to simulate.
+         initial_obs (np.ndarray): initial observation to start the episodes.
+         plan (np.ndarray, optional): sequence of actions to execute.
+         agent (:class:`mbrl.planning.Agent`): an agent to generate a plan before
+            execution starts (as in `agent.plan(initial_obs)`). If given, takes precedence
+            over ``plan``.
+        num_samples (int): how many samples to take from the model (i.e., independent rollouts).
+            Defaults to 1.
+
+    Returns:
+        (tuple of np.ndarray): the observations, rewards, and actions observed, respectively.
+
+    """
     obs_history = []
     reward_history = []
     if agent:
@@ -474,7 +598,8 @@ def rollout_model_env(
     return np.stack(obs_history), np.stack(reward_history), plan
 
 
-def select_dataset_to_update(
+# TODO merge with step_env_and_populate_dataset
+def _select_dataset_to_update(
     train_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
     val_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
     increase_val_set: bool,

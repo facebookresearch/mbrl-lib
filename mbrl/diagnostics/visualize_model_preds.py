@@ -92,16 +92,16 @@ class Visualizer:
             real_obses, real_rewards, _ = mbrl.util.rollout_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
-                self.reference_agent,
                 self.lookahead,
+                agent=self.reference_agent,
                 plan=actions,
             )
         else:
             real_obses, real_rewards, actions = mbrl.util.rollout_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
-                self.reference_agent,
                 self.lookahead,
+                agent=self.reference_agent,
             )
             model_obses, model_rewards, _ = mbrl.util.rollout_model_env(
                 self.model_env,

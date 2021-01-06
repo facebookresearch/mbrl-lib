@@ -100,7 +100,7 @@ def train(
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---
-            dataset_to_update = mbrl.util.select_dataset_to_update(
+            dataset_to_update = mbrl.util._select_dataset_to_update(
                 dataset_train,
                 dataset_val,
                 cfg.algorithm.increase_val_set,
