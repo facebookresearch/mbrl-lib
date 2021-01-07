@@ -1,16 +1,12 @@
 import collections
 import csv
 import pathlib
-from typing import Counter, Dict, Mapping, Sequence, Tuple, Union
+from typing import Counter, Dict, List, Mapping, Tuple, Union
 
 import termcolor
 import torch
 
-# This logger is based on https://github.com/denisyarats/pytorch_sac/blob/master/logger.py
-# with some modifications and some of its features removed
-
-
-LogFormatType = Sequence[Tuple[str, str, str]]
+LogFormatType = List[Tuple[str, str, str]]
 LogTypes = Union[int, float, torch.Tensor]
 
 EVAL_LOG_FORMAT = [
@@ -101,6 +97,22 @@ class MetersGroup(object):
 
 
 class Logger(object):
+    """Light-weight csv logger.
+
+    This logger is based on pytorch_sac's
+    `logger <https://github.com/denisyarats/pytorch_sac/blob/master/logger.py>`_
+    with some modifications and some of its features removed.
+
+    To use this logger you must register logging groups using :meth:`register_group`. Each
+    group will save data to a separate csv file, at `log_dir/<group_name>.csv`, and will
+    output to console using its own dedicated tabular format.
+
+    Args:
+        log_dir (str or pathlib.Path): the directory where to save the logs.
+        enable_back_compatible (bool, optional): if ``True``, this logger can be used in the
+            methods in the `pytorch_sac` library. Defaults to ``False``.
+    """
+
     def __init__(
         self, log_dir: Union[str, pathlib.Path], enable_back_compatible: bool = False
     ):
@@ -119,6 +131,22 @@ class Logger(object):
         dump_frequency: int = 1,
         color: str = "yellow",
     ):
+        """Register a logging group.
+
+        Args:
+            group_name (str): the name assigned to the logging group.
+            log_format (list of 3-tuples): each tuple contains 3 strings, representing
+                (variable_name, shortcut, type), for a variable that the logger should keep
+                track of in this group. The variable name will be used as a header in the csv file
+                for the entries of this variable. The shortcut will be used as a header for
+                the console output tabular format. The type should be one of
+                "int", "float", "time".
+            dump_frequency (int): how often (measured in calls to :meth:`log_data`)
+                should the logger dump the data collected since the last call. If
+                ``dump_frequency > 1``, then the data collected between calls is averaged.
+            color (str): a color to use for this group in the console.
+
+        """
         if group_name in self._groups:
             print(f"Group {group_name} has already been registered.")
             return
@@ -133,6 +161,14 @@ class Logger(object):
         pass
 
     def log_data(self, group_name: str, data: Mapping[str, LogTypes]):
+        """Logs the data contained in a given dictionary to the given logging group.
+
+        Args:
+            group_name (str): the name of the logging group to use. It must have been registered
+                already, otherwise an exception will be thrown.
+            data (mapping str->(int/float/torch.Tensor)): the dictionary with the data. Each
+                keyword must be a variable name in the log format passed when creating this group.
+        """
         if group_name not in self._groups:
             raise ValueError(f"Group {group_name} has not been registered.")
         meter_group, dump_frequency, color = self._groups[group_name]

@@ -46,6 +46,8 @@ To test your installation, run
    planning.rst
    math.rst
    util.rst
+   replay_buffer.rst
+   logging.rst
 
 Indices and tables
 ==================
