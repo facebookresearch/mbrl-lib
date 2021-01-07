@@ -6,6 +6,17 @@ import mbrl.types
 
 
 class SimpleReplayBuffer:
+    """A standard replay buffer implementation.
+
+    Args:
+        capacity (int): the maximum number of transitions that the buffer can store.
+            When the capacity is reached, the contents are overwritten in FIFO fashion.
+        obs_shape (tuple of ints): the shape of the observations to store.
+        action_shape (tuple of ints): the shape of the actions to store.
+        obs_type (type): the data type of the observations (defaults to np.float32).
+        action_type (type): the data type of the actions (defaults to np.float32).
+    """
+
     def __init__(
         self,
         capacity: int,
@@ -31,6 +42,15 @@ class SimpleReplayBuffer:
         reward: float,
         done: bool,
     ):
+        """Adds a transition (s, a, s', r, done) to the replay buffer.
+
+        Args:
+            obs (np.ndarray): the observation at time t.
+            action (np.ndarray): the action at time t.
+            next_obs (np.ndarray): the observation at time t + 1.
+            reward (float): the reward at time t + 1.
+            done (bool): a boolean indicating whether the episode ended or not.
+        """
         self.obs[self.cur_idx] = obs
         self.next_obs[self.cur_idx] = next_obs
         self.action[self.cur_idx] = action
@@ -41,6 +61,16 @@ class SimpleReplayBuffer:
         self.num_stored = min(self.num_stored + 1, self.capacity)
 
     def sample(self, batch_size: int) -> Sized:
+        """Samples a batch of transitions from the replay buffer.
+
+        Args:
+            batch_size (int): the number of samples required.
+
+        Returns:
+            (tuple): the sampled values of observations, actions, next observations, rewards
+            and done indicators, as numpy arrays, respectively. The i-th transition corresponds
+            to (obs[i], act[i], next_obs[i], rewards[i], dones[i]).
+        """
         indices = np.random.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
 
@@ -57,6 +87,11 @@ class SimpleReplayBuffer:
         return self.num_stored
 
     def save(self, path: str):
+        """Saves the data in the replay buffer to a given path.
+
+        Args:
+            path (str): the file name to save the data to (the .npz extension will be appended).
+        """
         np.savez(
             path,
             obs=self.obs[: self.num_stored],
@@ -67,6 +102,11 @@ class SimpleReplayBuffer:
         )
 
     def load(self, path: str):
+        """Loads transition data from a given path.
+
+        Args:
+            path (str): the full path to the file with the transition data.
+        """
         data = np.load(path)
         num_stored = len(data["obs"])
         self.obs[:num_stored] = data["obs"]
@@ -78,10 +118,38 @@ class SimpleReplayBuffer:
         self.cur_idx = self.num_stored % self.capacity
 
     def is_train_compatible_with_ensemble(self, ensemble_size: int):
+        """Indicates if this replay buffer can be used to train bootstrapped ensemble models.
+
+        This is used so that the model trainer can check the specific subclass of
+        :class:`SimpleReplayBuffer` can be used to train ensembles. The only class that returns
+        ``True`` is :class:`BootstrapReplayBuffer`.
+        """
         return False
 
 
 class IterableReplayBuffer(SimpleReplayBuffer):
+    """A replay buffer that provides an iterator to loop over the data.
+
+    The buffer can be iterated by simply doing
+
+    .. code-block:: python
+
+       # create buffer
+       for batch in buffer:
+           do_something_with_batch()
+
+    Args:
+        capacity (int): the maximum number of transitions that the buffer can store.
+            When the capacity is reached, the contents are overwritten in FIFO fashion.
+        batch_size (int): the batch size to use when iterating over the stored data.
+        obs_shape (tuple of ints): the shape of the observations to store.
+        action_shape (tuple of ints): the shape of the actions to store.
+        obs_type (type): the data type of the observations (defaults to np.float32).
+        action_type (type): the data type of the actions (defaults to np.float32).
+        shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
+            loop over the data is completed. Defaults to ``False``.
+    """
+
     def __init__(
         self,
         capacity: int,
@@ -132,6 +200,21 @@ class IterableReplayBuffer(SimpleReplayBuffer):
 
 
 class BootstrapReplayBuffer(IterableReplayBuffer):
+    """An iterable replay buffer that can be used to train ensemble of bootstrapped models.
+
+    Args:
+        capacity (int): the maximum number of transitions that the buffer can store.
+            When the capacity is reached, the contents are overwritten in FIFO fashion.
+        batch_size (int): the batch size to use when iterating over the stored data.
+        num_members (int): the number of models in the ensemble.
+        obs_shape (tuple of ints): the shape of the observations to store.
+        action_shape (tuple of ints): the shape of the actions to store.
+        obs_type (type): the data type of the observations (defaults to np.float32).
+        action_type (type): the data type of the actions (defaults to np.float32).
+        shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
+            loop over the data is completed. Defaults to ``False``.
+    """
+
     def __init__(
         self,
         capacity: int,
@@ -183,7 +266,23 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             batches.append(self._batch_from_indices(content_indices))
         return batches
 
-    def sample(self, batch_size: int, ensemble=True) -> mbrl.types.BatchTypes:
+    def sample(self, batch_size: int, ensemble: bool = True) -> mbrl.types.BatchTypes:
+        """Samples a bootstrapped batch from the replay buffer.
+
+        For each model in the ensemble, as specified by the ``num_members``
+        constructor argument, the buffer samples--with replacement--a batch of
+        stored transitions, and returns a tuple with all the sampled batches. That is,
+        batch[j][i] is the i-th transition for the j-th model.
+
+        Args:
+            batch_size (int): the number of samples to return for each model.
+            ensemble (bool): if ``False``, returns a single batch, rather than
+                a batch per model. Defaults to ``True``.
+
+        Returns:
+            (tuple of batches, or a single batch): a tuple of batches, one per
+            model as explained above, or a single batch if ``ensemble == False``.
+        """
         if ensemble:
             batches = []
             for member_idx in self.member_indices:
@@ -196,6 +295,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             return self._batch_from_indices(indices)
 
     def toggle_bootstrap(self):
+        """Toggles whether the iterator returns a batch per model or a single batch."""
         self._bootstrap_iter = not self._bootstrap_iter
 
     def is_train_compatible_with_ensemble(self, ensemble_size: int):
