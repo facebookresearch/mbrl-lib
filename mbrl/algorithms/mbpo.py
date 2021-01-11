@@ -180,6 +180,9 @@ def train(
                     * cfg.algorithm.freq_train_model
                 )
                 sac_buffer_capacity = rollout_length * rollout_batch_size
+                sac_buffer_capacity *= cfg.overrides.get(
+                    "sac_buffer_capacity_modifier", 1
+                )
                 sac_buffer = pytorch_sac.ReplayBuffer(
                     obs_shape, act_shape, sac_buffer_capacity, device
                 )

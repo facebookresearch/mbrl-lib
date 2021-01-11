@@ -79,3 +79,13 @@ def ant(act: torch.Tensor, next_obs: torch.Tensor):
     done = ~not_done
     done = done[:, None]
     return done
+
+
+def humanoid(act: torch.Tensor, next_obs: torch.Tensor):
+    assert len(next_obs.shape) == 2
+
+    z = next_obs[:, 0]
+    done = (z < 1.0) + (z > 2.0)
+
+    done = done[:, None]
+    return done

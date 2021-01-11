@@ -39,6 +39,8 @@ def make_env(
             PETS paper.
           - "ant_truncated_obs": the implementation of Ant environment used in Janner et al.,
             MBPO paper.
+          - "humanoid_truncated_obs": the implementation of Humanoid environment used in
+            Janner et al., MBPO paper.
 
         - ``cfg.overrides.term_fn``: (only for dmcontrol and gym environments) a string
           indicating the environment's termination function to use when simulating the
@@ -89,6 +91,11 @@ def make_env(
         env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
         term_fn = mbrl.env.termination_fns.ant
         reward_fn = None
+    elif cfg.overrides.env == "humanoid_truncated_obs":
+        env = mbrl.env.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
+        env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
+        term_fn = mbrl.env.termination_fns.ant
+        reward_fn = None
     else:
         raise ValueError("Invalid environment string.")
 
@@ -113,6 +120,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
             PETS paper.
           - "ant_truncated_obs": the implementation of Ant environment used in Janner et al.,
             MBPO paper.
+          - "humanoid_truncated_obs": the implementation of Humanoid environment used in
+            Janner et al., MBPO paper.
 
     Returns:
         (gym.Env): the created environment.
@@ -128,6 +137,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
         env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
     elif env_name == "ant_truncated_obs":
         env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
+    elif env_name == "humanoid_truncated_obs":
+        env = mbrl.env.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
     else:
         raise ValueError("Invalid environment string.")
     return env

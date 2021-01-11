@@ -3,6 +3,7 @@ from gym import utils
 from gym.envs.mujoco import mujoco_env
 
 
+# Obtained from https://github.com/JannerM/mbpo/blob/master/mbpo/env/ant.py
 class AntTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     """
     External forces (sim.data.cfrc_ext) are removed from the observation.
