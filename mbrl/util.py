@@ -78,26 +78,26 @@ def make_env(
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
         else:
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
-    elif cfg.overrides.env == "cartpole_continuous":
-        env = mbrl.env.cartpole_continuous.CartPoleEnv()
-        term_fn = mbrl.env.termination_fns.cartpole
-        reward_fn = mbrl.env.reward_fns.cartpole
-    elif cfg.overrides.env == "pets_halfcheetah":
-        env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
-        term_fn = mbrl.env.termination_fns.no_termination
-        reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
-    elif cfg.overrides.env == "ant_truncated_obs":
-        env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
-        env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
-        term_fn = mbrl.env.termination_fns.ant
-        reward_fn = None
-    elif cfg.overrides.env == "humanoid_truncated_obs":
-        env = mbrl.env.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
-        env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
-        term_fn = mbrl.env.termination_fns.ant
-        reward_fn = None
     else:
-        raise ValueError("Invalid environment string.")
+        if cfg.overrides.env == "cartpole_continuous":
+            env = mbrl.env.cartpole_continuous.CartPoleEnv()
+            term_fn = mbrl.env.termination_fns.cartpole
+            reward_fn = mbrl.env.reward_fns.cartpole
+        elif cfg.overrides.env == "pets_halfcheetah":
+            env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
+        elif cfg.overrides.env == "ant_truncated_obs":
+            env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
+            term_fn = mbrl.env.termination_fns.ant
+            reward_fn = None
+        elif cfg.overrides.env == "humanoid_truncated_obs":
+            env = mbrl.env.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
+            term_fn = mbrl.env.termination_fns.ant
+            reward_fn = None
+        else:
+            raise ValueError("Invalid environment string.")
+        env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
 
     learned_rewards = cfg.overrides.get("learned_rewards", True)
     if learned_rewards:
