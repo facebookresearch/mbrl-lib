@@ -1,5 +1,5 @@
 import os
-from typing import List, cast
+from typing import cast
 
 import gym
 import hydra.utils
@@ -9,6 +9,7 @@ import pytorch_sac.utils
 import torch
 
 import mbrl.logger
+import mbrl.math
 import mbrl.models
 import mbrl.planning
 import mbrl.replay_buffer
@@ -21,19 +22,6 @@ MBPO_LOG_FORMAT = [
     ("rollout_length", "RL", "int"),
     ("eval_reward", "ER", "int"),
 ]
-
-
-def get_rollout_length(rollout_schedule: List[int], epoch: int):
-    min_epoch, max_epoch, min_length, max_length = rollout_schedule
-
-    if epoch <= min_epoch:
-        y: float = min_length
-    else:
-        dx = (epoch - min_epoch) / (max_epoch - min_epoch)
-        dx = min(dx, 1.0)
-        y = dx * (max_length - min_length) + min_length
-
-    return int(y)
 
 
 def rollout_model_and_populate_sac_buffer(
@@ -143,7 +131,9 @@ def train(
     sac_buffer = None
     epoch = 0
     while epoch < cfg.overrides.num_trials:
-        rollout_length = get_rollout_length(cfg.overrides.rollout_schedule, epoch)
+        rollout_length = int(
+            mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch]))
+        )
 
         obs = env.reset()
         done = False
