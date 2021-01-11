@@ -20,8 +20,8 @@ class Visualizer:
         self,
         lookahead: int,
         results_dir: str,
-        agent_dir: str,
-        agent_type: str,
+        reference_agent_type: Optional[str] = None,
+        reference_agent_dir: Optional[str] = None,
         num_steps: Optional[int] = None,
         num_model_samples: int = 1,
         model_subdir: Optional[str] = None,
@@ -29,7 +29,6 @@ class Visualizer:
         self.lookahead = lookahead
         self.results_path = pathlib.Path(results_dir)
         self.model_path = self.results_path
-        self.agent_path = pathlib.Path(agent_dir)
         self.vis_path = self.results_path / "diagnostics"
         if model_subdir:
             self.model_path /= model_subdir
@@ -46,11 +45,16 @@ class Visualizer:
         self.cfg = mbrl.util.load_hydra_cfg(self.results_path)
 
         self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
-        self.reference_agent = mbrl.planning.load_agent(
-            self.agent_path,
-            self.env,
-            agent_type,
-        )
+
+        if reference_agent_type:
+            self.agent_path = pathlib.Path(reference_agent_dir)
+            self.reference_agent = mbrl.planning.load_agent(
+                self.agent_path,
+                self.env,
+                reference_agent_type,
+            )
+        else:
+            self.reference_agent = None
         self.reward_fn = reward_fn
 
         self.dynamics_model = mbrl.util.create_dynamics_model(
@@ -120,6 +124,7 @@ class Visualizer:
             next_obs, reward, done, _ = self.env.step(vis_data[-1][0])
             obs = next_obs
             i += 1
+            print(i)
             if self.num_steps and i == self.num_steps:
                 break
 
@@ -202,7 +207,8 @@ class Visualizer:
 
     def run(self):
         self.create_axes()
-        for use_mpc in [True, False]:
+        mpc_cases = [True, False] if self.reference_agent else [True]
+        for use_mpc in mpc_cases:
             ani = animation.FuncAnimation(
                 self.fig,
                 self.plot_func,
@@ -236,10 +242,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     visualizer = Visualizer(
-        lookahead=30,
+        lookahead=25,
         results_dir=args.experiments_dir,
-        agent_dir=args.agent_dir,
-        agent_type=args.agent_type,
+        reference_agent_dir=args.agent_dir,
+        reference_agent_type=args.agent_type,
         num_steps=args.num_steps,
         num_model_samples=args.num_model_samples,
         model_subdir=args.model_subdir,
