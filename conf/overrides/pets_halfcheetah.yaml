@@ -14,4 +14,5 @@ model_batch_size: 32
 validation_ratio: 0.05
 no_delta_list: [ 0 ]
 
-planning_horizon_schedule: [1, 50, 1, 15]
+max_planning_horizon: 15
+trial_reach_max_horizon: 50

@@ -1,5 +1,5 @@
 import os
-from typing import cast
+from typing import List, cast
 
 import gym
 import numpy as np
@@ -17,6 +17,16 @@ EVAL_LOG_FORMAT = [
     ("trial", "T", "int"),
     ("episode_reward", "R", "float"),
 ]
+
+
+def get_rollout_schedule(cfg: omegaconf.DictConfig) -> List[int]:
+    max_horizon = cfg.overrides.get(
+        "max_planning_horizon", cfg.algorithm.agent.planning_horizon
+    )
+    if "trial_reach_max_horizon" in cfg.overrides:
+        return [1, cfg.overrides.trial_reach_max_horizon, 1, max_horizon]
+    else:
+        return [1, cfg.overrides.num_trials, max_horizon, max_horizon]
 
 
 def train(
@@ -85,18 +95,8 @@ def train(
     for trial in range(cfg.overrides.num_trials):
         obs = env.reset()
 
-        planning_horizon_schedule = cfg.overrides.get(
-            "planning_horizon_schedule",
-            [
-                1,
-                cfg.overrides.num_trials,
-                cfg.algorithm.agent.planning_horizon,
-                cfg.algorithm.agent.planning_horizon,
-            ],
-        )
-
         planning_horizon = int(
-            mbrl.math.truncated_linear(*(planning_horizon_schedule + [trial]))
+            mbrl.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial]))
         )
 
         agent.reset(planning_horizon=planning_horizon)
