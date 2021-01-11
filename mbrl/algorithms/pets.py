@@ -6,6 +6,7 @@ import numpy as np
 import omegaconf
 
 import mbrl.logger
+import mbrl.math
 import mbrl.models
 import mbrl.planning
 import mbrl.replay_buffer
@@ -83,7 +84,22 @@ def train(
     max_total_reward = -np.inf
     for trial in range(cfg.overrides.num_trials):
         obs = env.reset()
-        agent.reset()
+
+        planning_horizon_schedule = cfg.overrides.get(
+            "planning_horizon_schedule",
+            [
+                1,
+                cfg.overrides.num_trials,
+                cfg.algorithm.agent.planning_horizon,
+                cfg.algorithm.agent.planning_horizon,
+            ],
+        )
+
+        planning_horizon = int(
+            mbrl.math.truncated_linear(*(planning_horizon_schedule + [trial]))
+        )
+
+        agent.reset(planning_horizon=planning_horizon)
         done = False
         total_reward = 0.0
         steps_trial = 0

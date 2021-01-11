@@ -10,6 +10,19 @@ import torch.nn.functional as F
 import mbrl.types
 
 
+def truncated_linear(
+    min_x: float, max_x: float, min_y: float, max_y: float, x: float
+) -> float:
+    if x <= min_x:
+        y: float = min_y
+    else:
+        dx = (x - min_x) / (max_x - min_x)
+        dx = min(dx, 1.0)
+        y = dx * (max_y - min_y) + min_y
+
+    return y
+
+
 def gaussian_nll(
     pred_mean: torch.Tensor, pred_logvar: torch.Tensor, target: torch.Tensor
 ) -> torch.Tensor:

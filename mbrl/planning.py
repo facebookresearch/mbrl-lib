@@ -378,6 +378,11 @@ class TrajectoryOptimizerAgent(Agent):
             planning_horizon=planning_horizon,
             replan_freq=replan_freq,
         )
+        self.optimizer_args = {
+            "optimizer_cfg": optimizer_cfg,
+            "action_lb": np.array(action_lb),
+            "action_ub": np.array(action_ub),
+        }
         self.trajectory_eval_fn: mbrl.types.TrajectoryEvalFnType = None
         self.actions_to_use: List[np.ndarray] = []
         self.replan_freq = replan_freq
@@ -394,8 +399,17 @@ class TrajectoryOptimizerAgent(Agent):
         """
         self.trajectory_eval_fn = trajectory_eval_fn
 
-    def reset(self):
+    def reset(self, planning_horizon: Optional[int] = None):
         """Resets the underlying trajectory optimizer."""
+        if planning_horizon:
+            self.optimizer = TrajectoryOptimizer(
+                self.optimizer_args["optimizer_cfg"],
+                self.optimizer_args["action_lb"],
+                self.optimizer_args["action_ub"],
+                planning_horizon=planning_horizon,
+                replan_freq=self.replan_freq,
+            )
+
         self.optimizer.reset()
 
     def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
