@@ -536,9 +536,9 @@ def load_agent(
     agent_path = pathlib.Path(agent_path)
     if agent_type == "pytorch_sac":
         cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
-        cfg.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
-        complete_agent_cfg(env, cfg.agent)
-        agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.agent)
+        cfg.algorithm.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
+        complete_agent_cfg(env, cfg.algorithm.agent)
+        agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.algorithm.agent)
         agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
         agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
         return mbrl.planning.SACAgent(agent)

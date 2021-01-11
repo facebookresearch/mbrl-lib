@@ -1,6 +1,5 @@
 defaults:
   - algorithm: pets
-  - agent: sac
   - dynamics_model: gaussian_mlp_ensemble
   - overrides: pets_cartpole
 

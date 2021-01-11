@@ -85,8 +85,8 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    mbrl.planning.complete_agent_cfg(env, cfg.agent)
-    agent = hydra.utils.instantiate(cfg.agent)
+    mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
+    agent = hydra.utils.instantiate(cfg.algorithm.agent)
 
     work_dir = os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
