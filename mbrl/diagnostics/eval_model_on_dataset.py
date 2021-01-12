@@ -8,6 +8,7 @@ import numpy as np
 
 import mbrl.replay_buffer
 import mbrl.util
+import mbrl.util.mujoco as mujoco_util
 
 
 class DatasetEvaluator:
@@ -18,7 +19,7 @@ class DatasetEvaluator:
 
         self.cfg = mbrl.util.load_hydra_cfg(self.model_path)
 
-        self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
+        self.env, term_fn, reward_fn = mujoco_util.make_env(self.cfg)
         self.reward_fn = reward_fn
 
         self.dynamics_model = mbrl.util.create_dynamics_model(
