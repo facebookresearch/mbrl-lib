@@ -11,6 +11,7 @@ import mbrl
 import mbrl.models
 import mbrl.planning
 import mbrl.util
+import mbrl.util.mujoco as mujoco_util
 
 VisData = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
@@ -44,7 +45,7 @@ class Visualizer:
 
         self.cfg = mbrl.util.load_hydra_cfg(self.results_path)
 
-        self.env, term_fn, reward_fn = mbrl.util.make_env(self.cfg)
+        self.env, term_fn, reward_fn = mujoco_util.make_env(self.cfg)
 
         if reference_agent_type:
             self.agent_path = pathlib.Path(reference_agent_dir)
@@ -93,7 +94,7 @@ class Visualizer:
                 agent=self.agent,
                 num_samples=self.num_model_samples,
             )
-            real_obses, real_rewards, _ = mbrl.util.rollout_env(
+            real_obses, real_rewards, _ = mujoco_util.rollout_mujoco_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,
@@ -101,7 +102,7 @@ class Visualizer:
                 plan=actions,
             )
         else:
-            real_obses, real_rewards, actions = mbrl.util.rollout_env(
+            real_obses, real_rewards, actions = mujoco_util.rollout_mujoco_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,
@@ -124,7 +125,6 @@ class Visualizer:
             next_obs, reward, done, _ = self.env.step(vis_data[-1][0])
             obs = next_obs
             i += 1
-            print(i)
             if self.num_steps and i == self.num_steps:
                 break
 

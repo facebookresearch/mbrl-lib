@@ -12,13 +12,14 @@ import torch
 
 import mbrl.planning
 import mbrl.util
+import mbrl.util.mujoco as mujoco_util
 
 env__: gym.Env
 
 
 def init(env_name: str, seed: int):
     global env__
-    env__ = mbrl.util.make_env_from_str(env_name)
+    env__ = mujoco_util.make_env_from_str(env_name)
     env__.seed(seed)
 
 
@@ -46,8 +47,8 @@ def evaluate_sequence_fn(action_sequence: np.ndarray, current_state: Tuple) -> f
     # obs0__ is not used (only here for compatibility with rollout_env)
     obs0 = env__.observation_space.sample()
     env = cast(gym.wrappers.TimeLimit, env__)
-    mbrl.util.set_env_state(current_state, env)
-    _, rewards_, _ = mbrl.util.rollout_env(
+    mujoco_util.set_env_state(current_state, env)
+    _, rewards_, _ = mujoco_util.rollout_mujoco_env(
         env, obs0, -1, agent=None, plan=action_sequence
     )
     return rewards_.sum().item()
@@ -71,7 +72,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     mp.set_start_method("spawn")
-    eval_env = mbrl.util.make_env_from_str(args.env)
+    eval_env = mujoco_util.make_env_from_str(args.env)
     eval_env.seed(args.seed)
     current_obs = eval_env.reset()
 
@@ -106,7 +107,7 @@ if __name__ == "__main__":
                 frames.append(eval_env.render(mode="rgb_array"))
             start = time.time()
 
-            current_state__ = mbrl.util.get_current_state(
+            current_state__ = mujoco_util.get_current_state(
                 cast(gym.wrappers.TimeLimit, eval_env)
             )
 
