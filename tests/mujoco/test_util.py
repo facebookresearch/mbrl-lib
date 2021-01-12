@@ -3,7 +3,7 @@ import gym
 import numpy as np
 import pytest
 
-import mbrl.util
+import mbrl.util.mujoco
 
 
 def _freeze_mujoco_gym_env(env):
@@ -15,7 +15,7 @@ def _freeze_mujoco_gym_env(env):
     actions = []
     num_steps = 100
 
-    with mbrl.util.freeze_mujoco_env(env):
+    with mbrl.util.mujoco.freeze_mujoco_env(env):
         for _ in range(num_steps):
             action = env.action_space.sample()
             next_obs, reward, done, _ = env.step(action)

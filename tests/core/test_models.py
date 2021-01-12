@@ -168,7 +168,7 @@ def mock_term_fn(act, next_obs):
 
 def get_mock_env():
     member_cfg = omegaconf.OmegaConf.create(
-        {"_target_": "tests.test_models.MockProbModel"}
+        {"_target_": "tests.core.test_models.MockProbModel"}
     )
     num_members = 3
     ensemble = mbrl.models.BasicEnsemble(
