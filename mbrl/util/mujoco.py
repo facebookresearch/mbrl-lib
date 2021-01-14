@@ -9,6 +9,7 @@ import omegaconf
 import torch
 
 import mbrl.env
+import mbrl.env.mujoco_envs
 import mbrl.planning
 import mbrl.types
 
@@ -77,15 +78,15 @@ def make_env(
             term_fn = mbrl.env.termination_fns.cartpole
             reward_fn = mbrl.env.reward_fns.cartpole
         elif cfg.overrides.env == "pets_halfcheetah":
-            env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
+            env = mbrl.env.mujoco_envs.pets_halfcheetah.HalfCheetahEnv()
             term_fn = mbrl.env.termination_fns.no_termination
             reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
         elif cfg.overrides.env == "ant_truncated_obs":
-            env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
+            env = mbrl.env.mujoco_envs.ant_truncated_obs.AntTruncatedObsEnv()
             term_fn = mbrl.env.termination_fns.ant
             reward_fn = None
         elif cfg.overrides.env == "humanoid_truncated_obs":
-            env = mbrl.env.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
+            env = mbrl.env.mujoco_envs.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
             term_fn = mbrl.env.termination_fns.ant
             reward_fn = None
         else:
@@ -127,11 +128,11 @@ def make_env_from_str(env_name: str) -> gym.Env:
     elif env_name == "cartpole_continuous":
         env = mbrl.env.cartpole_continuous.CartPoleEnv()
     elif env_name == "pets_halfcheetah":
-        env = mbrl.env.pets_halfcheetah.HalfCheetahEnv()
+        env = mbrl.env.mujoco_envs.pets_halfcheetah.HalfCheetahEnv()
     elif env_name == "ant_truncated_obs":
-        env = mbrl.env.ant_truncated_obs.AntTruncatedObsEnv()
+        env = mbrl.env.mujoco_envs.ant_truncated_obs.AntTruncatedObsEnv()
     elif env_name == "humanoid_truncated_obs":
-        env = mbrl.env.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
+        env = mbrl.env.mujoco_envs.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
     else:
         raise ValueError("Invalid environment string.")
     return env

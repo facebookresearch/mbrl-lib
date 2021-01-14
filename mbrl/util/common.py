@@ -12,6 +12,7 @@ import mbrl.replay_buffer
 import mbrl.types
 
 
+# TODO consider moving some options under "algorithm" to "dynamics_model"
 def create_dynamics_model(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int],
@@ -156,7 +157,9 @@ def create_replay_buffers(
         (tuple of :class:`mbrl.replay_buffer.IterableReplayBuffer`): the training and validation
         buffers, respectively.
     """
-    dataset_size = cfg.algorithm.get("dataset_size", None)
+    dataset_size = (
+        cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
+    )
     if not dataset_size:
         dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
     train_buffer: mbrl.replay_buffer.IterableReplayBuffer
@@ -357,7 +360,7 @@ def populate_buffers_with_agent_trajectories(
         done = False
         while not done:
             which_dataset = train_dataset if step in indices_train else val_dataset
-            next_obs, *_, = step_env_and_populate_dataset(
+            next_obs, _, done, info = step_env_and_populate_dataset(
                 env,
                 obs,
                 agent,
