@@ -1,7 +1,7 @@
 # MBRL-Lib
 
 ``mbrl-lib`` is a toolbox for facilitating development of 
-Model Based Reinforcement Learning algorithms. It provides easily interchangeable 
+Model-Based Reinforcement Learning algorithms. It provides easily interchangeable 
 modeling and planning components, and a set of utility functions that allow writing
 model-based RL algorithms with only a few lines of code. 
 
@@ -35,6 +35,6 @@ on how to write the PETS algorithm
 using our toolbox, and running it on a continuous version of the cartpole 
 environment.
 
-### Documentation 
+## Documentation 
 Please check out our documentation!
 

@@ -25,8 +25,6 @@ MODEL_LOG_FORMAT = [
 ]
 
 
-# TODO once util doc is ready, add info about how to create dynamics model directly
-#   using the utility function provided.
 class DynamicsModelWrapper:
     """Wrapper class for all dynamics models.
 

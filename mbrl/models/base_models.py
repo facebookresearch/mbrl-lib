@@ -12,7 +12,6 @@ import mbrl.math
 import mbrl.types
 
 
-# TODO move this to math.py module
 def truncated_normal_init(m: nn.Module):
     """Initializes the weights of the given module using a truncated normal distribution."""
 
