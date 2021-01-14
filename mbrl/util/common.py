@@ -12,7 +12,6 @@ import mbrl.replay_buffer
 import mbrl.types
 
 
-# TODO consider moving some options under "algorithm" to "dynamics_model"
 def create_dynamics_model(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int],
