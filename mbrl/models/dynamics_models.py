@@ -1,6 +1,6 @@
 import itertools
 import pathlib
-from typing import Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -368,6 +368,7 @@ class DynamicsModelTrainer:
         self,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 50,
+        callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the dynamics model for some number of epochs.
 
@@ -387,6 +388,15 @@ class DynamicsModelTrainer:
                 Default is ``None``, which indicates there is no limit.
             patience (int, optional): if provided, the patience to use for training. That is,
                 training will stop after ``patience`` number of epochs without improvement.
+            callback (callable, optional): if provided, this function will be called after
+                every training epoch with the following arguments:
+                    - total number of calls made to ``trainer.train()``
+                    - current epoch
+                    - training loss
+                    - train score (i.e., result of ``trainer.evaluate()`` on training data)
+                    - validation score
+                    - best validation score so far
+
 
         Returns:
             (tuple of two list(float)): the history of training losses and validation losses.
@@ -453,6 +463,15 @@ class DynamicsModelTrainer:
                         "model_val_score": eval_score,
                         "model_best_val_score": best_val_score,
                     },
+                )
+            if callback:
+                callback(
+                    self._train_iteration,
+                    epoch,
+                    total_avg_loss,
+                    train_score,
+                    eval_score,
+                    best_val_score,
                 )
 
             if epochs_since_update >= patience:
