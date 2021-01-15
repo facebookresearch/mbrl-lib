@@ -255,8 +255,8 @@ class DynamicsModelWrapper:
                 the first output of the model. Defaults to ``True``.
             propagation_method (str): the propagation method to use for the model (only used if
                 the model is of type :class:`mbrl.models.BasicEnsemble`.
-            propagation_indices (tensor, optional): indices for propagation with
-                ``propagation == "fixed_model"``.
+            propagation_indices (tensor, optional): indices for propagation when
+                ``propagation="fixed_model"``.
             rng (torch.Generator, optional): random number generator for uncertainty propagation.
 
         Returns:
