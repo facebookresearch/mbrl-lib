@@ -1,0 +1,12 @@
+-r requirements.txt
+
+# For packaging
+black
+flake8
+flake8-copyright
+isort
+nox >= 2019.11.9
+snakeviz >= 2.1.0
+pytest >= 6.0.1
+pytest-cov >= 2.10.1
+pytest-benchmark >= 3.2.3
