@@ -8,8 +8,8 @@ num_trials: 300
 
 model_lr: 2.5e-4
 model_wd: 1.5e-4
-num_epochs_train_model: 100
-patience: 5
+num_epochs_train_model: 22
+patience: 22
 model_batch_size: 32
 validation_ratio: 0.05
 no_delta_list: [ 0 ]

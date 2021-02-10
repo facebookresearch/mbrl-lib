@@ -29,5 +29,5 @@ initial_exploration_steps: ${overrides.trial_length}
 freq_train_model: 1234567890
 learned_rewards: ${overrides.learned_rewards}
 
-num_particles: 25
+num_particles: 20
 propagation_method: "fixed_model"

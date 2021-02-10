@@ -77,7 +77,12 @@ def train(
         env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
-        dynamics_model, dataset_train, dataset_val=dataset_val, logger=logger
+        dynamics_model,
+        dataset_train,
+        dataset_val=dataset_val,
+        optim_lr=cfg.overrides.model_lr,
+        weight_decay=cfg.overrides.model_wd,
+        logger=logger,
     )
 
     agent = mbrl.planning.create_trajectory_optim_agent_for_model(
