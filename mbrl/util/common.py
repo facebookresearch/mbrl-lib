@@ -38,8 +38,8 @@ def create_dynamics_model(
             -learned_rewards (bool): whether rewards should be learned or not
             -target_is_delta (bool): to be passed to the dynamics model wrapper
             -normalize (bool): to be passed to the dynamics model wrapper
-            -no_delta_list (list[int], optional): to be passed to the dynamics model wrapper
           -overrides
+            -no_delta_list (list[int], optional): to be passed to the dynamics model wrapper
             -obs_process_fn (str, optional): a Python function to pre-process observations
 
     If ``cfg.dynamics_model.model.in_size`` is not provided, it will be automatically set to
@@ -84,7 +84,7 @@ def create_dynamics_model(
         normalize=cfg.algorithm.normalize,
         learned_rewards=cfg.algorithm.learned_rewards,
         obs_process_fn=obs_process_fn,
-        no_delta_list=cfg.algorithm.get("no_delta_list", None),
+        no_delta_list=cfg.overrides.get("no_delta_list", None),
     )
     if model_dir:
         dynamics_model.load(model_dir)
