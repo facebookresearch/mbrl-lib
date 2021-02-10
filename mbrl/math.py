@@ -16,9 +16,12 @@ def truncated_linear(
     if x <= min_x:
         y: float = min_y
     else:
-        dx = (x - min_x) / (max_x - min_x)
-        dx = min(dx, 1.0)
-        y = dx * (max_y - min_y) + min_y
+        if max_x - min_x < 1e-6:
+            y = max_y
+        else:
+            dx = (x - min_x) / (max_x - min_x)
+            dx = min(dx, 1.0)
+            y = dx * (max_y - min_y) + min_y
 
     return y
 

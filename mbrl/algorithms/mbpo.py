@@ -132,7 +132,7 @@ def train(
     epoch = 0
     while epoch < cfg.overrides.num_trials:
         rollout_length = int(
-            mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch]))
+            mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch + 1]))
         )
 
         obs = env.reset()

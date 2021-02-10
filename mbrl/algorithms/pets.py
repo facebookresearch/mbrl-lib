@@ -101,7 +101,7 @@ def train(
         obs = env.reset()
 
         planning_horizon = int(
-            mbrl.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial]))
+            mbrl.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial + 1]))
         )
 
         agent.reset(planning_horizon=planning_horizon)
