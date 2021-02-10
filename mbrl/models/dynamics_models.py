@@ -421,12 +421,13 @@ class DynamicsModelTrainer:
         )
         best_val_score = self.evaluate(use_train_set=not has_val_dataset)
         for epoch in epoch_iter:
-            total_avg_loss = 0.0
+            batch_losses: List[float] = []
             for bootstrap_batch in self.dataset_train:
                 avg_ensemble_loss = update_from_batch_fn(
                     bootstrap_batch, self.optimizers
                 )
-                total_avg_loss += avg_ensemble_loss
+                batch_losses.append(avg_ensemble_loss)
+            total_avg_loss = np.mean(batch_losses).mean()
             training_losses.append(total_avg_loss)
 
             train_score = self.evaluate(use_train_set=True)
@@ -500,18 +501,16 @@ class DynamicsModelTrainer:
                 self.dataset_train.toggle_bootstrap()
             dataset = self.dataset_train
 
-        total_avg_loss = torch.tensor(0.0)
+        batch_scores: List[float] = []
         for batch in dataset:
-            avg_ensemble_loss = self.dynamics_model.eval_score_from_simple_batch(batch)
-            total_avg_loss = (
-                avg_ensemble_loss.sum() / dataset.num_stored
-            ) + total_avg_loss
+            avg_batch_score = self.dynamics_model.eval_score_from_simple_batch(batch)
+            batch_scores.append(avg_batch_score.item())
 
         if use_train_set and isinstance(
             self.dataset_train, replay_buffer.BootstrapReplayBuffer
         ):
             self.dataset_train.toggle_bootstrap()
-        return total_avg_loss.item()
+        return np.mean(batch_scores).item()
 
     def maybe_save_best_weights(
         self, best_val_score: float, val_score: float, threshold: float = 0.001

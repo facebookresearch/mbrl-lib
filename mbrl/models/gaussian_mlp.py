@@ -270,9 +270,9 @@ class GaussianMLP(base_models.Model):
             if self.is_ensemble:
                 target = target.repeat((self.num_members, 1, 1))
             score = F.mse_loss(pred_mean, target, reduction="none").mean(dim=1)
-            if score.ndim == 3:
+            if score.ndim == 2:
                 score = score.mean(dim=0)
-            return score
+            return score.mean()
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
