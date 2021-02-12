@@ -97,6 +97,11 @@ def make_env(
     if learned_rewards:
         reward_fn = None
 
+    if cfg.seed is not None:
+        env.seed(cfg.seed)
+        env.observation_space.seed(cfg.seed + 1)
+        env.action_space.seed(cfg.seed + 2)
+
     return env, term_fn, reward_fn
 
 
