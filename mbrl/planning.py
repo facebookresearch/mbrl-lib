@@ -149,6 +149,8 @@ class CEMOptimizer:
             if callback is not None:
                 callback(population, i)
             values = obj_fun(population)
+            # filter out NaN values
+            values[values.isnan()] = -1e-10
             best_values, elite_idx = values.topk(self.elite_num)
             elite = population[elite_idx]
 
