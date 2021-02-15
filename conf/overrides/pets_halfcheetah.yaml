@@ -15,4 +15,4 @@ validation_ratio: 0.05
 no_delta_list: [ 0 ]
 
 max_planning_horizon: 15
-trial_reach_max_horizon: 50
+trial_reach_max_horizon: 1
