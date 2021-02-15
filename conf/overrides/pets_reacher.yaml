@@ -1,10 +1,8 @@
 # @package _group_
-env: "pets_halfcheetah"
-term_fn: "no_termination"
-obs_process_fn: mbrl.env.pets_halfcheetah.HalfCheetahEnv.preprocess_fn
-learned_rewards: false
+env: "pets_reacher"
+learned_rewards: true
 trial_length: 1000
-num_trials: 300
+num_trials: 15
 
 model_lr: 4e-4
 model_wd: 1.7e-4

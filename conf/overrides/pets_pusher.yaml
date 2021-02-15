@@ -1,0 +1,15 @@
+# @package _group_
+env: "pets_pusher"
+learned_rewards: false
+trial_length: 150
+num_trials: 100
+
+model_lr: 1e-5
+model_wd: 5e-4
+num_epochs_train_model: 20
+patience: 20
+model_batch_size: 32
+validation_ratio: 0
+
+max_planning_horizon: 15
+trial_reach_max_horizon: 1
