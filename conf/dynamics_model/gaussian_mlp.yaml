@@ -2,7 +2,7 @@
 model:
   _target_: mbrl.models.GaussianMLP
   device: ${device}
-  num_layers: 4
+  num_layers: 3
   in_size: ???
   out_size: ???
   ensemble_size: 1
