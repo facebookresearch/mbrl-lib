@@ -48,12 +48,16 @@ class Visualizer:
         self.env, term_fn, reward_fn = mujoco_util.make_env(self.cfg)
 
         if reference_agent_type:
-            self.agent_path = pathlib.Path(reference_agent_dir)
-            self.reference_agent = mbrl.planning.load_agent(
-                self.agent_path,
-                self.env,
-                reference_agent_type,
-            )
+            self.reference_agent: mbrl.planning.Agent
+            if reference_agent_type == "random":
+                self.reference_agent = mbrl.planning.RandomAgent(self.env)
+            else:
+                agent_path = pathlib.Path(reference_agent_dir)
+                self.reference_agent = mbrl.planning.load_agent(
+                    agent_path,
+                    self.env,
+                    reference_agent_type,
+                )
         else:
             self.reference_agent = None
         self.reward_fn = reward_fn
@@ -151,6 +155,7 @@ class Visualizer:
         if model_data.ndim == 2:
             model_data = model_data[:, :, None]
         adjust_ylim(self.axs[plot_idx], real_data[:, data_idx])
+        adjust_ylim(self.axs[plot_idx], model_data.mean(1)[:, data_idx])
         self.lines[4 * plot_idx].set_data(x_data, real_data[:, data_idx])
         model_obs_mean = model_data[:, :, data_idx].mean(axis=1)
         model_obs_ste = model_data[:, :, data_idx].std(axis=1) / np.sqrt(
