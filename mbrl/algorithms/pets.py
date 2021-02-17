@@ -44,6 +44,7 @@ def train(
     rng = np.random.default_rng(seed=cfg.seed)
 
     work_dir = os.getcwd()
+    print(f"Results will be saved at {work_dir}.")
     logger = mbrl.logger.Logger(work_dir)
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 

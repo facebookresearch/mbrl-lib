@@ -140,7 +140,7 @@ class CEMOptimizer:
         for i in range(self.num_iterations):
             lb_dist = mu - self.lower_bound
             ub_dist = self.upper_bound - mu
-            mv = torch.min(torch.pow(lb_dist / 2, 2), torch.pow(ub_dist / 2, 2))
+            mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
             constrained_var = torch.min(mv, var)
 
             population = mbrl.math.truncated_normal_(population, clip=True)
