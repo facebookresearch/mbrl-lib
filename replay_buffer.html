@@ -1,0 +1,454 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Replay buffer module &mdash; mbrl-lib  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Logging module" href="logging.html" />
+    <link rel="prev" title="General utilities module" href="util.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> mbrl-lib
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="planning.html">Planning module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="math.html">Math utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">General utilities module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Replay buffer module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="logging.html">Logging module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">mbrl-lib</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Replay buffer module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/replay_buffer.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-mbrl.replay_buffer">
+<span id="replay-buffer-module"></span><h1>Replay buffer module<a class="headerlink" href="#module-mbrl.replay_buffer" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="mbrl.replay_buffer.BootstrapReplayBuffer">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.replay_buffer.</code><code class="sig-name descname">BootstrapReplayBuffer</code><span class="sig-paren">(</span><em class="sig-param">capacity: int, batch_size: int, num_members: int, obs_shape: Tuple[int], action_shape: Tuple[int], rng: Optional[numpy.random._generator.Generator] = None, obs_type=&lt;class 'numpy.float32'&gt;, action_type=&lt;class 'numpy.float32'&gt;, shuffle_each_epoch: bool = False</em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.BootstrapReplayBuffer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#mbrl.replay_buffer.IterableReplayBuffer" title="mbrl.replay_buffer.IterableReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.IterableReplayBuffer</span></code></a></p>
+<p>An iterable replay buffer that can be used to train ensemble of bootstrapped models.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>capacity</strong> (<em>int</em>) – the maximum number of transitions that the buffer can store.
+When the capacity is reached, the contents are overwritten in FIFO fashion.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – the batch size to use when iterating over the stored data.</p></li>
+<li><p><strong>num_members</strong> (<em>int</em>) – the number of models in the ensemble.</p></li>
+<li><p><strong>obs_shape</strong> (<em>tuple of ints</em>) – the shape of the observations to store.</p></li>
+<li><p><strong>action_shape</strong> (<em>tuple of ints</em>) – the shape of the actions to store.</p></li>
+<li><p><strong>rng</strong> (<em>np.random.Generator</em><em>, </em><em>optional</em>) – a random number generator when sampling
+batches. If None (default value), a new default generator will be used.</p></li>
+<li><p><strong>obs_type</strong> (<em>type</em>) – the data type of the observations (defaults to np.float32).</p></li>
+<li><p><strong>action_type</strong> (<em>type</em>) – the data type of the actions (defaults to np.float32).</p></li>
+<li><p><strong>shuffle_each_epoch</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code> the iteration order is shuffled everytime a
+loop over the data is completed. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.replay_buffer.BootstrapReplayBuffer.add">
+<code class="sig-name descname">add</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">action</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">next_obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">reward</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">done</span><span class="p">:</span> <span class="n">bool</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.BootstrapReplayBuffer.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a transition (s, a, s’, r, done) to the replay buffer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obs</strong> (<em>np.ndarray</em>) – the observation at time t.</p></li>
+<li><p><strong>action</strong> (<em>np.ndarray</em>) – the action at time t.</p></li>
+<li><p><strong>next_obs</strong> (<em>np.ndarray</em>) – the observation at time t + 1.</p></li>
+<li><p><strong>reward</strong> (<em>float</em>) – the reward at time t + 1.</p></li>
+<li><p><strong>done</strong> (<em>bool</em>) – a boolean indicating whether the episode ended or not.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.replay_buffer.BootstrapReplayBuffer.is_train_compatible_with_ensemble">
+<code class="sig-name descname">is_train_compatible_with_ensemble</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.BootstrapReplayBuffer.is_train_compatible_with_ensemble" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicates if this replay buffer can be used to train bootstrapped ensemble models.</p>
+<p>This is used so that the model trainer can check the specific subclass of
+<a class="reference internal" href="#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimpleReplayBuffer</span></code></a> can be used to train ensembles. The only class that returns
+<code class="docutils literal notranslate"><span class="pre">True</span></code> is <a class="reference internal" href="#mbrl.replay_buffer.BootstrapReplayBuffer" title="mbrl.replay_buffer.BootstrapReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">BootstrapReplayBuffer</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.replay_buffer.BootstrapReplayBuffer.sample">
+<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">ensemble</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.replay_buffer.BootstrapReplayBuffer.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Samples a bootstrapped batch from the replay buffer.</p>
+<p>For each model in the ensemble, as specified by the <code class="docutils literal notranslate"><span class="pre">num_members</span></code>
+constructor argument, the buffer samples–with replacement–a batch of
+stored transitions, and returns a tuple with all the sampled batches. That is,
+batch[j][i] is the i-th transition for the j-th model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch_size</strong> (<em>int</em>) – the number of samples to return for each model.</p></li>
+<li><p><strong>ensemble</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">False</span></code>, returns a single batch, rather than
+a batch per model. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a tuple of batches, one per
+model as explained above, or a single batch if <code class="docutils literal notranslate"><span class="pre">ensemble</span> <span class="pre">==</span> <span class="pre">False</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of batches, or a single batch)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.replay_buffer.BootstrapReplayBuffer.toggle_bootstrap">
+<code class="sig-name descname">toggle_bootstrap</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.BootstrapReplayBuffer.toggle_bootstrap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Toggles whether the iterator returns a batch per model or a single batch.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.replay_buffer.IterableReplayBuffer">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.replay_buffer.</code><code class="sig-name descname">IterableReplayBuffer</code><span class="sig-paren">(</span><em class="sig-param">capacity: int, batch_size: int, obs_shape: Tuple[int], action_shape: Tuple[int], rng: Optional[numpy.random._generator.Generator] = None, obs_type=&lt;class 'numpy.float32'&gt;, action_type=&lt;class 'numpy.float32'&gt;, shuffle_each_epoch: bool = False</em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.IterableReplayBuffer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.SimpleReplayBuffer</span></code></a></p>
+<p>A replay buffer that provides an iterator to loop over the data.</p>
+<p>The buffer can be iterated by simply doing</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># create buffer</span>
+<span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">buffer</span><span class="p">:</span>
+    <span class="n">do_something_with_batch</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>capacity</strong> (<em>int</em>) – the maximum number of transitions that the buffer can store.
+When the capacity is reached, the contents are overwritten in FIFO fashion.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – the batch size to use when iterating over the stored data.</p></li>
+<li><p><strong>obs_shape</strong> (<em>tuple of ints</em>) – the shape of the observations to store.</p></li>
+<li><p><strong>action_shape</strong> (<em>tuple of ints</em>) – the shape of the actions to store.</p></li>
+<li><p><strong>rng</strong> (<em>np.random.Generator</em><em>, </em><em>optional</em>) – a random number generator when sampling
+batches. If None (default value), a new default generator will be used.</p></li>
+<li><p><strong>obs_type</strong> (<em>type</em>) – the data type of the observations (defaults to np.float32).</p></li>
+<li><p><strong>action_type</strong> (<em>type</em>) – the data type of the actions (defaults to np.float32).</p></li>
+<li><p><strong>shuffle_each_epoch</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code> the iteration order is shuffled everytime a
+loop over the data is completed. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.replay_buffer.IterableReplayBuffer.load">
+<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.IterableReplayBuffer.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads transition data from a given path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>str</em>) – the full path to the file with the transition data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.replay_buffer.SimpleReplayBuffer">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.replay_buffer.</code><code class="sig-name descname">SimpleReplayBuffer</code><span class="sig-paren">(</span><em class="sig-param">capacity: int, obs_shape: Tuple[int], action_shape: Tuple[int], obs_type=&lt;class 'numpy.float32'&gt;, action_type=&lt;class 'numpy.float32'&gt;, rng: Optional[numpy.random._generator.Generator] = None</em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.SimpleReplayBuffer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A standard replay buffer implementation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>capacity</strong> (<em>int</em>) – the maximum number of transitions that the buffer can store.
+When the capacity is reached, the contents are overwritten in FIFO fashion.</p></li>
+<li><p><strong>obs_shape</strong> (<em>tuple of ints</em>) – the shape of the observations to store.</p></li>
+<li><p><strong>action_shape</strong> (<em>tuple of ints</em>) – the shape of the actions to store.</p></li>
+<li><p><strong>obs_type</strong> (<em>type</em>) – the data type of the observations (defaults to np.float32).</p></li>
+<li><p><strong>action_type</strong> (<em>type</em>) – the data type of the actions (defaults to np.float32).</p></li>
+<li><p><strong>rng</strong> (<em>np.random.Generator</em><em>, </em><em>optional</em>) – a random number generator when sampling
+batches. If None (default value), a new default generator will be used.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.replay_buffer.SimpleReplayBuffer.add">
+<code class="sig-name descname">add</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">action</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">next_obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">reward</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">done</span><span class="p">:</span> <span class="n">bool</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.SimpleReplayBuffer.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a transition (s, a, s’, r, done) to the replay buffer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obs</strong> (<em>np.ndarray</em>) – the observation at time t.</p></li>
+<li><p><strong>action</strong> (<em>np.ndarray</em>) – the action at time t.</p></li>
+<li><p><strong>next_obs</strong> (<em>np.ndarray</em>) – the observation at time t + 1.</p></li>
+<li><p><strong>reward</strong> (<em>float</em>) – the reward at time t + 1.</p></li>
+<li><p><strong>done</strong> (<em>bool</em>) – a boolean indicating whether the episode ended or not.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.replay_buffer.SimpleReplayBuffer.is_train_compatible_with_ensemble">
+<code class="sig-name descname">is_train_compatible_with_ensemble</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.SimpleReplayBuffer.is_train_compatible_with_ensemble" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicates if this replay buffer can be used to train bootstrapped ensemble models.</p>
+<p>This is used so that the model trainer can check the specific subclass of
+<a class="reference internal" href="#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimpleReplayBuffer</span></code></a> can be used to train ensembles. The only class that returns
+<code class="docutils literal notranslate"><span class="pre">True</span></code> is <a class="reference internal" href="#mbrl.replay_buffer.BootstrapReplayBuffer" title="mbrl.replay_buffer.BootstrapReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">BootstrapReplayBuffer</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.replay_buffer.SimpleReplayBuffer.load">
+<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.SimpleReplayBuffer.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads transition data from a given path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>str</em>) – the full path to the file with the transition data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.replay_buffer.SimpleReplayBuffer.sample">
+<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; Sized<a class="headerlink" href="#mbrl.replay_buffer.SimpleReplayBuffer.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Samples a batch of transitions from the replay buffer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>batch_size</strong> (<em>int</em>) – the number of samples required.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the sampled values of observations, actions, next observations, rewards
+and done indicators, as numpy arrays, respectively. The i-th transition corresponds
+to (obs[i], act[i], next_obs[i], rewards[i], dones[i]).</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.replay_buffer.SimpleReplayBuffer.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.SimpleReplayBuffer.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves the data in the replay buffer to a given path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>str</em>) – the file name to save the data to (the .npz extension will be appended).</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="logging.html" class="btn btn-neutral float-right" title="Logging module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="util.html" class="btn btn-neutral float-left" title="General utilities module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Facebook AI Research
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

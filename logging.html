@@ -1,0 +1,300 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Logging module &mdash; mbrl-lib  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Replay buffer module" href="replay_buffer.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> mbrl-lib
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="planning.html">Planning module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="math.html">Math utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">General utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="replay_buffer.html">Replay buffer module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Logging module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">mbrl-lib</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Logging module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/logging.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-mbrl.logger">
+<span id="logging-module"></span><h1>Logging module<a class="headerlink" href="#module-mbrl.logger" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="mbrl.logger.Logger">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.logger.</code><code class="sig-name descname">Logger</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">log_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">enable_back_compatible</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.logger.Logger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Light-weight csv logger.</p>
+<p>This logger is based on pytorch_sac’s
+<a class="reference external" href="https://github.com/denisyarats/pytorch_sac/blob/master/logger.py">logger</a>
+with some modifications and some of its features removed.</p>
+<p>To use this logger you must register logging groups using <a class="reference internal" href="#mbrl.logger.Logger.register_group" title="mbrl.logger.Logger.register_group"><code class="xref py py-meth docutils literal notranslate"><span class="pre">register_group()</span></code></a>. Each
+group will save data to a separate csv file, at <cite>log_dir/&lt;group_name&gt;.csv</cite>, and will
+output to console using its own dedicated tabular format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_dir</strong> (<em>str</em><em> or </em><em>pathlib.Path</em>) – the directory where to save the logs.</p></li>
+<li><p><strong>enable_back_compatible</strong> (<em>bool</em><em>, </em><em>optional</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, this logger can be used in the
+methods in the <cite>pytorch_sac</cite> library. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.logger.Logger.log_data">
+<code class="sig-name descname">log_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">group_name</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Mapping<span class="p">[</span>str<span class="p">, </span>Union<span class="p">[</span>int<span class="p">, </span>float<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.logger.Logger.log_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logs the data contained in a given dictionary to the given logging group.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>group_name</strong> (<em>str</em>) – the name of the logging group to use. It must have been registered
+already, otherwise an exception will be thrown.</p></li>
+<li><p><strong>data</strong> (<em>mapping str-&gt;</em><em>(</em><em>int/float/torch.Tensor</em><em>)</em>) – the dictionary with the data. Each
+keyword must be a variable name in the log format passed when creating this group.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.logger.Logger.register_group">
+<code class="sig-name descname">register_group</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">group_name</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">log_format</span><span class="p">:</span> <span class="n">List<span class="p">[</span>Tuple<span class="p">[</span>str<span class="p">, </span>str<span class="p">, </span>str<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">dump_frequency</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">color</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'yellow'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.logger.Logger.register_group" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a logging group.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>group_name</strong> (<em>str</em>) – the name assigned to the logging group.</p></li>
+<li><p><strong>log_format</strong> (<em>list of 3-tuples</em>) – each tuple contains 3 strings, representing
+(variable_name, shortcut, type), for a variable that the logger should keep
+track of in this group. The variable name will be used as a header in the csv file
+for the entries of this variable. The shortcut will be used as a header for
+the console output tabular format. The type should be one of
+“int”, “float”, “time”.</p></li>
+<li><p><strong>dump_frequency</strong> (<em>int</em>) – how often (measured in calls to <a class="reference internal" href="#mbrl.logger.Logger.log_data" title="mbrl.logger.Logger.log_data"><code class="xref py py-meth docutils literal notranslate"><span class="pre">log_data()</span></code></a>)
+should the logger dump the data collected since the last call. If
+<code class="docutils literal notranslate"><span class="pre">dump_frequency</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>, then the data collected between calls is averaged.</p></li>
+<li><p><strong>color</strong> (<em>str</em>) – a color to use for this group in the console.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="replay_buffer.html" class="btn btn-neutral float-left" title="Replay buffer module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Facebook AI Research
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

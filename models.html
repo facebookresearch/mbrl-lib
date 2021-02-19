@@ -1,0 +1,1083 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Models module &mdash; mbrl-lib  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Planning module" href="planning.html" />
+    <link rel="prev" title="Documentation for mbrl-lib" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> mbrl-lib
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Models module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="planning.html">Planning module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="math.html">Math utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">General utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="replay_buffer.html">Replay buffer module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="logging.html">Logging module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">mbrl-lib</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Models module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/models.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-mbrl.models">
+<span id="models-module"></span><h1>Models module<a class="headerlink" href="#module-mbrl.models" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="mbrl.models.BasicEnsemble">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">BasicEnsemble</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">member_cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.BasicEnsemble" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.base_models.Model</span></code></p>
+<p>Implements an ensemble of bootstrapped models.</p>
+<p>This model is a basic implementation of the ensemble of bootstrapped models described in the
+Chua et al., NeurIPS 2018 paper (PETS) <a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">https://arxiv.org/pdf/1805.12114.pdf</a>,
+and includes support for different uncertainty propagation options (see <a class="reference internal" href="#mbrl.models.BasicEnsemble.forward" title="mbrl.models.BasicEnsemble.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a>).
+The underlying model can be any subclass of <a class="reference internal" href="#mbrl.models.Model" title="mbrl.models.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code></a>, and the ensemble
+forward simply loops over all models during the forward and backward pass
+(hence the term basic).</p>
+<p>All members of the ensemble will be identical, and they must be subclasses of
+<a class="reference internal" href="#mbrl.models.Model" title="mbrl.models.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code></a>.</p>
+<p>Members can be accessed using <cite>ensemble[i]</cite>, to recover the i-th model in the ensemble. Doing
+<cite>len(ensemble)</cite> returns its size, and the ensemble can also be iterated over the models
+(e.g., calling <cite>for i, model in enumerate(ensemble)</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ensemble_size</strong> (<em>int</em>) – how many models to include in the ensemble.</p></li>
+<li><p><strong>in_size</strong> (<em>int</em>) – size of model input.</p></li>
+<li><p><strong>out_size</strong> (<em>int</em>) – size of model output.</p></li>
+<li><p><strong>device</strong> (<em>str</em><em> or </em><em>torch.device</em>) – the device to use for the model.</p></li>
+<li><p><strong>member_cfg</strong> (<em>omegaconf.DictConfig</em>) – the configuration needed to instantiate the models
+in the ensemble. They will be instantiated using
+<cite>hydra.utils.instantiate(member_cfg)</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.eval_score">
+<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.BasicEnsemble.eval_score" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the average score over all members given input/target.</p>
+<p>The input and target tensors are replicated once for each model in the ensemble.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_in</strong> (<em>tensor</em>) – the inputs to the models.</p></li>
+<li><p><strong>target</strong> (<em>tensor</em>) – the expected output for the given inputs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the average score over all models.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.forward">
+<code class="sig-name descname">forward</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">propagation</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.forward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the output of the ensemble.</p>
+<p>The forward pass for the ensemble computes forward passes for of its models, and
+aggregates the prediction in different ways, according to the desired
+epistemic uncertainty <code class="docutils literal notranslate"><span class="pre">propagation</span></code> method.</p>
+<p>If no propagation is desired (i.e., <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">is</span> <span class="pre">None</span></code>), then the outputs of
+the model are stacked into single tensors (one for mean, one for logvar). The shape
+of each output tensor will then be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">D</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code> and <code class="docutils literal notranslate"><span class="pre">D</span></code>
+represent ensemble size, batch size, and output dimension, respectively.</p>
+<p>Valid propagation options are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>“random_model”: for each output in the batch a model will be chosen at random.
+This corresponds to TS1 propagation in the PETS paper.</p></li>
+<li><p>“fixed_model”: for output j-th in the batch, the model will be chosen according to
+the model index in <cite>propagation_indices[j]</cite>. This can be used to implement TSinf
+propagation, described in the PETS paper.</p></li>
+<li><p>“expectation”: the output for each element in the batch will be the mean across
+models.</p></li>
+</ul>
+</div></blockquote>
+<p>For all of these, the output is of size <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">D</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>tensor</em>) – the input to the models (shape <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">D</span></code>). The input will be
+evaluated over all models, then aggregated according to <code class="docutils literal notranslate"><span class="pre">propagation</span></code>,
+as explained above.</p></li>
+<li><p><strong>propagation</strong> (<em>str</em><em>, </em><em>optional</em>) – the desired propagation function. Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>propagation_indices</strong> (<em>int</em><em>, </em><em>optional</em>) – the model indices for each element in the batch
+when <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">==</span> <span class="pre">&quot;fixed_model&quot;</span></code>.</p></li>
+<li><p><strong>rng</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – random number generator to use for “random_model”
+propagation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>one for aggregated mean predictions, and one for aggregated
+log variance prediction (or <code class="docutils literal notranslate"><span class="pre">None</span></code> if the ensemble members don’t predict variance).</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of two tensors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.load">
+<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads the model from the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.loss">
+<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">inputs</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">targets</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.BasicEnsemble.loss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes average loss over the losses of all members of the ensemble.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inputs</strong> (<em>sequence of tensors</em>) – one input for each model in the ensemble.</p></li>
+<li><p><strong>targets</strong> (<em>sequence of tensors</em>) – one target for each model in the ensemble.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the average loss over all members.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.sample_propagation_indices">
+<code class="sig-name descname">sample_propagation_indices</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">torch._C.Generator</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.BasicEnsemble.sample_propagation_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a tensor with <code class="docutils literal notranslate"><span class="pre">batch_size</span></code> integers from [0, <code class="docutils literal notranslate"><span class="pre">self.num_members</span></code>).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves the model to the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.update">
+<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">inputs</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">targets</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">optimizers</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>torch.optim.optimizer.Optimizer<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.BasicEnsemble.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates all models of the ensemble.</p>
+<p>Loops over the models in the ensemble and calls <code class="docutils literal notranslate"><span class="pre">loss</span> <span class="pre">=</span> <span class="pre">ensemble[i].update()</span></code>.
+Then returns the average loss value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inputs</strong> (<em>tensor</em>) – input tensor with shape <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Id</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Id</span></code> represent ensemble size, batch size, and input dimension, respectively .</p></li>
+<li><p><strong>targets</strong> (<em>tensor</em>) – target tensor with shape <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Od</span></code> represent ensemble size, batch size, and output dimension, respectively .</p></li>
+<li><p><strong>optimizers</strong> (<em>sequence of torch optimizers</em>) – one optimizer for each model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the average loss over all members.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(float)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.models.DynamicsModelTrainer">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">DynamicsModelTrainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dynamics_model</span><span class="p">:</span> <span class="n">mbrl.models.dynamics_models.DynamicsModelWrapper</span></em>, <em class="sig-param"><span class="n">dataset_train</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.IterableReplayBuffer" title="mbrl.replay_buffer.IterableReplayBuffer">mbrl.replay_buffer.IterableReplayBuffer</a></span></em>, <em class="sig-param"><span class="n">dataset_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.IterableReplayBuffer" title="mbrl.replay_buffer.IterableReplayBuffer">mbrl.replay_buffer.IterableReplayBuffer</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">optim_lr</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0001</span></em>, <em class="sig-param"><span class="n">weight_decay</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1e-05</span></em>, <em class="sig-param"><span class="n">logger</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="logging.html#mbrl.logger.Logger" title="mbrl.logger.Logger">mbrl.logger.Logger</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.DynamicsModelTrainer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Trainer for dynamics models.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dynamics_model</strong> (<a class="reference internal" href="#mbrl.models.DynamicsModelWrapper" title="mbrl.models.DynamicsModelWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.DynamicsModelWrapper</span></code></a>) – the wrapper to access the
+model to train.</p></li>
+<li><p><strong>dataset_train</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.IterableReplayBuffer" title="mbrl.replay_buffer.IterableReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.IterableReplayBuffer</span></code></a>) – the replay buffer
+containing the training data. If the model is an ensemble, it must be an instance
+of <a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.BootstrapReplayBuffer" title="mbrl.replay_buffer.BootstrapReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.BootstrapReplayBuffer</span></code></a>.</p></li>
+<li><p><strong>dataset_val</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.IterableReplayBuffer" title="mbrl.replay_buffer.IterableReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.IterableReplayBuffer</span></code></a>, optional) – the replay
+buffer containing the validation data (if provided). Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>optim_lr</strong> (<em>float</em>) – the learning rate for the optimizer (using Adam).</p></li>
+<li><p><strong>weight_decay</strong> (<em>float</em>) – the weight decay to use.</p></li>
+<li><p><strong>logger</strong> (<a class="reference internal" href="logging.html#mbrl.logger.Logger" title="mbrl.logger.Logger"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.logger.Logger</span></code></a>, optional) – the logger to use.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelTrainer.evaluate">
+<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">use_train_set</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.DynamicsModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates the model on the validation dataset.</p>
+<p>Iterates over validation dataset, one batch at a time, and calls
+<a class="reference internal" href="#mbrl.models.DynamicsModelWrapper.eval_score_from_simple_batch" title="mbrl.models.DynamicsModelWrapper.eval_score_from_simple_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DynamicsModelWrapper.eval_score_from_simple_batch()</span></code></a> to compute the model score
+over the batch. The method returns the average score over the whole dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>use_train_set</strong> (<em>bool</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the evaluation is done over the training data.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The average score of the model over the dataset.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(float)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelTrainer.maybe_save_best_weights">
+<code class="sig-name descname">maybe_save_best_weights</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">best_val_score</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">val_score</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.001</span></em><span class="sig-paren">)</span> &#x2192; Optional<span class="p">[</span>Dict<span class="p">]</span><a class="headerlink" href="#mbrl.models.DynamicsModelTrainer.maybe_save_best_weights" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the best weights if the validation score improves over the best value so far.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>best_val_score</strong> (<em>float</em>) – the current best validation loss.</p></li>
+<li><p><strong>val_score</strong> (<em>float</em>) – the new validation loss.</p></li>
+<li><p><strong>threshold</strong> (<em>float</em>) – the threshold for relative improvement.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>if the validation score’s relative improvement over the
+best validation score is higher than the threshold, returns the state dictionary
+of the stored dynamics model, otherwise returns <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(dict, optional)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelTrainer.train">
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_epochs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">patience</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">50</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>List<span class="p">[</span>float<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>float<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.DynamicsModelTrainer.train" title="Permalink to this definition">¶</a></dt>
+<dd><p>Trains the dynamics model for some number of epochs.</p>
+<p>This method iterates over the stored train dataset, one batch of transitions at a time,
+and calls either <a class="reference internal" href="#mbrl.models.DynamicsModelWrapper.update_from_bootstrap_batch" title="mbrl.models.DynamicsModelWrapper.update_from_bootstrap_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DynamicsModelWrapper.update_from_bootstrap_batch()</span></code></a> or
+<a class="reference internal" href="#mbrl.models.DynamicsModelWrapper.update_from_simple_batch" title="mbrl.models.DynamicsModelWrapper.update_from_simple_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DynamicsModelWrapper.update_from_simple_batch()</span></code></a>, depending on whether the
+stored dynamics model is an ensemble or not, respectively.</p>
+<p>If a validation dataset is provided in the constructor, this method will also evaluate
+the model over the validation data once per training epoch. The method will keep track
+of the weights with the best validation score, and after training the weights of the
+model will be set to the best weights. If no validation dataset is provided, the method
+will keep the model with the best loss over training data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_epochs</strong> (<em>int</em><em>, </em><em>optional</em>) – if provided, the maximum number of epochs to train for.
+Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>, which indicates there is no limit.</p></li>
+<li><p><strong>patience</strong> (<em>int</em><em>, </em><em>optional</em>) – if provided, the patience to use for training. That is,
+training will stop after <code class="docutils literal notranslate"><span class="pre">patience</span></code> number of epochs without improvement.</p></li>
+<li><p><strong>callback</strong> (<em>callable</em><em>, </em><em>optional</em>) – <p>if provided, this function will be called after
+every training epoch with the following positional arguments:</p>
+<blockquote>
+<div><ul>
+<li><p>total number of calls made to <code class="docutils literal notranslate"><span class="pre">trainer.train()</span></code></p></li>
+<li><p>current epoch</p></li>
+<li><p>training loss</p></li>
+<li><p>train score (i.e., result of <code class="docutils literal notranslate"><span class="pre">trainer.evaluate()</span></code> on training data)</p></li>
+<li><p>validation score</p></li>
+<li><p>best validation score so far</p></li>
+</ul>
+</div></blockquote>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the history of training losses and validation losses.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of two list(float))</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.models.DynamicsModelWrapper">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">DynamicsModelWrapper</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.base_models.Model</span></em>, <em class="sig-param"><span class="n">target_is_delta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">learned_rewards</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">obs_process_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">no_delta_list</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Wrapper class for all dynamics models.</p>
+<p>This class wraps a <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.model.Model</span></code>, providing utility operations that are common
+when using and training dynamics models. Importantly, it provides interfaces with the
+model at the level of transition batches (obs, action, next_obs, reward, done),
+so that users don’t have to manipulate the underlying model’s inputs and outputs directly.</p>
+<p>The wrapper assumes that dynamics model inputs/outputs will be consistent with</p>
+<blockquote>
+<div><p>[pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),</p>
+</div></blockquote>
+<p>and it provides methods to construct model inputs and targets given a batch of transitions,
+accordingly. Moreover, the constructor provides options to perform diverse data manipulations
+that will be used every time the model needs to be accessed for prediction or training;
+for example, input normalization, and observation pre-processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.model.Model</span></code>) – the model to wrap.</p></li>
+<li><p><strong>target_is_delta</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the predicted observations will represent
+the difference respect to the input observations.
+That is, ignoring rewards, pred_obs_{t + 1} = obs_t + model([obs_t, act_t]).
+Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>. Can be deactivated per dimension using <code class="docutils literal notranslate"><span class="pre">no_delta_list</span></code>.</p></li>
+<li><p><strong>normalize</strong> (<em>bool</em>) – if true, the wrapper will create a normalizer for model inputs,
+which will be used every time the model is called using the methods in this
+class. To update the normalizer statistics, the user needs to call
+<a class="reference internal" href="#mbrl.models.DynamicsModelWrapper.update_normalizer" title="mbrl.models.DynamicsModelWrapper.update_normalizer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_normalizer()</span></code></a>. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<li><p><strong>learned_rewards</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the wrapper considers the last output of the model
+to correspond to rewards predictions, and will use it to construct training
+targets for the model and when returning model predictions. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>obs_process_fn</strong> (<em>callable</em><em>, </em><em>optional</em>) – if provided, observations will be passed through
+this function before being given to the model (and before the normalizer also).
+The processed observations should have the same dimensions as the original.
+Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>no_delta_list</strong> (<em>list</em><em>(</em><em>int</em><em>)</em><em>, </em><em>optional</em>) – if provided, represents a list of dimensions over
+which the model predicts the actual observation and not just a delta.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelWrapper.eval_score_from_simple_batch">
+<code class="sig-name descname">eval_score_from_simple_batch</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.DynamicsModelWrapper.eval_score_from_simple_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates the model score over a batch of transitions.</p>
+<p>This method constructs input and targets from the information in the batch,
+then calls <cite>self.model.eval_score()</cite> on them and returns the value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>batch</strong> (<em>transition batch</em>) – a batch of transition to train the model.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>as returned by <cite>model.eval_score().</cite></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelWrapper.get_output_and_targets_from_simple_batch">
+<code class="sig-name descname">get_output_and_targets_from_simple_batch</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper.get_output_and_targets_from_simple_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the model output and the target tensors given a batch of transitions.</p>
+<p>This method constructs input and targets from the information in the batch,
+then calls <cite>self.model.forward()</cite> on them and returns the value. No gradient information
+will be kept.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>batch</strong> (<em>transition batch</em>) – a batch of transition to train the model.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>as returned by <cite>model.eval_score().</cite></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelWrapper.predict">
+<code class="sig-name descname">predict</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">actions</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">sample</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'expectation'</span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Predicts next observations and rewards given observations and actions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obs</strong> (<em>tensor</em>) – the input observations corresponding to o_t.</p></li>
+<li><p><strong>actions</strong> (<em>tensor</em>) – the input actions corresponding to a_t.</p></li>
+<li><p><strong>sample</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>. the predictions will be sampled using moment matching
+on the mean and logvar predicted by the model. If the model doesn’t predict
+log variance, an error will be thrown. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, the predictions will be
+the first output of the model. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>propagation_method</strong> (<em>str</em>) – the propagation method to use for the model (only used if
+the model is of type <a class="reference internal" href="#mbrl.models.BasicEnsemble" title="mbrl.models.BasicEnsemble"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.BasicEnsemble</span></code></a>.</p></li>
+<li><p><strong>propagation_indices</strong> (<em>tensor</em><em>, </em><em>optional</em>) – indices for propagation when
+<code class="docutils literal notranslate"><span class="pre">propagation=&quot;fixed_model&quot;</span></code>.</p></li>
+<li><p><strong>rng</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – random number generator for uncertainty propagation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>predicted next_observation (o_{t+1}) and rewards (r_{t+1}).</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of two tensors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelWrapper.update_from_bootstrap_batch">
+<code class="sig-name descname">update_from_bootstrap_batch</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bootstrap_batch</span><span class="p">:</span> <span class="n">List<span class="p">[</span>Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">optimizers</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>torch.optim.optimizer.Optimizer<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper.update_from_bootstrap_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the model given a batch for bootstrapped models and optimizers.</p>
+<p>This is method is only intended for ensemble models. It creates
+inputs and targets for each model in the ensemble; that is, <cite>batch[i]</cite> will be
+used to construct input/target for the i-th ensemble member. The method then calls
+<cite>self.model.update()</cite> using these inputs and targets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bootstrap_batch</strong> (<em>sequence of transition batch</em>) – a list with batches of transitions,
+one for each ensemble member.</p></li>
+<li><p><strong>optimizers</strong> (<em>sequence of torch optimizers</em>) – one optimizer for each model in the
+ensemble.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelWrapper.update_from_simple_batch">
+<code class="sig-name descname">update_from_simple_batch</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">torch.optim.optimizer.Optimizer</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper.update_from_simple_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the model given a batch of transitions and an optimizer.</p>
+<p>This is method is only intended for <strong>non-ensemble</strong> models. It constructs input and
+targets from the information in the batch, then calls <cite>self.model.update()</cite> on them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch</strong> (<em>transition batch</em>) – a batch of transition to train the model.</p></li>
+<li><p><strong>optimizer</strong> (<em>torch optimizer</em>) – the optimizer to use to update the model.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.DynamicsModelWrapper.update_normalizer">
+<code class="sig-name descname">update_normalizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transition</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper.update_normalizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the normalizer statistics using the data in the transition.</p>
+<p>The normalizer will update running mean and variance given the obs and action in
+the transition. If an observation processing function has been provided, it will
+be called on <code class="docutils literal notranslate"><span class="pre">obs</span></code> before updating the normalizer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>transition</strong> (<em>tuple</em>) – contains obs, action, next_obs, reward, done. Only obs and
+action will be used, since these are the inputs to the model.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.models.GaussianMLP">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">GaussianMLP</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">num_layers</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">4</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">hid_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">200</span></em>, <em class="sig-param"><span class="n">use_silu</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.base_models.Model</span></code></p>
+<p>Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.</p>
+<p>This model is based on the one described in the Chua et al., NeurIPS 2018 paper (PETS)
+<a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">https://arxiv.org/pdf/1805.12114.pdf</a></p>
+<p>It predicts per output mean and log variance, and its weights are updated using a Gaussian
+negative log likelihood loss. The log variance is bounded between learned <code class="docutils literal notranslate"><span class="pre">min_log_var</span></code>
+and <code class="docutils literal notranslate"><span class="pre">max_log_var</span></code> parameters, trained as explained in Appendix A.1 of the paper.</p>
+<p>This class can also be used to build an ensemble of GaussianMLP models, by setting
+<code class="docutils literal notranslate"><span class="pre">ensemble_size</span> <span class="pre">&gt;</span> <span class="pre">1</span></code> in the constructor. Then, a single forward pass can be used to evaluate
+multiple independent MLPs at the same time. When this mode is active, the constructor will
+set <code class="docutils literal notranslate"><span class="pre">self.num_members</span> <span class="pre">=</span> <span class="pre">ensemble_size</span></code> and <code class="docutils literal notranslate"><span class="pre">self.is_ensemble</span> <span class="pre">=</span> <span class="pre">True</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_size</strong> (<em>int</em>) – size of model input.</p></li>
+<li><p><strong>out_size</strong> (<em>int</em>) – size of model output.</p></li>
+<li><p><strong>device</strong> (<em>str</em><em> or </em><em>torch.device</em>) – the device to use for the model.</p></li>
+<li><p><strong>num_layers</strong> (<em>int</em>) – the number of layers in the model
+(e.g., if <code class="docutils literal notranslate"><span class="pre">num_layers</span> <span class="pre">==</span> <span class="pre">3</span></code>, then model graph looks like
+input -h1-&gt; -h2-&gt; -l3-&gt; output).</p></li>
+<li><p><strong>ensemble_size</strong> (<em>int</em>) – the number of members in the ensemble. Defaults to 1.</p></li>
+<li><p><strong>hid_size</strong> (<em>int</em>) – the size of the hidden layers (e.g., size of h1 and h2 in the graph above).</p></li>
+<li><p><strong>use_silu</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, hidden layers will use SiLU activations, otherwise
+ReLU activations will be used.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.models.GaussianMLP.eval_score">
+<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.GaussianMLP.eval_score" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the squared error for the model over the given input/target.</p>
+<p>When model is not an ensemble, this is equivalent to
+<cite>F.mse_loss(model(model_in, target), reduction=”none”)</cite>. If the model is ensemble,
+then return value is averaged over the model dimension.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_in</strong> (<em>tensor</em>) – input tensor. The shape must be <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">Id</span></code>, where <cite>B`</cite> and <code class="docutils literal notranslate"><span class="pre">Id</span></code>
+batch size, and input dimension, respectively.</p></li>
+<li><p><strong>target</strong> (<em>tensor</em>) – target tensor. The shape must be <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">B</span></code> and <code class="docutils literal notranslate"><span class="pre">Od</span></code>
+represent batch size, and output dimension, respectively.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a tensor with the squared error per output dimension, averaged over model.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.GaussianMLP.forward">
+<code class="sig-name descname">forward</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">propagation</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.GaussianMLP.forward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes mean and logvar predictions for the given input.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">self.is_ensemble</span> <span class="pre">=</span> <span class="pre">True</span></code>, the model supports uncertainty propagation options
+that can be used to aggregate the outputs of the different models in the ensemble.
+Valid propagation options are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>“random_model”: for each output in the batch a model will be chosen at random.
+This corresponds to TS1 propagation in the PETS paper.</p></li>
+<li><p>“fixed_model”: for output j-th in the batch, the model will be chosen according to
+the model index in <cite>propagation_indices[j]</cite>. This can be used to implement TSinf
+propagation, described in the PETS paper.</p></li>
+<li><p>“expectation”: the output for each element in the batch will be the mean across
+models.</p></li>
+</ul>
+</div></blockquote>
+<p>When <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">is</span> <span class="pre">None</span></code>, the forward pass will return one output for each model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>tensor</em>) – the input to the model. For non-ensemble, the shape must be
+<code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">Id</span></code>, where <code class="docutils literal notranslate"><span class="pre">B</span></code> and <code class="docutils literal notranslate"><span class="pre">Id</span></code> represent batch size,
+and input dimension, respectively. For ensemble, if <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">None</span></code>,
+then the shape must be same as above.
+When <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">is</span> <span class="pre">None</span></code>, the shape can also be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Id</span></code>,
+where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code> and <code class="docutils literal notranslate"><span class="pre">Id</span></code> represent ensemble size, batch size, and input
+dimension, respectively. In this case, each model in the ensemble will get one
+slice from the first dimension (e.g., the i-th ensemble member gets <code class="docutils literal notranslate"><span class="pre">x[i]</span></code>).</p></li>
+<li><p><strong>propagation</strong> (<em>str</em><em>, </em><em>optional</em>) – the desired propagation function. Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>propagation_indices</strong> (<em>int</em><em>, </em><em>optional</em>) – the model indices for each element in the batch
+when <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">==</span> <span class="pre">&quot;fixed_model&quot;</span></code>.</p></li>
+<li><p><strong>rng</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – random number generator to use for “random_model”
+propagation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the predicted mean and log variance of the output. If
+<code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">None</span></code>, the output will be 2-D (batch size, and output dimension).
+Otherwise, the outputs will have shape <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">Od</span></code> represents
+output dimension.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of two tensors)</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For efficiency considerations, the propagation method used by this class is an
+approximate version of that described by Chua et al. In particular, instead of
+sampling models independently for each input in the batch, we ensure that each
+model gets exactly the same number of samples (which are assigned randomly
+with equal probability), resulting in a smaller batch size which we use for the forward
+pass. If this is a concern, consider using <code class="docutils literal notranslate"><span class="pre">propagation=None</span></code>, and passing
+the output to <a class="reference internal" href="math.html#mbrl.math.propagate" title="mbrl.math.propagate"><code class="xref py py-func docutils literal notranslate"><span class="pre">mbrl.math.propagate()</span></code></a>.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.GaussianMLP.load">
+<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads the model from the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.GaussianMLP.loss">
+<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.GaussianMLP.loss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes Gaussian NLL loss.</p>
+<p>It also includes terms for <code class="docutils literal notranslate"><span class="pre">max_logvar</span></code> and <code class="docutils literal notranslate"><span class="pre">min_logvar</span></code> with small weights,
+with positive and negative signs, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_in</strong> (<em>tensor</em>) – input tensor. For ensemble, the shape must be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Id</span></code>,
+where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code> and <code class="docutils literal notranslate"><span class="pre">Id</span></code> represent ensemble size, batch size, and input
+dimension, respectively. For non-ensemble, the shape is as above, except
+with the model dimension removed (<code class="docutils literal notranslate"><span class="pre">E</span></code>).</p></li>
+<li><p><strong>target</strong> (<em>tensor</em>) – target tensor. For ensemble, the shape must be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>,
+where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code> and <code class="docutils literal notranslate"><span class="pre">Od</span></code> represent ensemble size, batch size, and output
+dimension, respectively. For non-ensemble, the shape is as above, except
+with the model dimension removed (<code class="docutils literal notranslate"><span class="pre">E</span></code>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a loss tensor representing the Gaussian negative log-likelihood of
+the model over the given input/target. If the model is an ensemble, returns
+the average over all models.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.GaussianMLP.sample_propagation_indices">
+<code class="sig-name descname">sample_propagation_indices</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">_rng</span><span class="p">:</span> <span class="n">torch._C.Generator</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.GaussianMLP.sample_propagation_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a random permutation of integers in [0, <code class="docutils literal notranslate"><span class="pre">batch_size</span></code>).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.GaussianMLP.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves the model to the given path.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.models.Model">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">Model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<p>Base abstract class for all dynamics models.</p>
+<p>All classes derived from <cite>Model</cite> must implement the following methods:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">forward</span></code>: computes the model output.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">loss</span></code>: computes a loss tensor that can be used for backpropagation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eval_score</span></code>: computes a non-reduced tensor that gives an evaluation score
+for the model on the input data (e.g., squared error per element).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save</span></code>: saves the model to a given path.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">load</span></code>: loads the model from a given path.</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_size</strong> (<em>int</em>) – size of the input tensor.</p></li>
+<li><p><strong>out_size</strong> (<em>int</em>) – size of the output tensor.</p></li>
+<li><p><strong>device</strong> (<em>str</em><em> or </em><em>torch.device</em>) – device to use for the model.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.models.Model.eval_score">
+<em class="property">abstract </em><code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.Model.eval_score" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes an evaluation score for the model over the given input/target.</p>
+<p>This method should compute a non-reduced score for the model, intended mostly for
+logging/debugging purposes (so, it should not keep gradient information).
+For example, the following could be a valid
+implementation of <code class="docutils literal notranslate"><span class="pre">eval_score</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">mse_loss</span><span class="p">(</span><span class="n">model</span><span class="p">(</span><span class="n">model_in</span><span class="p">),</span> <span class="n">target</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_in</strong> (<em>tensor</em><em> or </em><em>sequence of tensors</em>) – the inputs to the model
+(or ensemble of models).</p></li>
+<li><p><strong>target</strong> (<em>tensor</em><em> or </em><em>sequence of tensors</em>) – the expected output for the given inputs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a non-reduced tensor score.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.forward">
+<code class="sig-name descname">forward</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.Model.forward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the output of the dynamics model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>tensor</em>) – the input to the model.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the predicted mean and  log variance of the output.
+If the model does not predict uncertainty, the second output must be <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of two tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.load">
+<em class="property">abstract </em><code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Model.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads the model from the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.loss">
+<em class="property">abstract </em><code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.Model.loss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes a loss that can be used to update the model using backpropagation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_in</strong> (<em>tensor</em>) – the inputs to the model.</p></li>
+<li><p><strong>target</strong> (<em>tensor</em>) – the expected output for the given inputs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a loss tensor.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.sample_propagation_indices">
+<code class="sig-name descname">sample_propagation_indices</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">torch._C.Generator</span></em><span class="sig-paren">)</span> &#x2192; Optional<span class="p">[</span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.Model.sample_propagation_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Samples propagation indices used for “fixed_model” propagation.</p>
+<p>This method should be overridden by all ensemble classes, so that indices for
+“fixed_model” style propagation are sampled (equivalent to TSinf propagation in the
+PETS paper). This allow each type of ensemble to have its own propagation logic.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch_size</strong> (<em>int</em>) – the batch size to use for the indices.</p></li>
+<li><p><strong>rng</strong> (<em>torch.Generator</em>) – random number generator.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.save">
+<em class="property">abstract </em><code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Model.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves the model to the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.update">
+<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.optim.optimizer.Optimizer<span class="p">, </span>Sequence<span class="p">[</span>torch.optim.optimizer.Optimizer<span class="p">]</span><span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.Model.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the model using backpropagation with given input and target tensors.</p>
+<p>Provides a basic update function, following the steps below:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="p">(</span><span class="n">model_in</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+<span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Returns the numeric value of the computed loss.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.models.ModelEnv">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ModelEnv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.dynamics_models.DynamicsModelWrapper</span></em>, <em class="sig-param"><span class="n">termination_fn</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">reward_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">generator</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ModelEnv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Wraps a dynamics model into a gym-like environment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<em>gym.Env</em>) – the original gym environment for which the model was trained.</p></li>
+<li><p><strong>model</strong> (<a class="reference internal" href="#mbrl.models.DynamicsModelWrapper" title="mbrl.models.DynamicsModelWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.DynamicsModelWrapper</span></code></a>) – the dynamics model to wrap.</p></li>
+<li><p><strong>termination_fn</strong> (<em>callable</em>) – a function that receives actions and observations, and
+returns a boolean flag indicating whether the episode should end or not.</p></li>
+<li><p><strong>reward_fn</strong> (<em>callable</em><em>, </em><em>optional</em>) – a function that receives actions and observations
+and returns the value of the resulting reward in the environment.
+Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>, in which case predicted rewards will be used.</p></li>
+<li><p><strong>generator</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – a torch random number generator (must be in the
+same device as the given model). If None (default value), a new generator will be
+created using the default torch seed.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.models.ModelEnv.evaluate_action_sequences">
+<code class="sig-name descname">evaluate_action_sequences</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">action_sequences</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">initial_state</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">num_particles</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ModelEnv.evaluate_action_sequences" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates a batch of action sequences on the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action_sequences</strong> (<em>torch.Tensor</em>) – a batch of action sequences to evaluate.  Shape must
+be <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">H</span> <span class="pre">x</span> <span class="pre">A</span></code>, where <code class="docutils literal notranslate"><span class="pre">B</span></code>, <code class="docutils literal notranslate"><span class="pre">H</span></code>, and <code class="docutils literal notranslate"><span class="pre">A</span></code> represent batch size, horizon,
+and action dimension, respectively.</p></li>
+<li><p><strong>initial_state</strong> (<em>np.ndarray</em>) – the initial state for the trajectories.</p></li>
+<li><p><strong>num_particles</strong> (<em>int</em>) – number of times each action sequence is replicated. The final
+value of the sequence will be the average over its particles values.</p></li>
+<li><p><strong>propagation_method</strong> (<em>str</em>) – the propagation method to use.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the accumulated reward for each action sequence, averaged over its
+particles.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(torch.Tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.ModelEnv.reset">
+<code class="sig-name descname">reset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">initial_obs_batch</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'expectation'</span></em>, <em class="sig-param"><span class="n">return_as_np</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelEnv.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resets the model environment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>initial_obs_batch</strong> (<em>np.ndarray</em>) – a batch of initial observations. One episode for
+each observation will be run in parallel. Shape must be <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">D</span></code>, where
+<code class="docutils literal notranslate"><span class="pre">B</span></code> is batch size, and <code class="docutils literal notranslate"><span class="pre">D</span></code> is the observation dimension.</p></li>
+<li><p><strong>propagation_method</strong> (<em>str</em>) – the propagation method to use
+(see <a class="reference internal" href="#mbrl.models.DynamicsModelWrapper.predict" title="mbrl.models.DynamicsModelWrapper.predict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbrl.models.DynamicsModelWrapper.predict()</span></code></a>). if “fixed_model” is used,
+this method will create random indices for each model and keep them until
+reset is called again. This allows to roll out the model using TSInf
+propagation, as described in the PETS paper. Defaults to “expectation”.</p></li>
+<li><p><strong>return_as_np</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, this method and <a class="reference internal" href="#mbrl.models.ModelEnv.step" title="mbrl.models.ModelEnv.step"><code class="xref py py-meth docutils literal notranslate"><span class="pre">step()</span></code></a> will return
+numpy arrays, otherwise it returns torch tensors in the same device as the
+model. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the initial observation in the type indicated
+by <code class="docutils literal notranslate"><span class="pre">return_as_np</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(torch.Tensor or np.ndarray)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.ModelEnv.step">
+<code class="sig-name descname">step</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">actions</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">sample</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>Union<span class="p">[</span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">, </span>Union<span class="p">[</span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">, </span>Dict<span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelEnv.step" title="Permalink to this definition">¶</a></dt>
+<dd><p>Steps the model environment with the given batch of actions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>actions</strong> (<em>torch.Tensor</em><em> or </em><em>np.ndarray</em>) – the actions for each “episode” to rollout.
+Shape must be <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">x</span> <span class="pre">A</span></code>, where <code class="docutils literal notranslate"><span class="pre">B</span></code> is the batch size (i.e., number of episodes),
+and <code class="docutils literal notranslate"><span class="pre">A</span></code> is the action dimension. Note that <code class="docutils literal notranslate"><span class="pre">B</span></code> must correspond to the
+batch size used when calling <a class="reference internal" href="#mbrl.models.ModelEnv.reset" title="mbrl.models.ModelEnv.reset"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reset()</span></code></a>. If a np.ndarray is given, it’s
+converted to a torch.Tensor and sent to the model device.</p></li>
+<li><p><strong>sample</strong> (<em>bool</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code> model predictions are sampled using gaussian
+model matching. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>contains the predicted next observation, reward, done flag and metadata.
+The done flag is computed using the model’s given termination_fn
+(see <a class="reference internal" href="#mbrl.models.DynamicsModelWrapper" title="mbrl.models.DynamicsModelWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.DynamicsModelWrapper</span></code></a>).</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="planning.html" class="btn btn-neutral float-right" title="Planning module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral float-left" title="Documentation for mbrl-lib" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Facebook AI Research
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

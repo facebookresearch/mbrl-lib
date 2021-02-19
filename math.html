@@ -1,0 +1,523 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Math utilities module &mdash; mbrl-lib  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="General utilities module" href="util.html" />
+    <link rel="prev" title="Planning module" href="planning.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> mbrl-lib
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="planning.html">Planning module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Math utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">General utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="replay_buffer.html">Replay buffer module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="logging.html">Logging module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">mbrl-lib</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Math utilities module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/math.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-mbrl.math">
+<span id="math-utilities-module"></span><h1>Math utilities module<a class="headerlink" href="#module-mbrl.math" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="mbrl.math.Normalizer">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">Normalizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Normalizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class that keeps a running mean and variance and normalizes data accordingly.</p>
+<p>The statistics kept are stored in torch tensors.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_size</strong> (<em>int</em>) – the size of the data that will be normalized.</p></li>
+<li><p><strong>device</strong> (<em>torch.device</em>) – the device in which the data will reside.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="mbrl.math.Normalizer.denormalize">
+<code class="sig-name descname">denormalize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.Normalizer.denormalize" title="Permalink to this definition">¶</a></dt>
+<dd><p>De-normalizes the value according to the stored statistics.</p>
+<p>Equivalent to sqrt(var) * val + mu, where mu and var are the stored mean and
+variance, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>float</em><em>, </em><em>np.ndarray</em><em> or </em><em>torch.Tensor</em>) – The value to de-normalize.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The de-normalized value.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(torch.Tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.math.Normalizer.load">
+<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Normalizer.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads saved statistics from the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.math.Normalizer.normalize">
+<code class="sig-name descname">normalize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.Normalizer.normalize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Normalizes the value according to the stored statistics.</p>
+<p>Equivalent to (val - mu) / sqrt(var), where mu and var are the stored mean and
+variance, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>float</em><em>, </em><em>np.ndarray</em><em> or </em><em>torch.Tensor</em>) – The value to normalize.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The normalized value.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(torch.Tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.math.Normalizer.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">save_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Normalizer.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves stored statistics to the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.math.Normalizer.update_stats">
+<code class="sig-name descname">update_stats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Normalizer.update_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the stored statistics with the given value.</p>
+<p>This uses Welford’s online algorithm as described in
+<a class="reference external" href="https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm">https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford’s_online_algorithm</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>float</em><em>, </em><em>np.ndarray</em><em> or </em><em>torch.Tensor</em>) – The value used to update the statistics.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mbrl.math.Stats">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">Stats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mean</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">m2</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">count</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.gaussian_nll">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">gaussian_nll</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pred_mean</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">pred_logvar</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.gaussian_nll" title="Permalink to this definition">¶</a></dt>
+<dd><p>Negative log-likelihood for Gaussian distribution</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred_mean</strong> (<em>tensor</em>) – the predicted mean.</p></li>
+<li><p><strong>pred_logvar</strong> (<em>tensor</em>) – the predicted log variance.</p></li>
+<li><p><strong>target</strong> (<em>tensor</em>) – the target value.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the negative log-likelihood.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.propagate">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">propagate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'expectation'</span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.math.propagate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Propagates ensemble outputs according to desired method.</p>
+<p>Implements propagations options as described in  Chua et al., NeurIPS 2018 paper (PETS)
+<a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">https://arxiv.org/pdf/1805.12114.pdf</a></p>
+<p>Valid propagation options are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>“random_model”: equivalent to <a class="reference internal" href="#mbrl.math.propagate_random_model" title="mbrl.math.propagate_random_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_random_model()</span></code></a>.
+This corresponds to TS1 propagation in the PETS paper.</p></li>
+<li><p>“fixed_model”: equivalent to <a class="reference internal" href="#mbrl.math.propagate_fixed_model" title="mbrl.math.propagate_fixed_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_fixed_model()</span></code></a>.
+This can be used to implement TSinf propagation, described in the PETS paper.</p></li>
+<li><p>“expectation”: equivalent to <a class="reference internal" href="#mbrl.math.propagate_expectation" title="mbrl.math.propagate_expectation"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_expectation()</span></code></a>.</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>predictions</strong> (<em>tuple of tensors</em>) – the predictions to propagate. Each tensor’s
+shape must be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, and <code class="docutils literal notranslate"><span class="pre">Od</span></code> represent the
+number of models, batch size, and output dimension, respectively.</p></li>
+<li><p><strong>propagation_method</strong> (<em>str</em>) – the propagation method to use.</p></li>
+<li><p><strong>propagation_indices</strong> (<em>tensor</em><em>, </em><em>optional</em>) – the model indices to choose
+(will use the same for all predictions).
+Only needed if <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">==</span> <span class="pre">&quot;fixed_model&quot;</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the propagated predictions.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of tensors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.propagate_expectation">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">propagate_expectation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.math.propagate_expectation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Propagates ensemble outputs by taking expectation over model predictions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>predictions</strong> (<em>tuple of tensors</em>) – the predictions to propagate. Each tensor’s
+shape must be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, and <code class="docutils literal notranslate"><span class="pre">Od</span></code> represent the
+number of models, batch size, and output dimension, respectively.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>the chosen predictions, so that</dt><dd><p><cite>output[k][i, :] = predictions[k].mean(dim=0)</cite></p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of tensors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.propagate_fixed_model">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">propagate_fixed_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.math.propagate_fixed_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Propagates ensemble outputs by taking expectation over model predictions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>predictions</strong> (<em>tuple of tensors</em>) – the predictions to propagate. Each tensor’s
+shape must be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, and <code class="docutils literal notranslate"><span class="pre">Od</span></code> represent the
+number of models, batch size, and output dimension, respectively.</p></li>
+<li><p><strong>propagation_indices</strong> (<em>tensor</em>) – the model indices to choose (will use the same for all
+predictions).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>the chosen predictions, so that</dt><dd><p><cite>output[k][i, :] = predictions[k].mean(dim=0)</cite></p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of tensors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.propagate_from_indices">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">propagate_from_indices</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predicted_tensor</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">indices</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.propagate_from_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Propagates ensemble outputs using the given indices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>predicted_tensor</strong> (<em>tensor</em>) – the prediction to propagate. Shape must
+be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, and <code class="docutils literal notranslate"><span class="pre">Od</span></code> represent the
+number of models, batch size, and output dimension, respectively.</p></li>
+<li><p><strong>indices</strong> (<em>tensor</em>) – the model indices to choose.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>the chosen prediction, so that</dt><dd><p><cite>output[i, :] = predicted_tensor[indices[i], i, :]</cite>.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.propagate_random_model">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">propagate_random_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.math.propagate_random_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Propagates ensemble outputs by choosing a random model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>predictions</strong> (<em>tuple of tensors</em>) – the predictions to propagate. Each tensor’s
+shape must be <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">x</span> <span class="pre">B</span> <span class="pre">x</span> <span class="pre">Od</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, and <code class="docutils literal notranslate"><span class="pre">Od</span></code> represent the
+number of models, batch size, and output dimension, respectively.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>the chosen predictions, so that</dt><dd><p><cite>output[k][i, :] = predictions[k][random_choice, i, :]</cite>.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of tensors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.truncated_linear">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">truncated_linear</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">min_x</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">max_x</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">min_y</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">max_y</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.math.truncated_linear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Truncated linear function.</p>
+<dl class="simple">
+<dt>Implements the following function:</dt><dd><p>f1(x) = min_y + (x - min_x) / (max_x - min_x) * (max_y - min_y)
+f(x) = min(max_y, max(min_y, f1(x)))</p>
+</dd>
+</dl>
+<p>If max_x - min_x &lt; 1e-10, then it behaves as the constant f(x) = max_y</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.math.truncated_normal_">
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">truncated_normal_</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">tensor</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">mean</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">std</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">clip</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.truncated_normal_" title="Permalink to this definition">¶</a></dt>
+<dd><p>Samples from a truncated normal distribution in-place.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tensor</strong> (<em>tensor</em>) – the tensor in which sampled values will be stored.</p></li>
+<li><p><strong>mean</strong> (<em>float</em>) – the desired mean (default = 0).</p></li>
+<li><p><strong>std</strong> (<em>float</em>) – the desired standard deviation (default = 1).</p></li>
+<li><p><strong>clip</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, clips values beyond two standard deviations. This is rarely
+needed, but it can happen. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>the tensor with the stored values. Note that this modifies the input tensor</dt><dd><p>in place, so this is just a pointer to the same object.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="util.html" class="btn btn-neutral float-right" title="General utilities module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="planning.html" class="btn btn-neutral float-left" title="Planning module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Facebook AI Research
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
