@@ -387,7 +387,7 @@ class DynamicsModelTrainer:
             patience (int, optional): if provided, the patience to use for training. That is,
                 training will stop after ``patience`` number of epochs without improvement.
             callback (callable, optional): if provided, this function will be called after
-                every training epoch with the following arguments:
+                every training epoch with the following positional arguments:
                     - total number of calls made to ``trainer.train()``
                     - current epoch
                     - training loss
