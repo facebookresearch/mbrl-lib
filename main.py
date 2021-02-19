@@ -11,7 +11,6 @@ import mbrl.util.mujoco as mujoco_util
 @hydra.main(config_path="conf", config_name="main")
 def run(cfg: omegaconf.DictConfig):
     env, term_fn, reward_fn = mujoco_util.make_env(cfg)
-    env.seed(cfg.seed)
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
     if cfg.algorithm.name == "pets":

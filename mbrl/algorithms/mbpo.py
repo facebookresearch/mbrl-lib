@@ -95,6 +95,9 @@ def train(
     video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
 
     rng = np.random.default_rng(seed=cfg.seed)
+    torch_generator = torch.Generator(device=cfg.device)
+    if cfg.seed is not None:
+        torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
     env_dataset_train, env_dataset_val = mbrl.util.create_replay_buffers(
@@ -102,6 +105,7 @@ def train(
         obs_shape,
         act_shape,
         train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
+        rng=rng,
     )
     env_dataset_train = cast(
         mbrl.replay_buffer.BootstrapReplayBuffer, env_dataset_train
@@ -123,7 +127,9 @@ def train(
 
     updates_made = 0
     env_steps = 0
-    model_env = mbrl.models.ModelEnv(env, dynamics_model, termination_fn, None)
+    model_env = mbrl.models.ModelEnv(
+        env, dynamics_model, termination_fn, None, generator=torch_generator
+    )
     model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model, env_dataset_train, dataset_val=env_dataset_val, logger=logger
     )

@@ -4,6 +4,7 @@ from typing import List, cast
 import gym
 import numpy as np
 import omegaconf
+import torch
 
 import mbrl.logger
 import mbrl.math
@@ -42,6 +43,9 @@ def train(
     act_shape = env.action_space.shape
 
     rng = np.random.default_rng(seed=cfg.seed)
+    torch_generator = torch.Generator(device=cfg.device)
+    if cfg.seed is not None:
+        torch_generator.manual_seed(cfg.seed)
 
     work_dir = os.getcwd()
     print(f"Results will be saved at {work_dir}.")
@@ -56,6 +60,7 @@ def train(
         obs_shape,
         act_shape,
         train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
+        rng=rng,
     )
     dataset_train = cast(mbrl.replay_buffer.BootstrapReplayBuffer, dataset_train)
     mbrl.util.populate_buffers_with_agent_trajectories(
@@ -75,7 +80,7 @@ def train(
     # ---------------------------------------------------------
     # ---------- Create model environment and agent -----------
     model_env = mbrl.models.ModelEnv(
-        env, dynamics_model, termination_fn, reward_fn, seed=cfg.seed
+        env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model,

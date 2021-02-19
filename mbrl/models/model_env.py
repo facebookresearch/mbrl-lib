@@ -20,8 +20,9 @@ class ModelEnv:
         reward_fn (callable, optional): a function that receives actions and observations
             and returns the value of the resulting reward in the environment.
             Defaults to ``None``, in which case predicted rewards will be used.
-        seed (int, optional): An optional seed for the random number generator (based on
-            ``torch.Generator()``.
+        generator (torch.Generator, optional): a torch random number generator (must be in the
+            same device as the given model). If None (default value), a new generator will be
+            created using the default torch seed.
     """
 
     def __init__(
@@ -30,7 +31,7 @@ class ModelEnv:
         model: dynamics_models.DynamicsModelWrapper,
         termination_fn: mbrl.types.TermFnType,
         reward_fn: Optional[mbrl.types.RewardFnType] = None,
-        seed: Optional[int] = None,
+        generator: Optional[torch.Generator] = None,
     ):
         self.dynamics_model = model
         self.termination_fn = termination_fn
@@ -43,9 +44,10 @@ class ModelEnv:
         self._current_obs: torch.Tensor = None
         self._propagation_method: Optional[str] = None
         self._model_indices = None
-        self._rng = torch.Generator(device=self.device)
-        if seed is not None:
-            self._rng.manual_seed(seed)
+        if generator:
+            self._rng = torch.Generator(device=self.device)
+        else:
+            self._rng = generator
         self._return_as_np = True
 
     def reset(

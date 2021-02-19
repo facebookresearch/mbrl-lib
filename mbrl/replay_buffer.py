@@ -1,4 +1,4 @@
-from typing import List, Sized, Tuple
+from typing import List, Optional, Sized, Tuple
 
 import numpy as np
 
@@ -15,6 +15,8 @@ class SimpleReplayBuffer:
         action_shape (tuple of ints): the shape of the actions to store.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
+        rng (np.random.Generator, optional): a random number generator when sampling
+            batches. If None (default value), a new default generator will be used.
     """
 
     def __init__(
@@ -24,6 +26,7 @@ class SimpleReplayBuffer:
         action_shape: Tuple[int],
         obs_type=np.float32,
         action_type=np.float32,
+        rng: Optional[np.random.Generator] = None,
     ):
         self.obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.next_obs = np.empty((capacity, *obs_shape), dtype=obs_type)
@@ -33,6 +36,11 @@ class SimpleReplayBuffer:
         self.cur_idx = 0
         self.capacity = capacity
         self.num_stored = 0
+
+        if rng is None:
+            self._rng = np.random.default_rng()
+        else:
+            self._rng = rng
 
     def add(
         self,
@@ -71,7 +79,7 @@ class SimpleReplayBuffer:
             and done indicators, as numpy arrays, respectively. The i-th transition corresponds
             to (obs[i], act[i], next_obs[i], rewards[i], dones[i]).
         """
-        indices = np.random.choice(self.num_stored, size=batch_size)
+        indices = self._rng.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
 
     def _batch_from_indices(self, indices: Sized) -> mbrl.types.RLBatch:
@@ -144,6 +152,8 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         batch_size (int): the batch size to use when iterating over the stored data.
         obs_shape (tuple of ints): the shape of the observations to store.
         action_shape (tuple of ints): the shape of the actions to store.
+        rng (np.random.Generator, optional): a random number generator when sampling
+            batches. If None (default value), a new default generator will be used.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
@@ -156,6 +166,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         batch_size: int,
         obs_shape: Tuple[int],
         action_shape: Tuple[int],
+        rng: Optional[np.random.Generator] = None,
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
@@ -166,6 +177,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
             action_shape,
             obs_type=obs_type,
             action_type=action_type,
+            rng=rng,
         )
         self.batch_size = batch_size
         self._current_batch = 0
@@ -185,7 +197,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
     def __iter__(self):
         self._current_batch = 0
         if self._shuffle_each_epoch:
-            self._order = np.random.permutation(self.num_stored)
+            self._order = self._rng.permutation(self.num_stored)
         return self
 
     def __next__(self):
@@ -209,6 +221,8 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         num_members (int): the number of models in the ensemble.
         obs_shape (tuple of ints): the shape of the observations to store.
         action_shape (tuple of ints): the shape of the actions to store.
+        rng (np.random.Generator, optional): a random number generator when sampling
+            batches. If None (default value), a new default generator will be used.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
@@ -222,6 +236,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         num_members: int,
         obs_shape: Tuple[int],
         action_shape: Tuple[int],
+        rng: Optional[np.random.Generator] = None,
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
@@ -231,6 +246,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             batch_size,
             obs_shape,
             action_shape,
+            rng=rng,
             obs_type=obs_type,
             action_type=action_type,
             shuffle_each_epoch=shuffle_each_epoch,
@@ -251,7 +267,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
     def __iter__(self):
         super().__iter__()
         for i in range(len(self.member_indices)):
-            self.member_indices[i] = np.random.choice(
+            self.member_indices[i] = self._rng.choice(
                 self.num_stored, size=self.num_stored, replace=True
             )
         return self
@@ -286,12 +302,12 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         if ensemble:
             batches = []
             for member_idx in self.member_indices:
-                indices = np.random.choice(self.num_stored, size=batch_size)
+                indices = self._rng.choice(self.num_stored, size=batch_size)
                 content_indices = member_idx[indices]
                 batches.append(self._batch_from_indices(content_indices))
             return batches
         else:
-            indices = np.random.choice(self.num_stored, size=batch_size)
+            indices = self._rng.choice(self.num_stored, size=batch_size)
             return self._batch_from_indices(indices)
 
     def toggle_bootstrap(self):

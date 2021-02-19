@@ -275,7 +275,7 @@ class DynamicsModelWrapper:
             assert logvars is not None
             variances = logvars.exp()
             stds = torch.sqrt(variances)
-            predictions = torch.normal(means, stds)
+            predictions = torch.normal(means, stds, generator=rng)
         else:
             predictions = means
 
