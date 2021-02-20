@@ -13,8 +13,8 @@ from . import base_models
 class GaussianMLP(base_models.Model):
     """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.
 
-    This model is based on the one described in the Chua et al., NeurIPS 2018 paper (PETS)
-    https://arxiv.org/pdf/1805.12114.pdf
+    This model corresponds to a Probabilistic Ensemble in the Chua et al.,
+    NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf
 
     It predicts per output mean and log variance, and its weights are updated using a Gaussian
     negative log likelihood loss. The log variance is bounded between learned ``min_log_var``
@@ -35,7 +35,9 @@ class GaussianMLP(base_models.Model):
         ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
         use_silu (bool): if ``True``, hidden layers will use SiLU activations, otherwise
-                         ReLU activations will be used.
+                         ReLU activations will be used. Defaults to ``False``.
+        deterministic (bool): if ``True``, the model will be trained using MSE loss and no
+            logvar prediction will be done. Defaults to ``False``.
     """
 
     def __init__(
@@ -47,8 +49,9 @@ class GaussianMLP(base_models.Model):
         ensemble_size: int = 1,
         hid_size: int = 200,
         use_silu: bool = False,
+        deterministic: bool = False,
     ):
-        super(GaussianMLP, self).__init__(in_size, out_size, device)
+        super().__init__(in_size, out_size, device)
         activation_cls = nn.SiLU if use_silu else nn.ReLU
 
         self.num_members = None
@@ -73,16 +76,21 @@ class GaussianMLP(base_models.Model):
                 )
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
-        self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
-        logvar_shape = (
-            (self.num_members, 1, out_size) if self.is_ensemble else (1, out_size)
-        )
-        self.min_logvar = nn.Parameter(
-            -10 * torch.ones(logvar_shape, requires_grad=True)
-        )
-        self.max_logvar = nn.Parameter(
-            0.5 * torch.ones(logvar_shape, requires_grad=True)
-        )
+
+        self.deterministic = deterministic
+        if deterministic:
+            self.mean_and_logvar = create_linear_layer(hid_size, out_size)
+        else:
+            self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
+            logvar_shape = (
+                (self.num_members, 1, out_size) if self.is_ensemble else (1, out_size)
+            )
+            self.min_logvar = nn.Parameter(
+                -10 * torch.ones(logvar_shape, requires_grad=True)
+            )
+            self.max_logvar = nn.Parameter(
+                0.5 * torch.ones(logvar_shape, requires_grad=True)
+            )
         self.out_size = out_size
 
         self.apply(base_models.truncated_normal_init)
@@ -90,18 +98,21 @@ class GaussianMLP(base_models.Model):
 
     def _default_forward(
         self, x: torch.Tensor, **_kwargs
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         x = self.hidden_layers(x)
         mean_and_logvar = self.mean_and_logvar(x)
-        mean = mean_and_logvar[..., : self.out_size]
-        logvar = mean_and_logvar[..., self.out_size :]
-        logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
-        logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
-        return mean, logvar
+        if self.deterministic:
+            return mean_and_logvar, None
+        else:
+            mean = mean_and_logvar[..., : self.out_size]
+            logvar = mean_and_logvar[..., self.out_size :]
+            logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
+            logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
+            return mean, logvar
 
     def _forward_from_indices(
         self, x: torch.Tensor, model_indices: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         _, batch_size, _ = x.shape
 
         shuffled_x = x[:, model_indices, ...].view(
@@ -111,11 +122,11 @@ class GaussianMLP(base_models.Model):
         # these are shuffled
         mean, logvar = self._default_forward(shuffled_x)
         mean = mean.view(batch_size, -1)
-        logvar = logvar.view(batch_size, -1)
+        mean[model_indices] = mean.clone()  # invert the shuffle
 
-        # invert the shuffle
-        mean[model_indices] = mean.clone()
-        logvar[model_indices] = logvar.clone()
+        if logvar is not None:
+            logvar = logvar.view(batch_size, -1)
+            logvar[model_indices] = logvar.clone()  # invert the shuffle
 
         return mean, logvar
 
@@ -125,7 +136,7 @@ class GaussianMLP(base_models.Model):
         propagation: Optional[str] = None,
         propagation_indices: Optional[torch.Tensor] = None,
         rng: Optional[torch.Generator] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         if propagation is None:
             return self._default_forward(x)
         assert x.ndim == 2
@@ -211,6 +222,36 @@ class GaussianMLP(base_models.Model):
             )
         return self._default_forward(x)
 
+    def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        pred_mean, _ = self.forward(model_in)
+        if self.is_ensemble:
+            assert model_in.ndim == 3 and target.ndim == 3
+            total_loss: torch.Tensor = 0.0
+            for i in range(self.num_members):
+                member_loss = F.mse_loss(pred_mean, target)
+                total_loss += member_loss
+            return total_loss / self.num_members
+        else:
+            assert model_in.ndim == 2 and target.ndim == 2
+            return F.mse_loss(pred_mean, target)
+
+    def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        pred_mean, pred_logvar = self.forward(model_in)
+        if self.is_ensemble:
+            assert model_in.ndim == 3 and target.ndim == 3
+            nll: torch.Tensor = 0.0
+            for i in range(self.num_members):
+                member_loss = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+                member_loss += (
+                    0.01 * self.max_logvar[i].sum() - 0.01 * self.min_logvar[i].sum()
+                )
+                nll += member_loss
+            return nll / self.num_members
+        else:
+            assert model_in.ndim == 2 and target.ndim == 2
+            nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
+            return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
+
     def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """Computes Gaussian NLL loss.
 
@@ -232,21 +273,10 @@ class GaussianMLP(base_models.Model):
             the model over the given input/target. If the model is an ensemble, returns
             the average over all models.
         """
-        pred_mean, pred_logvar = self.forward(model_in)
-        if self.is_ensemble:
-            assert model_in.ndim == 3 and target.ndim == 3
-            nll: torch.Tensor = 0.0
-            for i in range(self.num_members):
-                member_loss = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
-                member_loss += (
-                    0.01 * self.max_logvar[i].sum() - 0.01 * self.min_logvar[i].sum()
-                )
-                nll += member_loss
-            return nll / self.num_members
+        if self.deterministic:
+            return self._mse_loss(model_in, target)
         else:
-            assert model_in.ndim == 2 and target.ndim == 2
-            nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
-            return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
+            return self._nll_loss(model_in, target)
 
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """Computes the squared error for the model over the given input/target.
@@ -279,6 +309,9 @@ class GaussianMLP(base_models.Model):
 
     def load(self, path: str):
         self.load_state_dict(torch.load(path))
+
+    def is_deterministic(self):
+        return self.deterministic
 
     def __len__(self):
         return self.num_members

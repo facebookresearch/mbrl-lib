@@ -8,3 +8,4 @@ model:
   ensemble_size: 1
   hid_size: 200
   use_silu: true
+  deterministic: false

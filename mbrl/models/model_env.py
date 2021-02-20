@@ -179,7 +179,9 @@ class ModelEnv:
             action_batch = torch.repeat_interleave(
                 actions_for_step, num_particles, dim=0
             )
-            _, rewards, _, _ = self.step(action_batch, sample=True)
+            _, rewards, _, _ = self.step(
+                action_batch, sample=not self.dynamics_model.model.is_deterministic()
+            )
             total_rewards += rewards
 
         total_rewards = total_rewards.reshape(-1, num_particles)

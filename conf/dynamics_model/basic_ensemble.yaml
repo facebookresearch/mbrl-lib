@@ -15,3 +15,5 @@ member_cfg:
   out_size: ${dynamics_model.model.out_size}
   hid_size: 200
   use_silu: true
+  deterministic: false
+  

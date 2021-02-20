@@ -63,7 +63,7 @@ class EnsembleLinearLayer(nn.Module):
 # ------------------------------------------------------------------------ #
 # Abstract model
 # ------------------------------------------------------------------------ #
-class Model(nn.Module):
+class Model(nn.Module, abc.ABC):
     """Base abstract class for all dynamics models.
 
     All classes derived from `Model` must implement the following methods:
@@ -158,6 +158,11 @@ class Model(nn.Module):
     @abc.abstractmethod
     def load(self, path: str):
         """Loads the model from the given path."""
+        pass
+
+    @abc.abstractmethod
+    def is_deterministic(self):
+        """Whether the model produces logvar predictions or not."""
         pass
 
     def update(
@@ -456,6 +461,9 @@ class BasicEnsemble(Model):
     def load(self, path: str):
         state_dict = torch.load(path)
         self.load_state_dict(state_dict)
+
+    def is_deterministic(self):
+        return self.members[0].is_deterministic()
 
     def sample_propagation_indices(
         self, batch_size: int, rng: torch.Generator
