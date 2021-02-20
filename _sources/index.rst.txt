@@ -1,6 +1,6 @@
 Documentation for mbrl-lib
 ========================================
-``mbrl-lib`` is library to facility research on Model-Based Reinforcement Learning.
+``mbrl-lib`` is library to facilitate research on Model-Based Reinforcement Learning.
 
 Getting started
 ===============

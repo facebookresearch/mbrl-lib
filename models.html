@@ -279,6 +279,12 @@ log variance prediction (or <code class="docutils literal notranslate"><span cla
 </dd></dl>
 
 <dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.is_deterministic">
+<code class="sig-name descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether the model produces logvar predictions or not.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="mbrl.models.BasicEnsemble.load">
 <code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.load" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads the model from the given path.</p>
@@ -617,11 +623,11 @@ action will be used, since these are the inputs to the model.</p>
 
 <dl class="py class">
 <dt id="mbrl.models.GaussianMLP">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">GaussianMLP</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">num_layers</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">4</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">hid_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">200</span></em>, <em class="sig-param"><span class="n">use_silu</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">GaussianMLP</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">num_layers</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">4</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">hid_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">200</span></em>, <em class="sig-param"><span class="n">use_silu</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.base_models.Model</span></code></p>
 <p>Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.</p>
-<p>This model is based on the one described in the Chua et al., NeurIPS 2018 paper (PETS)
-<a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">https://arxiv.org/pdf/1805.12114.pdf</a></p>
+<p>This model corresponds to a Probabilistic Ensemble in the Chua et al.,
+NeurIPS 2018 paper (PETS) <a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">https://arxiv.org/pdf/1805.12114.pdf</a></p>
 <p>It predicts per output mean and log variance, and its weights are updated using a Gaussian
 negative log likelihood loss. The log variance is bounded between learned <code class="docutils literal notranslate"><span class="pre">min_log_var</span></code>
 and <code class="docutils literal notranslate"><span class="pre">max_log_var</span></code> parameters, trained as explained in Appendix A.1 of the paper.</p>
@@ -641,7 +647,9 @@ input -h1-&gt; -h2-&gt; -l3-&gt; output).</p></li>
 <li><p><strong>ensemble_size</strong> (<em>int</em>) – the number of members in the ensemble. Defaults to 1.</p></li>
 <li><p><strong>hid_size</strong> (<em>int</em>) – the size of the hidden layers (e.g., size of h1 and h2 in the graph above).</p></li>
 <li><p><strong>use_silu</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, hidden layers will use SiLU activations, otherwise
-ReLU activations will be used.</p></li>
+ReLU activations will be used. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<li><p><strong>deterministic</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the model will be trained using MSE loss and no
+logvar prediction will be done. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 </ul>
 </dd>
 </dl>
@@ -730,6 +738,12 @@ the output to <a class="reference internal" href="math.html#mbrl.math.propagate"
 </dd></dl>
 
 <dl class="py method">
+<dt id="mbrl.models.GaussianMLP.is_deterministic">
+<code class="sig-name descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether the model produces logvar predictions or not.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="mbrl.models.GaussianMLP.load">
 <code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP.load" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads the model from the given path.</p>
@@ -782,7 +796,7 @@ the average over all models.</p>
 <dl class="py class">
 <dt id="mbrl.models.Model">
 <em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">Model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Model" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
 <p>Base abstract class for all dynamics models.</p>
 <p>All classes derived from <cite>Model</cite> must implement the following methods:</p>
 <blockquote>
@@ -849,6 +863,12 @@ If the model does not predict uncertainty, the second output must be <code class
 <dd class="field-odd"><p>(tuple of two tensor)</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.is_deterministic">
+<em class="property">abstract </em><code class="sig-name descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Model.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether the model produces logvar predictions or not.</p>
 </dd></dl>
 
 <dl class="py method">
