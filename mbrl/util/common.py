@@ -85,6 +85,7 @@ def create_dynamics_model(
         learned_rewards=cfg.algorithm.learned_rewards,
         obs_process_fn=obs_process_fn,
         no_delta_list=cfg.overrides.get("no_delta_list", None),
+        num_elites=cfg.overrides.get("num_elites", None),
     )
     if model_dir:
         dynamics_model.load(model_dir)

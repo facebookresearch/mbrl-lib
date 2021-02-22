@@ -448,12 +448,11 @@ class BasicEnsemble(Model):
         targets = [target for _ in range(len(self.members))]
 
         with torch.no_grad():
-            avg_ensemble_score = torch.tensor(0.0)
+            scores = []
             for i, model in enumerate(self.members):
                 model.eval()
-                score = model.eval_score(inputs[i], targets[i])
-                avg_ensemble_score = score + avg_ensemble_score
-            return avg_ensemble_score / len(self.members)
+                scores.append(model.eval_score(inputs[i], targets[i]))
+            return torch.stack(scores)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)

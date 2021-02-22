@@ -283,7 +283,7 @@ class GaussianMLP(base_models.Model):
 
         When model is not an ensemble, this is equivalent to
         `F.mse_loss(model(model_in, target), reduction="none")`. If the model is ensemble,
-        then return value is averaged over the model dimension.
+        then return is batched over the model dimension.
 
         Args:
             model_in (tensor): input tensor. The shape must be ``B x Id``, where `B`` and ``Id``
@@ -292,17 +292,14 @@ class GaussianMLP(base_models.Model):
                 represent batch size, and output dimension, respectively.
 
         Returns:
-            (tensor): a tensor with the squared error per output dimension, averaged over model.
+            (tensor): a tensor with the squared error per output dimension, batched over model.
         """
         assert model_in.ndim == 2 and target.ndim == 2
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
             if self.is_ensemble:
                 target = target.repeat((self.num_members, 1, 1))
-            score = F.mse_loss(pred_mean, target, reduction="none").mean(dim=1)
-            if score.ndim == 2:
-                score = score.mean(dim=0)
-            return score.mean()
+            return F.mse_loss(pred_mean, target, reduction="none")
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
