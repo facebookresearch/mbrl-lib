@@ -93,7 +93,7 @@ class DynamicsModelWrapper:
         self.num_elites = num_elites
         if not num_elites and self.model.is_ensemble:
             self.num_elites = self.model.num_members
-        self.elite_models = (
+        self.elite_models: List[int] = (
             list(range(self.model.num_members)) if self.model.is_ensemble else None
         )
 
@@ -275,7 +275,7 @@ class DynamicsModelWrapper:
         """
         model_in = self._get_model_input_from_tensors(obs, actions)
 
-        means, logvars = self.model(
+        means, logvars = self.model.forward(
             model_in,
             propagation=propagation_method,
             propagation_indices=propagation_indices,
@@ -310,6 +310,10 @@ class DynamicsModelWrapper:
         self.model.load(str(load_dir / self._MODEL_FNAME))
         if self.normalizer:
             self.normalizer.load(load_dir)
+
+    def set_elite(self, elite_indices: Sequence[int]):
+        self.elite_models = list(elite_indices)
+        self.model.set_elite(elite_indices)
 
 
 # ------------------------------------------------------------------------ #
@@ -539,7 +543,7 @@ class DynamicsModelTrainer:
         if update_elites and self.dynamics_model.model.is_ensemble:
             sorted_indices = np.argsort(batch_scores.mean(axis=0).tolist())
             elite_models = sorted_indices[: self.dynamics_model.num_elites]
-            self.dynamics_model.elite_models = elite_models
+            self.dynamics_model.set_elite(elite_models)
             batch_scores = batch_scores[:, elite_models]
 
         return batch_scores.mean().item()

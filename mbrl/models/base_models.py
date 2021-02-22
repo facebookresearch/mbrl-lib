@@ -1,5 +1,6 @@
 import abc
-from typing import Optional, Sequence, Tuple, Union, cast
+import warnings
+from typing import List, Optional, Sequence, Tuple, Union, cast
 
 import hydra.utils
 import numpy as np
@@ -47,17 +48,34 @@ class EnsembleLinearLayer(nn.Module):
         else:
             self.use_bias = False
 
+        self.elite_models: List[int] = None
+        self.use_only_elite = False
+
     def forward(self, x):
-        if self.use_bias:
-            return x.matmul(self.weight) + self.bias
+        if self.use_only_elite:
+            xw = x.matmul(self.weight[self.elite_models, ...])
+            if self.use_bias:
+                return xw + self.bias[self.elite_models, ...]
+            else:
+                return xw
         else:
-            return x.matmul(self.weight)
+            xw = x.matmul(self.weight)
+            if self.use_bias:
+                return xw + self.bias
+            else:
+                return xw
 
     def extra_repr(self) -> str:
         return (
             f"num_members={self.num_members}, in_size={self.in_size}, "
             f"out_size={self.out_size}, bias={self.use_bias}"
         )
+
+    def set_elite(self, elite_models: Sequence[int]):
+        self.elite_models = list(elite_models)
+
+    def toggle_use_only_elite(self):
+        self.use_only_elite = not self.use_only_elite
 
 
 # ------------------------------------------------------------------------ #
@@ -216,6 +234,10 @@ class Model(nn.Module, abc.ABC):
                 "This method must be implemented by all ensemble classes."
             )
         return None
+
+    def set_elite(self, elite_models: Sequence[int]):
+        """For ensemble models, indicates if some models should be considered elite."""
+        pass
 
 
 class BasicEnsemble(Model):
@@ -473,4 +495,9 @@ class BasicEnsemble(Model):
             (batch_size,),
             generator=rng,
             device=self.device,
+        )
+
+    def set_elite(self, elite_models: Sequence[int]):
+        warnings.warn(
+            "BasicEnsemble does not support elite models yet. All models will be used."
         )
