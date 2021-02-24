@@ -61,6 +61,9 @@ class DynamicsModelWrapper:
             Defaults to ``None``.
         no_delta_list (list(int), optional): if provided, represents a list of dimensions over
             which the model predicts the actual observation and not just a delta.
+        num_elites (int, optional): if provided, only the best ``num_elites`` models according
+            to validation score are used when calling :meth:`predict`. Defaults to
+            ``None`` which means that all models will always be included in the elite set.
     """
 
     _MODEL_FNAME = "model.pth"
@@ -73,6 +76,7 @@ class DynamicsModelWrapper:
         learned_rewards: bool = True,
         obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
         no_delta_list: Optional[List[int]] = None,
+        num_elites: Optional[int] = None,
     ):
         self.model = model
         self.normalizer: Optional[mbrl.math.Normalizer] = None
@@ -85,6 +89,13 @@ class DynamicsModelWrapper:
         self.target_is_delta = target_is_delta
         self.no_delta_list = no_delta_list if no_delta_list else []
         self.obs_process_fn = obs_process_fn
+
+        self.num_elites = num_elites
+        if not num_elites and self.model.is_ensemble:
+            self.num_elites = self.model.num_members
+        self.elite_models: List[int] = (
+            list(range(self.model.num_members)) if self.model.is_ensemble else None
+        )
 
     def _get_model_input_from_np(
         self, obs: np.ndarray, action: np.ndarray, device: torch.device
@@ -254,7 +265,7 @@ class DynamicsModelWrapper:
                 log variance, an error will be thrown. If ``False``, the predictions will be
                 the first output of the model. Defaults to ``True``.
             propagation_method (str): the propagation method to use for the model (only used if
-                the model is of type :class:`mbrl.models.BasicEnsemble`.
+                the model is an ensemble).
             propagation_indices (tensor, optional): indices for propagation when
                 ``propagation="fixed_model"``.
             rng (torch.Generator, optional): random number generator for uncertainty propagation.
@@ -264,7 +275,7 @@ class DynamicsModelWrapper:
         """
         model_in = self._get_model_input_from_tensors(obs, actions)
 
-        means, logvars = self.model(
+        means, logvars = self.model.forward(
             model_in,
             propagation=propagation_method,
             propagation_indices=propagation_indices,
@@ -299,6 +310,10 @@ class DynamicsModelWrapper:
         self.model.load(str(load_dir / self._MODEL_FNAME))
         if self.normalizer:
             self.normalizer.load(load_dir)
+
+    def set_elite(self, elite_indices: Sequence[int]):
+        self.elite_models = list(elite_indices)
+        self.model.set_elite(elite_indices)
 
 
 # ------------------------------------------------------------------------ #
@@ -419,7 +434,9 @@ class DynamicsModelTrainer:
         has_val_dataset = (
             self.dataset_val is not None and self.dataset_val.num_stored > 0
         )
-        best_val_score = self.evaluate(use_train_set=not has_val_dataset)
+        best_val_score = self.evaluate(
+            use_train_set=not has_val_dataset, update_elites=True
+        )
         for epoch in epoch_iter:
             batch_losses: List[float] = []
             for bootstrap_batch in self.dataset_train:
@@ -430,11 +447,14 @@ class DynamicsModelTrainer:
             total_avg_loss = np.mean(batch_losses).mean()
             training_losses.append(total_avg_loss)
 
-            train_score = self.evaluate(use_train_set=True)
+            # only update elites if "validation" will be done on train set
+            train_score = self.evaluate(
+                use_train_set=True, update_elites=not has_val_dataset
+            )
             train_eval_scores.append(train_score)
             eval_score = train_score
             if has_val_dataset:
-                eval_score = self.evaluate()
+                eval_score = self.evaluate(update_elites=True)
                 val_losses.append(eval_score)
 
             maybe_best_weights = self.maybe_save_best_weights(
@@ -482,7 +502,9 @@ class DynamicsModelTrainer:
         self._train_iteration += 1
         return training_losses, val_losses
 
-    def evaluate(self, use_train_set: bool = False) -> float:
+    def evaluate(
+        self, use_train_set: bool = False, update_elites: bool = True
+    ) -> float:
         """Evaluates the model on the validation dataset.
 
         Iterates over validation dataset, one batch at a time, and calls
@@ -490,7 +512,10 @@ class DynamicsModelTrainer:
         over the batch. The method returns the average score over the whole dataset.
 
         Args:
-            use_train_set (bool): If ``True``, the evaluation is done over the training data.
+            use_train_set (bool): if ``True``, the evaluation is done over the training data.
+            update_elites (bool): if ``True``, updates the indices of which models in the
+                ensemble should be considered elite. If the model is not an ensemble this
+                argument is ignored. Defaults to ``True``.
 
         Returns:
             (float): The average score of the model over the dataset.
@@ -501,16 +526,27 @@ class DynamicsModelTrainer:
                 self.dataset_train.toggle_bootstrap()
             dataset = self.dataset_train
 
-        batch_scores: List[float] = []
+        batch_scores_list = []  # type: ignore
         for batch in dataset:
             avg_batch_score = self.dynamics_model.eval_score_from_simple_batch(batch)
-            batch_scores.append(avg_batch_score.item())
+            if avg_batch_score.ndim == 2:  # not an ensemble
+                avg_batch_score = avg_batch_score.unsqueeze(0)
+            avg_batch_score = avg_batch_score.mean(axis=(1, 2))  # per ensemble model
+            batch_scores_list.append(avg_batch_score)
+        batch_scores = torch.stack(batch_scores_list)
 
         if use_train_set and isinstance(
             self.dataset_train, replay_buffer.BootstrapReplayBuffer
         ):
             self.dataset_train.toggle_bootstrap()
-        return np.mean(batch_scores).item()
+
+        if update_elites and self.dynamics_model.model.is_ensemble:
+            sorted_indices = np.argsort(batch_scores.mean(axis=0).tolist())
+            elite_models = sorted_indices[: self.dynamics_model.num_elites]
+            self.dynamics_model.set_elite(elite_models)
+            batch_scores = batch_scores[:, elite_models]
+
+        return batch_scores.mean().item()
 
     def maybe_save_best_weights(
         self, best_val_score: float, val_score: float, threshold: float = 0.001
