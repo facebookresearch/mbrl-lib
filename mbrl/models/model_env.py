@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, Optional, Tuple
 
 import gym
@@ -81,8 +82,13 @@ class ModelEnv:
         ).to(self.device)
 
         self._propagation_method = propagation_method
-        if propagation_method == "fixed_model":
-            assert self.dynamics_model.model.is_ensemble
+        if not self.dynamics_model.model.is_ensemble and propagation_method is not None:
+            self._propagation_method = None
+            warnings.warn(
+                f"Model is not an ensemble type. Propagation '{propagation_method}' "
+                f"will be set to 'None'."
+            )
+        if self._propagation_method == "fixed_model":
             self._model_indices = self.dynamics_model.model.sample_propagation_indices(
                 len(initial_obs_batch), self._rng
             )
