@@ -186,6 +186,17 @@ class Visualizer:
         num_rows = int(np.ceil(num_plots / num_cols))
 
         fig, axs = plt.subplots(num_rows, num_cols)
+        fig.text(
+            0.5, 0.04, f"Time step (lookahead of {self.lookahead} steps)", ha="center"
+        )
+        fig.text(
+            0.04,
+            0.17,
+            "Predictions (blue/red) and ground truth (black).",
+            ha="center",
+            rotation="vertical",
+        )
+
         axs = axs.reshape(-1)
         lines = []
         for i, ax in enumerate(axs):
@@ -207,6 +218,7 @@ class Visualizer:
                 lines.append(model_ub_line)
 
         self.fig = fig
+
         self.axs = axs
         self.lines = lines
 
