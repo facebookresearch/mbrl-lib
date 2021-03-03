@@ -59,8 +59,8 @@ you can change the root directory (`./exp`) by passing
 `root_dir=path-to-your-dir`, and the experiment sub-folder (`default`) by
 passing `experiment=your-name`. You can also change other configuration options 
 not in the overrides, such as the type of dynamics model 
-(`dynamics_model=basic_ensemble`), or the number of models in the ensemble 
-(`dynamics_model.model.ensemble_size=some-number`). To learn more about the
+(e.g., `dynamics_model=basic_ensemble`), or the number of models in the ensemble 
+(e.g., `dynamics_model.model.ensemble_size=some-number`). To learn more about
 all the available options, take a look at the provided 
 [configuration files](conf). 
 
