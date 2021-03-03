@@ -58,11 +58,11 @@ By default, this will save results in a folder that looks like
 you can change the root directory (`./exp`) by passing 
 `root_dir=path-to-your-dir`, and the experiment sub-folder (`default`) by
 passing `experiment=your-name`. You can also change other configuration options 
-not in the overrides, such as the type of dynamics model by passing 
-`dynamics_model=basic_ensemble`, or the number of models in the ensemble as 
-`dynamics_model.model.ensemble_size=some-number` (when the dynamics model is
-`gaussian_mlp_ensemble`). To learn more about the
-all the available options, take a look at the provided [configuration files](conf). 
+not in the overrides, such as the type of dynamics model 
+(`dynamics_model=basic_ensemble`), or the number of models in the ensemble 
+(`dynamics_model.model.ensemble_size=some-number`). To learn more about the
+all the available options, take a look at the provided 
+[configuration files](conf). 
 
 
 ## Documentation 
