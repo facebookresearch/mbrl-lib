@@ -12,7 +12,7 @@ Installation
 
 .. code-block:: bash
 
-    git clone https://github.com/fairinternal/mbrl-lib.git
+    git clone https://github.com/facebookresearch/mbrl-lib.git
 
 then run
 

@@ -323,6 +323,12 @@ log variance prediction (or <code class="docutils literal notranslate"><span cla
 </dd></dl>
 
 <dl class="py method">
+<dt id="mbrl.models.BasicEnsemble.set_elite">
+<code class="sig-name descname">set_elite</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">elite_models</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>int<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.set_elite" title="Permalink to this definition">¶</a></dt>
+<dd><p>For ensemble models, indicates if some models should be considered elite.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="mbrl.models.BasicEnsemble.update">
 <code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">inputs</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">targets</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">optimizers</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>torch.optim.optimizer.Optimizer<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.BasicEnsemble.update" title="Permalink to this definition">¶</a></dt>
 <dd><p>Updates all models of the ensemble.</p>
@@ -372,14 +378,19 @@ buffer containing the validation data (if provided). Defaults to <code class="do
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.DynamicsModelTrainer.evaluate">
-<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">use_train_set</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.DynamicsModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">use_train_set</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">update_elites</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.DynamicsModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates the model on the validation dataset.</p>
 <p>Iterates over validation dataset, one batch at a time, and calls
 <a class="reference internal" href="#mbrl.models.DynamicsModelWrapper.eval_score_from_simple_batch" title="mbrl.models.DynamicsModelWrapper.eval_score_from_simple_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DynamicsModelWrapper.eval_score_from_simple_batch()</span></code></a> to compute the model score
 over the batch. The method returns the average score over the whole dataset.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>use_train_set</strong> (<em>bool</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the evaluation is done over the training data.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>use_train_set</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the evaluation is done over the training data.</p></li>
+<li><p><strong>update_elites</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, updates the indices of which models in the
+ensemble should be considered elite. If the model is not an ensemble this
+argument is ignored. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>The average score of the model over the dataset.</p>
@@ -461,7 +472,7 @@ every training epoch with the following positional arguments:</p>
 
 <dl class="py class">
 <dt id="mbrl.models.DynamicsModelWrapper">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">DynamicsModelWrapper</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.base_models.Model</span></em>, <em class="sig-param"><span class="n">target_is_delta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">learned_rewards</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">obs_process_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">no_delta_list</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">DynamicsModelWrapper</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.base_models.Model</span></em>, <em class="sig-param"><span class="n">target_is_delta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">learned_rewards</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">obs_process_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">no_delta_list</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_elites</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.DynamicsModelWrapper" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Wrapper class for all dynamics models.</p>
 <p>This class wraps a <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.model.Model</span></code>, providing utility operations that are common
@@ -497,6 +508,9 @@ The processed observations should have the same dimensions as the original.
 Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
 <li><p><strong>no_delta_list</strong> (<em>list</em><em>(</em><em>int</em><em>)</em><em>, </em><em>optional</em>) – if provided, represents a list of dimensions over
 which the model predicts the actual observation and not just a delta.</p></li>
+<li><p><strong>num_elites</strong> (<em>int</em><em>, </em><em>optional</em>) – if provided, only the best <code class="docutils literal notranslate"><span class="pre">num_elites</span></code> models according
+to validation score are used when calling <a class="reference internal" href="#mbrl.models.DynamicsModelWrapper.predict" title="mbrl.models.DynamicsModelWrapper.predict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">predict()</span></code></a>. Defaults to
+<code class="docutils literal notranslate"><span class="pre">None</span></code> which means that all models will always be included in the elite set.</p></li>
 </ul>
 </dd>
 </dl>
@@ -553,7 +567,7 @@ on the mean and logvar predicted by the model. If the model doesn’t predict
 log variance, an error will be thrown. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, the predictions will be
 the first output of the model. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
 <li><p><strong>propagation_method</strong> (<em>str</em>) – the propagation method to use for the model (only used if
-the model is of type <a class="reference internal" href="#mbrl.models.BasicEnsemble" title="mbrl.models.BasicEnsemble"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.BasicEnsemble</span></code></a>.</p></li>
+the model is an ensemble).</p></li>
 <li><p><strong>propagation_indices</strong> (<em>tensor</em><em>, </em><em>optional</em>) – indices for propagation when
 <code class="docutils literal notranslate"><span class="pre">propagation=&quot;fixed_model&quot;</span></code>.</p></li>
 <li><p><strong>rng</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – random number generator for uncertainty propagation.</p></li>
@@ -659,7 +673,7 @@ logvar prediction will be done. Defaults to <code class="docutils literal notran
 <dd><p>Computes the squared error for the model over the given input/target.</p>
 <p>When model is not an ensemble, this is equivalent to
 <cite>F.mse_loss(model(model_in, target), reduction=”none”)</cite>. If the model is ensemble,
-then return value is averaged over the model dimension.</p>
+then return is batched over the model dimension.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -670,7 +684,7 @@ represent batch size, and output dimension, respectively.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>a tensor with the squared error per output dimension, averaged over model.</p>
+<dd class="field-even"><p>a tensor with the squared error per output dimension, batched over model.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>(tensor)</p>
@@ -696,7 +710,10 @@ propagation, described in the PETS paper.</p></li>
 models.</p></li>
 </ul>
 </div></blockquote>
-<p>When <code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">is</span> <span class="pre">None</span></code>, the forward pass will return one output for each model.</p>
+<p>If a set of elite models has been indicated (via <a class="reference internal" href="#mbrl.models.GaussianMLP.set_elite" title="mbrl.models.GaussianMLP.set_elite"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set_elite()</span></code></a>), then all
+propagation methods will operate with only on the elite set. This has no effect when
+<code class="docutils literal notranslate"><span class="pre">propagation</span> <span class="pre">is</span> <span class="pre">None</span></code>, in which case the forward pass will return one output for
+each model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -789,6 +806,12 @@ the average over all models.</p>
 <dt id="mbrl.models.GaussianMLP.save">
 <code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves the model to the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.GaussianMLP.set_elite">
+<code class="sig-name descname">set_elite</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">elite_indices</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>int<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP.set_elite" title="Permalink to this definition">¶</a></dt>
+<dd><p>For ensemble models, indicates if some models should be considered elite.</p>
 </dd></dl>
 
 </dd></dl>
@@ -918,6 +941,12 @@ PETS paper). This allow each type of ensemble to have its own propagation logic.
 <dt id="mbrl.models.Model.save">
 <em class="property">abstract </em><code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Model.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves the model to the given path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mbrl.models.Model.set_elite">
+<code class="sig-name descname">set_elite</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">elite_models</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>int<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Model.set_elite" title="Permalink to this definition">¶</a></dt>
+<dd><p>For ensemble models, indicates if some models should be considered elite.</p>
 </dd></dl>
 
 <dl class="py method">
