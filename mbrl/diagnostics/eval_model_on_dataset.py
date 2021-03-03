@@ -54,10 +54,10 @@ class DatasetEvaluator:
                 all_means[i].append(outputs[0][i].cpu().numpy())
             all_targets.append(target.cpu().numpy())
         # Consolidating targets and predictions
-        all_means_np = []
+        all_means_np_list = []
         for i in range(num_members):
-            all_means_np.append(np.concatenate(all_means[i], axis=0))
-        all_means_np = np.stack(all_means_np)
+            all_means_np_list.append(np.concatenate(all_means[i], axis=0))
+        all_means_np = np.stack(all_means_np_list)
         targets_np = np.concatenate(all_targets, axis=0)
 
         # Visualization

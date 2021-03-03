@@ -444,7 +444,7 @@ class DynamicsModelTrainer:
                     bootstrap_batch, self.optimizers
                 )
                 batch_losses.append(avg_ensemble_loss)
-            total_avg_loss = np.mean(batch_losses).mean()
+            total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
             # only update elites if "validation" will be done on train set

@@ -32,7 +32,7 @@ class SimpleReplayBuffer:
         self.next_obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.action = np.empty((capacity, *action_shape), dtype=action_type)
         self.reward = np.empty(capacity, dtype=np.float32)
-        self.done = np.empty(capacity, dtype=np.bool)
+        self.done = np.empty(capacity, dtype=bool)
         self.cur_idx = 0
         self.capacity = capacity
         self.num_stored = 0

@@ -13,7 +13,7 @@ import mbrl.types
 
 
 def create_dynamics_model(
-    cfg: omegaconf.DictConfig,
+    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
@@ -93,7 +93,9 @@ def create_dynamics_model(
     return dynamics_model
 
 
-def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfig:
+def load_hydra_cfg(
+    results_dir: Union[str, pathlib.Path]
+) -> Union[omegaconf.ListConfig, omegaconf.DictConfig]:
     """Loads a Hydra configuration from the given directory path.
 
     Tries to load the configuration from "results_dir/.hydra/config.yaml".
@@ -111,7 +113,7 @@ def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfi
 
 
 def create_replay_buffers(
-    cfg: omegaconf.DictConfig,
+    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
@@ -232,7 +234,7 @@ def save_buffers(
 def train_model_and_save_model_and_data(
     dynamics_model: mbrl.models.DynamicsModelWrapper,
     model_trainer: mbrl.models.DynamicsModelTrainer,
-    cfg: omegaconf.DictConfig,
+    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
     dataset_val: mbrl.replay_buffer.SimpleReplayBuffer,
     work_dir: Union[str, pathlib.Path],

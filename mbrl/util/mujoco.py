@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Tuple, cast
+from typing import Optional, Tuple, Union, cast
 
 import dmc2gym.wrappers
 import gym
@@ -15,7 +15,7 @@ import mbrl.types
 
 
 def make_env(
-    cfg: omegaconf.DictConfig,
+    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
 ) -> Tuple[gym.Env, mbrl.types.TermFnType, Optional[mbrl.types.RewardFnType]]:
     """Creates an environment from a given OmegaConf configuration object.
 
@@ -290,7 +290,7 @@ def rollout_mujoco_env(
     initial_obs: np.ndarray,
     lookahead: int,
     agent: Optional[mbrl.planning.Agent] = None,
-    plan: Optional[Sequence[np.ndarray]] = None,
+    plan: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Runs the environment for some number of steps then returns it to its original state.
 

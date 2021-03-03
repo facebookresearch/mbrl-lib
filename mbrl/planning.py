@@ -59,7 +59,7 @@ class CEMOptimizer:
         self.elite_ratio = elite_ratio
         self.population_size = population_size
         self.elite_num = np.ceil(self.population_size * self.elite_ratio).astype(
-            np.long
+            np.int32
         )
         self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
