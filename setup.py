@@ -18,7 +18,7 @@ setup(
     author="Facebook AI Research",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/fairinternal/mbrl-lib",
+    url="https://github.com/facebookresearch/mbrl-lib",
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

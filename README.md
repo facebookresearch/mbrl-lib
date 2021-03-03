@@ -11,7 +11,7 @@ model-based RL algorithms with only a few lines of code.
 
 ``mbrl-lib`` is a Python 3.7+ library. To install it, clone the repository,
 
-    git clone https://github.com/fairinternal/mbrl-lib.git
+    git clone https://github.com/facebookresearch/mbrl-lib.git
 
 then run
 
