@@ -111,7 +111,6 @@ class Model(nn.Module, abc.ABC):
         self.in_size = in_size
         self.out_size = out_size
         self.device = torch.device(device)
-        self.is_ensemble = False
         self.to(device)
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -141,7 +140,6 @@ class Model(nn.Module, abc.ABC):
         Returns:
             (tensor): a loss tensor.
         """
-        pass
 
     @abc.abstractmethod
     def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -166,22 +164,34 @@ class Model(nn.Module, abc.ABC):
         Returns:
             (tensor): a non-reduced tensor score.
         """
-        pass
 
     @abc.abstractmethod
     def save(self, path: str):
         """Saves the model to the given path. """
-        pass
 
     @abc.abstractmethod
     def load(self, path: str):
         """Loads the model from the given path."""
+
+    @abc.abstractmethod
+    def _is_deterministic_impl(self):
+        # Subclasses must specify if model is _deterministic or not
         pass
 
     @abc.abstractmethod
-    def is_deterministic(self):
-        """Whether the model produces logvar predictions or not."""
+    def _is_ensemble_impl(self):
+        # Subclasses must specify if they are ensembles or not
         pass
+
+    @property
+    def is_deterministic(self):
+        """Whether the model is deterministic or not."""
+        return self._is_deterministic_impl()
+
+    @property
+    def is_ensemble(self):
+        """Whether the model is an ensemble or not."""
+        return self._is_ensemble_impl()
 
     def update(
         self,
@@ -277,7 +287,6 @@ class BasicEnsemble(Model):
     ):
         super().__init__(in_size, out_size, device)
         self.members = []
-        self.is_ensemble = True
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model)
@@ -483,8 +492,11 @@ class BasicEnsemble(Model):
         state_dict = torch.load(path)
         self.load_state_dict(state_dict)
 
-    def is_deterministic(self):
-        return self.members[0].is_deterministic()
+    def _is_ensemble_impl(self):
+        return True
+
+    def _is_deterministic_impl(self):
+        return self.members[0].is_deterministic
 
     def sample_propagation_indices(
         self, batch_size: int, rng: torch.Generator

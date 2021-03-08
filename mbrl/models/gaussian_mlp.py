@@ -55,8 +55,9 @@ class GaussianMLP(base_models.Model):
         activation_cls = nn.SiLU if use_silu else nn.ReLU
 
         self.num_members = None
+        self._is_ensemble = False
         if ensemble_size > 1:
-            self.is_ensemble = True
+            self._is_ensemble = True
             self.num_members = ensemble_size
 
         def create_linear_layer(l_in, l_out):
@@ -77,13 +78,13 @@ class GaussianMLP(base_models.Model):
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
 
-        self.deterministic = deterministic
+        self._deterministic = deterministic
         if deterministic:
             self.mean_and_logvar = create_linear_layer(hid_size, out_size)
         else:
             self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
             logvar_shape = (
-                (self.num_members, 1, out_size) if self.is_ensemble else (1, out_size)
+                (self.num_members, 1, out_size) if self._is_ensemble else (1, out_size)
             )
             self.min_logvar = nn.Parameter(
                 -10 * torch.ones(logvar_shape, requires_grad=True)
@@ -116,12 +117,12 @@ class GaussianMLP(base_models.Model):
         x = self.hidden_layers(x)
         mean_and_logvar = self.mean_and_logvar(x)
         self._maybe_toggle_layers_use_only_elite(only_elite)
-        if self.deterministic:
+        if self._deterministic:
             return mean_and_logvar, None
         else:
             mean = mean_and_logvar[..., : self.out_size]
             logvar = mean_and_logvar[..., self.out_size :]
-            if self.is_ensemble and self.elite_models is not None:
+            if self._is_ensemble and self.elite_models is not None:
                 model_idx = self.elite_models if only_elite else range(self.num_members)
                 assert not only_elite or (len(model_idx) != self.num_members), (
                     "If elite size == self.num_members, it's better "
@@ -202,7 +203,7 @@ class GaussianMLP(base_models.Model):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes mean and logvar predictions for the given input.
 
-        When ``self.is_ensemble = True``, the model supports uncertainty propagation options
+        When ``self._is_ensemble = True``, the model supports uncertainty propagation options
         that can be used to aggregate the outputs of the different models in the ensemble.
         Valid propagation options are:
 
@@ -250,7 +251,7 @@ class GaussianMLP(base_models.Model):
             the output to :func:`mbrl.math.propagate`.
 
         """
-        if self.is_ensemble:
+        if self._is_ensemble:
             return self._forward_ensemble(
                 x,
                 propagation=propagation,
@@ -261,7 +262,7 @@ class GaussianMLP(base_models.Model):
 
     def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, _ = self.forward(model_in)
-        if self.is_ensemble:
+        if self._is_ensemble:
             assert model_in.ndim == 3 and target.ndim == 3
             total_loss: torch.Tensor = 0.0
             for i in range(self.num_members):
@@ -274,7 +275,7 @@ class GaussianMLP(base_models.Model):
 
     def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(model_in)
-        if self.is_ensemble:
+        if self._is_ensemble:
             assert model_in.ndim == 3 and target.ndim == 3
             nll: torch.Tensor = 0.0
             for i in range(self.num_members):
@@ -310,7 +311,7 @@ class GaussianMLP(base_models.Model):
             the model over the given input/target. If the model is an ensemble, returns
             the average over all models.
         """
-        if self.deterministic:
+        if self._deterministic:
             return self._mse_loss(model_in, target)
         else:
             return self._nll_loss(model_in, target)
@@ -334,7 +335,7 @@ class GaussianMLP(base_models.Model):
         assert model_in.ndim == 2 and target.ndim == 2
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
-            if self.is_ensemble:
+            if self._is_ensemble:
                 target = target.repeat((self.num_members, 1, 1))
             return F.mse_loss(pred_mean, target, reduction="none")
 
@@ -344,8 +345,11 @@ class GaussianMLP(base_models.Model):
     def load(self, path: str):
         self.load_state_dict(torch.load(path))
 
-    def is_deterministic(self):
-        return self.deterministic
+    def _is_deterministic_impl(self):
+        return self._deterministic
+
+    def _is_ensemble_impl(self):
+        return self._is_ensemble
 
     def __len__(self):
         return self.num_members
