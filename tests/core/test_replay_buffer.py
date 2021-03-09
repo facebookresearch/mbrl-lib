@@ -133,6 +133,50 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
     )
 
 
+def test_trajectory_contents():
+    capacity = 20
+    buffer = replay_buffer.SimpleReplayBuffer(
+        capacity, (1,), (1,), max_trajectory_length=10
+    )
+    dummy = np.zeros(1)
+    traj_lens = [4, 10, 1, 7, 8, 1, 4, 7, 5]
+    trajectories = [
+        (0, 4),
+        (4, 14),
+        (14, 15),
+        (15, 22),
+        (0, 8),
+        (8, 9),
+        (9, 13),
+        (13, 20),
+        (0, 5),
+    ]
+
+    def _check_buffer_trajectories_coherence():
+        for traj in buffer.trajectory_indices:
+            for v, idx in enumerate(range(traj[0], traj[1])):
+                assert buffer.reward[idx] == v
+
+    for tr_idx, l in enumerate(traj_lens):
+        for i in range(l):
+            buffer.add(dummy, dummy, dummy, i, i == l - 1)
+        if tr_idx < 4:
+            # here trajectories should just get appended
+            assert buffer.trajectory_indices == trajectories[: tr_idx + 1]
+        elif tr_idx in [4, 5, 6]:
+            # the next few trajectories should remove (0, 4) and (4, 14)
+            assert buffer.trajectory_indices == trajectories[2 : tr_idx + 1]
+        elif tr_idx == 7:
+            # the penultimate trajectory should remove everything up to (0, 8)
+            assert buffer.trajectory_indices == trajectories[4 : tr_idx + 1]
+        else:
+            # the last trajectory should remove (0, 8)
+            # (just checking that ending at exactly capacity works well)
+            assert buffer.trajectory_indices == trajectories[5:]
+
+        _check_buffer_trajectories_coherence()
+
+
 def test_len_iterable_replay_buffer():
     capacity = 10
 

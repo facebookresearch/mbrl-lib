@@ -55,6 +55,22 @@ class SimpleReplayBuffer:
 
         self._start_last_trajectory = 0
 
+    @staticmethod
+    def _check_overlap(segment1: Tuple[int, int], segment2: Tuple[int, int]) -> bool:
+        s1, e1 = segment1
+        s2, e2 = segment2
+        return (s1 <= s2 < e1) or (s1 < e2 <= e1)
+
+    def remove_overlapping_trajectories(self, new_trajectory: Tuple[int, int]):
+        cnt = 0
+        for traj in self.trajectory_indices:
+            if self._check_overlap(new_trajectory, traj):
+                cnt += 1
+            else:
+                break
+        for _ in range(cnt):
+            self.trajectory_indices.pop(0)
+
     def _trajectory_bookkeeping(self, done: bool):
         self.cur_idx += 1
         if self.num_stored < self.capacity:
@@ -62,10 +78,20 @@ class SimpleReplayBuffer:
         if self.cur_idx >= self.capacity:
             self.num_stored = max(self.num_stored, self.cur_idx)
         if done:
-            self.trajectory_indices.append((self._start_last_trajectory, self.cur_idx))
+            new_trajectory = (self._start_last_trajectory, self.cur_idx)
+            self.remove_overlapping_trajectories(new_trajectory)
+            self.trajectory_indices.append(new_trajectory)
             if self.cur_idx >= self.capacity:
                 self.cur_idx = 0
             self._start_last_trajectory = self.cur_idx
+
+            if self.cur_idx - self._start_last_trajectory > (
+                len(self.obs) - self.capacity
+            ):
+                warnings.warn(
+                    "A trajectory was saved with length longer than expected. "
+                    "Unexpected behavior might occur."
+                )
         if self.cur_idx >= len(self.obs):
             warnings.warn(
                 "The replay buffer was filled before current trajectory finished. "
@@ -119,6 +145,9 @@ class SimpleReplayBuffer:
         """
         indices = self._rng.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
+
+    def sample_trajectory(self):
+        pass
 
     def _batch_from_indices(self, indices: Sized) -> mbrl.types.RLBatch:
         obs = self.obs[indices]
