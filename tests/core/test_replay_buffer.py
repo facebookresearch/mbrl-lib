@@ -71,7 +71,7 @@ def test_sac_buffer_batched_add():
     )
 
 
-def test_len_simple_replay_buffer():
+def test_len_simple_replay_buffer_no_trajectory():
     capacity = 10
     buffer = replay_buffer.SimpleReplayBuffer(capacity, (2,), (1,))
     assert len(buffer) == 0
@@ -81,6 +81,56 @@ def test_len_simple_replay_buffer():
             assert len(buffer) == i + 1
         else:
             assert len(buffer) == capacity
+
+
+def test_buffer_with_trajectory_len_and_loop_behavior():
+    capacity = 10
+    buffer = replay_buffer.SimpleReplayBuffer(
+        capacity, (2,), (1,), max_trajectory_length=5
+    )
+    assert len(buffer) == 0
+    dones = [4, 7, 12]  # check that dones before capacity don't do anything weird
+    for how_many in range(1, 15):
+        done = how_many in dones
+        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), how_many, done)
+        if how_many < dones[-1]:
+            assert len(buffer) == how_many
+        else:
+            assert len(buffer) == dones[-1]
+    # Buffer should have reset and added elements 13 and 14
+    assert buffer.cur_idx == 2
+    assert buffer.reward[0] == 13
+    assert buffer.reward[1] == 14
+
+    # now we'll add longer trajectory at the end, num_stored should increase
+    old_size = len(buffer)
+    dones[-1] = 14
+    number_after_done = 3
+    for how_many in range(buffer.cur_idx + 1, dones[-1] + number_after_done + 1):
+        done = how_many in dones
+        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 100 + how_many, done)
+        if how_many <= old_size:
+            assert len(buffer) == old_size
+        else:
+            assert len(buffer) == min(how_many, dones[-1])
+    assert buffer.cur_idx == number_after_done
+
+    # now we'll add a shorter trajectory at the end, num_stored should not change
+    old_size = len(buffer)
+    dones[-1] = 10
+    number_after_done = 5
+    for how_many in range(buffer.cur_idx + 1, dones[-1] + number_after_done + 1):
+        done = how_many in dones
+        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), how_many, done)
+        assert len(buffer) == old_size
+    assert buffer.cur_idx == number_after_done
+
+    assert np.all(
+        buffer.reward.astype(int)
+        == np.array(
+            [11, 12, 13, 14, 15, 6, 7, 8, 9, 10, 111, 112, 113, 114, 0], dtype=int
+        )
+    )
 
 
 def test_len_iterable_replay_buffer():

@@ -1,3 +1,4 @@
+import warnings
 from typing import List, Optional, Sized, Tuple
 
 import numpy as np
@@ -17,6 +18,10 @@ class SimpleReplayBuffer:
         action_type (type): the data type of the actions (defaults to np.float32).
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
+        max_trajectory_length (int, optional): if given, indicates that trajectory
+            information should be stored and that trajectories will be at most this
+            number of steps. Defaults to ``None`` in which case no trajectory
+            information will be kept.
     """
 
     def __init__(
@@ -27,20 +32,50 @@ class SimpleReplayBuffer:
         obs_type=np.float32,
         action_type=np.float32,
         rng: Optional[np.random.Generator] = None,
+        max_trajectory_length: Optional[int] = None,
     ):
+        self.cur_idx = 0
+        self.capacity = capacity
+        self.num_stored = 0
+
+        self.trajectory_indices: Optional[List[Tuple[int, int]]] = None
+        if max_trajectory_length:
+            self.trajectory_indices = []
+            capacity += max_trajectory_length
         self.obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.next_obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.action = np.empty((capacity, *action_shape), dtype=action_type)
         self.reward = np.empty(capacity, dtype=np.float32)
         self.done = np.empty(capacity, dtype=bool)
-        self.cur_idx = 0
-        self.capacity = capacity
-        self.num_stored = 0
 
         if rng is None:
             self._rng = np.random.default_rng()
         else:
             self._rng = rng
+
+        self._start_last_trajectory = 0
+
+    def _trajectory_bookkeeping(self, done: bool):
+        self.cur_idx += 1
+        if self.num_stored < self.capacity:
+            self.num_stored += 1
+        if self.cur_idx >= self.capacity:
+            self.num_stored = max(self.num_stored, self.cur_idx)
+        if done:
+            self.trajectory_indices.append((self._start_last_trajectory, self.cur_idx))
+            if self.cur_idx >= self.capacity:
+                self.cur_idx = 0
+            self._start_last_trajectory = self.cur_idx
+        if self.cur_idx >= len(self.obs):
+            warnings.warn(
+                "The replay buffer was filled before current trajectory finished. "
+                "The history of the current partial trajectory will be discarded. "
+                "Make sure you set `max_trajectory_length` to the appropriate value"
+                "for your problem."
+            )
+            self._start_last_trajectory = 0
+            self.cur_idx = 0
+            self.num_stored = len(self.obs)
 
     def add(
         self,
@@ -65,8 +100,11 @@ class SimpleReplayBuffer:
         self.reward[self.cur_idx] = reward
         self.done[self.cur_idx] = done
 
-        self.cur_idx = (self.cur_idx + 1) % self.capacity
-        self.num_stored = min(self.num_stored + 1, self.capacity)
+        if self.trajectory_indices is not None:
+            self._trajectory_bookkeeping(done)
+        else:
+            self.cur_idx = (self.cur_idx + 1) % self.capacity
+            self.num_stored = min(self.num_stored + 1, self.capacity)
 
     def sample(self, batch_size: int) -> Sized:
         """Samples a batch of transitions from the replay buffer.
@@ -253,16 +291,6 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         )
         self.member_indices: List[List[int]] = [None for _ in range(num_members)]
         self._bootstrap_iter = True
-
-    def add(
-        self,
-        obs: np.ndarray,
-        action: np.ndarray,
-        next_obs: np.ndarray,
-        reward: float,
-        done: bool,
-    ):
-        super().add(obs, action, next_obs, reward, done)
 
     def __iter__(self):
         super().__iter__()
