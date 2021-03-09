@@ -14,8 +14,8 @@ import mbrl.types
 
 def create_dynamics_model(
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
-    obs_shape: Tuple[int],
-    act_shape: Tuple[int],
+    obs_shape: Tuple[int, ...],
+    act_shape: Tuple[int, ...],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
     """Creates a dynamics model from a given configuration.
@@ -41,6 +41,7 @@ def create_dynamics_model(
           -overrides
             -no_delta_list (list[int], optional): to be passed to the dynamics model wrapper
             -obs_process_fn (str, optional): a Python function to pre-process observations
+            -num_elites (int, optional): number of elite members for ensembles
 
     If ``cfg.dynamics_model.model.in_size`` is not provided, it will be automatically set to
     `obs_shape[0] + act_shape[0]`. If ``cfg.dynamics_model.model.out_size`` is not provided,

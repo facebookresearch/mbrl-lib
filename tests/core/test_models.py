@@ -9,6 +9,35 @@ import torch.nn as nn
 import mbrl.models
 
 
+def test_gaussian_mlp_and_basic_ensemble_properties():
+    model_in_size = 2
+    model_out_size = 2
+    for det in [True, False]:
+        member_cfg = omegaconf.OmegaConf.create(
+            {
+                "_target_": "mbrl.models.GaussianMLP",
+                "device": "cpu",
+                "in_size": model_in_size,
+                "out_size": model_out_size,
+                "deterministic": det,
+                "ensemble_size": 1,
+            }
+        )
+        ensemble = mbrl.models.BasicEnsemble(
+            2, model_in_size, model_out_size, torch.device("cpu"), member_cfg
+        )
+
+        assert ensemble.is_deterministic == det
+        assert ensemble.is_ensemble
+        assert not ensemble.members[0].is_ensemble
+
+    member_cfg["ensemble_size"] = 2
+    ensemble = mbrl.models.BasicEnsemble(
+        1, model_in_size, model_out_size, torch.device("cpu"), member_cfg
+    )
+    assert ensemble.members[0].is_ensemble
+
+
 def test_basic_ensemble_gaussian_forward():
     model_in_size = 2
     model_out_size = 2
@@ -59,7 +88,7 @@ def _create_gaussian_ensemble_mock(ensemble_size, as_float=False):
     )
 
     # With this we can use the output value to identify which model produced the output
-    def mock_fwd(_x):
+    def mock_fwd(_x, only_elite=False):
         output = _x.clone()
         if output.shape[0] == 1:
             output = output.repeat(ensemble_size, 1, 1)
