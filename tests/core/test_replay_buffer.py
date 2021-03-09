@@ -134,10 +134,7 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
 
 
 def test_trajectory_contents():
-    capacity = 20
-    buffer = replay_buffer.SimpleReplayBuffer(
-        capacity, (1,), (1,), max_trajectory_length=10
-    )
+    buffer = replay_buffer.SimpleReplayBuffer(20, (1,), (1,), max_trajectory_length=10)
     dummy = np.zeros(1)
     traj_lens = [4, 10, 1, 7, 8, 1, 4, 7, 5]
     trajectories = [
@@ -175,6 +172,25 @@ def test_trajectory_contents():
             assert buffer.trajectory_indices == trajectories[5:]
 
         _check_buffer_trajectories_coherence()
+
+
+def test_sample_trajectories():
+    buffer = replay_buffer.SimpleReplayBuffer(15, (1,), (1,), max_trajectory_length=10)
+    dummy = np.zeros(1)
+
+    for i in range(7):
+        buffer.add(dummy, dummy, dummy, i, i == 6)
+    for i in range(10):
+        buffer.add(dummy, dummy, dummy, 100 + i, i == 9)
+
+    for _ in range(100):
+        o, a, no, r, d = buffer.sample_trajectory()
+        assert len(o) == 7 or len(o) == 10
+        assert d.sum() == 1 and d[-1]
+        if len(o) == 7:
+            assert r.sum() == 21
+        else:
+            assert r.sum() == 1045
 
 
 def test_len_iterable_replay_buffer():

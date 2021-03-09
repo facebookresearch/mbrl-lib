@@ -21,7 +21,12 @@ class SimpleReplayBuffer:
         max_trajectory_length (int, optional): if given, indicates that trajectory
             information should be stored and that trajectories will be at most this
             number of steps. Defaults to ``None`` in which case no trajectory
-            information will be kept.
+            information will be kept. The buffer will keep trajectory information
+            automatically using the done value when calling :meth:`add`.
+
+    .. warning::
+        When using ``max_trajectory_length`` it is the user's responsibility to ensure
+        that trajectories are stored continuously in the replay buffer.
     """
 
     def __init__(
@@ -146,8 +151,21 @@ class SimpleReplayBuffer:
         indices = self._rng.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
 
-    def sample_trajectory(self):
-        pass
+    def sample_trajectory(self) -> Optional[Sized]:
+        """Samples a full trajectory and returns it as a batch.
+
+        Returns:
+            (tuple): A tuple with observations, actions, next observations, rewards
+            and done indicators, as numpy arrays, respectively; these will correspond
+            to a full trajectory. The i-th transition corresponds
+            to (obs[i], act[i], next_obs[i], rewards[i], dones[i])."""
+        if not self.trajectory_indices:
+            return None
+        idx = self._rng.choice(len(self.trajectory_indices))
+        indices = np.arange(
+            self.trajectory_indices[idx][0], self.trajectory_indices[idx][1]
+        )
+        return self._batch_from_indices(indices)
 
     def _batch_from_indices(self, indices: Sized) -> mbrl.types.RLBatch:
         obs = self.obs[indices]
