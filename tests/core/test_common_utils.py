@@ -186,3 +186,107 @@ def test_rollout_model_env():
 
     for i, o in enumerate(obs):
         assert o.min() == 2 * i
+
+
+# ------------------------------------------------------- #
+# The following are used to test populate_replay_buffers
+# ------------------------------------------------------- #
+
+_MOCK_TRAJ_LEN = 10
+
+
+class MockEnv:
+    def __init__(self):
+        self.traj = 0
+        self.val = 0
+
+    def reset(self, from_zero=False):
+        if from_zero:
+            self.traj = 0
+        self.val = 100 * self.traj
+        self.traj += 1
+        return self.val
+
+    def step(self, _):
+        self.val += 1
+        done = self.val % _MOCK_TRAJ_LEN == 0
+        return self.val, 0, done, None
+
+
+class MockZeroAgent:
+    def act(self, _obs):
+        return 0
+
+
+class MockRng:
+    def permutation(self, size):
+        # when passed to populate buffers makes it so that the first elements
+        # in the buffer are training, and the rest are validation
+        return np.arange(size)
+
+
+def test_populate_replay_buffers_no_trajectories():
+    val_ratio = 0.15
+    num_steps = 100
+    size_val = int(num_steps * val_ratio)
+    size_train = num_steps - size_val
+    train = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    env = MockEnv()
+
+    utils.populate_buffers_with_agent_trajectories(
+        env, train, val, num_steps, val_ratio, MockZeroAgent(), {}, MockRng()
+    )
+    assert train.num_stored == size_train
+    assert val.num_stored == size_val
+
+    # Check the order in which things were inserted
+    obs = env.reset(from_zero=True)
+    done = False
+    for i in range(num_steps):
+        array = train.obs if i < size_train else val.obs
+        idx = i if i < size_train else i - size_train
+        if done:
+            obs = env.reset()
+        assert array[idx] == obs
+        obs, _, done, _ = env.step(None)
+
+
+def test_populate_replay_buffers_collect_trajectories():
+    val_ratio = 0.20
+    num_trials = 10
+    trials_val = int(num_trials * val_ratio)
+    trials_train = num_trials - trials_val
+    train = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    env = MockEnv()
+
+    utils.populate_buffers_with_agent_trajectories(
+        env,
+        train,
+        val,
+        num_trials,
+        val_ratio,
+        MockZeroAgent(),
+        {},
+        MockRng(),
+        collect_trajectories=True,
+    )
+    assert train.num_stored == trials_train * _MOCK_TRAJ_LEN
+    assert val.num_stored == trials_val * _MOCK_TRAJ_LEN
+
+    # Check the that obs were inserted in the right order
+    obs = env.reset(from_zero=True)
+    trial = 0
+    idx = 0
+    array = train.obs
+    while trial < num_trials:
+        assert array[idx] == obs
+        obs, _, done, _ = env.step(None)
+        if done:
+            obs = env.reset()
+            trial += 1
+            if trial == trials_train:
+                array = val.obs
+                idx = -1
+        idx += 1

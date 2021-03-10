@@ -60,6 +60,10 @@ class SimpleReplayBuffer:
 
         self._start_last_trajectory = 0
 
+    @property
+    def stores_trajectories(self):
+        return self.trajectory_indices is not None
+
     @staticmethod
     def _check_overlap(segment1: Tuple[int, int], segment2: Tuple[int, int]) -> bool:
         s1, e1 = segment1
