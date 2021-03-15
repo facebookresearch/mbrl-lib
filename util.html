@@ -183,7 +183,7 @@
 <span id="general-utilities-module"></span><h1>General utilities module<a class="headerlink" href="#module-mbrl.util.common" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="mbrl.util.common.create_dynamics_model">
-<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">create_dynamics_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>omegaconf.listconfig.ListConfig<span class="p">, </span>omegaconf.dictconfig.DictConfig<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">obs_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">act_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">model_dir</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.create_dynamics_model" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">create_dynamics_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>omegaconf.listconfig.ListConfig<span class="p">, </span>omegaconf.dictconfig.DictConfig<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">obs_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">act_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">model_dir</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.create_dynamics_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a dynamics model from a given configuration.</p>
 <p>This method creates a new model from the given configuration and wraps it into a
 <a class="reference internal" href="models.html#mbrl.models.DynamicsModelWrapper" title="mbrl.models.DynamicsModelWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.DynamicsModelWrapper</span></code></a> (see its documentation for explanation of some
@@ -205,6 +205,7 @@ The configuration should be structured as follows:</p>
   -overrides
     -no_delta_list (list[int], optional): to be passed to the dynamics model wrapper
     -obs_process_fn (str, optional): a Python function to pre-process observations
+    -num_elites (int, optional): number of elite members for ensembles
 </pre></div>
 </div>
 <p>If <code class="docutils literal notranslate"><span class="pre">cfg.dynamics_model.model.in_size</span></code> is not provided, it will be automatically set to
@@ -303,36 +304,41 @@ buffers, respectively.</p>
 </dd></dl>
 
 <dl class="py function">
-<dt id="mbrl.util.common.populate_buffers_with_agent_trajectories">
-<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">populate_buffers_with_agent_trajectories</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">train_dataset</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer">mbrl.replay_buffer.SimpleReplayBuffer</a></span></em>, <em class="sig-param"><span class="n">val_dataset</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer">mbrl.replay_buffer.SimpleReplayBuffer</a></span></em>, <em class="sig-param"><span class="n">steps_to_collect</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">val_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">agent</span><span class="p">:</span> <span class="n"><a class="reference internal" href="planning.html#mbrl.planning.Agent" title="mbrl.planning.Agent">mbrl.planning.Agent</a></span></em>, <em class="sig-param"><span class="n">agent_kwargs</span><span class="p">:</span> <span class="n">Dict</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">numpy.random._generator.Generator</span></em>, <em class="sig-param"><span class="n">trial_length</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.populate_buffers_with_agent_trajectories" title="Permalink to this definition">¶</a></dt>
-<dd><p>Populates replay buffers with env transitions and actions from a given agent.</p>
+<dt id="mbrl.util.common.rollout_agent_trajectories">
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">rollout_agent_trajectories</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">steps_or_trials_to_collect</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">agent</span><span class="p">:</span> <span class="n"><a class="reference internal" href="planning.html#mbrl.planning.Agent" title="mbrl.planning.Agent">mbrl.planning.Agent</a></span></em>, <em class="sig-param"><span class="n">agent_kwargs</span><span class="p">:</span> <span class="n">Dict</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">numpy.random._generator.Generator</span></em>, <em class="sig-param"><span class="n">trial_length</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">train_dataset</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer">mbrl.replay_buffer.SimpleReplayBuffer</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">val_dataset</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer">mbrl.replay_buffer.SimpleReplayBuffer</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">val_ratio</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>float<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">collect_full_trajectories</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; List<span class="p">[</span>float<span class="p">]</span><a class="headerlink" href="#mbrl.util.common.rollout_agent_trajectories" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rollout agent trajectories in the given environment.</p>
+<p>Rollouts trajectories in the environment using actions produced by the given agent.
+Optionally, it stores the saved data into a replay buffer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>env</strong> (<em>gym.Env</em>) – the environment to step.</p></li>
-<li><p><strong>train_dataset</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.SimpleReplayBuffer</span></code></a>) – the replay buffer
-containing training data.</p></li>
-<li><p><strong>val_dataset</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.SimpleReplayBuffer</span></code></a>) – the replay buffer
-containing validation data.</p></li>
-<li><p><strong>steps_to_collect</strong> (<em>int</em>) – how many steps of the environment to collect.</p></li>
-<li><p><strong>val_ratio</strong> (<em>float</em>) – the probability that a transition will be added to the
-validation dataset.</p></li>
+<li><p><strong>steps_or_trials_to_collect</strong> (<em>int</em>) – how many steps of the environment to collect. If
+<code class="docutils literal notranslate"><span class="pre">collect_trajectories=True</span></code>, it indicates the number of trials instead.</p></li>
 <li><p><strong>agent</strong> (<a class="reference internal" href="planning.html#mbrl.planning.Agent" title="mbrl.planning.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.Agent</span></code></a>) – the agent used to generate an action.</p></li>
 <li><p><strong>agent_kwargs</strong> (<em>dict</em>) – any keyword arguments to pass to <cite>agent.act()</cite> method.</p></li>
 <li><p><strong>rng</strong> (<em>np.random.Generator</em>) – a random number generator used to select which dataset to
 populate at each step.</p></li>
-<li><p><strong>trial_length</strong> (<em>int</em>) – the length of trials (env will be reset regularly after this many
-number of steps).</p></li>
+<li><p><strong>trial_length</strong> (<em>int</em><em>, </em><em>optional</em>) – a maximum length for trials (env will be reset regularly
+after this many number of steps). Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>, in which case trials
+will end when the environment returns <code class="docutils literal notranslate"><span class="pre">done=True</span></code>.</p></li>
 <li><p><strong>callback</strong> (<em>callable</em><em>, </em><em>optional</em>) – a function that will be called using the generated
 transition data <cite>(obs, action. next_obs, reward, done)</cite>.</p></li>
+<li><p><strong>train_dataset</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.SimpleReplayBuffer</span></code></a>, optional) – a replay buffer to store data to use for training.</p></li>
+<li><p><strong>val_dataset</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer" title="mbrl.replay_buffer.SimpleReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.SimpleReplayBuffer</span></code></a>, optional) – a replay buffer containing data to use for validation.</p></li>
+<li><p><strong>val_ratio</strong> (<em>float</em><em>, </em><em>optional</em>) – the probability that a transition will be added to the
+validation dataset.</p></li>
+<li><p><strong>collect_full_trajectories</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, indicates that replay buffers should
+collect full trajectories. This only affects the split between training and
+validation buffers. If <code class="docutils literal notranslate"><span class="pre">collect_trajectories=True</span></code>, the split is done over
+trials (full trials in each dataset); otherwise, it’s done across steps.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>next observation, reward, done and meta-info, respectively, as generated by
-<cite>env.step(agent.act(obs))</cite>.</p>
+<dd class="field-even"><p>Total rewards obtained at each complete trial.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tuple)</p>
+<dd class="field-odd"><p>(list(float))</p>
 </dd>
 </dl>
 </dd></dl>
