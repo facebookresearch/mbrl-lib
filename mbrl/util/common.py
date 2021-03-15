@@ -1,4 +1,5 @@
 import pathlib
+import warnings
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import gym.wrappers
@@ -469,6 +470,11 @@ def populate_buffers_with_agent_trajectories(
         callback (callable, optional): a function that will be called using the generated
             transition data `(obs, action. next_obs, reward, done)`.
     """
+    warnings.warn(
+        "populate_buffers_with_agent_trajectories() is deprecated. "
+        "Use rollout_agent_trajectories() instead",
+        DeprecationWarning,
+    )
 
     rollout_agent_trajectories(
         env,

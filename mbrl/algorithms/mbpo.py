@@ -100,6 +100,8 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
+    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
+
     env_dataset_train, env_dataset_val = mbrl.util.create_replay_buffers(
         cfg,
         obs_shape,
@@ -110,20 +112,20 @@ def train(
     env_dataset_train = cast(
         mbrl.replay_buffer.BootstrapReplayBuffer, env_dataset_train
     )
-    mbrl.util.populate_buffers_with_agent_trajectories(
+    mbrl.util.rollout_agent_trajectories(
         env,
-        env_dataset_train,
-        env_dataset_val,
         cfg.algorithm.initial_exploration_steps,
-        cfg.overrides.validation_ratio,
         mbrl.planning.RandomAgent(env),
         {},
         rng,
+        train_dataset=env_dataset_train,
+        val_dataset=env_dataset_val,
+        val_ratio=cfg.overrides.validation_ratio,
+        callback=dynamics_model.update_normalizer,
     )
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     updates_made = 0
     env_steps = 0
