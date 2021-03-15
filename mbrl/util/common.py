@@ -1,5 +1,4 @@
 import pathlib
-import warnings
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import gym.wrappers
@@ -429,66 +428,6 @@ def rollout_agent_trajectories(
         if collect_full_trajectories and trial == steps_or_trials_to_collect:
             break
     return total_rewards
-
-
-def populate_buffers_with_agent_trajectories(
-    env: gym.Env,
-    train_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
-    val_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
-    steps_or_trials_to_collect: int,
-    val_ratio: float,
-    agent: mbrl.planning.Agent,
-    agent_kwargs: Dict,
-    rng: np.random.Generator,
-    collect_trajectories: bool = False,
-    trial_length: Optional[int] = None,
-    callback: Optional[Callable] = None,
-):
-    """Populates replay buffers with env transitions and actions from a given agent.
-
-    Args:
-        env (gym.Env): the environment to step.
-        train_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the replay buffer
-            containing training data.
-        val_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the replay buffer
-            containing validation data.
-        steps_or_trials_to_collect (int): how many steps of the environment to collect. If
-            ``collect_trajectories=True``, it indicates the number of trials instead.
-        val_ratio (float): the probability that a transition will be added to the
-            validation dataset.
-        agent (:class:`mbrl.planning.Agent`): the agent used to generate an action.
-        agent_kwargs (dict): any keyword arguments to pass to `agent.act()` method.
-        rng (np.random.Generator): a random number generator used to select which dataset to
-            populate at each step.
-        collect_trajectories (bool): if ``True``, indicates that the buffer should
-            collect full trajectories. This only affects the split between training and
-            validation buffers. If ``collect_trajectories=True``, the split is done over
-            trials (full trials in each dataset); otherwise, it's done across steps.
-        trial_length (int, optional): a maximum length for trials (env will be reset regularly
-            after this many number of steps). Defaults to ``None``, in which case trials
-            will end when the environment returns ``done=True``.
-        callback (callable, optional): a function that will be called using the generated
-            transition data `(obs, action. next_obs, reward, done)`.
-    """
-    warnings.warn(
-        "populate_buffers_with_agent_trajectories() is deprecated. "
-        "Use rollout_agent_trajectories() instead",
-        DeprecationWarning,
-    )
-
-    rollout_agent_trajectories(
-        env,
-        steps_or_trials_to_collect,
-        agent,
-        agent_kwargs,
-        rng,
-        trial_length=trial_length,
-        callback=callback,
-        train_dataset=train_dataset,
-        val_dataset=val_dataset,
-        val_ratio=val_ratio,
-        collect_full_trajectories=collect_trajectories,
-    )
 
 
 def step_env_and_populate_dataset(
