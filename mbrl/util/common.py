@@ -1,5 +1,5 @@
 import pathlib
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import gym.wrappers
 import hydra
@@ -323,6 +323,113 @@ def _select_dataset_to_update(
         return train_dataset
 
 
+def rollout_agent_trajectories(
+    env: gym.Env,
+    steps_or_trials_to_collect: int,
+    agent: mbrl.planning.Agent,
+    agent_kwargs: Dict,
+    rng: np.random.Generator,
+    trial_length: Optional[int] = None,
+    callback: Optional[Callable] = None,
+    train_dataset: Optional[mbrl.replay_buffer.SimpleReplayBuffer] = None,
+    val_dataset: Optional[mbrl.replay_buffer.SimpleReplayBuffer] = None,
+    val_ratio: Optional[float] = 0.0,
+    collect_full_trajectories: bool = False,
+) -> List[float]:
+    """Rollout agent trajectories in the given environment.
+
+    Rollouts trajectories in the environment using actions produced by the given agent.
+    Optionally, it stores the saved data into a replay buffer.
+
+    Args:
+        env (gym.Env): the environment to step.
+        steps_or_trials_to_collect (int): how many steps of the environment to collect. If
+            ``collect_trajectories=True``, it indicates the number of trials instead.
+        agent (:class:`mbrl.planning.Agent`): the agent used to generate an action.
+        agent_kwargs (dict): any keyword arguments to pass to `agent.act()` method.
+        rng (np.random.Generator): a random number generator used to select which dataset to
+            populate at each step.
+        trial_length (int, optional): a maximum length for trials (env will be reset regularly
+            after this many number of steps). Defaults to ``None``, in which case trials
+            will end when the environment returns ``done=True``.
+        callback (callable, optional): a function that will be called using the generated
+            transition data `(obs, action. next_obs, reward, done)`.
+        train_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`, optional):
+            a replay buffer to store data to use for training.
+        val_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`, optional):
+            a replay buffer containing data to use for validation.
+        val_ratio (float, optional): the probability that a transition will be added to the
+            validation dataset.
+        collect_full_trajectories (bool): if ``True``, indicates that replay buffers should
+            collect full trajectories. This only affects the split between training and
+            validation buffers. If ``collect_trajectories=True``, the split is done over
+            trials (full trials in each dataset); otherwise, it's done across steps.
+
+    Returns:
+        (list(float)): Total rewards obtained at each complete trial.
+    """
+    if val_dataset is None:
+        val_ratio = 0
+    if (
+        train_dataset is not None
+        and not collect_full_trajectories
+        and (train_dataset.stores_trajectories or val_dataset.stores_trajectories)
+        and val_ratio > 0
+    ):
+        # Might be better as a warning but it's possible that users will miss it.
+        raise RuntimeError(
+            "Datasets are tracking trajectory information but "
+            "collect_trajectories is set to False, which will result in "
+            "corrupted trajectory data."
+        )
+
+    indices = rng.permutation(steps_or_trials_to_collect)
+    n_train = int(steps_or_trials_to_collect * (1 - val_ratio))
+    indices_train = set(indices[:n_train])
+
+    step = 0
+    trial = 0
+    total_rewards: List[float] = []
+    while True:
+        obs = env.reset()
+        done = False
+        total_reward = 0.0
+        while not done:
+            index = trial if collect_full_trajectories else step
+            which_dataset = train_dataset if index in indices_train else val_dataset
+
+            if which_dataset is not None:
+                next_obs, reward, done, info = step_env_and_populate_dataset(
+                    env,
+                    obs,
+                    agent,
+                    agent_kwargs,
+                    which_dataset,  # No need to select dataset inside, force to which_dataset
+                    which_dataset,
+                    False,
+                    0.0,
+                    rng,
+                    callback=callback,
+                )
+            else:
+                action = agent.act(obs, **agent_kwargs)
+                next_obs, reward, done, info = env.step(action)
+                if callback:
+                    callback((obs, action, next_obs, reward, done))
+            obs = next_obs
+            total_reward += reward
+            step += 1
+            if not collect_full_trajectories and step == steps_or_trials_to_collect:
+                return total_rewards
+            if trial_length and step % trial_length == 0:
+                break
+        trial += 1
+        total_rewards.append(total_reward)
+        if collect_full_trajectories and trial == steps_or_trials_to_collect:
+            break
+    return total_rewards
+
+
 def populate_buffers_with_agent_trajectories(
     env: gym.Env,
     train_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
@@ -361,56 +468,21 @@ def populate_buffers_with_agent_trajectories(
             will end when the environment returns ``done=True``.
         callback (callable, optional): a function that will be called using the generated
             transition data `(obs, action. next_obs, reward, done)`.
-
-    Returns:
-        (tuple): next observation, reward, done and meta-info, respectively, as generated by
-        `env.step(agent.act(obs))`.
     """
-    if (
-        not collect_trajectories
-        and (train_dataset.stores_trajectories or val_dataset.stores_trajectories)
-        and val_ratio > 0
-    ):
-        # Might be better as a warning but it's possible that users might miss it.
-        raise RuntimeError(
-            "Datasets are tracking trajectory information but "
-            "collect_trajectories is set to False, which will result in "
-            "corrupted trajectory data."
-        )
 
-    indices = rng.permutation(steps_or_trials_to_collect)
-    n_train = int(steps_or_trials_to_collect * (1 - val_ratio))
-    indices_train = set(indices[:n_train])
-
-    step = 0
-    trial = 0
-    while True:
-        obs = env.reset()
-        done = False
-        while not done:
-            index = trial if collect_trajectories else step
-            which_dataset = train_dataset if index in indices_train else val_dataset
-            next_obs, _, done, info = step_env_and_populate_dataset(
-                env,
-                obs,
-                agent,
-                agent_kwargs,
-                which_dataset,  # No need to select dataset inside, force to which_dataset
-                which_dataset,
-                False,
-                0.0,
-                rng,
-                callback=callback,
-            )
-            obs = next_obs
-            step += 1
-            if not collect_trajectories and step == steps_or_trials_to_collect:
-                return
-            if trial_length and step % trial_length == 0:
-                break
-        trial += 1
-        if collect_trajectories and trial == steps_or_trials_to_collect:
-            return
+    rollout_agent_trajectories(
+        env,
+        steps_or_trials_to_collect,
+        agent,
+        agent_kwargs,
+        rng,
+        trial_length=trial_length,
+        callback=callback,
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+        val_ratio=val_ratio,
+        collect_full_trajectories=collect_trajectories,
+    )
 
 
 def step_env_and_populate_dataset(
