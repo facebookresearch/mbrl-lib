@@ -78,7 +78,7 @@ def train(
     termination_fn: mbrl.types.TermFnType,
     device: torch.device,
     cfg: omegaconf.DictConfig,
-):
+) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
 
@@ -235,4 +235,4 @@ def train(
 
             env_steps += 1
             obs = next_obs
-    return best_eval_reward
+    return np.float32(best_eval_reward)

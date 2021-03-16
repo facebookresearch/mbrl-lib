@@ -35,7 +35,7 @@ def train(
     termination_fn: mbrl.types.TermFnType,
     reward_fn: mbrl.types.RewardFnType,
     cfg: omegaconf.DictConfig,
-) -> float:
+) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
 
@@ -158,4 +158,4 @@ def train(
 
         max_total_reward = max(max_total_reward, total_reward)
 
-    return float(max_total_reward)
+    return np.float32(max_total_reward)
