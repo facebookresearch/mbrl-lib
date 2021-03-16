@@ -38,7 +38,7 @@ class Visualizer:
             if "diagnostics" in model_subdir:
                 model_subdir = pathlib.Path(model_subdir).name
             self.vis_path /= model_subdir
-        pathlib.Path.mkdir(self.vis_path, exist_ok=True)
+        pathlib.Path.mkdir(self.vis_path, parents=True, exist_ok=True)
 
         self.num_model_samples = num_model_samples
         self.num_steps = num_steps

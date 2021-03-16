@@ -15,7 +15,7 @@ class DatasetEvaluator:
     def __init__(self, model_dir: str, dataset_dir: str, output_dir: str):
         self.model_path = pathlib.Path(model_dir)
         self.output_path = pathlib.Path(output_dir)
-        pathlib.Path.mkdir(self.output_path, exist_ok=True)
+        pathlib.Path.mkdir(self.output_path, parents=True, exist_ok=True)
 
         self.cfg = mbrl.util.load_hydra_cfg(self.model_path)
 

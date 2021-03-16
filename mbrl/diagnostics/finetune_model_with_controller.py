@@ -49,7 +49,7 @@ class FineTuner:
         self.outdir = pathlib.Path(model_dir) / "diagnostics"
         if subdir:
             self.outdir /= subdir
-        pathlib.Path.mkdir(self.outdir, exist_ok=True)
+        pathlib.Path.mkdir(self.outdir, parents=True, exist_ok=True)
 
     def run(
         self,
