@@ -57,15 +57,15 @@ class FineTuner:
         patience: int,
         steps_to_collect: int,
     ):
-        mbrl.util.populate_buffers_with_agent_trajectories(
+        mbrl.util.rollout_agent_trajectories(
             self.env,
-            self.dataset_train,
-            self.dataset_val,
             steps_to_collect,
-            self.cfg.overrides.validation_ratio,
             self.agent,
             {"sample": False},
             self.rng,
+            train_dataset=self.dataset_train,
+            val_dataset=self.dataset_val,
+            val_ratio=self.cfg.overrides.validation_ratio,
         )
 
         logger = mbrl.logger.Logger(self.outdir)

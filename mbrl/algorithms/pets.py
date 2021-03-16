@@ -50,11 +50,12 @@ def train(
     work_dir = os.getcwd()
     print(f"Results will be saved at {work_dir}.")
     logger = mbrl.logger.Logger(work_dir)
-    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
 
     # -------- Create and populate initial env dataset --------
+    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
+
     dataset_train, dataset_val = mbrl.util.create_replay_buffers(
         cfg,
         obs_shape,
@@ -63,16 +64,16 @@ def train(
         rng=rng,
     )
     dataset_train = cast(mbrl.replay_buffer.BootstrapReplayBuffer, dataset_train)
-    mbrl.util.populate_buffers_with_agent_trajectories(
+
+    mbrl.util.rollout_agent_trajectories(
         env,
-        dataset_train,
-        dataset_val,
         cfg.algorithm.initial_exploration_steps,
-        cfg.overrides.validation_ratio,
         mbrl.planning.RandomAgent(env),
         {},
         rng,
-        trial_length=cfg.overrides.trial_length,
+        train_dataset=dataset_train,
+        val_dataset=dataset_val,
+        val_ratio=cfg.overrides.validation_ratio,
         callback=dynamics_model.update_normalizer,
     )
     mbrl.util.save_buffers(dataset_train, dataset_val, work_dir)

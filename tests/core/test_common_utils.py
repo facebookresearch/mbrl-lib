@@ -234,8 +234,15 @@ def test_populate_replay_buffers_no_trajectories():
     val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
     env = MockEnv()
 
-    utils.populate_buffers_with_agent_trajectories(
-        env, train, val, num_steps, val_ratio, MockZeroAgent(), {}, MockRng()
+    utils.rollout_agent_trajectories(
+        env,
+        num_steps,
+        MockZeroAgent(),
+        {},
+        MockRng(),
+        train_dataset=train,
+        val_dataset=val,
+        val_ratio=val_ratio,
     )
     assert train.num_stored == size_train
     assert val.num_stored == size_val
@@ -261,16 +268,16 @@ def test_populate_replay_buffers_collect_trajectories():
     val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
     env = MockEnv()
 
-    utils.populate_buffers_with_agent_trajectories(
+    utils.rollout_agent_trajectories(
         env,
-        train,
-        val,
         num_trials,
-        val_ratio,
         MockZeroAgent(),
         {},
         MockRng(),
-        collect_trajectories=True,
+        train_dataset=train,
+        val_dataset=val,
+        val_ratio=val_ratio,
+        collect_full_trajectories=True,
     )
     assert train.num_stored == trials_train * _MOCK_TRAJ_LEN
     assert val.num_stored == trials_val * _MOCK_TRAJ_LEN
