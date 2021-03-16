@@ -403,6 +403,7 @@ class DynamicsModelTrainer:
                 training will stop after ``patience`` number of epochs without improvement.
             callback (callable, optional): if provided, this function will be called after
                 every training epoch with the following positional arguments:
+                    - the model that's being trained
                     - total number of calls made to ``trainer.train()``
                     - current epoch
                     - training loss
@@ -485,6 +486,7 @@ class DynamicsModelTrainer:
                 )
             if callback:
                 callback(
+                    self.dynamics_model.model,
                     self._train_iteration,
                     epoch,
                     total_avg_loss,
