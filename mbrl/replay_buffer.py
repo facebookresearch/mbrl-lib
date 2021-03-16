@@ -87,20 +87,7 @@ class SimpleReplayBuffer:
         if self.cur_idx >= self.capacity:
             self.num_stored = max(self.num_stored, self.cur_idx)
         if done:
-            new_trajectory = (self._start_last_trajectory, self.cur_idx)
-            self.remove_overlapping_trajectories(new_trajectory)
-            self.trajectory_indices.append(new_trajectory)
-            if self.cur_idx >= self.capacity:
-                self.cur_idx = 0
-            self._start_last_trajectory = self.cur_idx
-
-            if self.cur_idx - self._start_last_trajectory > (
-                len(self.obs) - self.capacity
-            ):
-                warnings.warn(
-                    "A trajectory was saved with length longer than expected. "
-                    "Unexpected behavior might occur."
-                )
+            self.close_trajectory()
         if self.cur_idx >= len(self.obs):
             warnings.warn(
                 "The replay buffer was filled before current trajectory finished. "
@@ -111,6 +98,20 @@ class SimpleReplayBuffer:
             self._start_last_trajectory = 0
             self.cur_idx = 0
             self.num_stored = len(self.obs)
+
+    def close_trajectory(self):
+        new_trajectory = (self._start_last_trajectory, self.cur_idx)
+        self.remove_overlapping_trajectories(new_trajectory)
+        self.trajectory_indices.append(new_trajectory)
+        if self.cur_idx >= self.capacity:
+            self.cur_idx = 0
+        self._start_last_trajectory = self.cur_idx
+
+        if self.cur_idx - self._start_last_trajectory > (len(self.obs) - self.capacity):
+            warnings.warn(
+                "A trajectory was saved with length longer than expected. "
+                "Unexpected behavior might occur."
+            )
 
     def add(
         self,
@@ -243,6 +244,11 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         action_shape (tuple of ints): the shape of the actions to store.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
+        max_trajectory_length (int, optional): if given, indicates that trajectory
+            information should be stored and that trajectories will be at most this
+            number of steps. Defaults to ``None`` in which case no trajectory
+            information will be kept. The buffer will keep trajectory information
+            automatically using the done value when calling :meth:`add`.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
@@ -256,6 +262,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         obs_shape: Tuple[int],
         action_shape: Tuple[int],
         rng: Optional[np.random.Generator] = None,
+        max_trajectory_length: Optional[int] = None,
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
@@ -267,6 +274,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
             obs_type=obs_type,
             action_type=action_type,
             rng=rng,
+            max_trajectory_length=max_trajectory_length,
         )
         self.batch_size = batch_size
         self._current_batch = 0
@@ -312,6 +320,11 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         action_shape (tuple of ints): the shape of the actions to store.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
+        max_trajectory_length (int, optional): if given, indicates that trajectory
+            information should be stored and that trajectories will be at most this
+            number of steps. Defaults to ``None`` in which case no trajectory
+            information will be kept. The buffer will keep trajectory information
+            automatically using the done value when calling :meth:`add`.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
@@ -326,6 +339,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         obs_shape: Tuple[int],
         action_shape: Tuple[int],
         rng: Optional[np.random.Generator] = None,
+        max_trajectory_length: Optional[int] = None,
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
@@ -336,6 +350,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             obs_shape,
             action_shape,
             rng=rng,
+            max_trajectory_length=max_trajectory_length,
             obs_type=obs_type,
             action_type=action_type,
             shuffle_each_epoch=shuffle_each_epoch,

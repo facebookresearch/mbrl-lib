@@ -119,6 +119,7 @@ def create_replay_buffers(
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
     train_is_bootstrap: bool = True,
+    collect_trajectories: bool = False,
     rng: Optional[np.random.Generator] = None,
 ) -> Tuple[
     mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
@@ -134,7 +135,9 @@ def create_replay_buffers(
           -algorithm
             -dataset_size (int, optional): the maximum size of the train dataset/buffer
           -overrides
-            -trial_length (int, optional): the length of a trial/episode in the environment
+            -trial_length (int, optional): the length of a trial/episode in the environment.
+                If ``collect_trajectories == True``, this must be provided to be used as
+                max_trajectory_length.
             -num_trials (int, optional): how many trial/episodes will be run
             -model_batch_size (int): the batch size to use when training the model
             -validation_ratio (float): size of the val. dataset in proportion to training dataset
@@ -156,6 +159,8 @@ def create_replay_buffers(
             be used to train an ensemble of bootstrapped models, in which case the training
             buffer will be an instance of :class:`mbrl.replay_buffer.BootstrapReplayBuffer`.
             Otherwise, it will be an instance of :class:`mbrl.replay_buffer.IterableReplayBuffer`.
+        collect_trajectories (bool, optional): if ``True`` sets the replay buffers to collect
+            trajectory information. Defaults to ``False``.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
 
@@ -169,6 +174,14 @@ def create_replay_buffers(
     if not dataset_size:
         dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
     train_buffer: mbrl.replay_buffer.IterableReplayBuffer
+    maybe_max_trajectory_len = None
+    if collect_trajectories:
+        if cfg.overrides.trial_length is None:
+            raise ValueError(
+                "cfg.overrides.trial_length must be set when "
+                "collect_trajectories==True."
+            )
+        maybe_max_trajectory_len = cfg.overrides.trial_length
     if train_is_bootstrap:
         train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
             dataset_size,
@@ -178,6 +191,7 @@ def create_replay_buffers(
             act_shape,
             rng=rng,
             shuffle_each_epoch=True,
+            max_trajectory_length=maybe_max_trajectory_len,
         )
     else:
         train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
@@ -187,6 +201,7 @@ def create_replay_buffers(
             act_shape,
             rng=rng,
             shuffle_each_epoch=True,
+            max_trajectory_length=maybe_max_trajectory_len,
         )
     val_buffer_capacity = int(dataset_size * cfg.overrides.validation_ratio)
     val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
@@ -195,6 +210,7 @@ def create_replay_buffers(
         obs_shape,
         act_shape,
         rng=rng,
+        max_trajectory_length=maybe_max_trajectory_len,
     )
 
     if load_dir:
@@ -422,6 +438,8 @@ def rollout_agent_trajectories(
             if not collect_full_trajectories and step == steps_or_trials_to_collect:
                 return total_rewards
             if trial_length and step % trial_length == 0:
+                if not done and which_dataset is not None:
+                    which_dataset.close_trajectory()
                 break
         trial += 1
         total_rewards.append(total_reward)

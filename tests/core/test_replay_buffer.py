@@ -133,6 +133,23 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
     )
 
 
+def test_buffer_close_trajectory_not_done():
+    capacity = 10
+    dummy = np.zeros(1)
+    buffer = replay_buffer.SimpleReplayBuffer(
+        capacity, (1,), (1,), max_trajectory_length=5
+    )
+    for i in range(3):
+        buffer.add(dummy, dummy, dummy, i, False)
+    buffer.close_trajectory()
+
+    for i in range(3, 8):
+        buffer.add(dummy, dummy, dummy, i, i == 7)
+
+    assert buffer.trajectory_indices == [(0, 3), (3, 8)]
+    assert np.allclose(buffer.reward[:8], np.arange(8))
+
+
 def test_trajectory_contents():
     buffer = replay_buffer.SimpleReplayBuffer(20, (1,), (1,), max_trajectory_length=10)
     dummy = np.zeros(1)
