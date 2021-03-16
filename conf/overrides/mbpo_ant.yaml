@@ -19,3 +19,4 @@ sac_actor_update_frequency: 8
 sac_critic_lr: 1.8e-5
 sac_critic_target_update_frequency: 4
 sac_target_entropy: -4
+sac_hidden_depth: 2
