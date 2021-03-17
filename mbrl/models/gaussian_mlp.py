@@ -264,11 +264,7 @@ class GaussianMLP(base_models.Model):
         pred_mean, _ = self.forward(model_in)
         if self._is_ensemble:
             assert model_in.ndim == 3 and target.ndim == 3
-            total_loss: torch.Tensor = 0.0
-            for i in range(self.num_members):
-                member_loss = F.mse_loss(pred_mean, target)
-                total_loss += member_loss
-            return total_loss / self.num_members
+            return F.mse_loss(pred_mean, target, reduce=None).sum((1, 2)).mean()
         else:
             assert model_in.ndim == 2 and target.ndim == 2
             return F.mse_loss(pred_mean, target)
@@ -277,14 +273,11 @@ class GaussianMLP(base_models.Model):
         pred_mean, pred_logvar = self.forward(model_in)
         if self._is_ensemble:
             assert model_in.ndim == 3 and target.ndim == 3
-            nll: torch.Tensor = 0.0
-            for i in range(self.num_members):
-                member_loss = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
-                member_loss += (
-                    0.01 * self.max_logvar[i].sum() - 0.01 * self.min_logvar[i].sum()
-                )
-                nll += member_loss
-            return nll / self.num_members
+            nll = mbrl.math.gaussian_nll(
+                pred_mean, pred_logvar, target, reduce=False
+            ).mean((1, 2))
+            nll += 0.01 * (self.max_logvar.sum((1, 2)) - self.min_logvar.sum((1, 2)))
+            return nll.mean()
         else:
             assert model_in.ndim == 2 and target.ndim == 2
             nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
