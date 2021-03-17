@@ -39,4 +39,4 @@ jobs:
         black --check mbrl
     - name: Test with pytest
       run: |
-        python -m pytest core
+        python -m pytest tests/core
