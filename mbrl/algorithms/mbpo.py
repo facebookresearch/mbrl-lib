@@ -11,7 +11,6 @@ import torch
 import mbrl.logger
 import mbrl.math
 import mbrl.models
-import mbrl.planning
 import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
