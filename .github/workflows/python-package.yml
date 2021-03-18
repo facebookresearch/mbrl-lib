@@ -31,10 +31,10 @@ jobs:
         python -m pip install -r requirements/dev.txt
     - name: Lint with flake8
       run: |
-        flake8 mbrl
+        flake8 mbrl --ignore=E203,W503 --per-file-ignores='mbrl/env/mujoco_envs.py:F401 tests/*:F401' --max-line-length=100
     - name: Lint with mypy
       run: |
-        mypy mbrl
+        mypy mbrl --no-strict-optional --ignore-missing-imports
     - name: Check format with black
       run: |
         black --check mbrl
