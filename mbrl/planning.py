@@ -1,7 +1,18 @@
 import abc
 import pathlib
 import time
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import gym
 import hydra
@@ -405,9 +416,9 @@ class TrajectoryOptimizerAgent(Agent):
         """Resets the underlying trajectory optimizer."""
         if planning_horizon:
             self.optimizer = TrajectoryOptimizer(
-                self.optimizer_args["optimizer_cfg"],
-                self.optimizer_args["action_lb"],
-                self.optimizer_args["action_ub"],
+                cast(omegaconf.DictConfig, self.optimizer_args["optimizer_cfg"]),
+                cast(np.ndarray, self.optimizer_args["action_lb"]),
+                cast(np.ndarray, self.optimizer_args["action_ub"]),
                 planning_horizon=planning_horizon,
                 replan_freq=self.replan_freq,
             )
