@@ -38,6 +38,6 @@ jobs:
     - name: Check format with black
       run: |
         black --check mbrl
-    - name: Test with pytest
-      run: |
-        python -m pytest tests/core
+#    - name: Test with pytest
+#      run: |
+#        python -m pytest tests/core
