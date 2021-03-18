@@ -1,0 +1,2 @@
+mujoco-py>=2.0.0
+pytorch_sac@git+https://github.com/luisenp/pytorch_sac.git
