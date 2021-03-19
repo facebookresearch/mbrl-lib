@@ -38,7 +38,6 @@ jobs:
     - name: Check format with black
       run: |
         black --check mbrl
-#     Need to fix pytorch_sac dependency first
-#    - name: Test with pytest
-#      run: |
-#        python -m pytest tests/core
+    - name: Test with pytest
+      run: |
+        python -m pytest tests/core

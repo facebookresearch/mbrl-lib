@@ -5,3 +5,4 @@ imageio>=2.9.0
 numpy>=1.19.1
 matplotlib>=3.3.1
 gym==0.17.2
+pytorch_sac@git+https://github.com/luisenp/pytorch_sac.git
