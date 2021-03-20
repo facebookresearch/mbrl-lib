@@ -201,7 +201,7 @@ def test_sample_trajectories():
         buffer.add(dummy, dummy, dummy, 100 + i, i == 9)
 
     for _ in range(100):
-        o, a, no, r, d = buffer.sample_trajectory()
+        o, a, no, r, d = buffer.sample_trajectory().astuple()
         assert len(o) == 7 or len(o) == 10
         assert d.sum() == 1 and d[-1]
         if len(o) == 7:
@@ -232,7 +232,7 @@ def test_iterable_buffer():
             buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
 
         for i, batch in enumerate(buffer):
-            obs, action, next_obs, reward, done = batch
+            obs, action, next_obs, reward, done = batch.astuple()
             if i < capacity // batch_size:
                 assert len(obs) == batch_size
             else:
@@ -256,7 +256,7 @@ def test_iterable_buffer_shuffle():
 
         all_obs = []
         for i, batch in enumerate(buffer):
-            obs, action, next_obs, reward, done = batch
+            obs, action, next_obs, reward, done = batch.astuple()
             for j in range(len(obs)):
                 all_obs.append(obs[j].item())
         all_obs_sorted = sorted(all_obs)

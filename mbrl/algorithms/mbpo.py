@@ -33,7 +33,8 @@ def rollout_model_and_populate_sac_buffer(
     batch_size: int,
 ):
 
-    initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
+    batch = env_dataset.sample(batch_size, ensemble=False)
+    initial_obs, action, *_ = cast(mbrl.types.TransitionBatch, batch).astuple()
     obs = model_env.reset(
         initial_obs_batch=cast(np.ndarray, initial_obs),
         propagation_method="random_model",

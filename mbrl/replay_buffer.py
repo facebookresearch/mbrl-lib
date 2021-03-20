@@ -3,7 +3,7 @@ from typing import List, Optional, Sized, Tuple
 
 import numpy as np
 
-import mbrl.types
+from mbrl.types import BatchTypes, EnsembleTransitionBatch, TransitionBatch
 
 
 class SimpleReplayBuffer:
@@ -156,7 +156,7 @@ class SimpleReplayBuffer:
         indices = self._rng.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
 
-    def sample_trajectory(self) -> Optional[Sized]:
+    def sample_trajectory(self) -> Optional[TransitionBatch]:
         """Samples a full trajectory and returns it as a batch.
 
         Returns:
@@ -172,14 +172,14 @@ class SimpleReplayBuffer:
         )
         return self._batch_from_indices(indices)
 
-    def _batch_from_indices(self, indices: Sized) -> mbrl.types.RLBatch:
+    def _batch_from_indices(self, indices: Sized) -> TransitionBatch:
         obs = self.obs[indices]
         next_obs = self.next_obs[indices]
         action = self.action[indices]
         reward = self.reward[indices]
         done = self.done[indices]
 
-        return obs, action, next_obs, reward, done
+        return TransitionBatch(obs, action, next_obs, reward, done)
 
     def __len__(self):
         return self.num_stored
@@ -376,7 +376,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             batches.append(self._batch_from_indices(content_indices))
         return batches
 
-    def sample(self, batch_size: int, ensemble: bool = True) -> mbrl.types.BatchTypes:
+    def sample(self, batch_size: int, ensemble: bool = True) -> BatchTypes:
         """Samples a bootstrapped batch from the replay buffer.
 
         For each model in the ensemble, as specified by the ``num_members``
@@ -394,7 +394,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             model as explained above, or a single batch if ``ensemble == False``.
         """
         if ensemble:
-            batches = []
+            batches: EnsembleTransitionBatch = []
             for member_idx in self.member_indices:
                 indices = self._rng.choice(self.num_stored, size=batch_size)
                 content_indices = member_idx[indices]

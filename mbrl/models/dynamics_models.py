@@ -114,9 +114,9 @@ class DynamicsModelWrapper:
         return model_in
 
     def _get_model_input_and_target_from_batch(
-        self, batch: mbrl.types.RLBatch
+        self, batch: mbrl.types.TransitionBatch
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        obs, action, next_obs, reward, _ = batch
+        obs, action, next_obs, reward, _ = batch.astuple()
         if self.target_is_delta:
             target_obs = next_obs - obs
             for dim in self.no_delta_list:
@@ -133,8 +133,7 @@ class DynamicsModelWrapper:
             target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
-    # TODO rename RLBatch as RL transition
-    def update_normalizer(self, transition: mbrl.types.RLBatch):
+    def update_normalizer(self, transition: mbrl.types.Transition):
         """Updates the normalizer statistics using the data in the transition.
 
         The normalizer will update running mean and variance given the obs and action in
@@ -157,7 +156,7 @@ class DynamicsModelWrapper:
 
     def update_from_bootstrap_batch(
         self,
-        bootstrap_batch: mbrl.types.RLEnsembleBatch,
+        bootstrap_batch: mbrl.types.EnsembleTransitionBatch,
         optimizers: Sequence[torch.optim.Optimizer],
     ):
         """Updates the model given a batch for bootstrapped models and optimizers.
@@ -189,7 +188,7 @@ class DynamicsModelWrapper:
         return self.model.update(model_ins, targets, optimizers)
 
     def update_from_simple_batch(
-        self, batch: mbrl.types.RLBatch, optimizer: torch.optim.Optimizer
+        self, batch: mbrl.types.TransitionBatch, optimizer: torch.optim.Optimizer
     ):
         """Updates the model given a batch of transitions and an optimizer.
 
@@ -208,7 +207,9 @@ class DynamicsModelWrapper:
         model_in, target = self._get_model_input_and_target_from_batch(batch)
         return self.model.update(model_in, target, optimizer)
 
-    def eval_score_from_simple_batch(self, batch: mbrl.types.RLBatch) -> torch.Tensor:
+    def eval_score_from_simple_batch(
+        self, batch: mbrl.types.TransitionBatch
+    ) -> torch.Tensor:
         """Evaluates the model score over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
@@ -224,7 +225,7 @@ class DynamicsModelWrapper:
         return self.model.eval_score(model_in, target)
 
     def get_output_and_targets_from_simple_batch(
-        self, batch: mbrl.types.RLBatch
+        self, batch: mbrl.types.TransitionBatch
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         """Returns the model output and the target tensors given a batch of transitions.
 
