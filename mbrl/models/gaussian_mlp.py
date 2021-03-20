@@ -6,11 +6,11 @@ from torch.nn import functional as F
 
 import mbrl.math
 
-from . import base_models
+from .common import EnsembleLinearLayer, truncated_normal_init
+from .model import Model
 
 
-# TODO add support for other activation functions
-class GaussianMLP(base_models.Model):
+class GaussianMLP(Model):
     """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.
 
     This model corresponds to a Probabilistic Ensemble in the Chua et al.,
@@ -62,7 +62,7 @@ class GaussianMLP(base_models.Model):
 
         def create_linear_layer(l_in, l_out):
             if ensemble_size > 1:
-                return base_models.EnsembleLinearLayer(ensemble_size, l_in, l_out)
+                return EnsembleLinearLayer(ensemble_size, l_in, l_out)
             else:
                 return nn.Linear(l_in, l_out)
 
@@ -94,7 +94,7 @@ class GaussianMLP(base_models.Model):
             )
         self.out_size = out_size
 
-        self.apply(base_models.truncated_normal_init)
+        self.apply(truncated_normal_init)
         self.to(self.device)
 
         self.elite_models: List[int] = None
