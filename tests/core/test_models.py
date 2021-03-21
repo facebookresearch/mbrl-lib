@@ -172,6 +172,8 @@ class MockProbModel(nn.Module):
         super().__init__()
         self.value = None
         self.p = nn.Parameter(torch.ones(1))
+        self.out_size = _MOCK_OBS_DIM + 1
+        self.deterministic = True
 
     def forward(self, x):
         return self.value * torch.ones_like(x), None
@@ -185,7 +187,7 @@ def mock_term_fn(act, next_obs):
     return done
 
 
-def get_mock_env():
+def get_mock_env(propagation_method):
     member_cfg = omegaconf.OmegaConf.create(
         {"_target_": "tests.core.test_models.MockProbModel"}
     )
@@ -194,6 +196,7 @@ def get_mock_env():
         num_members,
         torch.device("cpu"),
         member_cfg,
+        propagation_method=propagation_method,
     )
     dynamics_model = mbrl.models.DynamicsModelWrapper(
         ensemble, target_is_delta=True, normalize=False, obs_process_fn=None
@@ -203,15 +206,18 @@ def get_mock_env():
     for i in range(num_members):
         ensemble.members[i].value = member_incs[i]
 
-    model_env = mbrl.models.ModelEnv(MockEnv(), dynamics_model, mock_term_fn, None)
+    rng = torch.Generator()
+    model_env = mbrl.models.ModelEnv(
+        MockEnv(), dynamics_model, mock_term_fn, generator=rng
+    )
     return model_env, member_incs
 
 
 def test_model_env_expectation_propagation():
     batch_size = 7
-    model_env, member_incs = get_mock_env()
+    model_env, member_incs = get_mock_env("expectation")
     init_obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=init_obs, propagation_method="expectation")
+    model_env.reset(initial_obs_batch=init_obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     prev_sum = 0
@@ -226,9 +232,9 @@ def test_model_env_expectation_propagation():
 
 def test_model_env_expectation_random():
     batch_size = 100
-    model_env, member_incs = get_mock_env()
+    model_env, member_incs = get_mock_env("random_model")
     obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=obs, propagation_method="random_model")
+    model_env.reset(initial_obs_batch=obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     num_steps = 50
@@ -256,9 +262,9 @@ def test_model_env_expectation_random():
 
 def test_model_env_expectation_fixed():
     batch_size = 100
-    model_env, member_incs = get_mock_env()
+    model_env, member_incs = get_mock_env("fixed_model")
     obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=obs, propagation_method="fixed_model")
+    model_env.reset(initial_obs_batch=obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     num_steps = 50
