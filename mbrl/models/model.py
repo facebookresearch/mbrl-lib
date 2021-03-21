@@ -4,7 +4,12 @@ from typing import Optional, Sequence, Tuple, Union, cast
 import torch
 from torch import nn as nn
 
+from mbrl.types import ModelInput
 
+
+# ---------------------------------------------------------------------------
+#                           ABSTRACT MODEL CLASS
+# ---------------------------------------------------------------------------
 class Model(nn.Module, abc.ABC):
     """Base abstract class for all dynamics models.
 
@@ -17,56 +22,84 @@ class Model(nn.Module, abc.ABC):
         - ``save``: saves the model to a given path.
         - ``load``: loads the model from a given path.
 
+    Subclasses may also want to overrides :meth:`sample` and :meth:`reset`.
+
     Args:
-        in_size (int): size of the input tensor.
-        out_size (int): size of the output tensor.
         device (str or torch.device): device to use for the model.
     """
 
     def __init__(
         self,
-        in_size: int,
-        out_size: int,
         device: Union[str, torch.device],
         *args,
         **kwargs,
     ):
         super().__init__()
-        self.in_size = in_size
-        self.out_size = out_size
         self.device = torch.device(device)
         self.to(device)
 
-    def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Computes the output of the dynamics model.
 
         Args:
-            x (tensor): the input to the model.
+            x (tensor or batch of transitions): the input to the model.
 
         Returns:
-            (tuple of two tensor): the predicted mean and  log variance of the output.
-            If the model does not predict uncertainty, the second output must be ``None``.
+            (tuple of tensors): all tensors predicted by the model (e.g., .mean and logvar).
         """
         pass
+
+    def sample(self, x: ModelInput, **kwargs) -> torch.Tensor:
+        """Samples an output of the dynamics model.
+
+        For deterministic models this is equivalent to :meth:`forward`.
+
+        Args:
+            x (tensor or batch of transitions): the input to the model.
+
+        Returns:
+            (tensor): the sampled output.
+        """
+        return cast(torch.Tensor, self.forward(x))
+
+    def reset(self, x: ModelInput, **kwargs) -> torch.Tensor:
+        """Initializes any internal dependent state when using the model for simulation.
+
+        For most models this just returns the same tensor that is given as input. However,
+        for some models this method can be used to initialize data that should be kept
+        constant during a simulated trajectory (for example model indices when using
+        a bootstrapped ensemble with TSinf propagation). It can also be used to return
+        latent states computed by the model.
+
+        Args:
+            x (tensor or batch of transitions): the input to the model.
+
+        Returns:
+            (tensor): the initial state sampled for the model.
+        """
+        return cast(torch.Tensor, x)
 
     @abc.abstractmethod
     def loss(
         self,
-        model_in: torch.Tensor,
-        target: torch.Tensor,
+        model_in: ModelInput,
+        target: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Computes a loss that can be used to update the model using backpropagation.
 
         Args:
-            model_in (tensor): the inputs to the model.
-            target (tensor): the expected output for the given inputs.
+            model_in (tensor or batch of transitions): the inputs to the model.
+            target (tensor, optional): the expected output for the given inputs, if it
+                cannot be computed from ``model_in``.
 
         Returns:
             (tensor): a loss tensor.
         """
 
     @abc.abstractmethod
-    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def eval_score(
+        self, model_in: ModelInput, target: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Computes an evaluation score for the model over the given input/target.
 
         This method should compute a non-reduced score for the model, intended mostly for
@@ -81,9 +114,9 @@ class Model(nn.Module, abc.ABC):
 
 
         Args:
-            model_in (tensor or sequence of tensors): the inputs to the model
-                                                      (or ensemble of models).
-            target (tensor or sequence of tensors): the expected output for the given inputs.
+            model_in (tensor or batch of transitions): the inputs to the model.
+            target (tensor or sequence of tensors): the expected output for the given inputs, if it
+                cannot be computed from ``model_in``.
 
         Returns:
             (tensor): a non-reduced tensor score.
@@ -97,31 +130,11 @@ class Model(nn.Module, abc.ABC):
     def load(self, path: str):
         """Loads the model from the given path."""
 
-    @abc.abstractmethod
-    def _is_deterministic_impl(self):
-        # Subclasses must specify if model is _deterministic or not
-        pass
-
-    @abc.abstractmethod
-    def _is_ensemble_impl(self):
-        # Subclasses must specify if they are ensembles or not
-        pass
-
-    @property
-    def is_deterministic(self):
-        """Whether the model is deterministic or not."""
-        return self._is_deterministic_impl()
-
-    @property
-    def is_ensemble(self):
-        """Whether the model is an ensemble or not."""
-        return self._is_ensemble_impl()
-
     def update(
         self,
-        model_in: torch.Tensor,
-        target: torch.Tensor,
+        model_in: ModelInput,
         optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+        target: Optional[torch.Tensor] = None,
     ) -> float:
         """Updates the model using backpropagation with given input and target tensors.
 
@@ -134,8 +147,15 @@ class Model(nn.Module, abc.ABC):
            loss.backward()
            optimizer.step()
 
+        Args:
+            model_in (tensor or batch of transitions): the inputs to the model.
+            optimizer (torch.optimizer or sequence of torch.optimizer): the optimizer to use
+                for the model (or ensemble of models).
+            target (tensor or sequence of tensors): the expected output for the given inputs, if it
+                cannot be computed from ``model_in``.
 
-        Returns the numeric value of the computed loss.
+        Returns:
+             (float): the numeric value of the computed loss.
 
         """
         assert not isinstance(optimizer, Sequence)
@@ -147,28 +167,119 @@ class Model(nn.Module, abc.ABC):
         optimizer.step(None)
         return loss.item()
 
-    def __len__(self):
-        return None
 
-    def sample_propagation_indices(
-        self, batch_size: int, rng: torch.Generator
-    ) -> Optional[torch.Tensor]:
-        """Samples propagation indices used for "fixed_model" propagation.
+# ---------------------------------------------------------------------------
+#                           ABSTRACT ENSEMBLE CLASS
+# ---------------------------------------------------------------------------
+class Ensemble(Model, abc.ABC):
+    """Base abstract class for all ensemble of bootstrapped models.
 
-        This method should be overridden by all ensemble classes, so that indices for
-        "fixed_model" style propagation are sampled (equivalent to TSinf propagation in the
-        PETS paper). This allow each type of ensemble to have its own propagation logic.
+    Implements an ensemble of bootstrapped models described in the
+    Chua et al., NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf,
+
+    Uncertainty propagation methods are available that can be used
+    to aggregate the outputs of the different models in the ensemble.
+    Valid propagation options are:
+
+            - "random_model": for each output in the batch a model will be chosen at random.
+              This corresponds to TS1 propagation in the PETS paper.
+            - "fixed_model": for output j-th in the batch, the model will be chosen according to
+              the model index in `propagation_indices[j]`. This can be used to implement TSinf
+              propagation, described in the PETS paper.
+            - "expectation": the output for each element in the batch will be the mean across
+              models.
+
+    The default value of ``None`` indicates that no uncertainty propagation, and the forward
+    method returns all outputs of all models.
+
+    Subclasses of `Ensemble` are responsible for implementing the above functionality.
+
+    Args:
+        num_members (int): how many models in the ensemble.
+        propagation_method (str): the propagation method to use for the ensemble.
+        device (str or torch.device): device to use for the model.
+    """
+
+    def __init__(
+        self,
+        num_members: int,
+        propagation_method: str,
+        device: Union[str, torch.device],
+        *args,
+        **kwargs,
+    ):
+        super().__init__(device)
+        self.num_members = num_members
+        self.propagation_method = propagation_method
+
+    def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:
+        """Computes the output of the dynamics model.
 
         Args:
-            batch_size (int): the batch size to use for the indices.
-            rng (torch.Generator): random number generator.
+            x (tensor or batch of transitions): the input to the model.
+
+        Returns:
+            (tuple of tensors): all tensors predicted by the model (e.g., .mean and logvar).
         """
-        if self.is_ensemble:
-            raise NotImplementedError(
-                "This method must be implemented by all ensemble classes."
-            )
-        return None
+        pass
+
+    @abc.abstractmethod
+    def loss(
+        self,
+        model_in: ModelInput,
+        target: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Computes a loss that can be used to update the model using backpropagation.
+
+        Args:
+            model_in (tensor or batch of transitions): the inputs to the model.
+            target (tensor, optional): the expected output for the given inputs, if it
+                cannot be computed from ``model_in``.
+
+        Returns:
+            (tensor): a loss tensor.
+        """
+
+    @abc.abstractmethod
+    def eval_score(
+        self, model_in: ModelInput, target: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """Computes an evaluation score for the model over the given input/target.
+
+        This method should compute a non-reduced score for the model, intended mostly for
+        logging/debugging purposes (so, it should not keep gradient information).
+        For example, the following could be a valid
+        implementation of ``eval_score``:
+
+        .. code-block:: python
+
+           with torch.no_grad():
+               return torch.functional.mse_loss(model(model_in), target, reduction="none")
+
+
+        Args:
+            model_in (tensor or batch of transitions): the inputs to the model.
+            target (tensor or sequence of tensors): the expected output for the given inputs, if it
+                cannot be computed from ``model_in``.
+
+        Returns:
+            (tensor): a non-reduced tensor score.
+        """
+
+    @abc.abstractmethod
+    def save(self, path: str):
+        """Saves the model to the given path. """
+
+    @abc.abstractmethod
+    def load(self, path: str):
+        """Loads the model from the given path."""
+
+    def __len__(self):
+        return self.num_members
 
     def set_elite(self, elite_models: Sequence[int]):
         """For ensemble models, indicates if some models should be considered elite."""
         pass
+
+    def set_propagation_method(self, propagation_method: str):
+        self.propagation_method = propagation_method
