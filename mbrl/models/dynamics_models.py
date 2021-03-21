@@ -187,7 +187,7 @@ class DynamicsModelWrapper:
             targets.append(target)
         model_ins = torch.stack(model_ins)
         targets = torch.stack(targets)
-        return self.model.update(model_ins, targets, optimizers)
+        return self.model.update(model_ins, optimizers, target=targets)
 
     def update_from_simple_batch(
         self, batch: mbrl.types.TransitionBatch, optimizer: torch.optim.Optimizer
@@ -207,7 +207,7 @@ class DynamicsModelWrapper:
             )
 
         model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.update(model_in, target, optimizer)
+        return self.model.update(model_in, optimizer, target=target)
 
     def eval_score_from_simple_batch(
         self, batch: mbrl.types.TransitionBatch
