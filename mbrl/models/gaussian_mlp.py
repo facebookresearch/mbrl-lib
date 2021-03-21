@@ -69,7 +69,7 @@ class GaussianMLP(Ensemble):
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
     ):
-        super().__init__(ensemble_size, propagation_method, device)
+        super().__init__(ensemble_size, device, propagation_method)
 
         activation_cls = nn.SiLU if use_silu else nn.ReLU
 
@@ -97,7 +97,7 @@ class GaussianMLP(Ensemble):
         else:
             self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
             logvar_shape = (
-                (self.num_members, 1, out_size) if self._is_ensemble else (1, out_size)
+                (self.num_members, 1, out_size) if ensemble_size > 1 else (1, out_size)
             )
             self.min_logvar = nn.Parameter(
                 -10 * torch.ones(logvar_shape, requires_grad=True)
@@ -137,7 +137,7 @@ class GaussianMLP(Ensemble):
         else:
             mean = mean_and_logvar[..., : self.out_size]
             logvar = mean_and_logvar[..., self.out_size :]
-            if self._is_ensemble and self.elite_models is not None:
+            if self.num_members > 1 and self.elite_models is not None:
                 model_idx = self.elite_models if only_elite else range(self.num_members)
                 assert not only_elite or (len(model_idx) != self.num_members), (
                     "If elite size == self.num_members, it's better "
@@ -214,7 +214,7 @@ class GaussianMLP(Ensemble):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes mean and logvar predictions for the given input.
 
-        When ``self._is_ensemble = True``, the model supports uncertainty propagation options
+        When ``self.num_members > 1``, the model supports uncertainty propagation options
         that can be used to aggregate the outputs of the different models in the ensemble.
         Valid propagation options are:
 
@@ -259,7 +259,7 @@ class GaussianMLP(Ensemble):
             the output to :func:`mbrl.math.propagate`.
 
         """
-        if self._is_ensemble:
+        if self.num_members > 1:
             return self._forward_ensemble(
                 x,
                 rng=rng,
@@ -268,7 +268,7 @@ class GaussianMLP(Ensemble):
 
     def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, _ = self.forward(model_in)
-        if self._is_ensemble:
+        if self.num_members > 1:
             assert model_in.ndim == 3 and target.ndim == 3
             return F.mse_loss(pred_mean, target, reduce=None).sum((1, 2)).mean()
         else:
@@ -277,7 +277,7 @@ class GaussianMLP(Ensemble):
 
     def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(model_in)
-        if self._is_ensemble:
+        if self.num_members > 1:
             assert model_in.ndim == 3 and target.ndim == 3
             nll = mbrl.math.gaussian_nll(
                 pred_mean, pred_logvar, target, reduce=False
@@ -340,7 +340,7 @@ class GaussianMLP(Ensemble):
         assert model_in.ndim == 2 and target.ndim == 2
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in)
-            if self._is_ensemble:
+            if self.num_members > 1:
                 target = target.repeat((self.num_members, 1, 1))
             return F.mse_loss(pred_mean, target, reduction="none")
 

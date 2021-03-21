@@ -196,15 +196,16 @@ class Ensemble(Model, abc.ABC):
 
     Args:
         num_members (int): how many models in the ensemble.
-        propagation_method (str): the propagation method to use for the ensemble.
         device (str or torch.device): device to use for the model.
+        propagation_method (str, optional): the uncertainty propagation method to use (see
+            above). Defaults to ``None``.
     """
 
     def __init__(
         self,
         num_members: int,
-        propagation_method: str,
         device: Union[str, torch.device],
+        propagation_method: str,
         *args,
         **kwargs,
     ):
@@ -281,5 +282,5 @@ class Ensemble(Model, abc.ABC):
         """For ensemble models, indicates if some models should be considered elite."""
         pass
 
-    def set_propagation_method(self, propagation_method: str):
+    def set_propagation_method(self, propagation_method: Optional[str] = None):
         self.propagation_method = propagation_method
