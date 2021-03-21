@@ -59,8 +59,9 @@ class BasicEnsemble(Ensemble):
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model)
+        self.out_size = self.members[0].out_size
+        self._deterministic = self.members[0].deterministic
         self.members = nn.ModuleList(self.members)
-
         self._propagation_indices = None
 
     def __len__(self):
@@ -290,22 +291,5 @@ class BasicEnsemble(Ensemble):
             "BasicEnsemble does not support elite models yet. All models will be used."
         )
 
-    def sample(  # type: ignore
-        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
-    ) -> torch.Tensor:
-        """Samples an output of the dynamics model from the modeled Gaussian.
-
-        Args:
-            x (tensor): the input to the model.
-            rng (random number generator): a rng to use for sampling.
-
-        Returns:
-            (tensor): the sampled output.
-        """
-        if self._deterministic:
-            return self.forward(x, rng=rng)[0]
-        assert rng is not None
-        means, logvars = self.forward(x, rng=rng)
-        variances = logvars.exp()
-        stds = torch.sqrt(variances)
-        return torch.normal(means, stds, generator=rng)
+    def _is_deterministic_impl(self):
+        return self._deterministic

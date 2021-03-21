@@ -389,22 +389,5 @@ class GaussianMLP(Ensemble):
         if len(elite_indices) != self.num_members:
             self.elite_models = list(elite_indices)
 
-    def sample(  # type: ignore
-        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
-    ) -> torch.Tensor:
-        """Samples an output of the dynamics model from the modeled Gaussian.
-
-        Args:
-            x (tensor): the input to the model.
-            rng (random number generator): a rng to use for sampling.
-
-        Returns:
-            (tensor): the sampled output.
-        """
-        if self._deterministic:
-            return self.forward(x, rng=rng)[0]
-        assert rng is not None
-        means, logvars = self.forward(x, rng=rng)
-        variances = logvars.exp()
-        stds = torch.sqrt(variances)
-        return torch.normal(means, stds, generator=rng)
+    def _is_deterministic_impl(self):
+        return self._deterministic

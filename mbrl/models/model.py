@@ -21,6 +21,9 @@ class Model(nn.Module, abc.ABC):
           for the model on the input data (e.g., squared error per element).
         - ``save``: saves the model to a given path.
         - ``load``: loads the model from a given path.
+        - ``_is_deterministic_impl``: a method that returns ``True`` if the instantiated
+            model is fully deterministic, or ``False`` if it can return random samples.
+            This is mainly used for compatibility with :class:`mbrl.models.Ensemble`.
 
     Subclasses may also want to overrides :meth:`sample` and :meth:`reset`.
 
@@ -49,13 +52,17 @@ class Model(nn.Module, abc.ABC):
         """
         pass
 
-    def sample(self, x: ModelInput, **kwargs) -> torch.Tensor:
+    def sample(
+        self, x: ModelInput, deterministic: bool = False, **kwargs
+    ) -> torch.Tensor:
         """Samples an output of the dynamics model.
 
         For deterministic models this is equivalent to :meth:`forward`.
 
         Args:
             x (tensor or batch of transitions): the input to the model.
+            deterministic (bool): if ``True``, the model returns a deterministic
+                "sample" (e.g., the mean prediction). Defaults to ``False``.
 
         Returns:
             (tensor): the sampled output.
@@ -166,6 +173,14 @@ class Model(nn.Module, abc.ABC):
         loss.backward()
         optimizer.step(None)
         return loss.item()
+
+    @abc.abstractmethod
+    def _is_deterministic_impl(self):
+        pass
+
+    @property
+    def deterministic(self):
+        return self._is_deterministic_impl()
 
 
 # ---------------------------------------------------------------------------
@@ -284,3 +299,28 @@ class Ensemble(Model, abc.ABC):
 
     def set_propagation_method(self, propagation_method: Optional[str] = None):
         self.propagation_method = propagation_method
+
+    def sample(  # type: ignore
+        self,
+        x: torch.Tensor,
+        deterministic: bool = False,
+        rng: Optional[torch.Generator] = None,
+    ) -> torch.Tensor:
+        """Samples an output of the dynamics model from the modeled Gaussian.
+
+        Args:
+            x (tensor): the input to the model.
+            deterministic (bool): if ``True``, the model returns a deterministic
+                "sample" (e.g., the mean prediction). Defaults to ``False``.
+            rng (random number generator): a rng to use for sampling.
+
+        Returns:
+            (tensor): the sampled output.
+        """
+        if deterministic or self.deterministic:
+            return self.forward(x, rng=rng)[0]
+        assert rng is not None
+        means, logvars = self.forward(x, rng=rng)
+        variances = logvars.exp()
+        stds = torch.sqrt(variances)
+        return torch.normal(means, stds, generator=rng)
