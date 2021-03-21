@@ -6,8 +6,8 @@ from torch.nn import functional as F
 
 import mbrl.math
 
-from .common import EnsembleLinearLayer, truncated_normal_init
 from .model import Ensemble
+from .util import EnsembleLinearLayer, truncated_normal_init
 
 
 class GaussianMLP(Ensemble):
