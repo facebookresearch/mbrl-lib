@@ -7,10 +7,10 @@ from torch.nn import functional as F
 import mbrl.math
 
 from .common import EnsembleLinearLayer, truncated_normal_init
-from .model import Model
+from .model import Ensemble
 
 
-class GaussianMLP(Model):
+class GaussianMLP(Ensemble):
     """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.
 
     This model corresponds to a Probabilistic Ensemble in the Chua et al.,
@@ -23,7 +23,22 @@ class GaussianMLP(Model):
     This class can also be used to build an ensemble of GaussianMLP models, by setting
     ``ensemble_size > 1`` in the constructor. Then, a single forward pass can be used to evaluate
     multiple independent MLPs at the same time. When this mode is active, the constructor will
-    set ``self.num_members = ensemble_size`` and ``self.is_ensemble = True``.
+    set ``self.num_members = ensemble_size``.
+
+    For the ensemble variant, uncertainty propagation methods are available that can be used
+    to aggregate the outputs of the different models in the ensemble.
+    Valid propagation options are:
+
+            - "random_model": for each output in the batch a model will be chosen at random.
+              This corresponds to TS1 propagation in the PETS paper.
+            - "fixed_model": for output j-th in the batch, the model will be chosen according to
+              the model index in `propagation_indices[j]`. This can be used to implement TSinf
+              propagation, described in the PETS paper.
+            - "expectation": the output for each element in the batch will be the mean across
+              models.
+
+    The default value of ``None`` indicates that no uncertainty propagation, and the forward
+    method returns all outputs of all models.
 
     Args:
         in_size (int): size of model input.
@@ -38,6 +53,8 @@ class GaussianMLP(Model):
                          ReLU activations will be used. Defaults to ``False``.
         deterministic (bool): if ``True``, the model will be trained using MSE loss and no
             logvar prediction will be done. Defaults to ``False``.
+        propagation_method (str, optional): the uncertainty propagation method to use (see
+            above). Defaults to ``None``.
     """
 
     def __init__(
@@ -50,15 +67,11 @@ class GaussianMLP(Model):
         hid_size: int = 200,
         use_silu: bool = False,
         deterministic: bool = False,
+        propagation_method: Optional[str] = None,
     ):
-        super().__init__(in_size, out_size, device)
-        activation_cls = nn.SiLU if use_silu else nn.ReLU
+        super().__init__(ensemble_size, propagation_method, device)
 
-        self.num_members = None
-        self._is_ensemble = False
-        if ensemble_size > 1:
-            self._is_ensemble = True
-            self.num_members = ensemble_size
+        activation_cls = nn.SiLU if use_silu else nn.ReLU
 
         def create_linear_layer(l_in, l_out):
             if ensemble_size > 1:
@@ -98,6 +111,8 @@ class GaussianMLP(Model):
         self.to(self.device)
 
         self.elite_models: List[int] = None
+
+        self._propagation_indices: torch.Tensor = None
 
     def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
         if self.elite_models is None:
@@ -165,11 +180,9 @@ class GaussianMLP(Model):
     def _forward_ensemble(
         self,
         x: torch.Tensor,
-        propagation: Optional[str] = None,
-        propagation_indices: Optional[torch.Tensor] = None,
         rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        if propagation is None:
+        if self.propagation_method is None:
             return self._default_forward(x, only_elite=False)
         assert x.ndim == 2
         model_len = (
@@ -182,23 +195,21 @@ class GaussianMLP(Model):
                 f"{model_len} models."
             )
         x = x.unsqueeze(0)
-        if propagation == "random_model":
+        if self.propagation_method == "random_model":
             # passing generator causes segmentation fault
             # see https://github.com/pytorch/pytorch/issues/44714
             model_indices = torch.randperm(x.shape[1], device=self.device)
             return self._forward_from_indices(x, model_indices)
-        if propagation == "fixed_model":
-            return self._forward_from_indices(x, propagation_indices)
-        if propagation == "expectation":
+        if self.propagation_method == "fixed_model":
+            return self._forward_from_indices(x, self._propagation_indices)
+        if self.propagation_method == "expectation":
             mean, logvar = self._default_forward(x, only_elite=True)
             return mean.mean(dim=0), logvar.mean(dim=0)
-        raise ValueError(f"Invalid propagation method {propagation}.")
+        raise ValueError(f"Invalid propagation method {self.propagation_method}.")
 
     def forward(  # type: ignore
         self,
         x: torch.Tensor,
-        propagation: Optional[str] = None,
-        propagation_indices: Optional[torch.Tensor] = None,
         rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes mean and logvar predictions for the given input.
@@ -229,9 +240,6 @@ class GaussianMLP(Model):
                 where ``E``, ``B`` and ``Id`` represent ensemble size, batch size, and input
                 dimension, respectively. In this case, each model in the ensemble will get one
                 slice from the first dimension (e.g., the i-th ensemble member gets ``x[i]``).
-            propagation (str, optional): the desired propagation function. Defaults to ``None``.
-            propagation_indices (int, optional): the model indices for each element in the batch
-                                                 when ``propagation == "fixed_model"``.
             rng (torch.Generator, optional): random number generator to use for "random_model"
                                              propagation.
 
@@ -254,8 +262,6 @@ class GaussianMLP(Model):
         if self._is_ensemble:
             return self._forward_ensemble(
                 x,
-                propagation=propagation,
-                propagation_indices=propagation_indices,
                 rng=rng,
             )
         return self._default_forward(x)
@@ -283,7 +289,11 @@ class GaussianMLP(Model):
             nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
             return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
 
-    def loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def loss(
+        self,
+        model_in: torch.Tensor,
+        target: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """Computes Gaussian NLL loss.
 
         It also includes terms for ``max_logvar`` and ``min_logvar`` with small weights,
@@ -309,7 +319,9 @@ class GaussianMLP(Model):
         else:
             return self._nll_loss(model_in, target)
 
-    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def eval_score(  # type: ignore
+        self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Computes the squared error for the model over the given input/target.
 
         When model is not an ensemble, this is equivalent to
@@ -338,16 +350,27 @@ class GaussianMLP(Model):
     def load(self, path: str):
         self.load_state_dict(torch.load(path))
 
-    def _is_deterministic_impl(self):
-        return self._deterministic
+    def reset(  # type: ignore
+        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> torch.Tensor:
+        """Initializes any internal dependent state when using the model for simulation.
 
-    def _is_ensemble_impl(self):
-        return self._is_ensemble
+        Initializes model indices for "fixed_model" propagation method
+        a bootstrapped ensemble with TSinf propagation).
 
-    def __len__(self):
-        return self.num_members
+        Args:
+            x (tensor): the input to the model.
+            rng (random number generator): a rng to use for sampling the model
+                indices.
 
-    def sample_propagation_indices(
+        Returns:
+            (tensor): forwards the same input.
+        """
+        assert rng is not None
+        self._propagation_indices = self._sample_propagation_indices(x.shape[0], rng)
+        return x
+
+    def _sample_propagation_indices(
         self, batch_size: int, _rng: torch.Generator
     ) -> torch.Tensor:
         """Returns a random permutation of integers in [0, ``batch_size``)."""
@@ -365,3 +388,23 @@ class GaussianMLP(Model):
     def set_elite(self, elite_indices: Sequence[int]):
         if len(elite_indices) != self.num_members:
             self.elite_models = list(elite_indices)
+
+    def sample(  # type: ignore
+        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> torch.Tensor:
+        """Samples an output of the dynamics model from the modeled Gaussian.
+
+        Args:
+            x (tensor): the input to the model.
+            rng (random number generator): a rng to use for sampling.
+
+        Returns:
+            (tensor): the sampled output.
+        """
+        if self._deterministic:
+            return self.forward(x, rng=rng)[0]
+        assert rng is not None
+        means, logvars = self.forward(x, rng=rng)
+        variances = logvars.exp()
+        stds = torch.sqrt(variances)
+        return torch.normal(means, stds, generator=rng)
