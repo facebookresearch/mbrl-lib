@@ -311,11 +311,7 @@ def rollout_model_env(
     reward_history = []
     if agent:
         plan = agent.plan(initial_obs[None, :])
-    obs0 = model_env.reset(
-        np.tile(initial_obs, (num_samples, 1)),
-        propagation_method="random_model",
-        return_as_np=True,
-    )
+    obs0 = model_env.reset(np.tile(initial_obs, (num_samples, 1)), return_as_np=True)
     obs_history.append(obs0)
     for action in plan:
         next_obs, reward, done, _ = model_env.step(

@@ -93,10 +93,7 @@ def train(
     )
 
     agent = mbrl.planning.create_trajectory_optim_agent_for_model(
-        model_env,
-        cfg.algorithm.agent,
-        num_particles=cfg.algorithm.num_particles,
-        propagation_method=cfg.algorithm.propagation_method,
+        model_env, cfg.algorithm.agent, num_particles=cfg.algorithm.num_particles
     )
 
     # ---------------------------------------------------------
