@@ -71,6 +71,9 @@ class GaussianMLP(Ensemble):
     ):
         super().__init__(ensemble_size, device, propagation_method)
 
+        self.in_size = in_size
+        self.out_size = out_size
+
         activation_cls = nn.SiLU if use_silu else nn.ReLU
 
         def create_linear_layer(l_in, l_out):
@@ -105,7 +108,6 @@ class GaussianMLP(Ensemble):
             self.max_logvar = nn.Parameter(
                 0.5 * torch.ones(logvar_shape, requires_grad=True)
             )
-        self.out_size = out_size
 
         self.apply(truncated_normal_init)
         self.to(self.device)
