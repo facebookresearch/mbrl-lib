@@ -12,7 +12,8 @@ import mbrl.replay_buffer
 import mbrl.types
 
 
-def create_dynamics_model(
+# TODO read proprioceptive model from hydra
+def create_proprioceptive_model(
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     obs_shape: Tuple[int, ...],
     act_shape: Tuple[int, ...],
@@ -21,7 +22,7 @@ def create_dynamics_model(
     """Creates a dynamics model from a given configuration.
 
     This method creates a new model from the given configuration and wraps it into a
-    :class:`mbrl.models.DynamicsModelWrapper` (see its documentation for explanation of some
+    :class:`mbrl.models.ProprioceptiveModel` (see its documentation for explanation of some
     of the config args under ``cfg.algorithm``).
     The configuration should be structured as follows::
 
@@ -60,8 +61,7 @@ def create_dynamics_model(
             "model_dir / env_stats.pickle", respectively.
 
     Returns:
-        (:class:`mbrl.models.DynamicsModelWrapper`): the dynamics model wrapper for the model
-        created.
+        (:class:`mbrl.models.ProprioceptiveModel`): the proprioceptive model created.
 
     """
     # This first part takes care of the case where model is BasicEnsemble and in/out sizes
@@ -84,7 +84,7 @@ def create_dynamics_model(
         obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
     else:
         obs_process_fn = None
-    dynamics_model = mbrl.models.DynamicsModelWrapper(
+    dynamics_model = mbrl.models.ProprioceptiveModel(
         model,
         target_is_delta=cfg.algorithm.target_is_delta,
         normalize=cfg.algorithm.normalize,
@@ -253,8 +253,9 @@ def save_buffers(
     val_buffer.save(str(work_path / f"{prefix}_val"))
 
 
+# TODO replace this with optional save inside the trainer (maybe)
 def train_model_and_save_model_and_data(
-    dynamics_model: mbrl.models.DynamicsModelWrapper,
+    model: mbrl.models.Model,
     model_trainer: mbrl.models.DynamicsModelTrainer,
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
@@ -266,7 +267,7 @@ def train_model_and_save_model_and_data(
     Runs `model_trainer.train()`, then saves the resulting model and the data used.
 
     Args:
-        dynamics_model (:class:`mbrl.models.DynamicsModelWrapper`): the model to train.
+        model (:class:`mbrl.models.Model`): the model to train.
         model_trainer (:class:`mbrl.models.DynamicsModelTrainer`): the model trainer.
         cfg (:class:`omegaconf.DictConfig`): configuration to use for training.
             Fields ``cfg.overrides.num_epochs_train_model`` and ``cfg.overrides.patience``
@@ -283,7 +284,7 @@ def train_model_and_save_model_and_data(
         num_epochs=cfg.overrides.get("num_epochs_train_model", None),
         patience=cfg.overrides.patience,
     )
-    dynamics_model.save(work_dir)
+    model.save(str(work_dir))
     save_buffers(dataset_train, dataset_val, work_dir)
 
 

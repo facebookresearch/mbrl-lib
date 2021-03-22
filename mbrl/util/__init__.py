@@ -1,5 +1,5 @@
 from .common import (
-    create_dynamics_model,
+    create_proprioceptive_model,
     create_replay_buffers,
     load_hydra_cfg,
     rollout_agent_trajectories,
@@ -12,7 +12,7 @@ from .common import (
 __all__ = [
     "create_replay_buffers",
     "load_hydra_cfg",
-    "create_dynamics_model",
+    "create_proprioceptive_model",
     "save_buffers",
     "rollout_model_env",
     "rollout_agent_trajectories",

@@ -33,13 +33,10 @@ class Model(nn.Module, abc.ABC):
 
     def __init__(
         self,
-        device: Union[str, torch.device],
         *args,
         **kwargs,
     ):
         super().__init__()
-        self.device = torch.device(device)
-        self.to(device)
 
     def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Computes the output of the dynamics model.
@@ -224,9 +221,11 @@ class Ensemble(Model, abc.ABC):
         *args,
         **kwargs,
     ):
-        super().__init__(device)
+        super().__init__()
         self.num_members = num_members
         self.propagation_method = propagation_method
+        self.device = torch.device(device)
+        self.to(device)
 
     def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Computes the output of the dynamics model.

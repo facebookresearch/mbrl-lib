@@ -6,15 +6,20 @@ import torch
 
 import mbrl.types
 
-from . import dynamics_models
+from . import proprioceptive_model
 
 
 class ModelEnv:
     """Wraps a dynamics model into a gym-like environment.
 
+    This class can wrap a dynamics model to be used as an environment. The only requirement
+    to use this class is for the model to use this wrapper is to have a method called
+    ``predict()``
+    with signature `next_observs, rewards = model.predict(obs,actions, sample=, rng=)`
+
     Args:
         env (gym.Env): the original gym environment for which the model was trained.
-        model (:class:`mbrl.models.DynamicsModelWrapper`): the dynamics model to wrap.
+        model (:class:`mbrl.models.Model`): the model to wrap.
         termination_fn (callable): a function that receives actions and observations, and
             returns a boolean flag indicating whether the episode should end or not.
         reward_fn (callable, optional): a function that receives actions and observations
@@ -28,7 +33,7 @@ class ModelEnv:
     def __init__(
         self,
         env: gym.Env,
-        model: dynamics_models.DynamicsModelWrapper,
+        model: proprioceptive_model.ProprioceptiveModel,
         termination_fn: mbrl.types.TermFnType,
         reward_fn: Optional[mbrl.types.RewardFnType] = None,
         generator: Optional[torch.Generator] = None,
@@ -74,9 +79,7 @@ class ModelEnv:
             np.copy(initial_obs_batch.astype(np.float32))
         ).to(self.device)
 
-        self._current_obs = self.dynamics_model.model.reset(
-            self._current_obs, rng=self._rng
-        )
+        self._current_obs = self.dynamics_model.reset(self._current_obs, rng=self._rng)
 
         self._return_as_np = return_as_np
         if self._return_as_np:
@@ -99,8 +102,7 @@ class ModelEnv:
 
         Returns:
             (tuple): contains the predicted next observation, reward, done flag and metadata.
-            The done flag is computed using the model's given termination_fn
-            (see :class:`mbrl.models.DynamicsModelWrapper`).
+            The done flag is computed using the termination_fn passed in the constructor.
         """
         assert len(actions.shape) == 2  # batch, action_dim
         with torch.no_grad():

@@ -198,7 +198,7 @@ def get_mock_env(propagation_method):
         member_cfg,
         propagation_method=propagation_method,
     )
-    dynamics_model = mbrl.models.DynamicsModelWrapper(
+    dynamics_model = mbrl.models.ProprioceptiveModel(
         ensemble, target_is_delta=True, normalize=False, obs_process_fn=None
     )
     # With value we can uniquely id the output of each member

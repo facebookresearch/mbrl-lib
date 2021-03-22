@@ -63,12 +63,12 @@ def mock_reward_fn(action, obs):
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
-def test_pets():
+def test_pets(model_type):
     with open(os.path.join(_REPO_DIR, "conf/algorithm/pets.yaml"), "r") as f:
         algorithm_cfg = yaml.safe_load(f)
 
     with open(
-        os.path.join(_REPO_DIR, "conf/dynamics_model/gaussian_mlp_ensemble.yaml"), "r"
+        os.path.join(_REPO_DIR, f"conf/dynamics_model/{model_type}.yaml"), "r"
     ) as f:
         model_cfg = yaml.safe_load(f)
 
@@ -101,6 +101,14 @@ def test_pets():
     max_reward = pets.train(env, term_fn, reward_fn, cfg, silent=True)
 
     assert max_reward > _TARGET_REWARD
+
+
+def test_pets_gaussian_mlp_ensemble():
+    test_pets("gaussian_mlp_ensemble")
+
+
+def test_pets_basic_ensemble_gaussian_mlp():
+    test_pets("basic_ensemble")
 
 
 def test_mbpo():

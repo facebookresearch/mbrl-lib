@@ -58,7 +58,7 @@ def train(
         logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
 
     # -------- Create and populate initial env dataset --------
-    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
     dataset_train, dataset_val = mbrl.util.create_replay_buffers(
         cfg,
