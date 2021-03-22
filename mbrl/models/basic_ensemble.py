@@ -6,10 +6,10 @@ import omegaconf
 import torch
 import torch.nn as nn
 
-from .model import Model
+from .model import Ensemble
 
 
-class BasicEnsemble(Model):
+class BasicEnsemble(Ensemble):
     """Implements an ensemble of bootstrapped models.
 
     This model is a basic implementation of the ensemble of bootstrapped models described in the
@@ -26,32 +26,44 @@ class BasicEnsemble(Model):
     `len(ensemble)` returns its size, and the ensemble can also be iterated over the models
     (e.g., calling `for i, model in enumerate(ensemble)`.
 
+
+    Valid propagation options are:
+
+        - "random_model": for each output in the batch a model will be chosen at random.
+          This corresponds to TS1 propagation in the PETS paper.
+        - "fixed_model": for output j-th in the batch, the model will be chosen according to
+          the model index in `propagation_indices[j]`. This can be used to implement TSinf
+          propagation, described in the PETS paper.
+        - "expectation": the output for each element in the batch will be the mean across
+          models.
+
     Args:
         ensemble_size (int): how many models to include in the ensemble.
-        in_size (int): size of model input.
-        out_size (int): size of model output.
         device (str or torch.device): the device to use for the model.
         member_cfg (omegaconf.DictConfig): the configuration needed to instantiate the models
                                            in the ensemble. They will be instantiated using
                                            `hydra.utils.instantiate(member_cfg)`.
+        propagation_method (str, optional): the uncertainty propagation method to use (see
+            above). Defaults to ``None``.
     """
 
     def __init__(
         self,
         ensemble_size: int,
-        in_size: int,
-        out_size: int,
         device: Union[str, torch.device],
         member_cfg: omegaconf.DictConfig,
+        propagation_method: Optional[str] = None,
     ):
-        super().__init__(in_size, out_size, device)
+        super().__init__(ensemble_size, device, propagation_method)
         self.members = []
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model)
+        self.in_size = getattr(self.members[0], "in_size", None)
+        self.out_size = getattr(self.members[0], "out_size", None)
+        self._deterministic = self.members[0].deterministic
         self.members = nn.ModuleList(self.members)
-        self.num_members = ensemble_size
-        self.to(device)
+        self._propagation_indices = None
 
     def __len__(self):
         return len(self.members)
@@ -117,8 +129,6 @@ class BasicEnsemble(Model):
     def forward(  # type: ignore
         self,
         x: torch.Tensor,
-        propagation: Optional[str] = None,
-        propagation_indices: Optional[torch.Tensor] = None,
         rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes the output of the ensemble.
@@ -127,30 +137,19 @@ class BasicEnsemble(Model):
         aggregates the prediction in different ways, according to the desired
         epistemic uncertainty ``propagation`` method.
 
-        If no propagation is desired (i.e., ``propagation is None``), then the outputs of
-        the model are stacked into single tensors (one for mean, one for logvar). The shape
+        If no propagation is desired (i.e., ``self.propagation_method is None``),
+        then the outputs of the model are stacked into single tensors
+        (one for mean, one for logvar). The shape
         of each output tensor will then be ``E x B x D``, where ``E``, ``B`` and ``D``
         represent ensemble size, batch size, and output dimension, respectively.
 
-        Valid propagation options are:
 
-            - "random_model": for each output in the batch a model will be chosen at random.
-              This corresponds to TS1 propagation in the PETS paper.
-            - "fixed_model": for output j-th in the batch, the model will be chosen according to
-              the model index in `propagation_indices[j]`. This can be used to implement TSinf
-              propagation, described in the PETS paper.
-            - "expectation": the output for each element in the batch will be the mean across
-              models.
-
-        For all of these, the output is of size ``B x D``.
+        For all other propagation options, the output is of size ``B x D``.
 
         Args:
             x (tensor): the input to the models (shape ``B x D``). The input will be
                         evaluated over all models, then aggregated according to ``propagation``,
                         as explained above.
-            propagation (str, optional): the desired propagation function. Defaults to ``None``.
-            propagation_indices (int, optional): the model indices for each element in the batch
-                                                 when ``propagation == "fixed_model"``.
             rng (torch.Generator, optional): random number generator to use for "random_model"
                                              propagation.
 
@@ -159,48 +158,50 @@ class BasicEnsemble(Model):
             log variance prediction (or ``None`` if the ensemble members don't predict variance).
 
         """
-        if propagation is None:
+        if self.propagation_method is None:
             return self._default_forward(x)
-        if propagation == "random_model":
+        if self.propagation_method == "random_model":
             return self._forward_random_model(x, rng)
-        if propagation == "fixed_model":
+        if self.propagation_method == "fixed_model":
             assert (
-                propagation_indices is not None
+                self._propagation_indices is not None
             ), "When using propagation='fixed_model', `propagation_indices` must be provided."
-            return self._forward_from_indices(x, propagation_indices)
-        if propagation == "expectation":
+            return self._forward_from_indices(x, self._propagation_indices)
+        if self.propagation_method == "expectation":
             return self._forward_expectation(x)
         raise ValueError(
-            f"Invalid propagation method {propagation}. Valid options are: "
+            f"Invalid propagation method {self.propagation_method}. Valid options are: "
             f"'random_model', 'fixed_model', 'expectation'."
         )
 
-    def loss(
+    # TODO replace the inputs with a single tensor
+    def loss(  # type: ignore
         self,
-        inputs: torch.Tensor,
-        targets: torch.Tensor,
+        model_ins: Sequence[torch.Tensor],
+        targets: Optional[Sequence[torch.Tensor]] = None,
     ) -> torch.Tensor:
         """Computes average loss over the losses of all members of the ensemble.
 
         Args:
-            inputs (sequence of tensors): one input for each model in the ensemble.
+            model_ins (sequence of tensors): one input for each model in the ensemble.
             targets (sequence of tensors): one target for each model in the ensemble.
 
         Returns:
             (tensor): the average loss over all members.
         """
+        assert targets is not None
         avg_ensemble_loss: torch.Tensor = 0.0
         for i, model in enumerate(self.members):
             model.train()
-            loss = model.loss(inputs[i], targets[i])
+            loss = model.loss(model_ins[i], targets[i])
             avg_ensemble_loss += loss
         return avg_ensemble_loss / len(self.members)
 
-    def update(
+    def update(  # type: ignore
         self,
-        inputs: torch.Tensor,
-        targets: torch.Tensor,
+        model_ins: torch.Tensor,
         optimizers: Sequence[torch.optim.Optimizer],
+        target: Optional[torch.Tensor] = None,
     ) -> float:
         """Updates all models of the ensemble.
 
@@ -208,21 +209,26 @@ class BasicEnsemble(Model):
         Then returns the average loss value.
 
         Args:
-            inputs (tensor): input tensor with shape ``E x B x Id``, where ``E``, ``B`` and
+            model_ins (tensor): input tensor with shape ``E x B x Id``, where ``E``, ``B`` and
                 ``Id`` represent ensemble size, batch size, and input dimension, respectively .
-            targets (tensor): target tensor with shape ``E x B x Od``, where ``E``, ``B`` and
-                ``Od`` represent ensemble size, batch size, and output dimension, respectively .
             optimizers (sequence of torch optimizers): one optimizer for each model.
+            target (tensor): target tensor with shape ``E x B x Od``, where ``E``, ``B`` and
+                ``Od`` represent ensemble size, batch size, and output dimension, respectively .
 
         Returns:
             (float): the average loss over all members.
         """
+        assert target is not None
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
-            avg_ensemble_loss += model.update(inputs[i], targets[i], optimizers[i])
+            avg_ensemble_loss += model.update(
+                model_ins[i], optimizers[i], target=target[i]
+            )
         return avg_ensemble_loss / len(self.members)
 
-    def eval_score(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def eval_score(  # type: ignore
+        self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Computes the average score over all members given input/target.
 
         The input and target tensors are replicated once for each model in the ensemble.
@@ -234,6 +240,7 @@ class BasicEnsemble(Model):
         Returns:
             (tensor): the average score over all models.
         """
+        assert target is not None
         inputs = [model_in for _ in range(len(self.members))]
         targets = [target for _ in range(len(self.members))]
 
@@ -251,13 +258,27 @@ class BasicEnsemble(Model):
         state_dict = torch.load(path)
         self.load_state_dict(state_dict)
 
-    def _is_ensemble_impl(self):
-        return True
+    def reset(  # type: ignore
+        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> torch.Tensor:
+        """Initializes any internal dependent state when using the model for simulation.
 
-    def _is_deterministic_impl(self):
-        return self.members[0].is_deterministic
+        Initializes model indices for "fixed_model" propagation method
+        a bootstrapped ensemble with TSinf propagation).
 
-    def sample_propagation_indices(
+        Args:
+            x (tensor): the input to the model.
+            rng (random number generator): a rng to use for sampling the model
+                indices.
+
+        Returns:
+            (tensor): forwards the same input.
+        """
+        assert rng is not None
+        self._propagation_indices = self._sample_propagation_indices(x.shape[0], rng)
+        return x
+
+    def _sample_propagation_indices(
         self, batch_size: int, rng: torch.Generator
     ) -> torch.Tensor:
         """Returns a tensor with ``batch_size`` integers from [0, ``self.num_members``)."""
@@ -269,6 +290,10 @@ class BasicEnsemble(Model):
         )
 
     def set_elite(self, elite_models: Sequence[int]):
-        warnings.warn(
-            "BasicEnsemble does not support elite models yet. All models will be used."
-        )
+        if len(elite_models) != len(self):
+            warnings.warn(
+                "BasicEnsemble does not support elite models yet. All models will be used."
+            )
+
+    def _is_deterministic_impl(self):
+        return self._deterministic

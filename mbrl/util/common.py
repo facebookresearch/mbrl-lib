@@ -64,14 +64,19 @@ def create_dynamics_model(
         created.
 
     """
-    if cfg.dynamics_model.model.get("in_size", None) is None:
-        cfg.dynamics_model.model.in_size = obs_shape[0] + (
-            act_shape[0] if act_shape else 1
-        )
-    if cfg.dynamics_model.model.get("out_size", None) is None:
-        cfg.dynamics_model.model.out_size = obs_shape[0]
+    # This first part takes care of the case where model is BasicEnsemble and in/out sizes
+    # are handled by member_cfg
+    model_cfg = cfg.dynamics_model.model
+    if model_cfg._target_ == "mbrl.models.BasicEnsemble":
+        model_cfg = model_cfg.member_cfg
+    if model_cfg.get("in_size", None) is None:
+        model_cfg.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
+    if model_cfg.get("out_size", None) is None:
+        model_cfg.out_size = obs_shape[0]
     if cfg.algorithm.learned_rewards:
-        cfg.dynamics_model.model.out_size += 1
+        model_cfg.out_size += 1
+
+    # Now instantiate the model
     model = hydra.utils.instantiate(cfg.dynamics_model.model)
 
     name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
@@ -311,11 +316,7 @@ def rollout_model_env(
     reward_history = []
     if agent:
         plan = agent.plan(initial_obs[None, :])
-    obs0 = model_env.reset(
-        np.tile(initial_obs, (num_samples, 1)),
-        propagation_method="random_model",
-        return_as_np=True,
-    )
+    obs0 = model_env.reset(np.tile(initial_obs, (num_samples, 1)), return_as_np=True)
     obs_history.append(obs0)
     for action in plan:
         next_obs, reward, done, _ = model_env.step(

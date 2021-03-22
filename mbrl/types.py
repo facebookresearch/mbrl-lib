@@ -33,3 +33,5 @@ class TransitionBatch:
 EnsembleTransitionBatch = List[TransitionBatch]
 
 BatchTypes = Union[TransitionBatch, EnsembleTransitionBatch]
+
+ModelInput = Union[torch.Tensor, TransitionBatch, EnsembleTransitionBatch]

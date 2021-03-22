@@ -77,7 +77,6 @@ class Visualizer:
             self.model_env,
             self.cfg.algorithm.agent,
             num_particles=self.cfg.algorithm.num_particles,
-            propagation_method=self.cfg.algorithm.propagation_method,
         )
 
         self.fig = None

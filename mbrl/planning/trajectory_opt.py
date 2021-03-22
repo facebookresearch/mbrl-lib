@@ -380,7 +380,6 @@ def create_trajectory_optim_agent_for_model(
     model_env: mbrl.models.ModelEnv,
     agent_cfg: omegaconf.DictConfig,
     num_particles: int = 1,
-    propagation_method: str = "random_model",
 ) -> TrajectoryOptimizerAgent:
     """Utility function for creating a trajectory optimizer agent for a model environment.
 
@@ -393,7 +392,6 @@ def create_trajectory_optim_agent_for_model(
         agent_cfg (omegaconf.DictConfig): the agent's configuration.
         num_particles (int): the number of particles for taking averages of action sequences'
             total rewards.
-        propagation_method (str): the uncertainty propagation method.
 
     Returns:
         (:class:`TrajectoryOptimizerAgent`): the agent.
@@ -404,10 +402,7 @@ def create_trajectory_optim_agent_for_model(
 
     def trajectory_eval_fn(initial_state, action_sequences):
         return model_env.evaluate_action_sequences(
-            action_sequences,
-            initial_state=initial_state,
-            num_particles=num_particles,
-            propagation_method=propagation_method,
+            action_sequences, initial_state=initial_state, num_particles=num_particles
         )
 
     agent.set_trajectory_eval_fn(trajectory_eval_fn)

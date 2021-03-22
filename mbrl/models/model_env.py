@@ -1,4 +1,3 @@
-import warnings
 from typing import Dict, Optional, Tuple
 
 import gym
@@ -54,7 +53,6 @@ class ModelEnv:
     def reset(
         self,
         initial_obs_batch: np.ndarray,
-        propagation_method: str = "expectation",
         return_as_np: bool = True,
     ) -> mbrl.types.TensorType:
         """Resets the model environment.
@@ -63,11 +61,6 @@ class ModelEnv:
             initial_obs_batch (np.ndarray): a batch of initial observations. One episode for
                 each observation will be run in parallel. Shape must be ``B x D``, where
                 ``B`` is batch size, and ``D`` is the observation dimension.
-            propagation_method (str): the propagation method to use
-                (see :meth:`mbrl.models.DynamicsModelWrapper.predict`). if "fixed_model" is used,
-                this method will create random indices for each model and keep them until
-                reset is called again. This allows to roll out the model using TSInf
-                propagation, as described in the PETS paper. Defaults to "expectation".
             return_as_np (bool): if ``True``, this method and :meth:`step` will return
                 numpy arrays, otherwise it returns torch tensors in the same device as the
                 model. Defaults to ``True``.
@@ -81,17 +74,9 @@ class ModelEnv:
             np.copy(initial_obs_batch.astype(np.float32))
         ).to(self.device)
 
-        self._propagation_method = propagation_method
-        if not self.dynamics_model.model.is_ensemble and propagation_method is not None:
-            self._propagation_method = None
-            warnings.warn(
-                f"Model is not an ensemble type. Propagation '{propagation_method}' "
-                f"will be set to 'None'."
-            )
-        if self._propagation_method == "fixed_model":
-            self._model_indices = self.dynamics_model.model.sample_propagation_indices(
-                len(initial_obs_batch), self._rng
-            )
+        self._current_obs = self.dynamics_model.model.reset(
+            self._current_obs, rng=self._rng
+        )
 
         self._return_as_np = return_as_np
         if self._return_as_np:
@@ -126,8 +111,6 @@ class ModelEnv:
                 self._current_obs,
                 actions,
                 sample=sample,
-                propagation_method=self._propagation_method,
-                propagation_indices=self._model_indices,
                 rng=self._rng,
             )
             rewards = (
@@ -151,7 +134,6 @@ class ModelEnv:
         action_sequences: torch.Tensor,
         initial_state: np.ndarray,
         num_particles: int,
-        propagation_method: str,
     ) -> torch.Tensor:
         """Evaluates a batch of action sequences on the model.
 
@@ -162,7 +144,6 @@ class ModelEnv:
             initial_state (np.ndarray): the initial state for the trajectories.
             num_particles (int): number of times each action sequence is replicated. The final
                 value of the sequence will be the average over its particles values.
-            propagation_method (str): the propagation method to use.
 
         Returns:
             (torch.Tensor): the accumulated reward for each action sequence, averaged over its
@@ -175,19 +156,14 @@ class ModelEnv:
         initial_obs_batch = np.tile(
             initial_state, (num_particles * population_size, 1)
         ).astype(np.float32)
-        self.reset(
-            initial_obs_batch, propagation_method=propagation_method, return_as_np=False
-        )
-
+        self.reset(initial_obs_batch, return_as_np=False)
         total_rewards: torch.Tensor = 0
         for time_step in range(horizon):
             actions_for_step = action_sequences[:, time_step, :]
             action_batch = torch.repeat_interleave(
                 actions_for_step, num_particles, dim=0
             )
-            _, rewards, _, _ = self.step(
-                action_batch, sample=not self.dynamics_model.model.is_deterministic
-            )
+            _, rewards, _, _ = self.step(action_batch, sample=True)
             total_rewards += rewards
 
         total_rewards = total_rewards.reshape(-1, num_particles)

@@ -11,6 +11,7 @@ import mbrl.types
 
 from .basic_ensemble import BasicEnsemble
 from .dynamics_models import DynamicsModelWrapper
+from .model import Ensemble
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -122,7 +123,7 @@ class DynamicsModelTrainer:
 
         """
         update_from_batch_fn = self.dynamics_model.update_from_simple_batch
-        if self.dynamics_model.model.is_ensemble:
+        if isinstance(self.dynamics_model.model, Ensemble):
             update_from_batch_fn = self.dynamics_model.update_from_bootstrap_batch  # type: ignore
             if not self.dataset_train.is_train_compatible_with_ensemble(
                 len(self.dynamics_model.model)
@@ -153,7 +154,7 @@ class DynamicsModelTrainer:
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
-            # only update elites if "validation" will be done on train set
+            # only update elites here if "validation" will be done on train set
             train_score = self.evaluate(
                 use_train_set=True, update_elites=not has_val_dataset
             )
@@ -247,7 +248,7 @@ class DynamicsModelTrainer:
         ):
             self.dataset_train.toggle_bootstrap()
 
-        if update_elites and self.dynamics_model.model.is_ensemble:
+        if update_elites and isinstance(self.dynamics_model.model, Ensemble):
             sorted_indices = np.argsort(batch_scores.mean(axis=0).tolist())
             elite_models = sorted_indices[: self.dynamics_model.num_elites]
             self.dynamics_model.set_elite(elite_models)

@@ -8,7 +8,7 @@ import mbrl.logger
 import mbrl.math
 import mbrl.types
 
-from .model import Model
+from .model import Ensemble, Model
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -88,10 +88,12 @@ class DynamicsModelWrapper:
         self.obs_process_fn = obs_process_fn
 
         self.num_elites = num_elites
-        if not num_elites and self.model.is_ensemble:
+        if not num_elites and isinstance(self.model, Ensemble):
             self.num_elites = self.model.num_members
         self.elite_models: List[int] = (
-            list(range(self.model.num_members)) if self.model.is_ensemble else None
+            list(range(self.model.num_members))
+            if isinstance(self.model, Ensemble)
+            else None
         )
 
     def _get_model_input_from_np(
@@ -172,7 +174,7 @@ class DynamicsModelWrapper:
             optimizers (sequence of torch optimizers): one optimizer for each model in the
                 ensemble.
         """
-        if not self.model.is_ensemble:
+        if not isinstance(self.model, Ensemble):
             raise RuntimeError(
                 "Model must be ensemble to use `loss_from_bootstrap_batch`."
             )
@@ -185,7 +187,7 @@ class DynamicsModelWrapper:
             targets.append(target)
         model_ins = torch.stack(model_ins)
         targets = torch.stack(targets)
-        return self.model.update(model_ins, targets, optimizers)
+        return self.model.update(model_ins, optimizers, target=targets)
 
     def update_from_simple_batch(
         self, batch: mbrl.types.TransitionBatch, optimizer: torch.optim.Optimizer
@@ -199,13 +201,13 @@ class DynamicsModelWrapper:
             batch (transition batch): a batch of transition to train the model.
             optimizer (torch optimizer): the optimizer to use to update the model.
         """
-        if self.model.is_ensemble:
+        if isinstance(self.model, Ensemble):
             raise RuntimeError(
                 "Model must not be ensemble to use `loss_from_simple_batch`."
             )
 
         model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.update(model_in, target, optimizer)
+        return self.model.update(model_in, optimizer, target=target)
 
     def eval_score_from_simple_batch(
         self, batch: mbrl.types.TransitionBatch
@@ -222,11 +224,11 @@ class DynamicsModelWrapper:
             (tensor): as returned by `model.eval_score().`
         """
         model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.eval_score(model_in, target)
+        return self.model.eval_score(model_in, target=target)
 
     def get_output_and_targets_from_simple_batch(
         self, batch: mbrl.types.TransitionBatch
-    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    ) -> Tuple[Tuple[torch.Tensor, ...], torch.Tensor]:
         """Returns the model output and the target tensors given a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
@@ -248,46 +250,26 @@ class DynamicsModelWrapper:
         self,
         obs: torch.Tensor,
         actions: torch.Tensor,
-        sample: bool = True,
-        propagation_method: str = "expectation",
-        propagation_indices: Optional[torch.Tensor] = None,
+        sample: bool = False,
         rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Predicts next observations and rewards given observations and actions.
 
+        This method generates a sample using ``self.model.sample()``, then processes the
+        output and return predicted observations and rewards.
+
         Args:
             obs (tensor): the input observations corresponding to o_t.
             actions (tensor): the input actions corresponding to a_t.
-            sample (bool): if ``True``. the predictions will be sampled using moment matching
-                on the mean and logvar predicted by the model. If the model doesn't predict
-                log variance, an error will be thrown. If ``False``, the predictions will be
-                the first output of the model. Defaults to ``True``.
-            propagation_method (str): the propagation method to use for the model (only used if
-                the model is an ensemble).
-            propagation_indices (tensor, optional): indices for propagation when
-                ``propagation="fixed_model"``.
+            sample (bool): If ``True`` model predictions are sampled using gaussian
+                model matching. Defaults to ``False``.
             rng (torch.Generator, optional): random number generator for uncertainty propagation.
 
         Returns:
             (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
         """
         model_in = self._get_model_input_from_tensors(obs, actions)
-
-        means, logvars = self.model.forward(
-            model_in,
-            propagation=propagation_method,
-            propagation_indices=propagation_indices,
-            rng=rng,
-        )
-
-        if sample:
-            assert logvars is not None
-            variances = logvars.exp()
-            stds = torch.sqrt(variances)
-            predictions = torch.normal(means, stds, generator=rng)
-        else:
-            predictions = means
-
+        predictions = self.model.sample(model_in, rng=rng, deterministic=not sample)
         next_observs = predictions[:, :-1] if self.learned_rewards else predictions
         if self.target_is_delta:
             tmp_ = next_observs + obs

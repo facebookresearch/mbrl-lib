@@ -9,15 +9,11 @@ import mbrl.util.common as utils
 
 class MockModel(models.Model):
     def __init__(self, x, y, in_size, out_size):
-        super().__init__(in_size, out_size, "cpu")
+        super().__init__("cpu")
+        self.in_size = in_size
+        self.out_size = out_size
         self.x = x
         self.y = y
-
-    def _is_deterministic_impl(self):
-        return True
-
-    def _is_ensemble_impl(self):
-        return False
 
     def load(self, path):
         pass
@@ -30,6 +26,9 @@ class MockModel(models.Model):
 
     def eval_score(self, model_in, target):
         pass
+
+    def _is_deterministic_impl(self):
+        return True
 
 
 def mock_obs_func():
@@ -137,7 +136,7 @@ class MockModelEnv:
     def __init__(self):
         self.obs = None
 
-    def reset(self, obs0, propagation_method=None, return_as_np=None):
+    def reset(self, obs0, return_as_np=None):
         self.obs = obs0
         return obs0
 

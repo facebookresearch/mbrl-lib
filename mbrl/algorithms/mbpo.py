@@ -11,6 +11,7 @@ import torch
 import mbrl.logger
 import mbrl.math
 import mbrl.models
+import mbrl.planning
 import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
@@ -37,7 +38,6 @@ def rollout_model_and_populate_sac_buffer(
     initial_obs, action, *_ = cast(mbrl.types.TransitionBatch, batch).astuple()
     obs = model_env.reset(
         initial_obs_batch=cast(np.ndarray, initial_obs),
-        propagation_method="random_model",
         return_as_np=True,
     )
     for i in range(rollout_horizon):
@@ -106,7 +106,7 @@ def train(
         cfg,
         obs_shape,
         act_shape,
-        train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
+        train_is_bootstrap=isinstance(dynamics_model.model, mbrl.models.Ensemble),
         rng=rng,
     )
     env_dataset_train = cast(
