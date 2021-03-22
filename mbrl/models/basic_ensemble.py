@@ -200,7 +200,7 @@ class BasicEnsemble(Ensemble):
         self,
         model_ins: torch.Tensor,
         optimizers: Sequence[torch.optim.Optimizer],
-        targets: Optional[torch.Tensor] = None,
+        target: Optional[torch.Tensor] = None,
     ) -> float:
         """Updates all models of the ensemble.
 
@@ -210,17 +210,19 @@ class BasicEnsemble(Ensemble):
         Args:
             model_ins (tensor): input tensor with shape ``E x B x Id``, where ``E``, ``B`` and
                 ``Id`` represent ensemble size, batch size, and input dimension, respectively .
-            targets (tensor): target tensor with shape ``E x B x Od``, where ``E``, ``B`` and
-                ``Od`` represent ensemble size, batch size, and output dimension, respectively .
             optimizers (sequence of torch optimizers): one optimizer for each model.
+            target (tensor): target tensor with shape ``E x B x Od``, where ``E``, ``B`` and
+                ``Od`` represent ensemble size, batch size, and output dimension, respectively .
 
         Returns:
             (float): the average loss over all members.
         """
-        assert targets is not None
+        assert target is not None
         avg_ensemble_loss = 0
         for i, model in enumerate(self.members):
-            avg_ensemble_loss += model.update(model_ins[i], targets[i], optimizers[i])
+            avg_ensemble_loss += model.update(
+                model_ins[i], optimizers[i], target=target[i]
+            )
         return avg_ensemble_loss / len(self.members)
 
     def eval_score(  # type: ignore
