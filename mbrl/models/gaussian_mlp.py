@@ -77,10 +77,7 @@ class GaussianMLP(Ensemble):
         activation_cls = nn.SiLU if use_silu else nn.ReLU
 
         def create_linear_layer(l_in, l_out):
-            if ensemble_size > 1:
-                return EnsembleLinearLayer(ensemble_size, l_in, l_out)
-            else:
-                return nn.Linear(l_in, l_out)
+            return EnsembleLinearLayer(ensemble_size, l_in, l_out)
 
         hidden_layers = [
             nn.Sequential(create_linear_layer(in_size, hid_size), activation_cls())
@@ -99,9 +96,7 @@ class GaussianMLP(Ensemble):
             self.mean_and_logvar = create_linear_layer(hid_size, out_size)
         else:
             self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
-            logvar_shape = (
-                (self.num_members, 1, out_size) if ensemble_size > 1 else (1, out_size)
-            )
+            logvar_shape = (self.num_members, 1, out_size)
             self.min_logvar = nn.Parameter(
                 -10 * torch.ones(logvar_shape, requires_grad=True)
             )
@@ -185,7 +180,11 @@ class GaussianMLP(Ensemble):
         rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         if self.propagation_method is None:
-            return self._default_forward(x, only_elite=False)
+            mean, logvar = self._default_forward(x, only_elite=False)
+            if self.num_members == 1:
+                mean = mean[0]
+                logvar = logvar[0]
+            return mean, logvar
         assert x.ndim == 2
         model_len = (
             len(self.elite_models) if self.elite_models is not None else len(self)
@@ -235,14 +234,14 @@ class GaussianMLP(Ensemble):
         each model.
 
         Args:
-            x (tensor): the input to the model. For non-ensemble, the shape must be
-                ``B x Id``, where ``B`` and ``Id`` represent batch size,
-                and input dimension, respectively. For ensemble, if ``propagation is not None``,
-                then the shape must be same as above.
-                When ``propagation is None``, the shape can also be ``E x B x Id``,
-                where ``E``, ``B`` and ``Id`` represent ensemble size, batch size, and input
-                dimension, respectively. In this case, each model in the ensemble will get one
-                slice from the first dimension (e.g., the i-th ensemble member gets ``x[i]``).
+            x (tensor): the input to the model. When ``self.propagation is None``,
+                the shape must be ``E x B x Id``, where ``E``, ``B`` and ``Id`` represent
+                ensemble size, batch size, and input dimension, respectively. In this case,
+                each model in the ensemble will get one slice from the first dimension
+                (e.g., the i-th ensemble member gets ``x[i]``).
+
+                For other values of ``self.propagation`` (and ``use_propagation=True``),
+                the shape must be ``B x Id``.
             rng (torch.Generator, optional): random number generator to use for "random_model"
                                              propagation.
             use_propagation (bool): if ``False``, the propagation method will be ignored
@@ -264,35 +263,23 @@ class GaussianMLP(Ensemble):
             the output to :func:`mbrl.math.propagate`.
 
         """
-        if use_propagation and self.num_members > 1:
-            return self._forward_ensemble(
-                x,
-                rng=rng,
-            )
+        if use_propagation:
+            return self._forward_ensemble(x, rng=rng)
         return self._default_forward(x)
 
     def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, _ = self.forward(model_in, use_propagation=False)
-        if self.num_members > 1:
-            assert model_in.ndim == 3 and target.ndim == 3
-            return F.mse_loss(pred_mean, target, reduce=None).sum((1, 2)).mean()
-        else:
-            assert model_in.ndim == 2 and target.ndim == 2
-            return F.mse_loss(pred_mean, target)
+        assert model_in.ndim == 3 and target.ndim == 3
+        return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).mean()
 
     def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(model_in, use_propagation=False)
-        if self.num_members > 1:
-            assert model_in.ndim == 3 and target.ndim == 3
-            nll = mbrl.math.gaussian_nll(
-                pred_mean, pred_logvar, target, reduce=False
-            ).mean((1, 2))
-            nll += 0.01 * (self.max_logvar.sum((1, 2)) - self.min_logvar.sum((1, 2)))
-            return nll.mean()
-        else:
-            assert model_in.ndim == 2 and target.ndim == 2
-            nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target)
-            return nll + 0.01 * self.max_logvar.sum() - 0.01 * self.min_logvar.sum()
+        assert model_in.ndim == 3 and target.ndim == 3
+        nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False).mean(
+            (1, 2)
+        )
+        nll += 0.01 * (self.max_logvar.sum((1, 2)) - self.min_logvar.sum((1, 2)))
+        return nll.mean()
 
     def loss(
         self,
@@ -345,8 +332,7 @@ class GaussianMLP(Ensemble):
         assert model_in.ndim == 2 and target.ndim == 2
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in, use_propagation=False)
-            if self.num_members > 1:
-                target = target.repeat((self.num_members, 1, 1))
+            target = target.repeat((self.num_members, 1, 1))
             return F.mse_loss(pred_mean, target, reduction="none")
 
     def save(self, path: str):
