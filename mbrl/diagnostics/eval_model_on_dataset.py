@@ -48,7 +48,7 @@ class DatasetEvaluator:
             (
                 outputs,
                 target,
-            ) = self.dynamics_model.get_output_and_targets_from_simple_batch(batch)
+            ) = self.dynamics_model.get_output_and_targets(batch)
 
             for i in range(num_members):
                 all_means[i].append(outputs[0][i].cpu().numpy())

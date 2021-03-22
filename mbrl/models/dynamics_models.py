@@ -101,7 +101,7 @@ class DynamicsModelWrapper:
     ) -> torch.Tensor:
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
-        model_in_np = np.concatenate([obs, action], axis=1)
+        model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
         if self.normalizer:
             # Normalizer lives on device
             return self.normalizer.normalize(model_in_np)
@@ -110,7 +110,7 @@ class DynamicsModelWrapper:
     def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
-        model_in = torch.cat([obs, action], axis=1)
+        model_in = torch.cat([obs, action], axis=obs.ndim - 1)
         if self.normalizer:
             model_in = self.normalizer.normalize(model_in)
         return model_in
@@ -122,14 +122,17 @@ class DynamicsModelWrapper:
         if self.target_is_delta:
             target_obs = next_obs - obs
             for dim in self.no_delta_list:
-                target_obs[:, dim] = next_obs[:, dim]
+                target_obs[..., dim] = next_obs[..., dim]
         else:
             target_obs = next_obs
 
         model_in = self._get_model_input_from_np(obs, action, self.device)
         if self.learned_rewards:
             target = torch.from_numpy(
-                np.concatenate([target_obs, np.expand_dims(reward, axis=1)], axis=1)
+                np.concatenate(
+                    [target_obs, np.expand_dims(reward, axis=reward.ndim)],
+                    axis=obs.ndim - 1,
+                )
             ).to(self.device)
         else:
             target = torch.from_numpy(target_obs).to(self.device)
@@ -152,66 +155,23 @@ class DynamicsModelWrapper:
             action = action[None, :]
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
-        model_in_np = np.concatenate([obs, action], axis=1)
+        model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
         if self.normalizer:
             self.normalizer.update_stats(model_in_np)
 
-    def update_from_bootstrap_batch(
-        self,
-        bootstrap_batch: mbrl.types.EnsembleTransitionBatch,
-        optimizers: Sequence[torch.optim.Optimizer],
-    ):
-        """Updates the model given a batch for bootstrapped models and optimizers.
-
-        This is method is only intended for ensemble models. It creates
-        inputs and targets for each model in the ensemble; that is, `batch[i]` will be
-        used to construct input/target for the i-th ensemble member. The method then calls
-        `self.model.update()` using these inputs and targets.
-
-        Args:
-            bootstrap_batch (sequence of transition batch): a list with batches of transitions,
-                one for each ensemble member.
-            optimizers (sequence of torch optimizers): one optimizer for each model in the
-                ensemble.
-        """
-        if not isinstance(self.model, Ensemble):
-            raise RuntimeError(
-                "Model must be ensemble to use `loss_from_bootstrap_batch`."
-            )
-
-        model_ins = []
-        targets = []
-        for i, batch in enumerate(bootstrap_batch):
-            model_in, target = self._get_model_input_and_target_from_batch(batch)
-            model_ins.append(model_in)
-            targets.append(target)
-        model_ins = torch.stack(model_ins)
-        targets = torch.stack(targets)
-        return self.model.update(model_ins, optimizers, target=targets)
-
-    def update_from_simple_batch(
+    def update_from_batch(
         self, batch: mbrl.types.TransitionBatch, optimizer: torch.optim.Optimizer
     ):
         """Updates the model given a batch of transitions and an optimizer.
-
-        This is method is only intended for **non-ensemble** models. It constructs input and
-        targets from the information in the batch, then calls `self.model.update()` on them.
 
         Args:
             batch (transition batch): a batch of transition to train the model.
             optimizer (torch optimizer): the optimizer to use to update the model.
         """
-        if isinstance(self.model, Ensemble):
-            raise RuntimeError(
-                "Model must not be ensemble to use `loss_from_simple_batch`."
-            )
-
         model_in, target = self._get_model_input_and_target_from_batch(batch)
         return self.model.update(model_in, optimizer, target=target)
 
-    def eval_score_from_simple_batch(
-        self, batch: mbrl.types.TransitionBatch
-    ) -> torch.Tensor:
+    def eval_score(self, batch: mbrl.types.TransitionBatch) -> torch.Tensor:
         """Evaluates the model score over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
@@ -223,17 +183,18 @@ class DynamicsModelWrapper:
         Returns:
             (tensor): as returned by `model.eval_score().`
         """
-        model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.eval_score(model_in, target=target)
+        with torch.no_grad():
+            model_in, target = self._get_model_input_and_target_from_batch(batch)
+            return self.model.eval_score(model_in, target=target)
 
-    def get_output_and_targets_from_simple_batch(
+    def get_output_and_targets(
         self, batch: mbrl.types.TransitionBatch
     ) -> Tuple[Tuple[torch.Tensor, ...], torch.Tensor]:
         """Returns the model output and the target tensors given a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
-        then calls `self.model.forward()` on them and returns the value. No gradient information
-        will be kept.
+        then calls `self.model.forward()` on them and returns the value.
+        No gradient information will be kept.
 
         Args:
             batch (transition batch): a batch of transition to train the model.
