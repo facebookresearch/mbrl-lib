@@ -224,7 +224,7 @@ class DynamicsModelWrapper:
             (tensor): as returned by `model.eval_score().`
         """
         model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.eval_score(model_in, target)
+        return self.model.eval_score(model_in, target=target)
 
     def get_output_and_targets_from_simple_batch(
         self, batch: mbrl.types.TransitionBatch

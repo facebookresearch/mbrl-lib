@@ -164,7 +164,7 @@ class ModelEnv:
                 actions_for_step, num_particles, dim=0
             )
             _, rewards, _, _ = self.step(
-                action_batch, sample=not self.dynamics_model.model.is_deterministic
+                action_batch, sample=not self.dynamics_model.model.deterministic
             )
             total_rewards += rewards
 

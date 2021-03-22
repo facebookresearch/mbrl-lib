@@ -213,6 +213,7 @@ class GaussianMLP(Ensemble):
         self,
         x: torch.Tensor,
         rng: Optional[torch.Generator] = None,
+        use_propagation: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes mean and logvar predictions for the given input.
 
@@ -244,6 +245,8 @@ class GaussianMLP(Ensemble):
                 slice from the first dimension (e.g., the i-th ensemble member gets ``x[i]``).
             rng (torch.Generator, optional): random number generator to use for "random_model"
                                              propagation.
+            use_propagation (bool): if ``False``, the propagation method will be ignored
+                and the method will return outputs for all models. Defaults to ``True``.
 
         Returns:
             (tuple of two tensors): the predicted mean and log variance of the output. If
@@ -261,7 +264,7 @@ class GaussianMLP(Ensemble):
             the output to :func:`mbrl.math.propagate`.
 
         """
-        if self.num_members > 1:
+        if use_propagation and self.num_members > 1:
             return self._forward_ensemble(
                 x,
                 rng=rng,
@@ -269,7 +272,7 @@ class GaussianMLP(Ensemble):
         return self._default_forward(x)
 
     def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        pred_mean, _ = self.forward(model_in)
+        pred_mean, _ = self.forward(model_in, use_propagation=False)
         if self.num_members > 1:
             assert model_in.ndim == 3 and target.ndim == 3
             return F.mse_loss(pred_mean, target, reduce=None).sum((1, 2)).mean()
@@ -278,7 +281,7 @@ class GaussianMLP(Ensemble):
             return F.mse_loss(pred_mean, target)
 
     def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        pred_mean, pred_logvar = self.forward(model_in)
+        pred_mean, pred_logvar = self.forward(model_in, use_propagation=False)
         if self.num_members > 1:
             assert model_in.ndim == 3 and target.ndim == 3
             nll = mbrl.math.gaussian_nll(
@@ -341,7 +344,7 @@ class GaussianMLP(Ensemble):
         """
         assert model_in.ndim == 2 and target.ndim == 2
         with torch.no_grad():
-            pred_mean, _ = self.forward(model_in)
+            pred_mean, _ = self.forward(model_in, use_propagation=False)
             if self.num_members > 1:
                 target = target.repeat((self.num_members, 1, 1))
             return F.mse_loss(pred_mean, target, reduction="none")
