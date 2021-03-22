@@ -126,10 +126,8 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
     assert buffer.cur_idx == number_after_done
 
     assert np.all(
-        buffer.reward.astype(int)
-        == np.array(
-            [11, 12, 13, 14, 15, 6, 7, 8, 9, 10, 111, 112, 113, 114, 0], dtype=int
-        )
+        buffer.reward[:14].astype(int)
+        == np.array([11, 12, 13, 14, 15, 6, 7, 8, 9, 10, 111, 112, 113, 114], dtype=int)
     )
 
 
