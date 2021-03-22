@@ -63,7 +63,8 @@ def mock_reward_fn(action, obs):
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
-def test_pets(model_type):
+# TODO replace this using pytest fixture
+def _check_pets(model_type):
     with open(os.path.join(_REPO_DIR, "conf/algorithm/pets.yaml"), "r") as f:
         algorithm_cfg = yaml.safe_load(f)
 
@@ -104,11 +105,11 @@ def test_pets(model_type):
 
 
 def test_pets_gaussian_mlp_ensemble():
-    test_pets("gaussian_mlp_ensemble")
+    _check_pets("gaussian_mlp_ensemble")
 
 
 def test_pets_basic_ensemble_gaussian_mlp():
-    test_pets("basic_ensemble")
+    _check_pets("basic_ensemble")
 
 
 def test_mbpo():
