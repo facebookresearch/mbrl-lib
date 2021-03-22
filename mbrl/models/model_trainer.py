@@ -92,9 +92,7 @@ class DynamicsModelTrainer:
         """Trains the dynamics model for some number of epochs.
 
         This method iterates over the stored train dataset, one batch of transitions at a time,
-        and calls either :meth:`DynamicsModelWrapper.update_from_bootstrap_batch` or
-        :meth:`DynamicsModelWrapper.update_from_simple_batch`, depending on whether the
-        stored dynamics model is an ensemble or not, respectively.
+        updates the model.
 
         If a validation dataset is provided in the constructor, this method will also evaluate
         the model over the validation data once per training epoch. The method will keep track
@@ -122,17 +120,15 @@ class DynamicsModelTrainer:
             (tuple of two list(float)): the history of training losses and validation losses.
 
         """
-        update_from_batch_fn = self.dynamics_model.update_from_simple_batch
-        if isinstance(self.dynamics_model.model, Ensemble):
-            update_from_batch_fn = self.dynamics_model.update_from_bootstrap_batch  # type: ignore
-            if not self.dataset_train.is_train_compatible_with_ensemble(
-                len(self.dynamics_model.model)
-            ):
-                raise RuntimeError(
-                    "Train dataset is not compatible with ensemble. "
-                    "Please use `BootstrapReplayBuffer` class to train ensemble model "
-                    "and make sure `buffer.num_members == len(model)."
-                )
+        model = self.dynamics_model.model
+        if isinstance(
+            model, Ensemble
+        ) and not self.dataset_train.is_train_compatible_with_ensemble(len(model)):
+            raise RuntimeError(
+                "Train dataset is not compatible with ensemble. "
+                "Please use `BootstrapReplayBuffer` class to train ensemble model "
+                "and make sure `buffer.num_members == len(model)."
+            )
 
         training_losses, train_eval_scores, val_losses = [], [], []
         best_weights = None
@@ -146,9 +142,9 @@ class DynamicsModelTrainer:
         )
         for epoch in epoch_iter:
             batch_losses: List[float] = []
-            for bootstrap_batch in self.dataset_train:
-                avg_ensemble_loss = update_from_batch_fn(
-                    bootstrap_batch, self.optimizers
+            for batch in self.dataset_train:
+                avg_ensemble_loss = self.dynamics_model.update_from_batch(
+                    batch, self.optimizers
                 )
                 batch_losses.append(avg_ensemble_loss)
             total_avg_loss = np.mean(batch_losses).mean().item()
@@ -192,7 +188,7 @@ class DynamicsModelTrainer:
                 )
             if callback:
                 callback(
-                    self.dynamics_model.model,
+                    model,
                     self._train_iteration,
                     epoch,
                     total_avg_loss,
@@ -205,7 +201,7 @@ class DynamicsModelTrainer:
                 break
 
         if best_weights:
-            self.dynamics_model.model.load_state_dict(best_weights)
+            model.load_state_dict(best_weights)
 
         self._train_iteration += 1
         return training_losses, val_losses
@@ -236,7 +232,7 @@ class DynamicsModelTrainer:
 
         batch_scores_list = []  # type: ignore
         for batch in dataset:
-            avg_batch_score = self.dynamics_model.eval_score_from_simple_batch(batch)
+            avg_batch_score = self.dynamics_model.eval_score(batch)
             if avg_batch_score.ndim == 2:  # not an ensemble
                 avg_batch_score = avg_batch_score.unsqueeze(0)
             avg_batch_score = avg_batch_score.mean(axis=(1, 2))  # per ensemble model

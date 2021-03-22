@@ -1,9 +1,26 @@
 import warnings
-from typing import List, Optional, Sized, Tuple
+from typing import List, Optional, Sequence, Sized, Tuple
 
 import numpy as np
 
-from mbrl.types import BatchTypes, EnsembleTransitionBatch, TransitionBatch
+from mbrl.types import TransitionBatch
+
+
+def _consolidate_batches(batches: Sequence[TransitionBatch]) -> TransitionBatch:
+    len_batches = len(batches)
+    b0 = batches[0]
+    obs = np.empty((len_batches,) + b0.obs.shape, dtype=b0.obs.dtype)
+    act = np.empty((len_batches,) + b0.act.shape, dtype=b0.act.dtype)
+    next_obs = np.empty((len_batches,) + b0.obs.shape, dtype=b0.obs.dtype)
+    rewards = np.empty((len_batches,) + b0.rewards.shape, dtype=np.float32)
+    dones = np.empty((len_batches,) + b0.dones.shape, dtype=bool)
+    for i, b in enumerate(batches):
+        obs[i] = b.obs
+        act[i] = b.act
+        next_obs[i] = b.next_obs
+        rewards[i] = b.rewards
+        dones[i] = b.dones
+    return TransitionBatch(obs, act, next_obs, rewards, dones)
 
 
 class SimpleReplayBuffer:
@@ -374,9 +391,9 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         for member_idx in self.member_indices:
             content_indices = member_idx[indices]
             batches.append(self._batch_from_indices(content_indices))
-        return batches
+        return _consolidate_batches(batches)
 
-    def sample(self, batch_size: int, ensemble: bool = True) -> BatchTypes:
+    def sample(self, batch_size: int, ensemble: bool = True) -> TransitionBatch:
         """Samples a bootstrapped batch from the replay buffer.
 
         For each model in the ensemble, as specified by the ``num_members``
@@ -394,12 +411,12 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             model as explained above, or a single batch if ``ensemble == False``.
         """
         if ensemble:
-            batches: EnsembleTransitionBatch = []
+            batches = []
             for member_idx in self.member_indices:
                 indices = self._rng.choice(self.num_stored, size=batch_size)
                 content_indices = member_idx[indices]
                 batches.append(self._batch_from_indices(content_indices))
-            return batches
+            return _consolidate_batches(batches)
         else:
             indices = self._rng.choice(self.num_stored, size=batch_size)
             return self._batch_from_indices(indices)

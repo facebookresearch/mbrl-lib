@@ -183,7 +183,7 @@ class GaussianMLP(Ensemble):
             mean, logvar = self._default_forward(x, only_elite=False)
             if self.num_members == 1:
                 mean = mean[0]
-                logvar = logvar[0]
+                logvar = logvar[0] if logvar is not None else None
             return mean, logvar
         assert x.ndim == 2
         model_len = (

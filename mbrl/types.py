@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Tuple, Union
 
 import numpy as np
 import torch
@@ -30,8 +30,4 @@ class TransitionBatch:
         return self.obs, self.act, self.next_obs, self.rewards, self.dones
 
 
-EnsembleTransitionBatch = List[TransitionBatch]
-
-BatchTypes = Union[TransitionBatch, EnsembleTransitionBatch]
-
-ModelInput = Union[torch.Tensor, TransitionBatch, EnsembleTransitionBatch]
+ModelInput = Union[torch.Tensor, TransitionBatch]
