@@ -35,6 +35,7 @@ def train(
     termination_fn: mbrl.types.TermFnType,
     reward_fn: mbrl.types.RewardFnType,
     cfg: omegaconf.DictConfig,
+    silent: bool = False,
 ) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
@@ -49,9 +50,12 @@ def train(
 
     work_dir = os.getcwd()
     print(f"Results will be saved at {work_dir}.")
-    logger = mbrl.logger.Logger(work_dir)
 
-    logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
+    if silent:
+        logger = None
+    else:
+        logger = mbrl.logger.Logger(work_dir)
+        logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
 
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
@@ -148,10 +152,13 @@ def train(
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")
 
-        logger.log_data(
-            "pets_eval", {"trial": current_trial, "episode_reward": total_reward}
-        )
+        if logger is not None:
+            logger.log_data(
+                "pets_eval", {"trial": current_trial, "episode_reward": total_reward}
+            )
         current_trial += 1
+        if debug_mode:
+            print(f"Trial: {current_trial }, reward: {total_reward}.")
 
         max_total_reward = max(max_total_reward, total_reward)
 

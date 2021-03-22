@@ -439,7 +439,7 @@ def rollout_agent_trajectories(
             if not collect_full_trajectories and step == steps_or_trials_to_collect:
                 return total_rewards
             if trial_length and step % trial_length == 0:
-                if not done and which_dataset is not None:
+                if collect_full_trajectories and not done and which_dataset is not None:
                     which_dataset.close_trajectory()
                 break
         trial += 1

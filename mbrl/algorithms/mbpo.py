@@ -20,7 +20,7 @@ MBPO_LOG_FORMAT = [
     ("epoch", "E", "int"),
     ("env_step", "S", "int"),
     ("rollout_length", "RL", "int"),
-    ("eval_reward", "ER", "int"),
+    ("eval_reward", "ER", "float"),
 ]
 
 
@@ -76,8 +76,8 @@ def train(
     env: gym.Env,
     test_env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
-    device: torch.device,
     cfg: omegaconf.DictConfig,
+    silent: bool = False,
 ) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
@@ -133,7 +133,10 @@ def train(
         env, dynamics_model, termination_fn, None, generator=torch_generator
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
-        dynamics_model, env_dataset_train, dataset_val=env_dataset_val, logger=logger
+        dynamics_model,
+        env_dataset_train,
+        dataset_val=env_dataset_val,
+        logger=None if silent else logger,
     )
     best_eval_reward = -np.inf
     sac_buffer = None
@@ -182,7 +185,7 @@ def train(
                     "sac_buffer_capacity_modifier", 1
                 )
                 sac_buffer = pytorch_sac.ReplayBuffer(
-                    obs_shape, act_shape, sac_buffer_capacity, device
+                    obs_shape, act_shape, sac_buffer_capacity, torch.device(cfg.device)
                 )
                 rollout_model_and_populate_sac_buffer(
                     model_env,
@@ -205,7 +208,7 @@ def train(
             for _ in range(cfg.overrides.num_sac_updates_per_step):
                 agent.update(sac_buffer, logger, updates_made)
                 updates_made += 1
-                if updates_made % cfg.log_frequency_agent == 0:
+                if not silent and updates_made % cfg.log_frequency_agent == 0:
                     logger.dump(updates_made, save=True)
 
             # ------ Epoch ended (evaluate and save model) ------
