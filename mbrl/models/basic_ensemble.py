@@ -290,9 +290,10 @@ class BasicEnsemble(Ensemble):
         )
 
     def set_elite(self, elite_models: Sequence[int]):
-        warnings.warn(
-            "BasicEnsemble does not support elite models yet. All models will be used."
-        )
+        if len(elite_models) != len(self):
+            warnings.warn(
+                "BasicEnsemble does not support elite models yet. All models will be used."
+            )
 
     def _is_deterministic_impl(self):
         return self._deterministic

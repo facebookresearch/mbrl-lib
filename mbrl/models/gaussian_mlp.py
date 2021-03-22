@@ -235,10 +235,10 @@ class GaussianMLP(Ensemble):
 
         Args:
             x (tensor): the input to the model. When ``self.propagation is None``,
-                the shape must be ``E x B x Id``, where ``E``, ``B`` and ``Id`` represent
-                ensemble size, batch size, and input dimension, respectively. In this case,
-                each model in the ensemble will get one slice from the first dimension
-                (e.g., the i-th ensemble member gets ``x[i]``).
+                the shape must be ``E x B x Id`` or ``B x Id``, where ``E``, ``B``
+                and ``Id`` represent ensemble size, batch size, and input dimension,
+                respectively. In this case, each model in the ensemble will get one slice
+                from the first dimension (e.g., the i-th ensemble member gets ``x[i]``).
 
                 For other values of ``self.propagation`` (and ``use_propagation=True``),
                 the shape must be ``B x Id``.
@@ -268,13 +268,19 @@ class GaussianMLP(Ensemble):
         return self._default_forward(x)
 
     def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        assert model_in.ndim == target.ndim
+        if model_in.ndim == 2:  # add model dimension
+            model_in = model_in.unsqueeze(0)
+            target = target.unsqueeze(0)
         pred_mean, _ = self.forward(model_in, use_propagation=False)
-        assert model_in.ndim == 3 and target.ndim == 3
         return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).mean()
 
     def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        assert model_in.ndim == target.ndim
+        if model_in.ndim == 2:  # add model dimension
+            model_in = model_in.unsqueeze(0)
+            target = target.unsqueeze(0)
         pred_mean, pred_logvar = self.forward(model_in, use_propagation=False)
-        assert model_in.ndim == 3 and target.ndim == 3
         nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False).mean(
             (1, 2)
         )
@@ -292,14 +298,12 @@ class GaussianMLP(Ensemble):
         with positive and negative signs, respectively.
 
         Args:
-            model_in (tensor): input tensor. For ensemble, the shape must be ``E x B x Id``,
+            model_in (tensor): input tensor. The shape must be ``E x B x Id``, or ``B x Id``
                 where ``E``, ``B`` and ``Id`` represent ensemble size, batch size, and input
-                dimension, respectively. For non-ensemble, the shape is as above, except
-                with the model dimension removed (``E``).
-            target (tensor): target tensor. For ensemble, the shape must be ``E x B x Od``,
+                dimension, respectively.
+            target (tensor): target tensor. The shape must be ``E x B x Id``, or ``B x Od``
                 where ``E``, ``B`` and ``Od`` represent ensemble size, batch size, and output
-                dimension, respectively. For non-ensemble, the shape is as above, except
-                with the model dimension removed (``E``).
+                dimension, respectively.
 
         Returns:
             (tensor): a loss tensor representing the Gaussian negative log-likelihood of

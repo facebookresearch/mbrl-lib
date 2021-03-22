@@ -154,7 +154,7 @@ class DynamicsModelTrainer:
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
-            # only update elites if "validation" will be done on train set
+            # only update elites here if "validation" will be done on train set
             train_score = self.evaluate(
                 use_train_set=True, update_elites=not has_val_dataset
             )
