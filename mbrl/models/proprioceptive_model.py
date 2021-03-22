@@ -22,22 +22,22 @@ MODEL_LOG_FORMAT = [
 ]
 
 
-class DynamicsModelWrapper:
-    """Wrapper class for all dynamics models.
+class ProprioceptiveModel(Model):
+    """Wrapper class for dynamics models using proprioceptive observations.
 
-    This class wraps a :class:`mbrl.model.Model`, providing utility operations that are common
-    when using and training dynamics models. Importantly, it provides interfaces with the
-    model at the level of transition batches (obs, action, next_obs, reward, done),
-    so that users don't have to manipulate the underlying model's inputs and outputs directly.
+    This :class:`mbrl.model.Model` class is essentially a wrapper for another model,
+    providing utility operations that are common
+    when using dynamics models with proprioceptive observation, so that users
+    don't have to manipulate the underlying model's inputs and outputs directly.
 
-    The wrapper assumes that dynamics model inputs/outputs will be consistent with
+    The wrapper assumes that the wrapped model inputs/outputs will be consistent with
 
         [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),
 
     and it provides methods to construct model inputs and targets given a batch of transitions,
     accordingly. Moreover, the constructor provides options to perform diverse data manipulations
     that will be used every time the model needs to be accessed for prediction or training;
-    for example, input normalization, and observation pre-processing.
+    for example, input/output normalization, and observation pre-processing.
 
     Args:
         model (:class:`mbrl.model.Model`): the model to wrap.
@@ -75,6 +75,7 @@ class DynamicsModelWrapper:
         no_delta_list: Optional[List[int]] = None,
         num_elites: Optional[int] = None,
     ):
+        super().__init__()
         self.model = model
         self.normalizer: Optional[mbrl.math.Normalizer] = None
         if normalize:
@@ -159,19 +160,11 @@ class DynamicsModelWrapper:
         if self.normalizer:
             self.normalizer.update_stats(model_in_np)
 
-    def update_from_batch(
-        self, batch: mbrl.types.TransitionBatch, optimizer: torch.optim.Optimizer
-    ):
-        """Updates the model given a batch of transitions and an optimizer.
-
-        Args:
-            batch (transition batch): a batch of transition to train the model.
-            optimizer (torch optimizer): the optimizer to use to update the model.
-        """
-        model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.update(model_in, optimizer, target=target)
-
-    def eval_score(self, batch: mbrl.types.TransitionBatch) -> torch.Tensor:
+    def loss(
+        self,
+        batch: mbrl.types.TransitionBatch,
+        target: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """Evaluates the model score over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
@@ -183,6 +176,43 @@ class DynamicsModelWrapper:
         Returns:
             (tensor): as returned by `model.eval_score().`
         """
+        assert target is None
+        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        return self.model.loss(model_in, target=target)
+
+    def update(
+        self,
+        batch: mbrl.types.TransitionBatch,
+        optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+        target: Optional[torch.Tensor] = None,
+    ) -> float:
+        """Updates the model given a batch of transitions and an optimizer.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+            optimizer (torch optimizer): the optimizer to use to update the model.
+        """
+        assert target is None
+        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        return self.model.update(model_in, optimizer, target=target)
+
+    def eval_score(
+        self,
+        batch: mbrl.types.TransitionBatch,
+        target: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Evaluates the model score over a batch of transitions.
+
+        This method constructs input and targets from the information in the batch,
+        then calls `self.model.eval_score()` on them and returns the value.
+
+        Args:
+            batch (transition batch): a batch of transition to train the model.
+
+        Returns:
+            (tensor): as returned by `model.eval_score().`
+        """
+        assert target is None
         with torch.no_grad():
             model_in, target = self._get_model_input_and_target_from_batch(batch)
             return self.model.eval_score(model_in, target=target)
@@ -206,6 +236,30 @@ class DynamicsModelWrapper:
             model_in, target = self._get_model_input_and_target_from_batch(batch)
             output = self.model.forward(model_in)
         return output, target
+
+    # TODO replace predict with sample
+    def sample(  # type: ignore
+        self,
+        x: torch.Tensor,
+        deterministic: bool = False,
+        rng: Optional[torch.Generator] = None,
+    ) -> torch.Tensor:
+        raise NotImplementedError
+
+    def reset(  # type: ignore
+        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> torch.Tensor:
+        """Calls reset on the underlying model.
+
+        Args:
+            x (tensor): the input to the model.
+            rng (random number generator): a rng to use for sampling the model
+                indices.
+
+        Returns:
+            (tensor): the output of the underlying model.
+        """
+        return self.model.reset(x, rng=rng)
 
     def predict(
         self,
@@ -255,3 +309,6 @@ class DynamicsModelWrapper:
     def set_elite(self, elite_indices: Sequence[int]):
         self.elite_models = list(elite_indices)
         self.model.set_elite(elite_indices)
+
+    def _is_deterministic_impl(self):
+        return self.model.deterministic

@@ -10,8 +10,8 @@ import mbrl.replay_buffer as replay_buffer
 import mbrl.types
 
 from .basic_ensemble import BasicEnsemble
-from .dynamics_models import DynamicsModelWrapper
 from .model import Ensemble
+from .proprioceptive_model import ProprioceptiveModel
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -29,7 +29,7 @@ class DynamicsModelTrainer:
     """Trainer for dynamics models.
 
     Args:
-        dynamics_model (:class:`mbrl.models.DynamicsModelWrapper`): the wrapper to access the
+        dynamics_model (:class:`mbrl.models.ProprioceptiveModel`): the wrapper to access the
             model to train.
         dataset_train (:class:`mbrl.replay_buffer.IterableReplayBuffer`): the replay buffer
             containing the training data. If the model is an ensemble, it must be an instance
@@ -45,7 +45,7 @@ class DynamicsModelTrainer:
 
     def __init__(
         self,
-        dynamics_model: DynamicsModelWrapper,
+        dynamics_model: ProprioceptiveModel,
         dataset_train: replay_buffer.IterableReplayBuffer,
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         optim_lr: float = 1e-4,
@@ -143,9 +143,7 @@ class DynamicsModelTrainer:
         for epoch in epoch_iter:
             batch_losses: List[float] = []
             for batch in self.dataset_train:
-                avg_ensemble_loss = self.dynamics_model.update_from_batch(
-                    batch, self.optimizers
-                )
+                avg_ensemble_loss = self.dynamics_model.update(batch, self.optimizers)
                 batch_losses.append(avg_ensemble_loss)
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
@@ -212,7 +210,7 @@ class DynamicsModelTrainer:
         """Evaluates the model on the validation dataset.
 
         Iterates over validation dataset, one batch at a time, and calls
-        :meth:`DynamicsModelWrapper.eval_score_from_simple_batch` to compute the model score
+        :meth:`mbrl.models.Model.eval_score` to compute the model score
         over the batch. The method returns the average score over the whole dataset.
 
         Args:

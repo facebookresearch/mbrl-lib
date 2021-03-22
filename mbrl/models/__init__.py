@@ -1,9 +1,9 @@
 from .basic_ensemble import BasicEnsemble
-from .dynamics_models import DynamicsModelWrapper
 from .gaussian_mlp import GaussianMLP
 from .model import Ensemble, Model
 from .model_env import ModelEnv
 from .model_trainer import DynamicsModelTrainer
+from .proprioceptive_model import ProprioceptiveModel
 from .util import EnsembleLinearLayer, truncated_normal_init
 
 __all__ = [
@@ -11,9 +11,9 @@ __all__ = [
     "Ensemble",
     "BasicEnsemble",
     "DynamicsModelTrainer",
-    "DynamicsModelWrapper",
     "EnsembleLinearLayer",
     "ModelEnv",
+    "ProprioceptiveModel",
     "GaussianMLP",
     "truncated_normal_init",
 ]

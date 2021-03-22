@@ -84,7 +84,7 @@ def create_dynamics_model(
         obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
     else:
         obs_process_fn = None
-    dynamics_model = mbrl.models.DynamicsModelWrapper(
+    dynamics_model = mbrl.models.ProprioceptiveModel(
         model,
         target_is_delta=cfg.algorithm.target_is_delta,
         normalize=cfg.algorithm.normalize,
@@ -253,8 +253,9 @@ def save_buffers(
     val_buffer.save(str(work_path / f"{prefix}_val"))
 
 
+# TODO replace this with optional save inside the trainer (maybe)
 def train_model_and_save_model_and_data(
-    dynamics_model: mbrl.models.DynamicsModelWrapper,
+    dynamics_model: mbrl.models.Model,
     model_trainer: mbrl.models.DynamicsModelTrainer,
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
@@ -283,7 +284,7 @@ def train_model_and_save_model_and_data(
         num_epochs=cfg.overrides.get("num_epochs_train_model", None),
         patience=cfg.overrides.patience,
     )
-    dynamics_model.save(work_dir)
+    dynamics_model.save(str(work_dir))
     save_buffers(dataset_train, dataset_val, work_dir)
 
 
