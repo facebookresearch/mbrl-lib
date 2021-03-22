@@ -35,7 +35,7 @@ def mock_obs_func():
     pass
 
 
-def test_create_dynamics_model():
+def test_create_proprioceptive_model():
     cfg_dict = {
         "dynamics_model": {
             "model": {
@@ -55,7 +55,7 @@ def test_create_dynamics_model():
     act_shape = (1,)
 
     cfg = omegaconf.OmegaConf.create(cfg_dict)
-    dynamics_model = utils.create_dynamics_model(cfg, obs_shape, act_shape)
+    dynamics_model = utils.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
     assert isinstance(dynamics_model.model, MockModel)
     assert dynamics_model.model.in_size == obs_shape[0] + act_shape[0]
@@ -71,7 +71,7 @@ def test_create_dynamics_model():
     cfg.overrides.no_delta_list = [0]
     cfg.overrides.num_elites = 8
     cfg.overrides.obs_process_fn = "tests.core.test_common_utils.mock_obs_func"
-    dynamics_model = utils.create_dynamics_model(cfg, obs_shape, act_shape)
+    dynamics_model = utils.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
     assert dynamics_model.model.in_size == 11
     assert dynamics_model.model.out_size == 7

@@ -22,7 +22,7 @@ class DatasetEvaluator:
         self.env, term_fn, reward_fn = mujoco_util.make_env(self.cfg)
         self.reward_fn = reward_fn
 
-        self.dynamics_model = mbrl.util.create_dynamics_model(
+        self.dynamics_model = mbrl.util.create_proprioceptive_model(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,

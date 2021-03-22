@@ -100,7 +100,7 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
-    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
     env_dataset_train, env_dataset_val = mbrl.util.create_replay_buffers(
         cfg,
