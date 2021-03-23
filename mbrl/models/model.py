@@ -1,4 +1,5 @@
 import abc
+import pathlib
 from typing import Optional, Sequence, Tuple, Union, cast
 
 import torch
@@ -126,14 +127,6 @@ class Model(nn.Module, abc.ABC):
             (tensor): a non-reduced tensor score.
         """
 
-    @abc.abstractmethod
-    def save(self, path: str):
-        """Saves the model to the given path. """
-
-    @abc.abstractmethod
-    def load(self, path: str):
-        """Loads the model from the given path."""
-
     def update(
         self,
         model_in: ModelInput,
@@ -178,6 +171,17 @@ class Model(nn.Module, abc.ABC):
     @property
     def deterministic(self):
         return self._is_deterministic_impl()
+
+    def __len__(self):
+        return None
+
+    def save(self, path: Union[str, pathlib.Path]):
+        """Saves the model to the given path. """
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: Union[str, pathlib.Path]):
+        """Loads the model from the given path. """
+        self.load_state_dict(torch.load(path))
 
 
 # ---------------------------------------------------------------------------
@@ -280,14 +284,6 @@ class Ensemble(Model, abc.ABC):
         Returns:
             (tensor): a non-reduced tensor score.
         """
-
-    @abc.abstractmethod
-    def save(self, path: str):
-        """Saves the model to the given path. """
-
-    @abc.abstractmethod
-    def load(self, path: str):
-        """Loads the model from the given path."""
 
     def __len__(self):
         return self.num_members

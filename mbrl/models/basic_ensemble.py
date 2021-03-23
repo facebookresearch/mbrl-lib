@@ -251,13 +251,6 @@ class BasicEnsemble(Ensemble):
                 scores.append(model.eval_score(inputs[i], targets[i]))
             return torch.stack(scores)
 
-    def save(self, path: str):
-        torch.save(self.state_dict(), path)
-
-    def load(self, path: str):
-        state_dict = torch.load(path)
-        self.load_state_dict(state_dict)
-
     def reset(  # type: ignore
         self, x: torch.Tensor, rng: Optional[torch.Generator] = None
     ) -> torch.Tensor:

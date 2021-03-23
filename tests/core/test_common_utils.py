@@ -16,12 +16,6 @@ class MockModel(models.Model):
         self.y = y
         self.device = "cpu"
 
-    def load(self, path):
-        pass
-
-    def save(self, paht):
-        pass
-
     def loss(self, model_in, target):
         pass
 

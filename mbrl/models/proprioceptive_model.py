@@ -296,13 +296,13 @@ class ProprioceptiveModel(Model):
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         save_dir = pathlib.Path(save_dir)
-        self.model.save(str(save_dir / self._MODEL_FNAME))
+        super().save(save_dir / self._MODEL_FNAME)
         if self.normalizer:
             self.normalizer.save(save_dir)
 
     def load(self, load_dir: Union[str, pathlib.Path]):
         load_dir = pathlib.Path(load_dir)
-        self.model.load(str(load_dir / self._MODEL_FNAME))
+        super().load(load_dir / self._MODEL_FNAME)
         if self.normalizer:
             self.normalizer.load(load_dir)
 

@@ -339,12 +339,6 @@ class GaussianMLP(Ensemble):
             target = target.repeat((self.num_members, 1, 1))
             return F.mse_loss(pred_mean, target, reduction="none")
 
-    def save(self, path: str):
-        torch.save(self.state_dict(), path)
-
-    def load(self, path: str):
-        self.load_state_dict(torch.load(path))
-
     def reset(  # type: ignore
         self, x: torch.Tensor, rng: Optional[torch.Generator] = None
     ) -> torch.Tensor:
