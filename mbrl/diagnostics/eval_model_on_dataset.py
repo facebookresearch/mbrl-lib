@@ -6,6 +6,7 @@ import matplotlib as mpl
 import matplotlib.pylab as plt
 import numpy as np
 
+import mbrl.models
 import mbrl.replay_buffer
 import mbrl.util
 import mbrl.util.mujoco as mujoco_util
@@ -40,9 +41,20 @@ class DatasetEvaluator:
     def plot_dataset_results(
         self, dataset: mbrl.replay_buffer.IterableReplayBuffer, name: str
     ):
-        num_members = len(self.dynamics_model.model)
-        all_means: List[List[np.ndarray]] = [[] for _ in range(num_members)]
+        all_means: List[np.ndarray] = []
         all_targets = []
+
+        is_ensemble, num_members = False, None
+        if hasattr(self.dynamics_model, "set_propagation_method"):
+            self.dynamics_model.set_propagation_method(None)
+            # Some models (e.g., GaussianMLP) require the batch size to be
+            # a multiple of number of models
+            dataset.batch_size = dataset.batch_size - dataset.batch_size % len(
+                self.dynamics_model
+            )
+            is_ensemble = True
+            num_members = len(self.dynamics_model.model)
+
         # Iterating over dataset and computing predictions
         for batch in dataset:
             (
@@ -50,14 +62,11 @@ class DatasetEvaluator:
                 target,
             ) = self.dynamics_model.get_output_and_targets(batch)
 
-            for i in range(num_members):
-                all_means[i].append(outputs[0][i].cpu().numpy())
+            all_means.append(outputs[0].cpu().numpy())
             all_targets.append(target.cpu().numpy())
+
         # Consolidating targets and predictions
-        all_means_np_list = []
-        for i in range(num_members):
-            all_means_np_list.append(np.concatenate(all_means[i], axis=0))
-        all_means_np = np.stack(all_means_np_list)
+        all_means_np = np.concatenate(all_means, axis=1 if is_ensemble else 0)
         targets_np = np.concatenate(all_targets, axis=0)
 
         # Visualization
@@ -66,13 +75,15 @@ class DatasetEvaluator:
             sort_idx = targets_np[:, dim].argsort()
             subsample_size = len(sort_idx) // 20
             subsample = np.random.choice(len(sort_idx), size=(subsample_size,))
-            means = all_means_np[:, sort_idx, dim][:, subsample]  # type: ignore
+            means = all_means_np[..., sort_idx, dim][..., subsample]  # type: ignore
             target = targets_np[sort_idx, dim][subsample]
 
             plt.figure(figsize=(8, 8))
-            for i in range(num_members):
-                plt.plot(target, means[i], ".", markersize=2)
-            mean_of_means = means.mean(axis=0)
+            mean_of_means = means
+            if num_members:
+                for i in range(num_members):
+                    plt.plot(target, means[i], ".", markersize=2)
+                mean_of_means = means.mean(0)
             mean_sort_idx = target.argsort()
             plt.plot(
                 target[mean_sort_idx],
