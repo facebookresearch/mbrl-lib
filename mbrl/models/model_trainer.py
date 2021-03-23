@@ -216,7 +216,7 @@ class DynamicsModelTrainer:
         batch_scores_list = []  # type: ignore
         for batch in dataset:
             avg_batch_score = self.model.eval_score(batch)
-            assert avg_batch_score.ndim == 2 or avg_batch_score.ndim == 3
+            assert avg_batch_score.ndim in (2, 3)
             mean_axis = 1 if avg_batch_score.ndim == 2 else (1, 2)
             avg_batch_score = avg_batch_score.mean(axis=mean_axis)
             batch_scores_list.append(avg_batch_score)
