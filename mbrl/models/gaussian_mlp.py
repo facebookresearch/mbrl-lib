@@ -243,7 +243,7 @@ class GaussianMLP(Ensemble):
                 For other values of ``self.propagation`` (and ``use_propagation=True``),
                 the shape must be ``B x Id``.
             rng (torch.Generator, optional): random number generator to use for "random_model"
-                                             propagation.
+                propagation.
             use_propagation (bool): if ``False``, the propagation method will be ignored
                 and the method will return outputs for all models. Defaults to ``True``.
 

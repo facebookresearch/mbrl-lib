@@ -315,3 +315,7 @@ class ProprioceptiveModel(Model):
 
     def __len__(self):
         return len(self.model)
+
+    def set_propagation_method(self, propagation_method: Optional[str] = None):
+        if isinstance(self.model, Ensemble):
+            self.model.set_propagation_method(propagation_method)
