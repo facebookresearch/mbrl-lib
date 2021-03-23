@@ -66,22 +66,11 @@ class DynamicsModelTrainer:
                 dump_frequency=1,
             )
 
-        self.optimizers = None
-        if isinstance(self.dynamics_model.model, BasicEnsemble):
-            ensemble = cast(BasicEnsemble, self.dynamics_model.model)
-            self.optimizers = []
-            for i, model in enumerate(ensemble):
-                self.optimizers.append(
-                    optim.Adam(
-                        model.parameters(), lr=optim_lr, weight_decay=weight_decay
-                    )
-                )
-        else:
-            self.optimizers = optim.Adam(
-                self.dynamics_model.model.parameters(),
-                lr=optim_lr,
-                weight_decay=weight_decay,
-            )
+        self.optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=optim_lr,
+            weight_decay=weight_decay,
+        )
 
     def train(
         self,
@@ -143,7 +132,7 @@ class DynamicsModelTrainer:
         for epoch in epoch_iter:
             batch_losses: List[float] = []
             for batch in self.dataset_train:
-                avg_ensemble_loss = self.dynamics_model.update(batch, self.optimizers)
+                avg_ensemble_loss = self.model.update(batch, self.optimizer)
                 batch_losses.append(avg_ensemble_loss)
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)

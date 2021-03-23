@@ -183,7 +183,7 @@ class ProprioceptiveModel(Model):
     def update(
         self,
         batch: mbrl.types.TransitionBatch,
-        optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+        optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
     ) -> float:
         """Updates the model given a batch of transitions and an optimizer.

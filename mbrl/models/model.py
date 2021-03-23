@@ -130,7 +130,7 @@ class Model(nn.Module, abc.ABC):
     def update(
         self,
         model_in: ModelInput,
-        optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+        optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
     ) -> float:
         """Updates the model using backpropagation with given input and target tensors.
@@ -146,8 +146,7 @@ class Model(nn.Module, abc.ABC):
 
         Args:
             model_in (tensor or batch of transitions): the inputs to the model.
-            optimizer (torch.optimizer or sequence of torch.optimizer): the optimizer to use
-                for the model (or ensemble of models).
+            optimizer (torch.optimizer): the optimizer to use for the model.
             target (tensor or sequence of tensors): the expected output for the given inputs, if it
                 cannot be computed from ``model_in``.
 
