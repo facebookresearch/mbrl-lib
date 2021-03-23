@@ -1,5 +1,5 @@
 import itertools
-from typing import Callable, Dict, List, Optional, Tuple, cast
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -9,9 +9,7 @@ import mbrl.logger
 import mbrl.replay_buffer as replay_buffer
 import mbrl.types
 
-from .basic_ensemble import BasicEnsemble
-from .model import Ensemble
-from .proprioceptive_model import ProprioceptiveModel
+from .model import Model
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -29,8 +27,7 @@ class DynamicsModelTrainer:
     """Trainer for dynamics models.
 
     Args:
-        dynamics_model (:class:`mbrl.models.ProprioceptiveModel`): the wrapper to access the
-            model to train.
+        model (:class:`mbrl.models.Model`): a model to train.
         dataset_train (:class:`mbrl.replay_buffer.IterableReplayBuffer`): the replay buffer
             containing the training data. If the model is an ensemble, it must be an instance
             of :class:`mbrl.replay_buffer.BootstrapReplayBuffer`.
@@ -45,14 +42,14 @@ class DynamicsModelTrainer:
 
     def __init__(
         self,
-        dynamics_model: ProprioceptiveModel,
+        model: Model,
         dataset_train: replay_buffer.IterableReplayBuffer,
         dataset_val: Optional[replay_buffer.IterableReplayBuffer] = None,
         optim_lr: float = 1e-4,
         weight_decay: float = 1e-5,
         logger: Optional[mbrl.logger.Logger] = None,
     ):
-        self.dynamics_model = dynamics_model
+        self.model = model
         self.dataset_train = dataset_train
         self.dataset_val = dataset_val
         self._train_iteration = 0
@@ -78,7 +75,7 @@ class DynamicsModelTrainer:
         patience: Optional[int] = 50,
         callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
-        """Trains the dynamics model for some number of epochs.
+        """Trains the model for some number of epochs.
 
         This method iterates over the stored train dataset, one batch of transitions at a time,
         updates the model.
@@ -109,10 +106,9 @@ class DynamicsModelTrainer:
             (tuple of two list(float)): the history of training losses and validation losses.
 
         """
-        model = self.dynamics_model.model
-        if isinstance(
-            model, Ensemble
-        ) and not self.dataset_train.is_train_compatible_with_ensemble(len(model)):
+        if len(self.model) and not self.dataset_train.is_train_compatible_with_ensemble(
+            len(self.model)
+        ):
             raise RuntimeError(
                 "Train dataset is not compatible with ensemble. "
                 "Please use `BootstrapReplayBuffer` class to train ensemble model "
@@ -175,7 +171,7 @@ class DynamicsModelTrainer:
                 )
             if callback:
                 callback(
-                    model,
+                    self.model,
                     self._train_iteration,
                     epoch,
                     total_avg_loss,
@@ -188,7 +184,7 @@ class DynamicsModelTrainer:
                 break
 
         if best_weights:
-            model.load_state_dict(best_weights)
+            self.model.load_state_dict(best_weights)
 
         self._train_iteration += 1
         return training_losses, val_losses
@@ -219,10 +215,10 @@ class DynamicsModelTrainer:
 
         batch_scores_list = []  # type: ignore
         for batch in dataset:
-            avg_batch_score = self.dynamics_model.eval_score(batch)
-            if avg_batch_score.ndim == 2:  # not an ensemble
-                avg_batch_score = avg_batch_score.unsqueeze(0)
-            avg_batch_score = avg_batch_score.mean(axis=(1, 2))  # per ensemble model
+            avg_batch_score = self.model.eval_score(batch)
+            assert avg_batch_score.ndim == 2 or avg_batch_score.ndim == 3
+            mean_axis = 1 if avg_batch_score.ndim == 2 else (1, 2)
+            avg_batch_score = avg_batch_score.mean(axis=mean_axis)
             batch_scores_list.append(avg_batch_score)
         batch_scores = torch.stack(batch_scores_list)
 
@@ -231,10 +227,10 @@ class DynamicsModelTrainer:
         ):
             self.dataset_train.toggle_bootstrap()
 
-        if update_elites and isinstance(self.dynamics_model.model, Ensemble):
+        if update_elites and hasattr(self.model, "num_elites"):
             sorted_indices = np.argsort(batch_scores.mean(axis=0).tolist())
-            elite_models = sorted_indices[: self.dynamics_model.num_elites]
-            self.dynamics_model.set_elite(elite_models)
+            elite_models = sorted_indices[: self.model.num_elites]
+            self.model.set_elite(elite_models)
             batch_scores = batch_scores[:, elite_models]
 
         return batch_scores.mean().item()
@@ -252,7 +248,7 @@ class DynamicsModelTrainer:
         Returns:
             (dict, optional): if the validation score's relative improvement over the
             best validation score is higher than the threshold, returns the state dictionary
-            of the stored dynamics model, otherwise returns ``None``.
+            of the stored model, otherwise returns ``None``.
         """
         best_weights = None
         improvement = (
@@ -261,5 +257,5 @@ class DynamicsModelTrainer:
             else (best_val_score - val_score) / best_val_score
         )
         if improvement > threshold:
-            best_weights = self.dynamics_model.model.state_dict()
+            best_weights = self.model.state_dict()
         return best_weights

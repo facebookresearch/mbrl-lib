@@ -312,3 +312,6 @@ class ProprioceptiveModel(Model):
 
     def _is_deterministic_impl(self):
         return self.model.deterministic
+
+    def __len__(self):
+        return len(self.model)

@@ -219,7 +219,11 @@ class BasicEnsemble(Ensemble):
             scores = []
             for i, model in enumerate(self.members):
                 model.eval()
-                scores.append(model.eval_score(inputs[i], targets[i]))
+                score = model.eval_score(inputs[i], targets[i])
+                if score.ndim == 3:
+                    assert score.shape[0] == 1
+                    score = score[0]
+                scores.append(score)
             return torch.stack(scores)
 
     def reset(  # type: ignore
