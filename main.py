@@ -17,8 +17,7 @@ def run(cfg: omegaconf.DictConfig):
         return pets.train(env, term_fn, reward_fn, cfg)
     if cfg.algorithm.name == "mbpo":
         test_env, *_ = mujoco_util.make_env(cfg)
-        device = torch.device(cfg.device)
-        return mbpo.train(env, test_env, term_fn, device, cfg)
+        return mbpo.train(env, test_env, term_fn, cfg)
 
 
 if __name__ == "__main__":
