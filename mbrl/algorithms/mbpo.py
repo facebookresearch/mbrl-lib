@@ -47,7 +47,7 @@ def rollout_model_and_populate_sac_buffer(
         sac_buffer.add_batch(
             obs, action, pred_rewards, pred_next_obs, pred_dones, pred_dones
         )
-        obs = pred_next_obs
+        obs = pred_next_obs[~pred_dones.squeeze()]
 
 
 def evaluate(
@@ -146,9 +146,10 @@ def train(
             mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch + 1]))
         )
 
-        obs = env.reset()
-        done = False
-        while not done:
+        obs, done = None, False
+        for steps_epoch in range(cfg.overrides.trial_length):
+            if steps_epoch == 0 or done:
+                obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
                 env,
