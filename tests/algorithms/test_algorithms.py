@@ -17,7 +17,8 @@ _TRIAL_LEN = 30
 _NUM_TRIALS_PETS = 10
 _NUM_TRIALS_MBPO = 10
 _REW_C = 0.001
-_TARGET_REWARD = -3.5 * _REW_C
+# Not optimal, but the prob. of observing this by random seems to be < 1e-5
+_TARGET_REWARD = -10 * _REW_C
 
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
@@ -126,6 +127,7 @@ def test_mbpo():
         "dynamics_model": model_cfg,
         "overrides": {
             "num_trials": _NUM_TRIALS_MBPO,
+            "term_fn": "no_termination",
             "trial_length": _TRIAL_LEN,
             "patience": 5,
             "model_lr": 1e-4,
@@ -136,6 +138,7 @@ def test_mbpo():
             "effective_model_rollouts_per_step": 400,
             "rollout_schedule": [1, 15, 10, 10],
             "num_sac_updates_per_step": 20,
+            "sac_updates_every_steps": 1,
             "sac_alpha_lr": 3e-4,
             "sac_actor_lr": 3e-6,
             "sac_actor_update_frequency": 4,
