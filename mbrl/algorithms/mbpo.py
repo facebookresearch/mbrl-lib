@@ -206,6 +206,8 @@ def train(
 
             # --------------- Agent Training -----------------
             for _ in range(cfg.overrides.num_sac_updates_per_step):
+                if (env_steps + 1) % cfg.overrides.sac_updates_every_steps != 0:
+                    break  # only update every once in a while
                 agent.update(sac_buffer, logger, updates_made)
                 updates_made += 1
                 if not silent and updates_made % cfg.log_frequency_agent == 0:
