@@ -183,7 +183,7 @@ class ProprioceptiveModel(Model):
     def update(
         self,
         batch: mbrl.types.TransitionBatch,
-        optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+        optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
     ) -> float:
         """Updates the model given a batch of transitions and an optimizer.
@@ -296,13 +296,13 @@ class ProprioceptiveModel(Model):
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         save_dir = pathlib.Path(save_dir)
-        self.model.save(str(save_dir / self._MODEL_FNAME))
+        super().save(save_dir / self._MODEL_FNAME)
         if self.normalizer:
             self.normalizer.save(save_dir)
 
     def load(self, load_dir: Union[str, pathlib.Path]):
         load_dir = pathlib.Path(load_dir)
-        self.model.load(str(load_dir / self._MODEL_FNAME))
+        super().load(load_dir / self._MODEL_FNAME)
         if self.normalizer:
             self.normalizer.load(load_dir)
 
@@ -312,3 +312,10 @@ class ProprioceptiveModel(Model):
 
     def _is_deterministic_impl(self):
         return self.model.deterministic
+
+    def __len__(self):
+        return len(self.model)
+
+    def set_propagation_method(self, propagation_method: Optional[str] = None):
+        if isinstance(self.model, Ensemble):
+            self.model.set_propagation_method(propagation_method)

@@ -6,6 +6,7 @@ import gym.wrappers
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 import mbrl
 import mbrl.models
@@ -69,7 +70,11 @@ class Visualizer:
             model_dir=self.model_path,
         )
         self.model_env = mbrl.models.ModelEnv(
-            self.env, self.dynamics_model, term_fn, reward_fn
+            self.env,
+            self.dynamics_model,
+            term_fn,
+            reward_fn,
+            generator=torch.Generator(),
         )
 
         self.cfg.algorithm.agent.planning_horizon = lookahead

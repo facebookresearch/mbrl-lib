@@ -1,4 +1,5 @@
 import abc
+import pathlib
 from typing import Optional, Sequence, Tuple, Union, cast
 
 import torch
@@ -126,18 +127,10 @@ class Model(nn.Module, abc.ABC):
             (tensor): a non-reduced tensor score.
         """
 
-    @abc.abstractmethod
-    def save(self, path: str):
-        """Saves the model to the given path. """
-
-    @abc.abstractmethod
-    def load(self, path: str):
-        """Loads the model from the given path."""
-
     def update(
         self,
         model_in: ModelInput,
-        optimizer: Union[torch.optim.Optimizer, Sequence[torch.optim.Optimizer]],
+        optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
     ) -> float:
         """Updates the model using backpropagation with given input and target tensors.
@@ -153,8 +146,7 @@ class Model(nn.Module, abc.ABC):
 
         Args:
             model_in (tensor or batch of transitions): the inputs to the model.
-            optimizer (torch.optimizer or sequence of torch.optimizer): the optimizer to use
-                for the model (or ensemble of models).
+            optimizer (torch.optimizer): the optimizer to use for the model.
             target (tensor or sequence of tensors): the expected output for the given inputs, if it
                 cannot be computed from ``model_in``.
 
@@ -178,6 +170,17 @@ class Model(nn.Module, abc.ABC):
     @property
     def deterministic(self):
         return self._is_deterministic_impl()
+
+    def __len__(self):
+        return None
+
+    def save(self, path: Union[str, pathlib.Path]):
+        """Saves the model to the given path. """
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: Union[str, pathlib.Path]):
+        """Loads the model from the given path. """
+        self.load_state_dict(torch.load(path))
 
 
 # ---------------------------------------------------------------------------
@@ -280,14 +283,6 @@ class Ensemble(Model, abc.ABC):
         Returns:
             (tensor): a non-reduced tensor score.
         """
-
-    @abc.abstractmethod
-    def save(self, path: str):
-        """Saves the model to the given path. """
-
-    @abc.abstractmethod
-    def load(self, path: str):
-        """Loads the model from the given path."""
 
     def __len__(self):
         return self.num_members

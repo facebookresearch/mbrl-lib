@@ -46,7 +46,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     @staticmethod
     def _preprocess_state_np(state):
         assert isinstance(state, np.ndarray)
-        assert state.ndim in (1, 2)
+        assert state.ndim in (1, 2, 3)
         d1 = state.ndim == 1
         if d1:
             # if input is 1d, expand it to 2d
@@ -54,8 +54,13 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # [0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17.] ->
         # [1., sin(2), cos(2)., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17.]
         ret = np.concatenate(
-            [state[:, 1:2], np.sin(state[:, 2:3]), np.cos(state[:, 2:3]), state[:, 3:]],
-            axis=1,
+            [
+                state[..., 1:2],
+                np.sin(state[..., 2:3]),
+                np.cos(state[..., 2:3]),
+                state[..., 3:],
+            ],
+            axis=state.ndim - 1,
         )
         if d1:
             # and squeeze it back afterwards
@@ -65,7 +70,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     @staticmethod
     def _preprocess_state_torch(state):
         assert isinstance(state, torch.Tensor)
-        assert state.ndim in (1, 2)
+        assert state.ndim in (1, 2, 3)
         d1 = state.ndim == 1
         if d1:
             # if input is 1d, expand it to 2d
@@ -74,12 +79,12 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # [1., sin(2), cos(2)., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17.]
         ret = torch.cat(
             [
-                state[:, 1:2],
-                torch.sin(state[:, 2:3]),
-                torch.cos(state[:, 2:3]),
-                state[:, 3:],
+                state[..., 1:2],
+                torch.sin(state[..., 2:3]),
+                torch.cos(state[..., 2:3]),
+                state[..., 3:],
             ],
-            axis=1,
+            axis=state.ndim - 1,
         )
         if d1:
             # and squeeze it back afterwards
@@ -103,15 +108,15 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         """
         assert isinstance(next_ob, np.ndarray)
         assert isinstance(action, np.ndarray)
-        assert next_ob.ndim in (1, 2)
+        assert next_ob.ndim in (1, 2, 3)
 
         was1d = next_ob.ndim == 1
         if was1d:
             next_ob = np.expand_dims(next_ob, 0)
             action = np.expand_dims(action, 0)
 
-        reward_ctrl = -0.1 * np.square(action).sum(axis=1)
-        reward_run = next_ob[:, 0] - 0.0 * np.square(next_ob[:, 2])
+        reward_ctrl = -0.1 * np.square(action).sum(axis=action.ndim - 1)
+        reward_run = next_ob[..., 0] - 0.0 * np.square(next_ob[..., 2])
         reward = reward_run + reward_ctrl
 
         if was1d:
