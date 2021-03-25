@@ -13,17 +13,20 @@ import mbrl.diagnostics as diagnostics
 import mbrl.planning as planning
 import mbrl.util as utils
 
+# Create a temporary directory for simulating a training run
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
 os.chdir(_DIR.name)
 _HYDRA_DIR = pathlib.Path(_DIR.name) / ".hydra"
 pathlib.Path.mkdir(_HYDRA_DIR)
 
+# Environment information
 _ENV_NAME = "HalfCheetah-v2"
 _ENV = gym.make(_ENV_NAME)
 _OBS_SHAPE = _ENV.observation_space.shape
 _ACT_SHAPE = _ENV.action_space.shape
 
+# Creating config files
 with open(
     os.path.join(_REPO_DIR, "conf/dynamics_model/gaussian_mlp_ensemble.yaml"), "r"
 ) as f:
@@ -46,6 +49,7 @@ _CFG_DICT = {
     "device": "cuda:0" if torch.cuda.is_available() else "cpu",
 }
 
+# Config file for loafing a pytorch_sac agent
 with open(os.path.join(_REPO_DIR, "conf/algorithm/mbpo.yaml"), "r") as f:
     _MBPO__ALGO_CFG = yaml.safe_load(f)
 _MBPO_CFG_DICT = _CFG_DICT.copy()
@@ -63,14 +67,23 @@ _MBPO_CFG_DICT["overrides"].update(
         "num_trials": 2,
     }
 )
+
+# Extend default config file with information for a trajectory optimizer agent
+with open(os.path.join(_REPO_DIR, "conf/algorithm/pets.yaml"), "r") as f:
+    _PETS_ALGO_CFG = yaml.safe_load(f)
+_CFG_DICT["algorithm"].update(_PETS_ALGO_CFG)
+_CFG_DICT["algorithm"]["learned_rewards"] = True
+_CFG_DICT["algorithm"]["agent"]["verbose"] = False
 _CFG = OmegaConf.create(_CFG_DICT)
 _MBPO_CFG = OmegaConf.create(_MBPO_CFG_DICT)
-proprioceptive_model = utils.create_proprioceptive_model(_CFG, _OBS_SHAPE, _ACT_SHAPE)
 
+# Create a model to train and run then save to directory
+proprioceptive_model = utils.create_proprioceptive_model(_CFG, _OBS_SHAPE, _ACT_SHAPE)
+proprioceptive_model.save(_DIR.name)
+
+# Create replay buffers and save to directory with some data
 _CFG.dynamics_model.model.in_size = "???"
 _CFG.dynamics_model.model.out_size = "???"
-
-proprioceptive_model.save(_DIR.name)
 train_buffer, val_buffer = utils.create_replay_buffers(_CFG, _OBS_SHAPE, _ACT_SHAPE)
 utils.rollout_agent_trajectories(
     _ENV,
@@ -141,7 +154,7 @@ def test_finetuner():
 
     with open(results_dir / "model_train.csv", "r") as f:
         total = 0
-        for line in f:
+        for _ in f:
             total += 1
         assert total > 0
 
@@ -149,3 +162,19 @@ def test_finetuner():
         assert len(data["train"]) == num_epochs
         assert len(data["val"]) == num_epochs
     return
+
+
+def test_visualizer():
+    with open(_HYDRA_DIR / "config.yaml", "w") as f:
+        OmegaConf.save(_CFG, f)
+
+    visualizer = diagnostics.Visualizer(
+        5, _DIR.name, reference_agent_type="random", num_steps=5, num_model_samples=5
+    )
+    visualizer.run()
+
+    files = os.listdir(pathlib.Path(_DIR.name) / "diagnostics")
+    assert "mpc.mp4" in files and "ref.mp4" in files
+
+
+test_visualizer()

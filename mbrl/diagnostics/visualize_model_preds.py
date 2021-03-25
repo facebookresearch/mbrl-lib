@@ -35,7 +35,8 @@ class Visualizer:
         if model_subdir:
             self.model_path /= model_subdir
             # If model subdir is child of diagnostics, remove "diagnostics" before
-            # appending to vis_path
+            # appending to vis_path. This can happen, for example, if Finetuner
+            # generated this model with a model_subdir
             if "diagnostics" in model_subdir:
                 model_subdir = pathlib.Path(model_subdir).name
             self.vis_path /= model_subdir
@@ -238,7 +239,7 @@ class Visualizer:
                 interval=100,
                 repeat=False,
             )
-            fname = "mpc" if use_mpc else "opt"
+            fname = "mpc" if use_mpc else "ref"
             ani.save(self.vis_path / f"{fname}.mp4", writer=self.writer)
 
 
