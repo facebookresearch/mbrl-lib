@@ -1,5 +1,5 @@
 import os
-from typing import List, cast
+from typing import List, Optional, cast
 
 import gym
 import numpy as np
@@ -36,6 +36,7 @@ def train(
     reward_fn: mbrl.types.RewardFnType,
     cfg: omegaconf.DictConfig,
     silent: bool = False,
+    work_dir: Optional[str] = None,
 ) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
@@ -48,7 +49,7 @@ def train(
     if cfg.seed is not None:
         torch_generator.manual_seed(cfg.seed)
 
-    work_dir = os.getcwd()
+    work_dir = work_dir or os.getcwd()
     print(f"Results will be saved at {work_dir}.")
 
     if silent:
