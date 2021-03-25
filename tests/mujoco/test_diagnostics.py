@@ -13,10 +13,8 @@ import mbrl.diagnostics as diagnostics
 import mbrl.planning as planning
 import mbrl.util as utils
 
-# Create a temporary directory for simulating a training run
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
-os.chdir(_DIR.name)
 _HYDRA_DIR = pathlib.Path(_DIR.name) / ".hydra"
 pathlib.Path.mkdir(_HYDRA_DIR)
 
@@ -175,6 +173,3 @@ def test_visualizer():
 
     files = os.listdir(pathlib.Path(_DIR.name) / "diagnostics")
     assert "mpc.mp4" in files and "ref.mp4" in files
-
-
-test_visualizer()
