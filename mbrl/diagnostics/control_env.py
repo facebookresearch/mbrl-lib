@@ -11,7 +11,6 @@ import skvideo.io
 import torch
 
 import mbrl.planning
-import mbrl.util
 import mbrl.util.mujoco as mujoco_util
 
 env__: gym.Env
