@@ -1,5 +1,5 @@
 import os
-from typing import cast
+from typing import Optional, cast
 
 import gym
 import hydra.utils
@@ -78,6 +78,7 @@ def train(
     termination_fn: mbrl.types.TermFnType,
     cfg: omegaconf.DictConfig,
     silent: bool = False,
+    work_dir: Optional[str] = None,
 ) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
@@ -88,7 +89,7 @@ def train(
     mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
     agent = hydra.utils.instantiate(cfg.algorithm.agent)
 
-    work_dir = os.getcwd()
+    work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
     logger = mbrl.logger.Logger(work_dir, enable_back_compatible=True)
     logger.register_group("mbpo", MBPO_LOG_FORMAT, color="red", dump_frequency=1)

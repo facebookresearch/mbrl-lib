@@ -6,7 +6,6 @@ import matplotlib as mpl
 import matplotlib.pylab as plt
 import numpy as np
 
-import mbrl.models
 import mbrl.replay_buffer
 import mbrl.util
 import mbrl.util.mujoco as mujoco_util
@@ -34,7 +33,7 @@ class DatasetEvaluator:
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
-            dataset_dir,
+            load_dir=dataset_dir,
             train_is_bootstrap=False,
         )
 
@@ -73,7 +72,7 @@ class DatasetEvaluator:
         num_dim = targets_np.shape[1]
         for dim in range(num_dim):
             sort_idx = targets_np[:, dim].argsort()
-            subsample_size = len(sort_idx) // 20
+            subsample_size = len(sort_idx) // 20 + 1
             subsample = np.random.choice(len(sort_idx), size=(subsample_size,))
             means = all_means_np[..., sort_idx, dim][..., subsample]  # type: ignore
             target = targets_np[sort_idx, dim][subsample]

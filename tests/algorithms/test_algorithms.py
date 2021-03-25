@@ -22,7 +22,6 @@ _TARGET_REWARD = -10 * _REW_C
 
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
-os.chdir(_DIR.name)
 
 SEED = 12345
 torch.manual_seed(SEED)
@@ -100,7 +99,9 @@ def _check_pets(model_type):
     term_fn = mbrl_env.termination_fns.no_termination
     reward_fn = mock_reward_fn
 
-    max_reward = pets.train(env, term_fn, reward_fn, cfg, silent=True)
+    max_reward = pets.train(
+        env, term_fn, reward_fn, cfg, silent=True, work_dir=_DIR.name
+    )
 
     assert max_reward > _TARGET_REWARD
 
@@ -160,7 +161,9 @@ def test_mbpo():
     test_env = MockLineEnv()
     term_fn = mbrl_env.termination_fns.no_termination
 
-    max_reward = mbpo.train(env, test_env, term_fn, cfg, silent=True)
+    max_reward = mbpo.train(
+        env, test_env, term_fn, cfg, silent=True, work_dir=_DIR.name
+    )
 
     assert max_reward > _TARGET_REWARD
 

@@ -139,6 +139,10 @@ class ProprioceptiveModel(Model):
             target = torch.from_numpy(target_obs).to(self.device)
         return model_in, target
 
+    def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
+        """Calls forward method of base model with the given input and args."""
+        return self.model.forward(x, **kwargs)
+
     def update_normalizer(self, transition: mbrl.types.Transition):
         """Updates the normalizer statistics using the data in the transition.
 

@@ -140,12 +140,12 @@ def create_replay_buffers(
           -algorithm
             -dataset_size (int, optional): the maximum size of the train dataset/buffer
           -overrides
-            -trial_length (int, optional): the length of a trial/episode in the environment.
-                If ``collect_trajectories == True``, this must be provided to be used as
-                max_trajectory_length.
-            -num_trials (int, optional): how many trial/episodes will be run
             -model_batch_size (int): the batch size to use when training the model
             -validation_ratio (float): size of the val. dataset in proportion to training dataset
+            -trial_length (int, optional): the length of a trial/episode in the environment.
+                If ``collect_trajectories == True``, this must be provided to be used as
+                max_trajectory_length
+            -num_trials (int, optional): how many trial/episodes will be run
 
     The size of the training/validation buffers can be determined by either providing
     ``cfg.algorithm.dataset_size``, or providing both ``cfg.overrides.trial_length`` and
