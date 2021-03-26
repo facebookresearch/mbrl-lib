@@ -15,6 +15,7 @@ import mbrl.planning
 import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
+from mbrl.planning.sac_wrapper import SACAgent
 
 MBPO_LOG_FORMAT = [
     ("epoch", "E", "int"),
@@ -27,7 +28,7 @@ MBPO_LOG_FORMAT = [
 def rollout_model_and_populate_sac_buffer(
     model_env: mbrl.models.ModelEnv,
     env_dataset: mbrl.replay_buffer.BootstrapReplayBuffer,
-    agent: pytorch_sac.Agent,
+    agent: SACAgent,
     sac_buffer: pytorch_sac.ReplayBuffer,
     sac_samples_action: bool,
     rollout_horizon: int,
@@ -41,8 +42,7 @@ def rollout_model_and_populate_sac_buffer(
         return_as_np=True,
     )
     for i in range(rollout_horizon):
-        with pytorch_sac.utils.eval_mode(), torch.no_grad():
-            action = agent.act(obs, sample=sac_samples_action, batched=True)
+        action = agent.act(obs, sample=sac_samples_action, batched=True)
         pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
         sac_buffer.add_batch(
             obs, action, pred_rewards, pred_next_obs, pred_dones, pred_dones
@@ -63,8 +63,7 @@ def evaluate(
         done = False
         episode_reward = 0
         while not done:
-            with pytorch_sac.utils.eval_mode(), torch.no_grad():
-                action = agent.act(obs)
+            action = agent.act(obs)
             obs, reward, done, _ = env.step(action)
             video_recorder.record(env)
             episode_reward += reward
@@ -113,11 +112,12 @@ def train(
     env_dataset_train = cast(
         mbrl.replay_buffer.BootstrapReplayBuffer, env_dataset_train
     )
+    random_explore = cfg.algorithm.random_initial_explore
     mbrl.util.rollout_agent_trajectories(
         env,
         cfg.algorithm.initial_exploration_steps,
-        mbrl.planning.RandomAgent(env),
-        {},
+        mbrl.planning.RandomAgent(env) if random_explore else agent,
+        {} if random_explore else {"sample": True, "batched": False},
         rng,
         train_dataset=env_dataset_train,
         val_dataset=env_dataset_val,
