@@ -45,13 +45,20 @@ def rollout_model_and_populate_sac_buffer(
         initial_obs_batch=cast(np.ndarray, initial_obs),
         return_as_np=True,
     )
+    accum_dones = np.zeros(obs.shape[0], dtype=bool)
     for i in range(rollout_horizon):
         action = agent.act(obs, sample=sac_samples_action, batched=True)
         pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
         sac_buffer.add_batch(
-            obs, action, pred_rewards, pred_next_obs, pred_dones, pred_dones
+            obs[~accum_dones],
+            action[~accum_dones],
+            pred_rewards[~accum_dones],
+            pred_next_obs[~accum_dones],
+            pred_dones[~accum_dones],
+            pred_dones[~accum_dones],
         )
-        obs = pred_next_obs[~pred_dones.squeeze()]
+        obs = pred_next_obs
+        accum_dones |= pred_dones.squeeze()
 
 
 def evaluate(
