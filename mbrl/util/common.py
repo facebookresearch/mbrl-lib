@@ -72,9 +72,7 @@ def create_proprioceptive_model(
     if model_cfg.get("in_size", None) is None:
         model_cfg.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
     if model_cfg.get("out_size", None) is None:
-        model_cfg.out_size = obs_shape[0]
-    if cfg.algorithm.learned_rewards:
-        model_cfg.out_size += 1
+        model_cfg.out_size = obs_shape[0] + int(cfg.algorithm.learned_rewards)
 
     # Now instantiate the model
     model = hydra.utils.instantiate(cfg.dynamics_model.model)
