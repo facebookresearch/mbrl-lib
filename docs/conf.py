@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "mbrl-lib"
-copyright = "2020, Facebook AI Research"
+project = "MBRL-Lib"
+copyright = "2021, Facebook AI Research"
 author = "Facebook AI Research"
 
 
