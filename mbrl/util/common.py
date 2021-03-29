@@ -274,7 +274,7 @@ def train_model_and_save_model_and_data(
         cfg (:class:`omegaconf.DictConfig`): configuration to use for training.
             Fields ``cfg.overrides.num_epochs_train_model`` and ``cfg.overrides.patience``
             will be passed to the model trainer (as ``num_epochs`` and ``patience`` kwargs,
-            respectively).
+            respectively). If patience is not given, a default value of 1 will be used.
         dataset_train (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the dataset to use
             for training.
         dataset_val (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the dataset to use
@@ -284,7 +284,7 @@ def train_model_and_save_model_and_data(
     """
     model_trainer.train(
         num_epochs=cfg.overrides.get("num_epochs_train_model", None),
-        patience=cfg.overrides.patience,
+        patience=cfg.overrides.get("patience", 1),
     )
     model.save(str(work_dir))
     save_buffers(dataset_train, dataset_val, work_dir)

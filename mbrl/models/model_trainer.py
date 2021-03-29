@@ -76,7 +76,7 @@ class DynamicsModelTrainer:
     def train(
         self,
         num_epochs: Optional[int] = None,
-        patience: Optional[int] = 50,
+        patience: Optional[int] = 1,
         callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
