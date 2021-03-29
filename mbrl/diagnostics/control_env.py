@@ -1,3 +1,7 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import argparse
 import multiprocessing as mp
 import pathlib
@@ -11,7 +15,6 @@ import skvideo.io
 import torch
 
 import mbrl.planning
-import mbrl.util
 import mbrl.util.mujoco as mujoco_util
 
 env__: gym.Env

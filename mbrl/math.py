@@ -1,3 +1,7 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import dataclasses
 import pathlib
 import pickle
@@ -33,7 +37,10 @@ def truncated_linear(
 
 
 def gaussian_nll(
-    pred_mean: torch.Tensor, pred_logvar: torch.Tensor, target: torch.Tensor
+    pred_mean: torch.Tensor,
+    pred_logvar: torch.Tensor,
+    target: torch.Tensor,
+    reduce: bool = True,
 ) -> torch.Tensor:
     """Negative log-likelihood for Gaussian distribution
 
@@ -41,6 +48,8 @@ def gaussian_nll(
         pred_mean (tensor): the predicted mean.
         pred_logvar (tensor): the predicted log variance.
         target (tensor): the target value.
+        reduce (bool): if ``False`` the loss is returned w/o reducing.
+            Defaults to ``True``.
 
     Returns:
         (tensor): the negative log-likelihood.
@@ -48,7 +57,9 @@ def gaussian_nll(
     l2 = F.mse_loss(pred_mean, target, reduction="none")
     inv_var = (-pred_logvar).exp()
     losses = l2 * inv_var + pred_logvar
-    return losses.sum(dim=1).mean()
+    if reduce:
+        return losses.sum(dim=1).mean()
+    return losses
 
 
 # inplace truncated normal function for pytorch.

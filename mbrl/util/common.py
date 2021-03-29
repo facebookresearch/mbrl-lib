@@ -1,5 +1,9 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import pathlib
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import gym.wrappers
 import hydra
@@ -12,7 +16,8 @@ import mbrl.replay_buffer
 import mbrl.types
 
 
-def create_dynamics_model(
+# TODO read proprioceptive model from hydra
+def create_proprioceptive_model(
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     obs_shape: Tuple[int, ...],
     act_shape: Tuple[int, ...],
@@ -21,7 +26,7 @@ def create_dynamics_model(
     """Creates a dynamics model from a given configuration.
 
     This method creates a new model from the given configuration and wraps it into a
-    :class:`mbrl.models.DynamicsModelWrapper` (see its documentation for explanation of some
+    :class:`mbrl.models.ProprioceptiveModel` (see its documentation for explanation of some
     of the config args under ``cfg.algorithm``).
     The configuration should be structured as follows::
 
@@ -60,18 +65,20 @@ def create_dynamics_model(
             "model_dir / env_stats.pickle", respectively.
 
     Returns:
-        (:class:`mbrl.models.DynamicsModelWrapper`): the dynamics model wrapper for the model
-        created.
+        (:class:`mbrl.models.ProprioceptiveModel`): the proprioceptive model created.
 
     """
-    if cfg.dynamics_model.model.get("in_size", None) is None:
-        cfg.dynamics_model.model.in_size = obs_shape[0] + (
-            act_shape[0] if act_shape else 1
-        )
-    if cfg.dynamics_model.model.get("out_size", None) is None:
-        cfg.dynamics_model.model.out_size = obs_shape[0]
-    if cfg.algorithm.learned_rewards:
-        cfg.dynamics_model.model.out_size += 1
+    # This first part takes care of the case where model is BasicEnsemble and in/out sizes
+    # are handled by member_cfg
+    model_cfg = cfg.dynamics_model.model
+    if model_cfg._target_ == "mbrl.models.BasicEnsemble":
+        model_cfg = model_cfg.member_cfg
+    if model_cfg.get("in_size", None) is None:
+        model_cfg.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
+    if model_cfg.get("out_size", None) is None:
+        model_cfg.out_size = obs_shape[0] + int(cfg.algorithm.learned_rewards)
+
+    # Now instantiate the model
     model = hydra.utils.instantiate(cfg.dynamics_model.model)
 
     name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
@@ -79,7 +86,7 @@ def create_dynamics_model(
         obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
     else:
         obs_process_fn = None
-    dynamics_model = mbrl.models.DynamicsModelWrapper(
+    dynamics_model = mbrl.models.ProprioceptiveModel(
         model,
         target_is_delta=cfg.algorithm.target_is_delta,
         normalize=cfg.algorithm.normalize,
@@ -119,6 +126,7 @@ def create_replay_buffers(
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
     train_is_bootstrap: bool = True,
+    collect_trajectories: bool = False,
     rng: Optional[np.random.Generator] = None,
 ) -> Tuple[
     mbrl.replay_buffer.IterableReplayBuffer, mbrl.replay_buffer.IterableReplayBuffer
@@ -134,10 +142,12 @@ def create_replay_buffers(
           -algorithm
             -dataset_size (int, optional): the maximum size of the train dataset/buffer
           -overrides
-            -trial_length (int, optional): the length of a trial/episode in the environment
-            -num_trials (int, optional): how many trial/episodes will be run
             -model_batch_size (int): the batch size to use when training the model
             -validation_ratio (float): size of the val. dataset in proportion to training dataset
+            -trial_length (int, optional): the length of a trial/episode in the environment.
+                If ``collect_trajectories == True``, this must be provided to be used as
+                max_trajectory_length
+            -num_trials (int, optional): how many trial/episodes will be run
 
     The size of the training/validation buffers can be determined by either providing
     ``cfg.algorithm.dataset_size``, or providing both ``cfg.overrides.trial_length`` and
@@ -156,6 +166,8 @@ def create_replay_buffers(
             be used to train an ensemble of bootstrapped models, in which case the training
             buffer will be an instance of :class:`mbrl.replay_buffer.BootstrapReplayBuffer`.
             Otherwise, it will be an instance of :class:`mbrl.replay_buffer.IterableReplayBuffer`.
+        collect_trajectories (bool, optional): if ``True`` sets the replay buffers to collect
+            trajectory information. Defaults to ``False``.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
 
@@ -169,6 +181,14 @@ def create_replay_buffers(
     if not dataset_size:
         dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
     train_buffer: mbrl.replay_buffer.IterableReplayBuffer
+    maybe_max_trajectory_len = None
+    if collect_trajectories:
+        if cfg.overrides.trial_length is None:
+            raise ValueError(
+                "cfg.overrides.trial_length must be set when "
+                "collect_trajectories==True."
+            )
+        maybe_max_trajectory_len = cfg.overrides.trial_length
     if train_is_bootstrap:
         train_buffer = mbrl.replay_buffer.BootstrapReplayBuffer(
             dataset_size,
@@ -178,6 +198,7 @@ def create_replay_buffers(
             act_shape,
             rng=rng,
             shuffle_each_epoch=True,
+            max_trajectory_length=maybe_max_trajectory_len,
         )
     else:
         train_buffer = mbrl.replay_buffer.IterableReplayBuffer(
@@ -187,6 +208,7 @@ def create_replay_buffers(
             act_shape,
             rng=rng,
             shuffle_each_epoch=True,
+            max_trajectory_length=maybe_max_trajectory_len,
         )
     val_buffer_capacity = int(dataset_size * cfg.overrides.validation_ratio)
     val_buffer = mbrl.replay_buffer.IterableReplayBuffer(
@@ -195,6 +217,7 @@ def create_replay_buffers(
         obs_shape,
         act_shape,
         rng=rng,
+        max_trajectory_length=maybe_max_trajectory_len,
     )
 
     if load_dir:
@@ -232,8 +255,9 @@ def save_buffers(
     val_buffer.save(str(work_path / f"{prefix}_val"))
 
 
+# TODO replace this with optional save inside the trainer (maybe)
 def train_model_and_save_model_and_data(
-    dynamics_model: mbrl.models.DynamicsModelWrapper,
+    model: mbrl.models.Model,
     model_trainer: mbrl.models.DynamicsModelTrainer,
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     dataset_train: mbrl.replay_buffer.SimpleReplayBuffer,
@@ -245,7 +269,7 @@ def train_model_and_save_model_and_data(
     Runs `model_trainer.train()`, then saves the resulting model and the data used.
 
     Args:
-        dynamics_model (:class:`mbrl.models.DynamicsModelWrapper`): the model to train.
+        model (:class:`mbrl.models.Model`): the model to train.
         model_trainer (:class:`mbrl.models.DynamicsModelTrainer`): the model trainer.
         cfg (:class:`omegaconf.DictConfig`): configuration to use for training.
             Fields ``cfg.overrides.num_epochs_train_model`` and ``cfg.overrides.patience``
@@ -262,7 +286,7 @@ def train_model_and_save_model_and_data(
         num_epochs=cfg.overrides.get("num_epochs_train_model", None),
         patience=cfg.overrides.patience,
     )
-    dynamics_model.save(work_dir)
+    model.save(str(work_dir))
     save_buffers(dataset_train, dataset_val, work_dir)
 
 
@@ -295,11 +319,7 @@ def rollout_model_env(
     reward_history = []
     if agent:
         plan = agent.plan(initial_obs[None, :])
-    obs0 = model_env.reset(
-        np.tile(initial_obs, (num_samples, 1)),
-        propagation_method="random_model",
-        return_as_np=True,
-    )
+    obs0 = model_env.reset(np.tile(initial_obs, (num_samples, 1)), return_as_np=True)
     obs_history.append(obs0)
     for action in plan:
         next_obs, reward, done, _ = model_env.step(
@@ -323,70 +343,113 @@ def _select_dataset_to_update(
         return train_dataset
 
 
-def populate_buffers_with_agent_trajectories(
+def rollout_agent_trajectories(
     env: gym.Env,
-    train_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
-    val_dataset: mbrl.replay_buffer.SimpleReplayBuffer,
-    steps_to_collect: int,
-    val_ratio: float,
+    steps_or_trials_to_collect: int,
     agent: mbrl.planning.Agent,
     agent_kwargs: Dict,
     rng: np.random.Generator,
     trial_length: Optional[int] = None,
     callback: Optional[Callable] = None,
-):
-    """Populates replay buffers with env transitions and actions from a given agent.
+    train_dataset: Optional[mbrl.replay_buffer.SimpleReplayBuffer] = None,
+    val_dataset: Optional[mbrl.replay_buffer.SimpleReplayBuffer] = None,
+    val_ratio: Optional[float] = 0.0,
+    collect_full_trajectories: bool = False,
+) -> List[float]:
+    """Rollout agent trajectories in the given environment.
+
+    Rollouts trajectories in the environment using actions produced by the given agent.
+    Optionally, it stores the saved data into a replay buffer.
 
     Args:
         env (gym.Env): the environment to step.
-        train_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the replay buffer
-            containing training data.
-        val_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`): the replay buffer
-            containing validation data.
-        steps_to_collect (int): how many steps of the environment to collect.
-        val_ratio (float): the probability that a transition will be added to the
-            validation dataset.
+        steps_or_trials_to_collect (int): how many steps of the environment to collect. If
+            ``collect_trajectories=True``, it indicates the number of trials instead.
         agent (:class:`mbrl.planning.Agent`): the agent used to generate an action.
         agent_kwargs (dict): any keyword arguments to pass to `agent.act()` method.
         rng (np.random.Generator): a random number generator used to select which dataset to
             populate at each step.
-        trial_length (int): the length of trials (env will be reset regularly after this many
-            number of steps).
+        trial_length (int, optional): a maximum length for trials (env will be reset regularly
+            after this many number of steps). Defaults to ``None``, in which case trials
+            will end when the environment returns ``done=True``.
         callback (callable, optional): a function that will be called using the generated
             transition data `(obs, action. next_obs, reward, done)`.
+        train_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`, optional):
+            a replay buffer to store data to use for training.
+        val_dataset (:class:`mbrl.replay_buffer.SimpleReplayBuffer`, optional):
+            a replay buffer containing data to use for validation.
+        val_ratio (float, optional): the probability that a transition will be added to the
+            validation dataset.
+        collect_full_trajectories (bool): if ``True``, indicates that replay buffers should
+            collect full trajectories. This only affects the split between training and
+            validation buffers. If ``collect_trajectories=True``, the split is done over
+            trials (full trials in each dataset); otherwise, it's done across steps.
 
     Returns:
-        (tuple): next observation, reward, done and meta-info, respectively, as generated by
-        `env.step(agent.act(obs))`.
+        (list(float)): Total rewards obtained at each complete trial.
     """
-    indices = rng.permutation(steps_to_collect)
-    n_train = int(steps_to_collect * (1 - val_ratio))
+    if val_dataset is None:
+        val_ratio = 0
+    if (
+        train_dataset is not None
+        and not collect_full_trajectories
+        and (train_dataset.stores_trajectories or val_dataset.stores_trajectories)
+        and val_ratio > 0
+    ):
+        # Might be better as a warning but it's possible that users will miss it.
+        raise RuntimeError(
+            "Datasets are tracking trajectory information but "
+            "collect_trajectories is set to False, which will result in "
+            "corrupted trajectory data."
+        )
+
+    indices = rng.permutation(steps_or_trials_to_collect)
+    n_train = int(steps_or_trials_to_collect * (1 - val_ratio))
     indices_train = set(indices[:n_train])
 
     step = 0
+    trial = 0
+    total_rewards: List[float] = []
     while True:
         obs = env.reset()
         done = False
+        total_reward = 0.0
         while not done:
-            which_dataset = train_dataset if step in indices_train else val_dataset
-            next_obs, _, done, info = step_env_and_populate_dataset(
-                env,
-                obs,
-                agent,
-                agent_kwargs,
-                which_dataset,  # No need to select dataset inside, force to which_dataset
-                which_dataset,
-                False,
-                0.0,
-                rng,
-                callback=callback,
-            )
+            index = trial if collect_full_trajectories else step
+            which_dataset = train_dataset if index in indices_train else val_dataset
+
+            if which_dataset is not None:
+                next_obs, reward, done, info = step_env_and_populate_dataset(
+                    env,
+                    obs,
+                    agent,
+                    agent_kwargs,
+                    which_dataset,  # No need to select dataset inside, force to which_dataset
+                    which_dataset,
+                    False,
+                    0.0,
+                    rng,
+                    callback=callback,
+                )
+            else:
+                action = agent.act(obs, **agent_kwargs)
+                next_obs, reward, done, info = env.step(action)
+                if callback:
+                    callback((obs, action, next_obs, reward, done))
             obs = next_obs
+            total_reward += reward
             step += 1
-            if step == steps_to_collect:
-                return
+            if not collect_full_trajectories and step == steps_or_trials_to_collect:
+                return total_rewards
             if trial_length and step % trial_length == 0:
+                if collect_full_trajectories and not done and which_dataset is not None:
+                    which_dataset.close_trajectory()
                 break
+        trial += 1
+        total_rewards.append(total_reward)
+        if collect_full_trajectories and trial == steps_or_trials_to_collect:
+            break
+    return total_rewards
 
 
 def step_env_and_populate_dataset(

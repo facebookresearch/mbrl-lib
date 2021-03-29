@@ -18,6 +18,10 @@ then run
     cd mbrl-lib
     pip install -e .
 
+For using mujoco environments and mujoco related utils, install (requires mujoco license)
+
+    pip install -r requirements/mujoco.txt
+
 If you are interested in contributing, please install the developer tools as well
 
     pip install -e ".[dev]"
@@ -26,7 +30,13 @@ Finally, make sure your Python environment has
 [PyTorch (>= 1.7)](https://pytorch.org) installed with the appropriate 
 CUDA configuration for your system.
 
-    python -m pytest tests
+For testing your installation, run
+
+    python -m pytest tests/core
+
+and to test mujoco-related utilities, run
+
+    python -m pytest tests/mujoco
 
 ### Basic example
 As a starting point, check out our [tutorial notebook](notebooks/pets_example.ipynb) 

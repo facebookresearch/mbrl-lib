@@ -1,5 +1,9 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import os
-from typing import List, cast
+from typing import List, Optional, cast
 
 import gym
 import numpy as np
@@ -35,7 +39,9 @@ def train(
     termination_fn: mbrl.types.TermFnType,
     reward_fn: mbrl.types.RewardFnType,
     cfg: omegaconf.DictConfig,
-) -> float:
+    silent: bool = False,
+    work_dir: Optional[str] = None,
+) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
 
@@ -47,32 +53,36 @@ def train(
     if cfg.seed is not None:
         torch_generator.manual_seed(cfg.seed)
 
-    work_dir = os.getcwd()
+    work_dir = work_dir or os.getcwd()
     print(f"Results will be saved at {work_dir}.")
-    logger = mbrl.logger.Logger(work_dir)
-    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
-    logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
+    if silent:
+        logger = None
+    else:
+        logger = mbrl.logger.Logger(work_dir)
+        logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
 
     # -------- Create and populate initial env dataset --------
+    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
+
     dataset_train, dataset_val = mbrl.util.create_replay_buffers(
         cfg,
         obs_shape,
         act_shape,
-        train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
+        train_is_bootstrap=isinstance(dynamics_model.model, mbrl.models.Ensemble),
         rng=rng,
     )
     dataset_train = cast(mbrl.replay_buffer.BootstrapReplayBuffer, dataset_train)
-    mbrl.util.populate_buffers_with_agent_trajectories(
+
+    mbrl.util.rollout_agent_trajectories(
         env,
-        dataset_train,
-        dataset_val,
         cfg.algorithm.initial_exploration_steps,
-        cfg.overrides.validation_ratio,
         mbrl.planning.RandomAgent(env),
         {},
         rng,
-        trial_length=cfg.overrides.trial_length,
+        train_dataset=dataset_train,
+        val_dataset=dataset_val,
+        val_ratio=cfg.overrides.validation_ratio,
         callback=dynamics_model.update_normalizer,
     )
     mbrl.util.save_buffers(dataset_train, dataset_val, work_dir)
@@ -92,10 +102,7 @@ def train(
     )
 
     agent = mbrl.planning.create_trajectory_optim_agent_for_model(
-        model_env,
-        cfg.algorithm.agent,
-        num_particles=cfg.algorithm.num_particles,
-        propagation_method=cfg.algorithm.propagation_method,
+        model_env, cfg.algorithm.agent, num_particles=cfg.algorithm.num_particles
     )
 
     # ---------------------------------------------------------
@@ -150,11 +157,14 @@ def train(
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")
 
-        logger.log_data(
-            "pets_eval", {"trial": current_trial, "episode_reward": total_reward}
-        )
+        if logger is not None:
+            logger.log_data(
+                "pets_eval", {"trial": current_trial, "episode_reward": total_reward}
+            )
         current_trial += 1
+        if debug_mode:
+            print(f"Trial: {current_trial }, reward: {total_reward}.")
 
         max_total_reward = max(max_total_reward, total_reward)
 
-    return float(max_total_reward)
+    return np.float32(max_total_reward)

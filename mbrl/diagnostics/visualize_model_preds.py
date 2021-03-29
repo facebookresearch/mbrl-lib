@@ -1,3 +1,7 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import argparse
 import pathlib
 from typing import Generator, List, Optional, Tuple, cast
@@ -6,6 +10,7 @@ import gym.wrappers
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 import mbrl
 import mbrl.models
@@ -34,11 +39,12 @@ class Visualizer:
         if model_subdir:
             self.model_path /= model_subdir
             # If model subdir is child of diagnostics, remove "diagnostics" before
-            # appending to vis_path
+            # appending to vis_path. This can happen, for example, if Finetuner
+            # generated this model with a model_subdir
             if "diagnostics" in model_subdir:
                 model_subdir = pathlib.Path(model_subdir).name
             self.vis_path /= model_subdir
-        pathlib.Path.mkdir(self.vis_path, exist_ok=True)
+        pathlib.Path.mkdir(self.vis_path, parents=True, exist_ok=True)
 
         self.num_model_samples = num_model_samples
         self.num_steps = num_steps
@@ -62,14 +68,18 @@ class Visualizer:
             self.reference_agent = None
         self.reward_fn = reward_fn
 
-        self.dynamics_model = mbrl.util.create_dynamics_model(
+        self.dynamics_model = mbrl.util.create_proprioceptive_model(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
             model_dir=self.model_path,
         )
         self.model_env = mbrl.models.ModelEnv(
-            self.env, self.dynamics_model, term_fn, reward_fn
+            self.env,
+            self.dynamics_model,
+            term_fn,
+            reward_fn,
+            generator=torch.Generator(),
         )
 
         self.cfg.algorithm.agent.planning_horizon = lookahead
@@ -77,7 +87,6 @@ class Visualizer:
             self.model_env,
             self.cfg.algorithm.agent,
             num_particles=self.cfg.algorithm.num_particles,
-            propagation_method=self.cfg.algorithm.propagation_method,
         )
 
         self.fig = None
@@ -234,7 +243,7 @@ class Visualizer:
                 interval=100,
                 repeat=False,
             )
-            fname = "mpc" if use_mpc else "opt"
+            fname = "mpc" if use_mpc else "ref"
             ani.save(self.vis_path / f"{fname}.mp4", writer=self.writer)
 
 

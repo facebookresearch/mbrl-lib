@@ -1,8 +1,30 @@
-from typing import List, Optional, Sized, Tuple
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+import warnings
+from typing import List, Optional, Sequence, Sized, Tuple
 
 import numpy as np
 
-import mbrl.types
+from mbrl.types import TransitionBatch
+
+
+def _consolidate_batches(batches: Sequence[TransitionBatch]) -> TransitionBatch:
+    len_batches = len(batches)
+    b0 = batches[0]
+    obs = np.empty((len_batches,) + b0.obs.shape, dtype=b0.obs.dtype)
+    act = np.empty((len_batches,) + b0.act.shape, dtype=b0.act.dtype)
+    next_obs = np.empty((len_batches,) + b0.obs.shape, dtype=b0.obs.dtype)
+    rewards = np.empty((len_batches,) + b0.rewards.shape, dtype=np.float32)
+    dones = np.empty((len_batches,) + b0.dones.shape, dtype=bool)
+    for i, b in enumerate(batches):
+        obs[i] = b.obs
+        act[i] = b.act
+        next_obs[i] = b.next_obs
+        rewards[i] = b.rewards
+        dones[i] = b.dones
+    return TransitionBatch(obs, act, next_obs, rewards, dones)
 
 
 class SimpleReplayBuffer:
@@ -17,6 +39,15 @@ class SimpleReplayBuffer:
         action_type (type): the data type of the actions (defaults to np.float32).
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
+        max_trajectory_length (int, optional): if given, indicates that trajectory
+            information should be stored and that trajectories will be at most this
+            number of steps. Defaults to ``None`` in which case no trajectory
+            information will be kept. The buffer will keep trajectory information
+            automatically using the done value when calling :meth:`add`.
+
+    .. warning::
+        When using ``max_trajectory_length`` it is the user's responsibility to ensure
+        that trajectories are stored continuously in the replay buffer.
     """
 
     def __init__(
@@ -27,20 +58,81 @@ class SimpleReplayBuffer:
         obs_type=np.float32,
         action_type=np.float32,
         rng: Optional[np.random.Generator] = None,
+        max_trajectory_length: Optional[int] = None,
     ):
+        self.cur_idx = 0
+        self.capacity = capacity
+        self.num_stored = 0
+
+        self.trajectory_indices: Optional[List[Tuple[int, int]]] = None
+        if max_trajectory_length:
+            self.trajectory_indices = []
+            capacity += max_trajectory_length
         self.obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.next_obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.action = np.empty((capacity, *action_shape), dtype=action_type)
         self.reward = np.empty(capacity, dtype=np.float32)
         self.done = np.empty(capacity, dtype=bool)
-        self.cur_idx = 0
-        self.capacity = capacity
-        self.num_stored = 0
 
         if rng is None:
             self._rng = np.random.default_rng()
         else:
             self._rng = rng
+
+        self._start_last_trajectory = 0
+
+    @property
+    def stores_trajectories(self):
+        return self.trajectory_indices is not None
+
+    @staticmethod
+    def _check_overlap(segment1: Tuple[int, int], segment2: Tuple[int, int]) -> bool:
+        s1, e1 = segment1
+        s2, e2 = segment2
+        return (s1 <= s2 < e1) or (s1 < e2 <= e1)
+
+    def remove_overlapping_trajectories(self, new_trajectory: Tuple[int, int]):
+        cnt = 0
+        for traj in self.trajectory_indices:
+            if self._check_overlap(new_trajectory, traj):
+                cnt += 1
+            else:
+                break
+        for _ in range(cnt):
+            self.trajectory_indices.pop(0)
+
+    def _trajectory_bookkeeping(self, done: bool):
+        self.cur_idx += 1
+        if self.num_stored < self.capacity:
+            self.num_stored += 1
+        if self.cur_idx >= self.capacity:
+            self.num_stored = max(self.num_stored, self.cur_idx)
+        if done:
+            self.close_trajectory()
+        if self.cur_idx >= len(self.obs):
+            warnings.warn(
+                "The replay buffer was filled before current trajectory finished. "
+                "The history of the current partial trajectory will be discarded. "
+                "Make sure you set `max_trajectory_length` to the appropriate value"
+                "for your problem."
+            )
+            self._start_last_trajectory = 0
+            self.cur_idx = 0
+            self.num_stored = len(self.obs)
+
+    def close_trajectory(self):
+        new_trajectory = (self._start_last_trajectory, self.cur_idx)
+        self.remove_overlapping_trajectories(new_trajectory)
+        self.trajectory_indices.append(new_trajectory)
+        if self.cur_idx >= self.capacity:
+            self.cur_idx = 0
+        self._start_last_trajectory = self.cur_idx
+
+        if self.cur_idx - self._start_last_trajectory > (len(self.obs) - self.capacity):
+            warnings.warn(
+                "A trajectory was saved with length longer than expected. "
+                "Unexpected behavior might occur."
+            )
 
     def add(
         self,
@@ -65,8 +157,11 @@ class SimpleReplayBuffer:
         self.reward[self.cur_idx] = reward
         self.done[self.cur_idx] = done
 
-        self.cur_idx = (self.cur_idx + 1) % self.capacity
-        self.num_stored = min(self.num_stored + 1, self.capacity)
+        if self.trajectory_indices is not None:
+            self._trajectory_bookkeeping(done)
+        else:
+            self.cur_idx = (self.cur_idx + 1) % self.capacity
+            self.num_stored = min(self.num_stored + 1, self.capacity)
 
     def sample(self, batch_size: int) -> Sized:
         """Samples a batch of transitions from the replay buffer.
@@ -82,14 +177,30 @@ class SimpleReplayBuffer:
         indices = self._rng.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
 
-    def _batch_from_indices(self, indices: Sized) -> mbrl.types.RLBatch:
+    def sample_trajectory(self) -> Optional[TransitionBatch]:
+        """Samples a full trajectory and returns it as a batch.
+
+        Returns:
+            (tuple): A tuple with observations, actions, next observations, rewards
+            and done indicators, as numpy arrays, respectively; these will correspond
+            to a full trajectory. The i-th transition corresponds
+            to (obs[i], act[i], next_obs[i], rewards[i], dones[i])."""
+        if not self.trajectory_indices:
+            return None
+        idx = self._rng.choice(len(self.trajectory_indices))
+        indices = np.arange(
+            self.trajectory_indices[idx][0], self.trajectory_indices[idx][1]
+        )
+        return self._batch_from_indices(indices)
+
+    def _batch_from_indices(self, indices: Sized) -> TransitionBatch:
         obs = self.obs[indices]
         next_obs = self.next_obs[indices]
         action = self.action[indices]
         reward = self.reward[indices]
         done = self.done[indices]
 
-        return obs, action, next_obs, reward, done
+        return TransitionBatch(obs, action, next_obs, reward, done)
 
     def __len__(self):
         return self.num_stored
@@ -154,6 +265,11 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         action_shape (tuple of ints): the shape of the actions to store.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
+        max_trajectory_length (int, optional): if given, indicates that trajectory
+            information should be stored and that trajectories will be at most this
+            number of steps. Defaults to ``None`` in which case no trajectory
+            information will be kept. The buffer will keep trajectory information
+            automatically using the done value when calling :meth:`add`.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
@@ -167,6 +283,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
         obs_shape: Tuple[int],
         action_shape: Tuple[int],
         rng: Optional[np.random.Generator] = None,
+        max_trajectory_length: Optional[int] = None,
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
@@ -178,6 +295,7 @@ class IterableReplayBuffer(SimpleReplayBuffer):
             obs_type=obs_type,
             action_type=action_type,
             rng=rng,
+            max_trajectory_length=max_trajectory_length,
         )
         self.batch_size = batch_size
         self._current_batch = 0
@@ -223,6 +341,11 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         action_shape (tuple of ints): the shape of the actions to store.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
+        max_trajectory_length (int, optional): if given, indicates that trajectory
+            information should be stored and that trajectories will be at most this
+            number of steps. Defaults to ``None`` in which case no trajectory
+            information will be kept. The buffer will keep trajectory information
+            automatically using the done value when calling :meth:`add`.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
@@ -237,6 +360,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         obs_shape: Tuple[int],
         action_shape: Tuple[int],
         rng: Optional[np.random.Generator] = None,
+        max_trajectory_length: Optional[int] = None,
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
@@ -247,22 +371,13 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             obs_shape,
             action_shape,
             rng=rng,
+            max_trajectory_length=max_trajectory_length,
             obs_type=obs_type,
             action_type=action_type,
             shuffle_each_epoch=shuffle_each_epoch,
         )
         self.member_indices: List[List[int]] = [None for _ in range(num_members)]
         self._bootstrap_iter = True
-
-    def add(
-        self,
-        obs: np.ndarray,
-        action: np.ndarray,
-        next_obs: np.ndarray,
-        reward: float,
-        done: bool,
-    ):
-        super().add(obs, action, next_obs, reward, done)
 
     def __iter__(self):
         super().__iter__()
@@ -280,9 +395,9 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         for member_idx in self.member_indices:
             content_indices = member_idx[indices]
             batches.append(self._batch_from_indices(content_indices))
-        return batches
+        return _consolidate_batches(batches)
 
-    def sample(self, batch_size: int, ensemble: bool = True) -> mbrl.types.BatchTypes:
+    def sample(self, batch_size: int, ensemble: bool = True) -> TransitionBatch:
         """Samples a bootstrapped batch from the replay buffer.
 
         For each model in the ensemble, as specified by the ``num_members``
@@ -305,7 +420,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
                 indices = self._rng.choice(self.num_stored, size=batch_size)
                 content_indices = member_idx[indices]
                 batches.append(self._batch_from_indices(content_indices))
-            return batches
+            return _consolidate_batches(batches)
         else:
             indices = self._rng.choice(self.num_stored, size=batch_size)
             return self._batch_from_indices(indices)

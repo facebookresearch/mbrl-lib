@@ -1,3 +1,7 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import math
 
 import torch
@@ -54,7 +58,7 @@ def inverted_pendulum(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor
 def no_termination(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == 2
 
-    done = torch.Tensor([False]).repeat(len(next_obs))
+    done = torch.Tensor([False]).repeat(len(next_obs)).bool()
     done = done[:, None]
     return done
 

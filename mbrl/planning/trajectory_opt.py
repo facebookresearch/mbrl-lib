@@ -1,14 +1,13 @@
-import abc
-import pathlib
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import time
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
-import gym
 import hydra
 import numpy as np
 import omegaconf
-import pytorch_sac
-import pytorch_sac.utils
 import torch
 import torch.distributions
 
@@ -16,10 +15,9 @@ import mbrl.math
 import mbrl.models
 import mbrl.types
 
+from .core import Agent, complete_agent_cfg
 
-# ------------------------------------------------------------------------ #
-#                               CEM
-# ------------------------------------------------------------------------ #
+
 class CEMOptimizer:
     """Implements the Cross-Entropy Method optimization algorithm.
 
@@ -250,96 +248,6 @@ class TrajectoryOptimizer:
         self.previous_solution = self.initial_solution.clone()
 
 
-# ------------------------------------------------------------------------ #
-#                               Agent definitions
-# ------------------------------------------------------------------------ #
-class Agent:
-    """Abstract class for all agents."""
-
-    @abc.abstractmethod
-    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
-        """Issues an action given an observation.
-
-        Args:
-            obs (np.ndarray): the observation for which the action is needed.
-
-        Returns:
-            (np.ndarray): the action.
-        """
-        pass
-
-    def plan(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
-        """Issues a sequence of actions given an observation.
-
-        Unless overridden by a child class, this will be equivalent to :meth:`act`.
-
-        Args:
-            obs (np.ndarray): the observation for which the sequence is needed.
-
-        Returns:
-            (np.ndarray): a sequence of actions.
-        """
-
-        return self.act(obs, **_kwargs)
-
-    def reset(self):
-        """Resets any internal state of the agent."""
-        pass
-
-
-class RandomAgent(Agent):
-    """An agent that samples action from the environments action space.
-
-    Args:
-        env (gym.Env): the environment on which the agent will act.
-    """
-
-    def __init__(self, env: gym.Env):
-        self.env = env
-
-    def act(self, *_args, **_kwargs) -> np.ndarray:
-        """Issues an action given an observation.
-
-        Returns:
-            (np.ndarray): an action sampled from the environment's action space.
-        """
-        return self.env.action_space.sample()
-
-
-class SACAgent(Agent):
-    """A Soft-Actor Critic agent.
-
-    This class is a wrapper for
-    https://github.com/luisenp/pytorch_sac/blob/master/pytorch_sac/agent/sac.py
-
-
-    Args:
-        (pytorch_sac.SACAgent): the agent to wrap.
-    """
-
-    def __init__(self, sac_agent: pytorch_sac.SACAgent):
-        self.sac_agent = sac_agent
-
-    def act(
-        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **_kwargs
-    ) -> np.ndarray:
-        """Issues an action given an observation.
-
-        Args:
-            obs (np.ndarray): the observation (or batch of observations) for which the action
-                is needed.
-            sample (bool): if ``True`` the agent samples actions from its policy, otherwise it
-                returns the mean policy value. Defaults to ``False``.
-            batched (bool): if ``True`` signals to the agent that the obs should be interpreted
-                as a batch.
-
-        Returns:
-            (np.ndarray): the action.
-        """
-        with pytorch_sac.utils.eval_mode(), torch.no_grad():
-            return self.sac_agent.act(obs, sample=sample, batched=batched)
-
-
 class TrajectoryOptimizerAgent(Agent):
     """Agent that performs trajectory optimization on a given objective function for each action.
 
@@ -405,9 +313,9 @@ class TrajectoryOptimizerAgent(Agent):
         """Resets the underlying trajectory optimizer."""
         if planning_horizon:
             self.optimizer = TrajectoryOptimizer(
-                self.optimizer_args["optimizer_cfg"],
-                self.optimizer_args["action_lb"],
-                self.optimizer_args["action_ub"],
+                cast(omegaconf.DictConfig, self.optimizer_args["optimizer_cfg"]),
+                cast(np.ndarray, self.optimizer_args["action_lb"]),
+                cast(np.ndarray, self.optimizer_args["action_ub"]),
                 planning_horizon=planning_horizon,
                 replan_freq=self.replan_freq,
             )
@@ -472,89 +380,10 @@ class TrajectoryOptimizerAgent(Agent):
         return plan
 
 
-def complete_agent_cfg(
-    env: Union[gym.Env, mbrl.models.ModelEnv], agent_cfg: omegaconf.DictConfig
-):
-    """Completes an agent's configuration given information from the environment.
-
-    The goal of this function is to completed information about state and action shapes and ranges,
-    without requiring the user to manually enter this into the Omegaconf configuration object.
-
-    It will check for and complete any of the following keys:
-
-        - "obs_dim": set to env.observation_space.shape
-        - "action_dim": set to env.action_space.shape
-        - "action_range": set to max(env.action_space.high) - min(env.action_space.low)
-        - "action_lb": set to env.action_space.low
-        - "action_ub": set to env.action_space.high
-
-    Note:
-        If the user provides any of these values in the Omegaconf configuration object, these
-        *will not* be overridden by this function.
-
-    """
-    obs_shape = env.observation_space.shape
-    act_shape = env.action_space.shape
-
-    if "obs_dim" in agent_cfg.keys() and "obs_dim" not in agent_cfg:
-        agent_cfg.obs_dim = obs_shape[0]
-    if "action_dim" in agent_cfg.keys() and "action_dim" not in agent_cfg:
-        agent_cfg.action_dim = act_shape[0]
-    if "action_range" in agent_cfg.keys() and "action_range" not in agent_cfg:
-        agent_cfg.action_range = [
-            float(env.action_space.low.min()),
-            float(env.action_space.high.max()),
-        ]
-    if "action_lb" in agent_cfg.keys() and "action_lb" not in agent_cfg:
-        agent_cfg.action_lb = env.action_space.low.tolist()
-    if "action_ub" in agent_cfg.keys() and "action_ub" not in agent_cfg:
-        agent_cfg.action_ub = env.action_space.high.tolist()
-
-    return agent_cfg
-
-
-def load_agent(
-    agent_path: Union[str, pathlib.Path], env: gym.Env, agent_type: str
-) -> Agent:
-    """Loads an agent from a Hydra config file at the given path.
-
-    For agent of type "pytorch_sac", the directory must contain the following files,
-    as generated by ``pytorch_sac`` library:
-
-        - ".hydra/config.yaml": the Hydra configuration for the agent.
-        - "critic.pth": the saved checkpoint for the critic.
-        - "actor.pth": the saved checkpoint for the actor.
-
-    Args:
-        agent_path (str or pathlib.Path): a path to the directory where the agent is saved.
-        env (gym.Env): the environment on which the agent will operate (only used to complete
-            the agent's configuration).
-        agent_type (str): the agent's type. For now, only "pytorch_sac" is supported.
-
-    Returns:
-        (Agent): the new agent. For "pytorch_sac", this is an agent of type
-        :class:`SACAgent`.
-    """
-    agent_path = pathlib.Path(agent_path)
-    if agent_type == "pytorch_sac":
-        cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
-        cfg.algorithm.agent._target_ = "pytorch_sac.agent.sac.SACAgent"
-        complete_agent_cfg(env, cfg.algorithm.agent)
-        agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.algorithm.agent)
-        agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
-        agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
-        return mbrl.planning.SACAgent(agent)
-    else:
-        raise ValueError(
-            f"Invalid agent type {agent_type}. Supported options are: 'pytorch_sac'."
-        )
-
-
 def create_trajectory_optim_agent_for_model(
     model_env: mbrl.models.ModelEnv,
     agent_cfg: omegaconf.DictConfig,
     num_particles: int = 1,
-    propagation_method: str = "random_model",
 ) -> TrajectoryOptimizerAgent:
     """Utility function for creating a trajectory optimizer agent for a model environment.
 
@@ -567,21 +396,17 @@ def create_trajectory_optim_agent_for_model(
         agent_cfg (omegaconf.DictConfig): the agent's configuration.
         num_particles (int): the number of particles for taking averages of action sequences'
             total rewards.
-        propagation_method (str): the uncertainty propagation method.
 
     Returns:
         (:class:`TrajectoryOptimizerAgent`): the agent.
 
     """
-    mbrl.planning.complete_agent_cfg(model_env, agent_cfg)
+    complete_agent_cfg(model_env, agent_cfg)
     agent = hydra.utils.instantiate(agent_cfg)
 
     def trajectory_eval_fn(initial_state, action_sequences):
         return model_env.evaluate_action_sequences(
-            action_sequences,
-            initial_state=initial_state,
-            num_particles=num_particles,
-            propagation_method=propagation_method,
+            action_sequences, initial_state=initial_state, num_particles=num_particles
         )
 
     agent.set_trajectory_eval_fn(trajectory_eval_fn)

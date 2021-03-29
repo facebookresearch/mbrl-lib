@@ -1,5 +1,9 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import os
-from typing import cast
+from typing import Optional, cast
 
 import gym
 import hydra.utils
@@ -15,39 +19,39 @@ import mbrl.planning
 import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
+from mbrl.planning.sac_wrapper import SACAgent
 
 MBPO_LOG_FORMAT = [
     ("epoch", "E", "int"),
     ("env_step", "S", "int"),
     ("rollout_length", "RL", "int"),
-    ("eval_reward", "ER", "int"),
+    ("eval_reward", "ER", "float"),
 ]
 
 
 def rollout_model_and_populate_sac_buffer(
     model_env: mbrl.models.ModelEnv,
     env_dataset: mbrl.replay_buffer.BootstrapReplayBuffer,
-    agent: pytorch_sac.Agent,
+    agent: SACAgent,
     sac_buffer: pytorch_sac.ReplayBuffer,
     sac_samples_action: bool,
     rollout_horizon: int,
     batch_size: int,
 ):
 
-    initial_obs, action, *_ = env_dataset.sample(batch_size, ensemble=False)
+    batch = env_dataset.sample(batch_size, ensemble=False)
+    initial_obs, action, *_ = cast(mbrl.types.TransitionBatch, batch).astuple()
     obs = model_env.reset(
         initial_obs_batch=cast(np.ndarray, initial_obs),
-        propagation_method="random_model",
         return_as_np=True,
     )
     for i in range(rollout_horizon):
-        with pytorch_sac.utils.eval_mode(), torch.no_grad():
-            action = agent.act(obs, sample=sac_samples_action, batched=True)
+        action = agent.act(obs, sample=sac_samples_action, batched=True)
         pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
         sac_buffer.add_batch(
             obs, action, pred_rewards, pred_next_obs, pred_dones, pred_dones
         )
-        obs = pred_next_obs
+        obs = pred_next_obs[~pred_dones.squeeze()]
 
 
 def evaluate(
@@ -63,8 +67,7 @@ def evaluate(
         done = False
         episode_reward = 0
         while not done:
-            with pytorch_sac.utils.eval_mode(), torch.no_grad():
-                action = agent.act(obs)
+            action = agent.act(obs)
             obs, reward, done, _ = env.step(action)
             video_recorder.record(env)
             episode_reward += reward
@@ -76,9 +79,10 @@ def train(
     env: gym.Env,
     test_env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
-    device: torch.device,
     cfg: omegaconf.DictConfig,
-):
+    silent: bool = False,
+    work_dir: Optional[str] = None,
+) -> np.float32:
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
 
@@ -88,7 +92,7 @@ def train(
     mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
     agent = hydra.utils.instantiate(cfg.algorithm.agent)
 
-    work_dir = os.getcwd()
+    work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
     logger = mbrl.logger.Logger(work_dir, enable_back_compatible=True)
     logger.register_group("mbpo", MBPO_LOG_FORMAT, color="red", dump_frequency=1)
@@ -100,30 +104,33 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
+    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
+
     env_dataset_train, env_dataset_val = mbrl.util.create_replay_buffers(
         cfg,
         obs_shape,
         act_shape,
-        train_is_bootstrap=(cfg.dynamics_model.model.get("ensemble_size", 1) > 1),
+        train_is_bootstrap=isinstance(dynamics_model.model, mbrl.models.Ensemble),
         rng=rng,
     )
     env_dataset_train = cast(
         mbrl.replay_buffer.BootstrapReplayBuffer, env_dataset_train
     )
-    mbrl.util.populate_buffers_with_agent_trajectories(
+    random_explore = cfg.algorithm.random_initial_explore
+    mbrl.util.rollout_agent_trajectories(
         env,
-        env_dataset_train,
-        env_dataset_val,
         cfg.algorithm.initial_exploration_steps,
-        cfg.overrides.validation_ratio,
-        mbrl.planning.RandomAgent(env),
-        {},
+        mbrl.planning.RandomAgent(env) if random_explore else agent,
+        {} if random_explore else {"sample": True, "batched": False},
         rng,
+        train_dataset=env_dataset_train,
+        val_dataset=env_dataset_val,
+        val_ratio=cfg.overrides.validation_ratio,
+        callback=dynamics_model.update_normalizer,
     )
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    dynamics_model = mbrl.util.create_dynamics_model(cfg, obs_shape, act_shape)
 
     updates_made = 0
     env_steps = 0
@@ -131,7 +138,10 @@ def train(
         env, dynamics_model, termination_fn, None, generator=torch_generator
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
-        dynamics_model, env_dataset_train, dataset_val=env_dataset_val, logger=logger
+        dynamics_model,
+        env_dataset_train,
+        dataset_val=env_dataset_val,
+        logger=None if silent else logger,
     )
     best_eval_reward = -np.inf
     sac_buffer = None
@@ -141,9 +151,10 @@ def train(
             mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch + 1]))
         )
 
-        obs = env.reset()
-        done = False
-        while not done:
+        obs, done = None, False
+        for steps_epoch in range(cfg.overrides.trial_length):
+            if steps_epoch == 0 or done:
+                obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
                 env,
@@ -180,7 +191,7 @@ def train(
                     "sac_buffer_capacity_modifier", 1
                 )
                 sac_buffer = pytorch_sac.ReplayBuffer(
-                    obs_shape, act_shape, sac_buffer_capacity, device
+                    obs_shape, act_shape, sac_buffer_capacity, torch.device(cfg.device)
                 )
                 rollout_model_and_populate_sac_buffer(
                     model_env,
@@ -201,9 +212,11 @@ def train(
 
             # --------------- Agent Training -----------------
             for _ in range(cfg.overrides.num_sac_updates_per_step):
+                if (env_steps + 1) % cfg.overrides.sac_updates_every_steps != 0:
+                    break  # only update every once in a while
                 agent.update(sac_buffer, logger, updates_made)
                 updates_made += 1
-                if updates_made % cfg.log_frequency_agent == 0:
+                if not silent and updates_made % cfg.log_frequency_agent == 0:
                     logger.dump(updates_made, save=True)
 
             # ------ Epoch ended (evaluate and save model) ------
@@ -233,4 +246,4 @@ def train(
 
             env_steps += 1
             obs = next_obs
-    return best_eval_reward
+    return np.float32(best_eval_reward)

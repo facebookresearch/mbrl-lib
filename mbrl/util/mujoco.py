@@ -1,3 +1,7 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 from typing import Optional, Tuple, Union, cast
 
 import dmc2gym.wrappers
@@ -60,7 +64,7 @@ def make_env(
     if "dmcontrol___" in cfg.overrides.env:
         domain, task = cfg.overrides.env.split("___")[1].split("--")
         term_fn = getattr(mbrl.env.termination_fns, domain)
-        if hasattr(cfg.overrides, "reward_fn"):
+        if hasattr(cfg.overrides, "reward_fn") and cfg.overrides.reward_fn is not None:
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
         else:
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
@@ -68,7 +72,7 @@ def make_env(
     elif "gym___" in cfg.overrides.env:
         env = gym.make(cfg.overrides.env.split("___")[1])
         term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
-        if hasattr(cfg.overrides, "reward_fn"):
+        if hasattr(cfg.overrides, "reward_fn") and cfg.overrides.reward_fn is not None:
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
         else:
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
