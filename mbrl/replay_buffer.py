@@ -245,6 +245,9 @@ class SimpleReplayBuffer:
         """
         return False
 
+    def maybe_toggle_bootstrap(self):
+        pass
+
 
 class IterableReplayBuffer(SimpleReplayBuffer):
     """A replay buffer that provides an iterator to loop over the data.
@@ -425,7 +428,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             indices = self._rng.choice(self.num_stored, size=batch_size)
             return self._batch_from_indices(indices)
 
-    def toggle_bootstrap(self):
+    def maybe_toggle_bootstrap(self):
         """Toggles whether the iterator returns a batch per model or a single batch."""
         self._bootstrap_iter = not self._bootstrap_iter
 

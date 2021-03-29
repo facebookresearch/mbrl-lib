@@ -213,8 +213,7 @@ class DynamicsModelTrainer:
         """
         dataset = self.dataset_val
         if use_train_set:
-            if isinstance(self.dataset_train, replay_buffer.BootstrapReplayBuffer):
-                self.dataset_train.toggle_bootstrap()
+            self.dataset_train.maybe_toggle_bootstrap()
             dataset = self.dataset_train
 
         batch_scores_list = []  # type: ignore
@@ -226,10 +225,8 @@ class DynamicsModelTrainer:
             batch_scores_list.append(avg_batch_score)
         batch_scores = torch.stack(batch_scores_list)
 
-        if use_train_set and isinstance(
-            self.dataset_train, replay_buffer.BootstrapReplayBuffer
-        ):
-            self.dataset_train.toggle_bootstrap()
+        if use_train_set:
+            self.dataset_train.maybe_toggle_bootstrap()
 
         if update_elites and hasattr(self.model, "num_elites"):
             sorted_indices = np.argsort(batch_scores.mean(axis=0).tolist())
