@@ -335,6 +335,18 @@ class IterableReplayBuffer(SimpleReplayBuffer):
 class BootstrapReplayBuffer(IterableReplayBuffer):
     """An iterable replay buffer that can be used to train ensemble of bootstrapped models.
 
+    When iterating, this buffer samples from a different set of indices for each model in the
+    ensemble, essentially assigning a different dataset to each model. To use the replay buffer
+    for training a model, do:
+
+    .. code-block:: python
+
+       for batch in bootstrap_buffer:
+           do_something_with(batch)  # batch shape is ensemble_size x batch_size x obs_size
+
+    When starting the loop, the model will only re-sample indices if the number
+    of stored elements has changed since the last time the buffer was iterated over.
+
     Args:
         capacity (int): the maximum number of transitions that the buffer can store.
             When the capacity is reached, the contents are overwritten in FIFO fashion.
@@ -385,7 +397,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
 
     def __iter__(self):
         super().__iter__()
-        # TODO can replace with a single call to choice
+        # TODO maybe replace with a single call to choice
         if self.num_stored > self._last_len_shuffled_member_idxs:
             # Only shuffle member indices if buffer size increased
             # otherwise it will keep reshuffling every iteration
