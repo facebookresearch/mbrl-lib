@@ -138,6 +138,9 @@ def train(
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
+    rollout_batch_size = (
+        cfg.overrides.effective_model_rollouts_per_step * cfg.algorithm.freq_train_model
+    )
 
     updates_made = 0
     env_steps = 0
@@ -151,11 +154,17 @@ def train(
         logger=None if silent else logger,
     )
     best_eval_reward = -np.inf
-    sac_buffer = None
     epoch = 0
     while epoch < cfg.overrides.num_trials:
         rollout_length = int(
             mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch + 1]))
+        )
+        trains_per_epoch = int(
+            np.ceil(cfg.overrides.trial_length / cfg.overrides.freq_train_model)
+        )
+        sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
+        sac_buffer = pytorch_sac.ReplayBuffer(
+            obs_shape, act_shape, sac_buffer_capacity, torch.device(cfg.device)
         )
 
         obs, done = None, False
@@ -189,17 +198,6 @@ def train(
 
                 # --------- Rollout new model and store imagined trajectories --------
                 # Batch all rollouts for the next freq_train_model steps together
-                rollout_batch_size = (
-                    cfg.overrides.effective_model_rollouts_per_step
-                    * cfg.algorithm.freq_train_model
-                )
-                sac_buffer_capacity = rollout_length * rollout_batch_size
-                sac_buffer_capacity *= cfg.overrides.get(
-                    "sac_buffer_capacity_modifier", 1
-                )
-                sac_buffer = pytorch_sac.ReplayBuffer(
-                    obs_shape, act_shape, sac_buffer_capacity, torch.device(cfg.device)
-                )
                 rollout_model_and_populate_sac_buffer(
                     model_env,
                     env_dataset_train,
