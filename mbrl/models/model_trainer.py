@@ -102,7 +102,7 @@ class DynamicsModelTrainer:
                     - current epoch
                     - training loss
                     - train score (i.e., result of ``trainer.evaluate()`` on training data)
-                    - validation score
+                    - validation score (for ensembles, factored per member)
                     - best validation score so far
 
 
