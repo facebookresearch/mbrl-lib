@@ -381,13 +381,19 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         )
         self.member_indices: List[List[int]] = [None for _ in range(num_members)]
         self._bootstrap_iter = True
+        self._last_len_shuffled_member_idxs = 0
 
     def __iter__(self):
         super().__iter__()
-        for i in range(len(self.member_indices)):
-            self.member_indices[i] = self._rng.choice(
-                self.num_stored, size=self.num_stored, replace=True
-            )
+        # TODO can replace with a single call to choice
+        if self.num_stored > self._last_len_shuffled_member_idxs:
+            # Only shuffle member indices if buffer size increased
+            # otherwise it will keep reshuffling every iteration
+            for i in range(len(self.member_indices)):
+                self.member_indices[i] = self._rng.choice(
+                    self.num_stored, size=self.num_stored, replace=True
+                )
+            self._last_len_shuffled_member_idxs = self.num_stored
         return self
 
     def __next__(self):
