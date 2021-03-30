@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
-from typing import Optional, cast
+from typing import Optional, Tuple, cast
 
 import gym
 import hydra.utils
@@ -82,6 +82,32 @@ def evaluate(
     return avg_episode_reward / num_episodes
 
 
+def maybe_replace_sac_buffer(
+    sac_buffer: Optional[pytorch_sac.ReplayBuffer],
+    new_capacity: int,
+    obs_shape: Tuple[int],
+    act_shape: Tuple[int],
+    device: torch.device,
+) -> pytorch_sac.ReplayBuffer:
+    if sac_buffer is None or new_capacity != sac_buffer.capacity:
+        new_buffer = pytorch_sac.ReplayBuffer(
+            obs_shape, act_shape, new_capacity, device
+        )
+        if sac_buffer is None:
+            return new_buffer
+        n = len(sac_buffer)
+        new_buffer.add_batch(
+            sac_buffer.obses[:n],
+            sac_buffer.actions[:n],
+            sac_buffer.rewards[:n],
+            sac_buffer.next_obses[:n],
+            np.logical_not(sac_buffer.not_dones[:n]),
+            np.logical_not(sac_buffer.not_dones_no_max[:n]),
+        )
+        return new_buffer
+    return sac_buffer
+
+
 def train(
     env: gym.Env,
     test_env: gym.Env,
@@ -141,6 +167,9 @@ def train(
     rollout_batch_size = (
         cfg.overrides.effective_model_rollouts_per_step * cfg.algorithm.freq_train_model
     )
+    trains_per_epoch = int(
+        np.ceil(cfg.overrides.trial_length / cfg.overrides.freq_train_model)
+    )
 
     updates_made = 0
     env_steps = 0
@@ -155,18 +184,19 @@ def train(
     )
     best_eval_reward = -np.inf
     epoch = 0
+    sac_buffer = None
     while epoch < cfg.overrides.num_trials:
         rollout_length = int(
             mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch + 1]))
         )
-        trains_per_epoch = int(
-            np.ceil(cfg.overrides.trial_length / cfg.overrides.freq_train_model)
-        )
         sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
-        sac_buffer = pytorch_sac.ReplayBuffer(
-            obs_shape, act_shape, sac_buffer_capacity, torch.device(cfg.device)
+        sac_buffer = maybe_replace_sac_buffer(
+            sac_buffer,
+            sac_buffer_capacity,
+            obs_shape,
+            act_shape,
+            torch.device(cfg.device),
         )
-
         obs, done = None, False
         for steps_epoch in range(cfg.overrides.trial_length):
             if steps_epoch == 0 or done:
