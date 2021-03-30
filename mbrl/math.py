@@ -115,7 +115,7 @@ class Normalizer:
     def __init__(self, in_size: int, device: torch.device):
         self.stats = Stats(
             torch.zeros((1, in_size), device=device),
-            torch.ones((1, in_size), device=device),
+            torch.zeros((1, in_size), device=device),
             0,
         )
         self.device = device
