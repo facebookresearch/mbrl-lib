@@ -59,19 +59,24 @@ def test_sac_buffer_batched_add():
     )  # Check that nothing changed here
 
     # Test adding beyond capacity
+    start = 4
     buffer = sac_buffer.ReplayBuffer((2,), (1,), 20, torch.device("cpu"))
+    # first add a few elements to set buffer.idx != 0
+    obs_, act_, next_obs_, reward_, done_ = create_batch(start, mult=3)
+    buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
+    # now add a batch larger than capacity
     batch_size_ = 27
     obs_, act_, next_obs_, reward_, done_ = create_batch(batch_size_, mult=7)
     buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
-    assert buffer.idx == 7
+    assert buffer.idx == 11
     assert buffer.full
-    # The last 7 observations loop around and overwrite the first 7
+    # The last 11 observations loop around and overwrite the first 11
     compare_batch_to_buffer_slice(
-        0, 7, obs_[20:], act_[20:], next_obs_[20:], reward_[20:], done_[20:]
+        0, 11, obs_[16:], act_[16:], next_obs_[16:], reward_[16:], done_[16:]
     )
-    # Now check the ones that shouldn't have been overwritten are there
+    # Now check that the last 9 observations are correct
     compare_batch_to_buffer_slice(
-        7, 13, obs_[7:20], act_[7:20], next_obs_[7:20], reward_[7:20], done_[7:20]
+        11, 9, obs_[7:16], act_[7:16], next_obs_[7:16], reward_[7:16], done_[7:16]
     )
 
 
