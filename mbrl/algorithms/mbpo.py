@@ -48,7 +48,7 @@ def rollout_model_and_populate_sac_buffer(
     accum_dones = np.zeros(obs.shape[0], dtype=bool)
     for i in range(rollout_horizon):
         action = agent.act(obs, sample=sac_samples_action, batched=True)
-        pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action)
+        pred_next_obs, pred_rewards, pred_dones, _ = model_env.step(action, sample=True)
         sac_buffer.add_batch(
             obs[~accum_dones],
             action[~accum_dones],
@@ -216,7 +216,7 @@ def train(
             )
 
             # --------------- Model Training -----------------
-            if env_steps % cfg.overrides.freq_train_model == 0:
+            if (env_steps + 1) % cfg.overrides.freq_train_model == 0:
                 mbrl.util.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
@@ -247,7 +247,9 @@ def train(
 
             # --------------- Agent Training -----------------
             for _ in range(cfg.overrides.num_sac_updates_per_step):
-                if (env_steps + 1) % cfg.overrides.sac_updates_every_steps != 0:
+                if (env_steps + 1) % cfg.overrides.sac_updates_every_steps != 0 or len(
+                    sac_buffer
+                ) < rollout_batch_size:
                     break  # only update every once in a while
                 agent.update(sac_buffer, logger, updates_made)
                 updates_made += 1
@@ -255,7 +257,7 @@ def train(
                     logger.dump(updates_made, save=True)
 
             # ------ Epoch ended (evaluate and save model) ------
-            if env_steps % cfg.overrides.trial_length == 0:
+            if (env_steps + 1) % cfg.overrides.trial_length == 0:
                 avg_reward = evaluate(
                     test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
                 )
