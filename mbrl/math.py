@@ -83,7 +83,9 @@ def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1):
             break
         tensor = torch.where(
             cond,
-            torch.nn.init.normal_(torch.ones(tensor.shape), mean=mean, std=std),
+            torch.nn.init.normal_(
+                torch.ones(tensor.shape, device=tensor.device), mean=mean, std=std
+            ),
             tensor,
         )
     return tensor
