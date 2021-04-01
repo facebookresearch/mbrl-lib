@@ -263,19 +263,23 @@ class GaussianMLP(Ensemble):
             model_in = model_in.unsqueeze(0)
             target = target.unsqueeze(0)
         pred_mean, _ = self.forward(model_in, use_propagation=False)
-        return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).mean()
+        return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).sum()
 
     def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         assert model_in.ndim == target.ndim
-        if model_in.ndim == 2:  # add model dimension
+        if model_in.ndim == 2:  # add ensemble dimension
             model_in = model_in.unsqueeze(0)
             target = target.unsqueeze(0)
         pred_mean, pred_logvar = self.forward(model_in, use_propagation=False)
-        nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False).mean(
-            (1, 2)
-        )
-        nll += 0.01 * (self.max_logvar.sum((1, 2)) - self.min_logvar.sum((1, 2)))
-        return nll.mean()
+        if target.shape[0] != self.num_members:
+            target = target.repeat(self.num_members, 1, 1)
+        nll = (
+            mbrl.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
+            .mean((1, 2))  # average over batch and target dimension
+            .sum()
+        )  # sum over ensemble dimension
+        nll += 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
+        return nll
 
     def loss(
         self,
