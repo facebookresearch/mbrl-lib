@@ -117,7 +117,7 @@ class GaussianMLP(Ensemble):
     def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
         if self.elite_models is None:
             return
-        if self.num_members and self.num_members > 1 and only_elite:
+        if self.num_members > 1 and only_elite:
             for layer in self.hidden_layers:
                 # each layer is (linear layer, activation_func)
                 layer[0].set_elite(self.elite_models)

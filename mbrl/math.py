@@ -63,33 +63,29 @@ def gaussian_nll(
 
 
 # inplace truncated normal function for pytorch.
-# Taken from https://discuss.pytorch.org/t/implementing-truncated-normal-initializer/4778/16
-# and tested to be equivalent to scipy.stats.truncnorm.rvs
-def truncated_normal_(
-    tensor: torch.Tensor, mean: float = 0, std: float = 1, clip: bool = False
-):
+# credit to https://github.com/Xingyu-Lin/mbpo_pytorch/blob/main/model.py#L64
+def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1):
     """Samples from a truncated normal distribution in-place.
 
     Args:
         tensor (tensor): the tensor in which sampled values will be stored.
         mean (float): the desired mean (default = 0).
         std (float): the desired standard deviation (default = 1).
-        clip (bool): if ``True``, clips values beyond two standard deviations. This is rarely
-            needed, but it can happen. Defaults to ``False``.
 
     Returns:
         (tensor): the tensor with the stored values. Note that this modifies the input tensor
             in place, so this is just a pointer to the same object.
     """
-    size = tensor.shape
-    tmp = tensor.new_empty(size + (4,)).normal_()
-    valid = (tmp < 2) & (tmp > -2)
-    ind = valid.max(-1, keepdim=True)[1]
-    tensor.data.copy_(tmp.gather(-1, ind).squeeze(-1))
-    if clip:
-        # This is quite rarely needed
-        tensor.clip_(-2, 2)
-    tensor.data.mul_(std).add_(mean)
+    torch.nn.init.normal_(tensor, mean=mean, std=std)
+    while True:
+        cond = torch.logical_or(tensor < mean - 2 * std, tensor > mean + 2 * std)
+        if not torch.sum(cond):
+            break
+        tensor = torch.where(
+            cond,
+            torch.nn.init.normal_(torch.ones(tensor.shape), mean=mean, std=std),
+            tensor,
+        )
     return tensor
 
 
