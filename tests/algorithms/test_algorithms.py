@@ -21,11 +21,16 @@ _TRIAL_LEN = 30
 _NUM_TRIALS_PETS = 10
 _NUM_TRIALS_MBPO = 10
 _REW_C = 0.001
+_INITIAL_EXPLORE = 500
+
 # Not optimal, but the prob. of observing this by random seems to be < 1e-5
 _TARGET_REWARD = -10 * _REW_C
 
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
+
+_SILENT = True
+_DEBUG_MODE = False
 
 SEED = 12345
 torch.manual_seed(SEED)
@@ -91,20 +96,22 @@ def _check_pets(model_type):
             "num_epochs_train_model": 50,
             "patience": 10,
         },
-        "debug_mode": False,
+        "debug_mode": _DEBUG_MODE,
         "seed": SEED,
         "device": device,
     }
     cfg = OmegaConf.create(cfg_dict)
-    cfg.algorithm.dataset_size = 1000
-    cfg.algorithm.initial_exploration_steps = 500
+    cfg.algorithm.dataset_size = _TRIAL_LEN * _NUM_TRIALS_PETS + _INITIAL_EXPLORE
+    cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
+    if model_type == "basic_ensemble":
+        cfg.dynamics_model.model.member_cfg.deterministic = True
 
     env = MockLineEnv()
     term_fn = mbrl_env.termination_fns.no_termination
     reward_fn = mock_reward_fn
 
     max_reward = pets.train(
-        env, term_fn, reward_fn, cfg, silent=True, work_dir=_DIR.name
+        env, term_fn, reward_fn, cfg, silent=_SILENT, work_dir=_DIR.name
     )
 
     assert max_reward > _TARGET_REWARD
@@ -114,7 +121,7 @@ def test_pets_gaussian_mlp_ensemble():
     _check_pets("gaussian_mlp_ensemble")
 
 
-def test_pets_basic_ensemble_gaussian_mlp():
+def test_pets_basic_ensemble_deterministic_mlp():
     _check_pets("basic_ensemble")
 
 
@@ -134,42 +141,47 @@ def test_mbpo():
             "num_trials": _NUM_TRIALS_MBPO,
             "term_fn": "no_termination",
             "trial_length": _TRIAL_LEN,
+            "freq_train_model": _TRIAL_LEN // 4,
             "patience": 5,
-            "model_lr": 1e-4,
-            "model_wd": 1e-5,
+            "model_lr": 1e-3,
+            "model_wd": 5e-5,
             "model_batch_size": 256,
             "validation_ratio": 0.2,
-            "freq_train_model": _TRIAL_LEN,
             "effective_model_rollouts_per_step": 400,
             "rollout_schedule": [1, 15, 10, 10],
             "num_sac_updates_per_step": 20,
             "sac_updates_every_steps": 1,
-            "sac_alpha_lr": 3e-5,
-            "sac_actor_lr": 3e-5,
-            "sac_actor_update_frequency": 4,
-            "sac_critic_lr": 3e-6,
+            "sac_alpha_lr": 3e-4,
+            "sac_actor_lr": 3e-4,
+            "sac_actor_update_frequency": 1,
+            "sac_critic_lr": 3e-4,
             "sac_critic_target_update_frequency": 4,
-            "sac_target_entropy": -2,
+            "sac_target_entropy": -1,
             "sac_hidden_depth": 2,
+            "num_elites": 5,
         },
-        "debug_mode": False,
+        "debug_mode": _DEBUG_MODE,
         "seed": SEED,
         "device": str(device),
         "log_frequency_agent": 200,
     }
     cfg = OmegaConf.create(cfg_dict)
-    cfg.algorithm.dataset_size = 1000
-    cfg.algorithm.initial_exploration_steps = 500
+    cfg.dynamics_model.model.ensemble_size = 7
+    cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
+    cfg.algorithm.dataset_size = _TRIAL_LEN * _NUM_TRIALS_MBPO + _INITIAL_EXPLORE
+    cfg.algorithm.agent.learnable_temperature = True
 
     env = MockLineEnv()
     test_env = MockLineEnv()
     term_fn = mbrl_env.termination_fns.no_termination
 
     max_reward = mbpo.train(
-        env, test_env, term_fn, cfg, silent=True, work_dir=_DIR.name
+        env, test_env, term_fn, cfg, silent=_SILENT, work_dir=_DIR.name
     )
 
     assert max_reward > _TARGET_REWARD
 
 
 test_mbpo()
+test_pets_gaussian_mlp_ensemble()
+test_pets_basic_ensemble_deterministic_mlp()
