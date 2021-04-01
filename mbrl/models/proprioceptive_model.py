@@ -238,7 +238,7 @@ class ProprioceptiveModel(Model):
             batch (transition batch): a batch of transition to train the model.
 
         Returns:
-            (tensor): as returned by `model.eval_score().`
+            (tuple(tensor), tensor): the model outputs and the target for this batch.
         """
         with torch.no_grad():
             model_in, target = self._get_model_input_and_target_from_batch(batch)

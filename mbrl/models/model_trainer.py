@@ -119,7 +119,7 @@ class DynamicsModelTrainer:
                 "and make sure `buffer.num_members == len(model)."
             )
 
-        training_losses, train_eval_scores, val_losses = [], [], []
+        training_losses, val_losses = [], []
         best_weights: Optional[Dict] = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
@@ -137,11 +137,12 @@ class DynamicsModelTrainer:
 
             # only update elites here if "validation" will be done on train set
             train_score = self.evaluate(use_train_set=True)
-            train_eval_scores.append(train_score)
             eval_score = train_score
             if has_val_dataset:
                 eval_score = self.evaluate()
                 val_losses.append(eval_score.mean().item())
+            else:
+                val_losses.append(train_score.mean().item())
 
             maybe_best_weights = self.maybe_get_best_weights(best_val_score, eval_score)
             if maybe_best_weights:
