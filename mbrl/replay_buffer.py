@@ -365,6 +365,9 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
             loop over the data is completed. Defaults to ``False``.
+        bootstrap_permutes (boot): it ``True`` the bootstrap datasets are just
+            permutations of the original data. If ``False`` they are sampled with
+            replacement. Defaults to ``True``.
     """
 
     def __init__(
@@ -379,6 +382,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
+        bootstrap_permutes: bool = True,
     ):
         super(BootstrapReplayBuffer, self).__init__(
             capacity,
@@ -394,17 +398,21 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         self.member_indices: List[List[int]] = [None for _ in range(num_members)]
         self._bootstrap_iter = True
         self._last_len_shuffled_member_idxs = 0
+        self._bootstrap_permutes = bootstrap_permutes
 
     def __iter__(self):
         super().__iter__()
-        # TODO maybe replace with a single call to choice
         if self.num_stored > self._last_len_shuffled_member_idxs:
             # Only shuffle member indices if buffer size increased
             # otherwise it will keep reshuffling every iteration
             for i in range(len(self.member_indices)):
-                self.member_indices[i] = self._rng.choice(
-                    self.num_stored, size=self.num_stored, replace=True
-                )
+                if self._bootstrap_permutes:
+                    self.member_indices[i] = self._rng.permutation(self.num_stored)
+                else:
+                    # TODO maybe replace with a single call to choice
+                    self.member_indices[i] = self._rng.choice(
+                        self.num_stored, size=self.num_stored, replace=True
+                    )
             self._last_len_shuffled_member_idxs = self.num_stored
         return self
 
