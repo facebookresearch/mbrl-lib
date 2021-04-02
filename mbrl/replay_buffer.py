@@ -248,6 +248,10 @@ class SimpleReplayBuffer:
     def maybe_toggle_bootstrap(self):
         pass
 
+    def get_all(self) -> TransitionBatch:
+        """Returns all data stored in the replay buffer."""
+        return self._batch_from_indices(np.arange(self.num_stored))
+
 
 class IterableReplayBuffer(SimpleReplayBuffer):
     """A replay buffer that provides an iterator to loop over the data.

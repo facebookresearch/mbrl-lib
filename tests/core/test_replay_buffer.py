@@ -302,3 +302,16 @@ def test_bootstrap_replay_buffer():
 
     for how_many in range(10, 30):
         _check_for_num_additions(how_many)
+
+
+def test_get_all():
+    capacity = 20
+    buffer = replay_buffer.SimpleReplayBuffer(capacity, (1,), (1,))
+    dummy = np.ones(1)
+    for i in range(capacity):
+        buffer.add(dummy, dummy, dummy, i, False)
+        assert np.allclose(buffer.get_all().rewards, np.arange(i + 1))
+    buffer.add(dummy, dummy, dummy, -1, False)
+    assert np.allclose(
+        buffer.get_all().rewards, np.array([-1] + list(range(1, capacity)))
+    )
