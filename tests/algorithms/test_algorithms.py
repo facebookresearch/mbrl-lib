@@ -18,7 +18,7 @@ import mbrl.algorithms.pets as pets
 import mbrl.env as mbrl_env
 
 _TRIAL_LEN = 30
-_NUM_TRIALS_PETS = 10
+_NUM_TRIALS_PETS = 5
 _NUM_TRIALS_MBPO = 10
 _REW_C = 0.001
 _INITIAL_EXPLORE = 500
@@ -29,7 +29,7 @@ _TARGET_REWARD = -10 * _REW_C
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
 
-_SILENT = True
+_SILENT = False
 _DEBUG_MODE = False
 
 SEED = 12345
@@ -148,15 +148,15 @@ def test_mbpo():
             "model_batch_size": 256,
             "validation_ratio": 0.2,
             "effective_model_rollouts_per_step": 400,
-            "rollout_schedule": [1, 15, 10, 10],
+            "rollout_schedule": [1, _NUM_TRIALS_MBPO, 15, 15],
             "num_sac_updates_per_step": 20,
             "sac_updates_every_steps": 1,
             "sac_alpha_lr": 3e-4,
             "sac_actor_lr": 3e-4,
-            "sac_actor_update_frequency": 1,
+            "sac_actor_update_frequency": 4,
             "sac_critic_lr": 3e-4,
             "sac_critic_target_update_frequency": 4,
-            "sac_target_entropy": -1,
+            "sac_target_entropy": -0.05,
             "sac_hidden_depth": 2,
             "num_elites": 5,
         },
@@ -180,8 +180,3 @@ def test_mbpo():
     )
 
     assert max_reward > _TARGET_REWARD
-
-
-test_mbpo()
-test_pets_gaussian_mlp_ensemble()
-test_pets_basic_ensemble_deterministic_mlp()

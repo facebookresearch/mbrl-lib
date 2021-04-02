@@ -159,7 +159,6 @@ def train(
         train_dataset=env_dataset_train,
         val_dataset=env_dataset_val,
         val_ratio=cfg.overrides.validation_ratio,
-        callback=dynamics_model.update_normalizer,
     )
 
     # ---------------------------------------------------------
@@ -212,11 +211,11 @@ def train(
                 cfg.algorithm.increase_val_set,
                 cfg.overrides.validation_ratio,
                 rng,
-                callback=dynamics_model.update_normalizer,
             )
 
             # --------------- Model Training -----------------
             if (env_steps + 1) % cfg.overrides.freq_train_model == 0:
+                dynamics_model.update_normalizer(env_dataset_train.get_all())
                 mbrl.util.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
