@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import time
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
 import hydra
 import numpy as np
@@ -74,6 +74,7 @@ class CEMOptimizer:
             "mus": np.zeros((self.num_iterations,) + x_shape),
         }
 
+    # TODO since callback now receives values, replace this with callback
     @staticmethod
     def _update_history(
         iter_idx: int,
@@ -93,7 +94,7 @@ class CEMOptimizer:
         obj_fun: Callable[[torch.Tensor], torch.Tensor],
         x_shape: Tuple[int, ...],
         initial_mu: Optional[torch.Tensor] = None,
-        callback: Optional[Callable[[torch.Tensor, int], Any]] = None,
+        callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
     ) -> Tuple[torch.Tensor, Dict[str, np.ndarray]]:
         """Runs the optimization using CEM.
 
@@ -104,8 +105,9 @@ class CEMOptimizer:
                 might occur.
             initial_mu (tensor, optional): if given, uses this value as the initial mean for the
                 population. Must be consistent with lower/upper bounds.
-            callback (callable(tensor, int) -> any, optional): if given, this function will be
-                called after every iteration, passing it as input the full population tensor and
+            callback (callable(tensor, tensor, int) -> any, optional): if given, this
+                function will be called after every iteration, passing it as input the full
+                population tensor, its corresponding objective function values, and
                 the index of the current iteration. This can be used for logging and plotting
                 purposes.
 
@@ -144,9 +146,11 @@ class CEMOptimizer:
             population = mbrl.math.truncated_normal_(population, clip=True)
             population = population * torch.sqrt(constrained_var) + mu
 
-            if callback is not None:
-                callback(population, i)
             values = obj_fun(population)
+
+            if callback is not None:
+                callback(population, values, i)
+
             # filter out NaN values
             values[values.isnan()] = -1e-10
             best_values, elite_idx = values.topk(self.elite_num)
@@ -216,7 +220,9 @@ class TrajectoryOptimizer:
         self.x_shape = (self.horizon,) + (len(action_lb),)
 
     def optimize(
-        self, trajectory_eval_fn: Callable[[torch.Tensor], torch.Tensor]
+        self,
+        trajectory_eval_fn: Callable[[torch.Tensor], torch.Tensor],
+        callback: Optional[Callable] = None,
     ) -> Tuple[np.ndarray, float]:
         """Runs the trajectory optimization.
 
@@ -226,6 +232,8 @@ class TrajectoryOptimizer:
                 accumulated reward for each sequence). The shape of the action sequence tensor
                 will be ``B x H x A``, where ``B``, ``H``, and ``A`` represent batch size,
                 planning horizon, and action dimension, respectively.
+            callback (callable, optional): a callback function
+                to pass to the optimizer.
 
         Returns:
             (tuple of np.ndarray and float): first element is the best action sequence, as a numpy
@@ -235,6 +243,7 @@ class TrajectoryOptimizer:
             trajectory_eval_fn,
             self.x_shape,
             initial_mu=self.previous_solution,
+            callback=callback,
         )
         if self.keep_last_solution:
             self.previous_solution = best_solution.roll(-self.replan_freq, dims=0)
