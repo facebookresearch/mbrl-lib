@@ -52,7 +52,7 @@ class ProprioceptiveModel(Model):
         normalize (bool): if true, the wrapper will create a normalizer for model inputs,
             which will be used every time the model is called using the methods in this
             class. To update the normalizer statistics, the user needs to call
-            :meth:`update_normalizer`. Defaults to ``False``.
+            :meth:`update_normalizer` before using the model. Defaults to ``False``.
         learned_rewards (bool): if ``True``, the wrapper considers the last output of the model
             to correspond to rewards predictions, and will use it to construct training
             targets for the model and when returning model predictions. Defaults to ``True``.
@@ -147,18 +147,18 @@ class ProprioceptiveModel(Model):
         """Calls forward method of base model with the given input and args."""
         return self.model.forward(x, **kwargs)
 
-    def update_normalizer(self, transition: mbrl.types.Transition):
-        """Updates the normalizer statistics using the data in the transition.
+    def update_normalizer(self, batch: mbrl.types.TransitionBatch):
+        """Updates the normalizer statistics using the batch of transition data.
 
-        The normalizer will update running mean and variance given the obs and action in
+        The normalizer will compute mean and standard deviation the obs and action in
         the transition. If an observation processing function has been provided, it will
         be called on ``obs`` before updating the normalizer.
 
         Args:
-            transition (tuple): contains obs, action, next_obs, reward, done. Only obs and
-                action will be used, since these are the inputs to the model.
+            batch (:class:`mbrl.types.TransitionBatch`): The batch of transition data.
+                Only obs and action will be used, since these are the inputs to the model.
         """
-        obs, action, *_ = transition
+        obs, action = batch.obs, batch.act
         if obs.ndim == 1:
             obs = obs[None, :]
             action = action[None, :]
@@ -238,7 +238,7 @@ class ProprioceptiveModel(Model):
             batch (transition batch): a batch of transition to train the model.
 
         Returns:
-            (tensor): as returned by `model.eval_score().`
+            (tuple(tensor), tensor): the model outputs and the target for this batch.
         """
         with torch.no_grad():
             model_in, target = self._get_model_input_and_target_from_batch(batch)

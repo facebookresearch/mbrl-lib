@@ -59,19 +59,24 @@ def test_sac_buffer_batched_add():
     )  # Check that nothing changed here
 
     # Test adding beyond capacity
+    start = 4
     buffer = sac_buffer.ReplayBuffer((2,), (1,), 20, torch.device("cpu"))
+    # first add a few elements to set buffer.idx != 0
+    obs_, act_, next_obs_, reward_, done_ = create_batch(start, mult=3)
+    buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
+    # now add a batch larger than capacity
     batch_size_ = 27
     obs_, act_, next_obs_, reward_, done_ = create_batch(batch_size_, mult=7)
     buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
-    assert buffer.idx == 7
+    assert buffer.idx == 11
     assert buffer.full
-    # The last 7 observations loop around and overwrite the first 7
+    # The last 11 observations loop around and overwrite the first 11
     compare_batch_to_buffer_slice(
-        0, 7, obs_[20:], act_[20:], next_obs_[20:], reward_[20:], done_[20:]
+        0, 11, obs_[16:], act_[16:], next_obs_[16:], reward_[16:], done_[16:]
     )
-    # Now check the ones that shouldn't have been overwritten are there
+    # Now check that the last 9 observations are correct
     compare_batch_to_buffer_slice(
-        7, 13, obs_[7:20], act_[7:20], next_obs_[7:20], reward_[7:20], done_[7:20]
+        11, 9, obs_[7:16], act_[7:16], next_obs_[7:16], reward_[7:16], done_[7:16]
     )
 
 
@@ -220,8 +225,6 @@ def test_len_iterable_replay_buffer():
         assert len(buffer) == 0
         for i in range(15):
             buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 0, False)
-            size_buf = i + 1 if i < capacity else capacity
-            assert len(buffer) == int(np.ceil(size_buf / batch_size))
 
     for bs in range(1, capacity + 1):
         check_for_batch_size(bs)
@@ -284,16 +287,28 @@ def test_bootstrap_replay_buffer():
         for i in range(how_many_to_add):
             buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
 
-        it = iter(buffer)
+        for batch in buffer:
+            assert batch.obs.shape[0] == num_members
+            assert batch.obs.shape[2] == 1
+
         assert len(buffer.member_indices) == num_members
         for member in buffer.member_indices:
             assert len(member) == buffer.num_stored
             for idx in member:
                 assert 0 <= idx < buffer.num_stored
 
-        for b in range(len(buffer)):
-            all_batches = next(it)
-            assert len(all_batches) == num_members
-
     for how_many in range(10, 30):
         _check_for_num_additions(how_many)
+
+
+def test_get_all():
+    capacity = 20
+    buffer = replay_buffer.SimpleReplayBuffer(capacity, (1,), (1,))
+    dummy = np.ones(1)
+    for i in range(capacity):
+        buffer.add(dummy, dummy, dummy, i, False)
+        assert np.allclose(buffer.get_all().rewards, np.arange(i + 1))
+    buffer.add(dummy, dummy, dummy, -1, False)
+    assert np.allclose(
+        buffer.get_all().rewards, np.array([-1] + list(range(1, capacity)))
+    )

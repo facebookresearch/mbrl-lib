@@ -100,12 +100,11 @@ class GaussianMLP(Ensemble):
             self.mean_and_logvar = create_linear_layer(hid_size, out_size)
         else:
             self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
-            logvar_shape = (self.num_members, 1, out_size)
             self.min_logvar = nn.Parameter(
-                -10 * torch.ones(logvar_shape, requires_grad=True)
+                -10 * torch.ones(1, out_size), requires_grad=False
             )
             self.max_logvar = nn.Parameter(
-                0.5 * torch.ones(logvar_shape, requires_grad=True)
+                0.5 * torch.ones(1, out_size), requires_grad=False
             )
 
         self.apply(truncated_normal_init)
@@ -118,7 +117,7 @@ class GaussianMLP(Ensemble):
     def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
         if self.elite_models is None:
             return
-        if self.num_members and self.num_members > 1 and only_elite:
+        if self.num_members > 1 and only_elite:
             for layer in self.hidden_layers:
                 # each layer is (linear layer, activation_func)
                 layer[0].set_elite(self.elite_models)
@@ -138,21 +137,8 @@ class GaussianMLP(Ensemble):
         else:
             mean = mean_and_logvar[..., : self.out_size]
             logvar = mean_and_logvar[..., self.out_size :]
-            if self.num_members > 1 and self.elite_models is not None:
-                model_idx = self.elite_models if only_elite else range(self.num_members)
-                assert not only_elite or (len(model_idx) != self.num_members), (
-                    "If elite size == self.num_members, it's better "
-                    "to make sure only_elite is false"
-                )
-                logvar = self.max_logvar[model_idx] - F.softplus(
-                    self.max_logvar[model_idx] - logvar
-                )
-                logvar = self.min_logvar[model_idx] + F.softplus(
-                    logvar - self.min_logvar[model_idx]
-                )
-            else:
-                logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
-                logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
+            logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
+            logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
             return mean, logvar
 
     def _forward_from_indices(
@@ -168,7 +154,7 @@ class GaussianMLP(Ensemble):
         )
 
         mean, logvar = self._default_forward(shuffled_x, only_elite=True)
-        # not that mean and logvar are shuffled
+        # note that mean and logvar are shuffled
         mean = mean.view(batch_size, -1)
         mean[model_shuffle_indices] = mean.clone()  # invert the shuffle
 
@@ -277,19 +263,23 @@ class GaussianMLP(Ensemble):
             model_in = model_in.unsqueeze(0)
             target = target.unsqueeze(0)
         pred_mean, _ = self.forward(model_in, use_propagation=False)
-        return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).mean()
+        return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).sum()
 
     def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         assert model_in.ndim == target.ndim
-        if model_in.ndim == 2:  # add model dimension
+        if model_in.ndim == 2:  # add ensemble dimension
             model_in = model_in.unsqueeze(0)
             target = target.unsqueeze(0)
         pred_mean, pred_logvar = self.forward(model_in, use_propagation=False)
-        nll = mbrl.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False).mean(
-            (1, 2)
-        )
-        nll += 0.01 * (self.max_logvar.sum((1, 2)) - self.min_logvar.sum((1, 2)))
-        return nll.mean()
+        if target.shape[0] != self.num_members:
+            target = target.repeat(self.num_members, 1, 1)
+        nll = (
+            mbrl.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
+            .mean((1, 2))  # average over batch and target dimension
+            .sum()
+        )  # sum over ensemble dimension
+        nll += 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
+        return nll
 
     def loss(
         self,

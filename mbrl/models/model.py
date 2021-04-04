@@ -158,13 +158,12 @@ class Model(nn.Module, abc.ABC):
              (float): the numeric value of the computed loss.
 
         """
-        assert not isinstance(optimizer, Sequence)
         optimizer = cast(torch.optim.Optimizer, optimizer)
         self.train()
         optimizer.zero_grad()
         loss = self.loss(model_in, target)
         loss.backward()
-        optimizer.step(None)
+        optimizer.step()
         return loss.item()
 
     @abc.abstractmethod

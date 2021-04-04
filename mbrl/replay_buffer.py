@@ -245,6 +245,13 @@ class SimpleReplayBuffer:
         """
         return False
 
+    def maybe_toggle_bootstrap(self):
+        pass
+
+    def get_all(self) -> TransitionBatch:
+        """Returns all data stored in the replay buffer."""
+        return self._batch_from_indices(np.arange(self.num_stored))
+
 
 class IterableReplayBuffer(SimpleReplayBuffer):
     """A replay buffer that provides an iterator to loop over the data.
@@ -321,9 +328,6 @@ class IterableReplayBuffer(SimpleReplayBuffer):
     def __next__(self):
         return self._batch_from_indices(self._get_indices_next_batch())
 
-    def __len__(self):
-        return (self.num_stored - 1) // self.batch_size + 1
-
     def load(self, path: str):
         super().load(path)
         self._current_batch = 0
@@ -331,6 +335,18 @@ class IterableReplayBuffer(SimpleReplayBuffer):
 
 class BootstrapReplayBuffer(IterableReplayBuffer):
     """An iterable replay buffer that can be used to train ensemble of bootstrapped models.
+
+    When iterating, this buffer samples from a different set of indices for each model in the
+    ensemble, essentially assigning a different dataset to each model. To use the replay buffer
+    for training a model, do:
+
+    .. code-block:: python
+
+       for batch in bootstrap_buffer:
+           do_something_with(batch)  # batch shape is ensemble_size x batch_size x obs_size
+
+    When starting the loop, the model will only re-sample indices if the number
+    of stored elements has changed since the last time the buffer was iterated over.
 
     Args:
         capacity (int): the maximum number of transitions that the buffer can store.
@@ -350,6 +366,9 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         action_type (type): the data type of the actions (defaults to np.float32).
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
             loop over the data is completed. Defaults to ``False``.
+        bootstrap_permutes (boot): it ``True`` the bootstrap datasets are just
+            permutations of the original data. If ``False`` they are sampled with
+            replacement. Defaults to ``True``.
     """
 
     def __init__(
@@ -364,6 +383,7 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         obs_type=np.float32,
         action_type=np.float32,
         shuffle_each_epoch: bool = False,
+        bootstrap_permutes: bool = True,
     ):
         super(BootstrapReplayBuffer, self).__init__(
             capacity,
@@ -376,15 +396,30 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             action_type=action_type,
             shuffle_each_epoch=shuffle_each_epoch,
         )
-        self.member_indices: List[List[int]] = [None for _ in range(num_members)]
+        self.member_indices: List[Optional[np.ndarray]] = [
+            None for _ in range(num_members)
+        ]
         self._bootstrap_iter = True
+        self._last_len_shuffled_member_idxs = 0
+        self._bootstrap_permutes = bootstrap_permutes
+
+    def _sample_member_indices(self):
+        # Only shuffle member indices if buffer size increased
+        # otherwise it will keep reshuffling every iteration
+        for i in range(len(self.member_indices)):
+            if self._bootstrap_permutes:
+                self.member_indices[i] = self._rng.permutation(self.num_stored)
+            else:
+                # TODO maybe replace with a single call to choice
+                self.member_indices[i] = self._rng.choice(
+                    self.num_stored, size=self.num_stored, replace=True
+                )
+        self._last_len_shuffled_member_idxs = self.num_stored
 
     def __iter__(self):
         super().__iter__()
-        for i in range(len(self.member_indices)):
-            self.member_indices[i] = self._rng.choice(
-                self.num_stored, size=self.num_stored, replace=True
-            )
+        if self.num_stored > self._last_len_shuffled_member_idxs:
+            self._sample_member_indices()
         return self
 
     def __next__(self):
@@ -416,16 +451,15 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         """
         if ensemble:
             batches = []
-            for member_idx in self.member_indices:
+            for _ in range(len(self.member_indices)):
                 indices = self._rng.choice(self.num_stored, size=batch_size)
-                content_indices = member_idx[indices]
-                batches.append(self._batch_from_indices(content_indices))
+                batches.append(self._batch_from_indices(indices))
             return _consolidate_batches(batches)
         else:
             indices = self._rng.choice(self.num_stored, size=batch_size)
             return self._batch_from_indices(indices)
 
-    def toggle_bootstrap(self):
+    def maybe_toggle_bootstrap(self):
         """Toggles whether the iterator returns a batch per model or a single batch."""
         self._bootstrap_iter = not self._bootstrap_iter
 

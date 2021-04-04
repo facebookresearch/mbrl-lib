@@ -54,7 +54,6 @@ def test_create_proprioceptive_model():
     act_shape = (1,)
 
     cfg = omegaconf.OmegaConf.create(cfg_dict)
-    print(cfg)
     dynamics_model = utils.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
     assert isinstance(dynamics_model.model, MockModel)

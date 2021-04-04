@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import copy
 import itertools
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -76,7 +77,7 @@ class DynamicsModelTrainer:
     def train(
         self,
         num_epochs: Optional[int] = None,
-        patience: Optional[int] = 50,
+        patience: Optional[int] = 1,
         callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
@@ -102,7 +103,7 @@ class DynamicsModelTrainer:
                     - current epoch
                     - training loss
                     - train score (i.e., result of ``trainer.evaluate()`` on training data)
-                    - validation score
+                    - validation score (for ensembles, factored per member)
                     - best validation score so far
 
 
@@ -119,16 +120,14 @@ class DynamicsModelTrainer:
                 "and make sure `buffer.num_members == len(model)."
             )
 
-        training_losses, train_eval_scores, val_losses = [], [], []
-        best_weights = None
+        training_losses, val_losses = [], []
+        best_weights: Optional[Dict] = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
         has_val_dataset = (
             self.dataset_val is not None and self.dataset_val.num_stored > 0
         )
-        best_val_score = self.evaluate(
-            use_train_set=not has_val_dataset, update_elites=True
-        )
+        best_val_score = self.evaluate(use_train_set=not has_val_dataset)
         for epoch in epoch_iter:
             batch_losses: List[float] = []
             for batch in self.dataset_train:
@@ -138,20 +137,17 @@ class DynamicsModelTrainer:
             training_losses.append(total_avg_loss)
 
             # only update elites here if "validation" will be done on train set
-            train_score = self.evaluate(
-                use_train_set=True, update_elites=not has_val_dataset
-            )
-            train_eval_scores.append(train_score)
+            train_score = self.evaluate(use_train_set=True)
             eval_score = train_score
             if has_val_dataset:
-                eval_score = self.evaluate(update_elites=True)
-                val_losses.append(eval_score)
+                eval_score = self.evaluate()
+                val_losses.append(eval_score.mean().item())
+            else:
+                val_losses.append(train_score.mean().item())
 
-            maybe_best_weights = self.maybe_save_best_weights(
-                best_val_score, eval_score
-            )
+            maybe_best_weights = self.maybe_get_best_weights(best_val_score, eval_score)
             if maybe_best_weights:
-                best_val_score = eval_score
+                best_val_score = torch.minimum(best_val_score, eval_score)
                 best_weights = maybe_best_weights
                 epochs_since_update = 0
             else:
@@ -168,9 +164,9 @@ class DynamicsModelTrainer:
                         if has_val_dataset
                         else 0,
                         "model_loss": total_avg_loss,
-                        "model_score": train_score,
-                        "model_val_score": eval_score,
-                        "model_best_val_score": best_val_score,
+                        "model_score": train_score.mean(),
+                        "model_val_score": eval_score.mean(),
+                        "model_best_val_score": best_val_score.mean(),
                     },
                 )
             if callback:
@@ -187,15 +183,13 @@ class DynamicsModelTrainer:
             if epochs_since_update >= patience:
                 break
 
-        if best_weights:
-            self.model.load_state_dict(best_weights)
+        # saving the best models:
+        self._maybe_set_best_weights_and_elite(best_weights, best_val_score)
 
         self._train_iteration += 1
         return training_losses, val_losses
 
-    def evaluate(
-        self, use_train_set: bool = False, update_elites: bool = True
-    ) -> float:
+    def evaluate(self, use_train_set: bool = False) -> torch.Tensor:
         """Evaluates the model on the validation dataset.
 
         Iterates over validation dataset, one batch at a time, and calls
@@ -204,49 +198,43 @@ class DynamicsModelTrainer:
 
         Args:
             use_train_set (bool): if ``True``, the evaluation is done over the training data.
-            update_elites (bool): if ``True``, updates the indices of which models in the
-                ensemble should be considered elite. If the model is not an ensemble this
-                argument is ignored. Defaults to ``True``.
 
         Returns:
-            (float): The average score of the model over the dataset.
+            (tensor): The average score of the model over the dataset (and for ensembles, per
+                ensemble member).
         """
         dataset = self.dataset_val
         if use_train_set:
-            if isinstance(self.dataset_train, replay_buffer.BootstrapReplayBuffer):
-                self.dataset_train.toggle_bootstrap()
+            self.dataset_train.maybe_toggle_bootstrap()
             dataset = self.dataset_train
 
-        batch_scores_list = []  # type: ignore
+        batch_scores_list = []
         for batch in dataset:
             avg_batch_score = self.model.eval_score(batch)
-            assert avg_batch_score.ndim in (2, 3)
-            mean_axis = 1 if avg_batch_score.ndim == 2 else (1, 2)
-            avg_batch_score = avg_batch_score.mean(axis=mean_axis)
             batch_scores_list.append(avg_batch_score)
-        batch_scores = torch.stack(batch_scores_list)
+        batch_scores = torch.cat(batch_scores_list, axis=batch_scores_list[0].ndim - 2)
 
-        if use_train_set and isinstance(
-            self.dataset_train, replay_buffer.BootstrapReplayBuffer
-        ):
-            self.dataset_train.toggle_bootstrap()
+        if use_train_set:
+            self.dataset_train.maybe_toggle_bootstrap()
 
-        if update_elites and hasattr(self.model, "num_elites"):
-            sorted_indices = np.argsort(batch_scores.mean(axis=0).tolist())
-            elite_models = sorted_indices[: self.model.num_elites]
-            self.model.set_elite(elite_models)
-            batch_scores = batch_scores[:, elite_models]
+        mean_axis = 1 if batch_scores.ndim == 2 else (1, 2)
+        batch_scores = batch_scores.mean(axis=mean_axis)
 
-        return batch_scores.mean().item()
+        return batch_scores
 
-    def maybe_save_best_weights(
-        self, best_val_score: float, val_score: float, threshold: float = 0.001
+    def maybe_get_best_weights(
+        self,
+        best_val_score: torch.Tensor,
+        val_score: torch.Tensor,
+        threshold: float = 0.01,
     ) -> Optional[Dict]:
-        """Return the best weights if the validation score improves over the best value so far.
+        """Return the current model state dict  if the validation score improves.
+
+        For ensembles, this checks the validation for each ensemble member separately.
 
         Args:
-            best_val_score (float): the current best validation loss.
-            val_score (float): the new validation loss.
+            best_val_score (tensor): the current best validation losses per model.
+            val_score (tensor): the new validation loss per model.
             threshold (float): the threshold for relative improvement.
 
         Returns:
@@ -254,12 +242,16 @@ class DynamicsModelTrainer:
             best validation score is higher than the threshold, returns the state dictionary
             of the stored model, otherwise returns ``None``.
         """
-        best_weights = None
-        improvement = (
-            1
-            if np.isinf(best_val_score)
-            else (best_val_score - val_score) / best_val_score
-        )
-        if improvement > threshold:
-            best_weights = self.model.state_dict()
-        return best_weights
+        improvement = (best_val_score - val_score) / best_val_score
+        improved = (improvement > threshold).any().item()
+        return copy.deepcopy(self.model.state_dict()) if improved else None
+
+    def _maybe_set_best_weights_and_elite(
+        self, best_weights: Optional[Dict], best_val_score: torch.Tensor
+    ):
+        if best_weights is not None:
+            self.model.state_dict(best_weights)
+        if len(best_val_score) > 1 and hasattr(self.model, "num_elites"):
+            sorted_indices = np.argsort(best_val_score.tolist())
+            elite_models = sorted_indices[: self.model.num_elites]
+            self.model.set_elite(elite_models)

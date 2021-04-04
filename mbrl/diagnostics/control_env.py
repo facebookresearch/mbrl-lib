@@ -77,6 +77,8 @@ if __name__ == "__main__":
     mp.set_start_method("spawn")
     eval_env = mujoco_util.make_env_from_str(args.env)
     eval_env.seed(args.seed)
+    torch.random.manual_seed(args.seed)
+    np.random.seed(args.seed)
     current_obs = eval_env.reset()
 
     optimizer_cfg = omegaconf.OmegaConf.create(
@@ -105,6 +107,13 @@ if __name__ == "__main__":
 
         total_reward__ = 0
         frames = []
+        value_history = np.zeros(
+            (
+                args.num_steps,
+                optimizer_cfg.population_size,
+                optimizer_cfg.num_iterations,
+            )
+        )
         for t in range(args.num_steps):
             if args.render:
                 frames.append(eval_env.render(mode="rgb_array"))
@@ -121,7 +130,12 @@ if __name__ == "__main__":
                     current_state__,
                 )
 
-            plan, pred_value = controller.optimize(trajectory_eval_fn)
+            def compute_population_stats(_population, values, opt_step):
+                value_history[t, :, opt_step] = values.numpy()
+
+            plan, pred_value = controller.optimize(
+                trajectory_eval_fn, callback=compute_population_stats
+            )
             action__ = plan[0]
             next_obs__, reward__, done__, _ = eval_env.step(action__)
 
@@ -141,3 +155,4 @@ if __name__ == "__main__":
             writer.close()
 
         print("total_reward: ", total_reward__)
+        np.save(pathlib.Path(args.output_dir) / "value_history.npy", value_history)
