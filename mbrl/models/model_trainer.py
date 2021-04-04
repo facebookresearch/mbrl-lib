@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import copy
 import itertools
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -243,7 +244,7 @@ class DynamicsModelTrainer:
         """
         improvement = (best_val_score - val_score) / best_val_score
         improved = (improvement > threshold).any().item()
-        return self.model.state_dict() if improved else None
+        return copy.deepcopy(self.model.state_dict()) if improved else None
 
     def _maybe_set_best_weights_and_elite(
         self, best_weights: Optional[Dict], best_val_score: torch.Tensor
