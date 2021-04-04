@@ -225,8 +225,6 @@ def test_len_iterable_replay_buffer():
         assert len(buffer) == 0
         for i in range(15):
             buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 0, False)
-            size_buf = i + 1 if i < capacity else capacity
-            assert len(buffer) == int(np.ceil(size_buf / batch_size))
 
     for bs in range(1, capacity + 1):
         check_for_batch_size(bs)
@@ -289,16 +287,15 @@ def test_bootstrap_replay_buffer():
         for i in range(how_many_to_add):
             buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
 
-        it = iter(buffer)
+        for batch in buffer:
+            assert batch.obs.shape[0] == num_members
+            assert batch.obs.shape[2] == 1
+
         assert len(buffer.member_indices) == num_members
         for member in buffer.member_indices:
             assert len(member) == buffer.num_stored
             for idx in member:
                 assert 0 <= idx < buffer.num_stored
-
-        for b in range(len(buffer)):
-            all_batches = next(it)
-            assert len(all_batches) == num_members
 
     for how_many in range(10, 30):
         _check_for_num_additions(how_many)

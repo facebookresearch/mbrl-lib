@@ -328,9 +328,6 @@ class IterableReplayBuffer(SimpleReplayBuffer):
     def __next__(self):
         return self._batch_from_indices(self._get_indices_next_batch())
 
-    def __len__(self):
-        return (self.num_stored - 1) // self.batch_size + 1
-
     def load(self, path: str):
         super().load(path)
         self._current_batch = 0
@@ -399,25 +396,30 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
             action_type=action_type,
             shuffle_each_epoch=shuffle_each_epoch,
         )
-        self.member_indices: List[List[int]] = [None for _ in range(num_members)]
+        self.member_indices: List[Optional[np.ndarray]] = [
+            None for _ in range(num_members)
+        ]
         self._bootstrap_iter = True
         self._last_len_shuffled_member_idxs = 0
         self._bootstrap_permutes = bootstrap_permutes
 
+    def _sample_member_indices(self):
+        # Only shuffle member indices if buffer size increased
+        # otherwise it will keep reshuffling every iteration
+        for i in range(len(self.member_indices)):
+            if self._bootstrap_permutes:
+                self.member_indices[i] = self._rng.permutation(self.num_stored)
+            else:
+                # TODO maybe replace with a single call to choice
+                self.member_indices[i] = self._rng.choice(
+                    self.num_stored, size=self.num_stored, replace=True
+                )
+        self._last_len_shuffled_member_idxs = self.num_stored
+
     def __iter__(self):
         super().__iter__()
         if self.num_stored > self._last_len_shuffled_member_idxs:
-            # Only shuffle member indices if buffer size increased
-            # otherwise it will keep reshuffling every iteration
-            for i in range(len(self.member_indices)):
-                if self._bootstrap_permutes:
-                    self.member_indices[i] = self._rng.permutation(self.num_stored)
-                else:
-                    # TODO maybe replace with a single call to choice
-                    self.member_indices[i] = self._rng.choice(
-                        self.num_stored, size=self.num_stored, replace=True
-                    )
-            self._last_len_shuffled_member_idxs = self.num_stored
+            self._sample_member_indices()
         return self
 
     def __next__(self):
@@ -449,10 +451,9 @@ class BootstrapReplayBuffer(IterableReplayBuffer):
         """
         if ensemble:
             batches = []
-            for member_idx in self.member_indices:
+            for _ in range(len(self.member_indices)):
                 indices = self._rng.choice(self.num_stored, size=batch_size)
-                content_indices = member_idx[indices]
-                batches.append(self._batch_from_indices(content_indices))
+                batches.append(self._batch_from_indices(indices))
             return _consolidate_batches(batches)
         else:
             indices = self._rng.choice(self.num_stored, size=batch_size)
