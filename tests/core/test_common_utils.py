@@ -84,6 +84,7 @@ def test_create_replay_buffer():
     num_trials = 10
     cfg_dict = {
         "dynamics_model": {"model": {"ensemble_size": 1}},
+        "algorithm": {},
         "overrides": {
             "trial_length": trial_length,
             "num_trials": num_trials,
@@ -203,47 +204,31 @@ class MockRng:
         return np.arange(size)
 
 
-def test_populate_replay_buffers_no_trajectories():
-    val_ratio = 0.15
+def test_populate_replay_buffer_no_trajectories():
     num_steps = 100
-    size_val = int(num_steps * val_ratio)
-    size_train = num_steps - size_val
-    train = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
-    val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    buffer = replay_buffer.ReplayBuffer(1000, (1,), (1,), obs_type=int)
     env = MockEnv()
 
     utils.rollout_agent_trajectories(
-        env,
-        num_steps,
-        MockZeroAgent(),
-        {},
-        MockRng(),
-        train_dataset=train,
-        val_dataset=val,
-        val_ratio=val_ratio,
+        env, num_steps, MockZeroAgent(), {}, replay_buffer=buffer
     )
-    assert train.num_stored == size_train
-    assert val.num_stored == size_val
+    assert buffer.num_stored == num_steps
 
     # Check the order in which things were inserted
     obs = env.reset(from_zero=True)
     done = False
     for i in range(num_steps):
-        array = train.obs if i < size_train else val.obs
-        idx = i if i < size_train else i - size_train
         if done:
             obs = env.reset()
-        assert array[idx] == obs
+        assert buffer.obs[i] == obs
         obs, _, done, _ = env.step(None)
 
 
-def test_populate_replay_buffers_collect_trajectories():
-    val_ratio = 0.20
+def test_populate_replay_buffer_collect_trajectories():
     num_trials = 10
-    trials_val = int(num_trials * val_ratio)
-    trials_train = num_trials - trials_val
-    train = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
-    val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    buffer = replay_buffer.ReplayBuffer(
+        1000, (1,), (1,), obs_type=int, max_trajectory_length=_MOCK_TRAJ_LEN
+    )
     env = MockEnv()
 
     utils.rollout_agent_trajectories(
@@ -251,27 +236,8 @@ def test_populate_replay_buffers_collect_trajectories():
         num_trials,
         MockZeroAgent(),
         {},
-        MockRng(),
-        train_dataset=train,
-        val_dataset=val,
-        val_ratio=val_ratio,
+        replay_buffer=buffer,
         collect_full_trajectories=True,
     )
-    assert train.num_stored == trials_train * _MOCK_TRAJ_LEN
-    assert val.num_stored == trials_val * _MOCK_TRAJ_LEN
-
-    # Check the that obs were inserted in the right order
-    obs = env.reset(from_zero=True)
-    trial = 0
-    idx = 0
-    array = train.obs
-    while trial < num_trials:
-        assert array[idx] == obs
-        obs, _, done, _ = env.step(None)
-        if done:
-            obs = env.reset()
-            trial += 1
-            if trial == trials_train:
-                array = val.obs
-                idx = -1
-        idx += 1
+    assert buffer.num_stored == num_trials * _MOCK_TRAJ_LEN
+    assert len(buffer.trajectory_indices) == num_trials

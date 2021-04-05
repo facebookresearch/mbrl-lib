@@ -29,7 +29,7 @@ _TARGET_REWARD = -10 * _REW_C
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
 
-_SILENT = False
+_SILENT = True
 _DEBUG_MODE = False
 
 SEED = 12345
