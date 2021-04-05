@@ -141,7 +141,7 @@ def create_replay_buffer(
                 max_trajectory_length
             -num_trials (int, optional): how many trial/episodes will be run
 
-    The size of the training/validation buffers can be determined by either providing
+    The size of the replay buffer can be determined by either providing
     ``cfg.algorithm.dataset_size``, or providing both ``cfg.overrides.trial_length`` and
     ``cfg.overrides.num_trials``, in which case it's set to the product of the two.
     The second method (using overrides) is more convenient, but the first one takes precedence
@@ -197,6 +197,7 @@ def train_model_and_save_model_and_data(
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     replay_buffer: mbrl.replay_buffer.ReplayBuffer,
     work_dir: Union[str, pathlib.Path],
+    callback: Optional[Callable] = None,
 ):
     """Convenience function for training a model and saving results.
 
@@ -214,6 +215,8 @@ def train_model_and_save_model_and_data(
                 -bootstrap_permutes (bool, optional)
         replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer to use.
         work_dir (str or pathlib.Path): directory to save model and buffer to.
+        callback (callable, optional): if provided, this function will be called after
+            every training epoch. See :class:`mbrl.models.ModelTrainer` for signature.
     """
     dataset_train, dataset_val = replay_buffer.get_iterators(
         cfg.model_batch_size,
@@ -229,6 +232,7 @@ def train_model_and_save_model_and_data(
         dataset_val=dataset_val,
         num_epochs=cfg.get("num_epochs_train_model", None),
         patience=cfg.get("patience", 1),
+        callback=callback,
     )
     model.save(str(work_dir))
     replay_buffer.save(work_dir)
