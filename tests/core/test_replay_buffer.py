@@ -8,6 +8,40 @@ import pytorch_sac.replay_buffer as sac_buffer
 import torch
 
 import mbrl.replay_buffer as replay_buffer
+from mbrl.types import TransitionBatch
+
+
+def test_transition_batch_getitem():
+    how_many = 10
+    obs = np.random.randn(how_many, 4)
+    act = np.random.randn(how_many, 2)
+    next_obs = np.random.randn(how_many, 4)
+    rewards = np.random.randn(how_many, 1)
+    dones = np.random.randn(how_many, 1)
+
+    transitions = TransitionBatch(obs, act, next_obs, rewards, dones)
+    for i in range(how_many):
+        o, a, no, r, d = transitions[i].astuple()
+        assert np.allclose(o, obs[i])
+        assert np.allclose(a, act[i])
+        assert np.allclose(no, next_obs[i])
+        assert np.allclose(r, rewards[i])
+        assert np.allclose(d, dones[i])
+
+        o, a, no, r, d = transitions[i:].astuple()
+        assert np.allclose(o, obs[i:])
+
+        o, a, no, r, d = transitions[:i].astuple()
+        assert np.allclose(o, obs[:i])
+
+        for j in range(i + 1, how_many):
+            o, a, no, r, d = transitions[i:j].astuple()
+            assert np.allclose(o, obs[i:j])
+
+    for sz in range(1, how_many):
+        indices = np.random.choice(how_many, size=5)
+        o, a, no, r, d = transitions[indices].astuple()
+        assert np.allclose(o, obs[indices])
 
 
 def test_sac_buffer_batched_add():
@@ -80,9 +114,9 @@ def test_sac_buffer_batched_add():
     )
 
 
-def test_len_simple_replay_buffer_no_trajectory():
+def test_len_replay_buffer_no_trajectory():
     capacity = 10
-    buffer = replay_buffer.SimpleReplayBuffer(capacity, (2,), (1,))
+    buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
     assert len(buffer) == 0
     for i in range(15):
         buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 0, False)
@@ -94,9 +128,7 @@ def test_len_simple_replay_buffer_no_trajectory():
 
 def test_buffer_with_trajectory_len_and_loop_behavior():
     capacity = 10
-    buffer = replay_buffer.SimpleReplayBuffer(
-        capacity, (2,), (1,), max_trajectory_length=5
-    )
+    buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,), max_trajectory_length=5)
     assert len(buffer) == 0
     dones = [4, 7, 12]  # check that dones before capacity don't do anything weird
     for how_many in range(1, 15):
@@ -143,9 +175,7 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
 def test_buffer_close_trajectory_not_done():
     capacity = 10
     dummy = np.zeros(1)
-    buffer = replay_buffer.SimpleReplayBuffer(
-        capacity, (1,), (1,), max_trajectory_length=5
-    )
+    buffer = replay_buffer.ReplayBuffer(capacity, (1,), (1,), max_trajectory_length=5)
     for i in range(3):
         buffer.add(dummy, dummy, dummy, i, False)
     buffer.close_trajectory()
@@ -158,7 +188,7 @@ def test_buffer_close_trajectory_not_done():
 
 
 def test_trajectory_contents():
-    buffer = replay_buffer.SimpleReplayBuffer(20, (1,), (1,), max_trajectory_length=10)
+    buffer = replay_buffer.ReplayBuffer(20, (1,), (1,), max_trajectory_length=10)
     dummy = np.zeros(1)
     traj_lens = [4, 10, 1, 7, 8, 1, 4, 7, 5]
     trajectories = [
@@ -199,7 +229,7 @@ def test_trajectory_contents():
 
 
 def test_sample_trajectories():
-    buffer = replay_buffer.SimpleReplayBuffer(15, (1,), (1,), max_trajectory_length=10)
+    buffer = replay_buffer.ReplayBuffer(15, (1,), (1,), max_trajectory_length=10)
     dummy = np.zeros(1)
 
     for i in range(7):
@@ -217,93 +247,101 @@ def test_sample_trajectories():
             assert r.sum() == 1045
 
 
-def test_len_iterable_replay_buffer():
-    capacity = 10
-
-    def check_for_batch_size(batch_size):
-        buffer = replay_buffer.IterableReplayBuffer(capacity, batch_size, (2,), (1,))
-        assert len(buffer) == 0
-        for i in range(15):
-            buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 0, False)
-
-    for bs in range(1, capacity + 1):
-        check_for_batch_size(bs)
-
-
-def test_iterable_buffer():
-    def _check_for_capacity_and_batch_size(capacity, batch_size):
-        buffer = replay_buffer.IterableReplayBuffer(capacity, batch_size, (1,), (1,))
-        for i in range(capacity):
-            buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
-
-        for i, batch in enumerate(buffer):
+def test_transition_iterator():
+    def _check_for_capacity_and_batch_size(num_transitions, batch_size):
+        dummy = np.zeros((num_transitions, 1))
+        input_obs = np.arange(num_transitions)[:, None]
+        transitions = TransitionBatch(input_obs, dummy, input_obs + 1, dummy, dummy)
+        it = replay_buffer.TransitionIterator(transitions, batch_size)
+        assert len(it) == int(np.ceil(num_transitions / bs))
+        idx_check = 0
+        for i, batch in enumerate(it):
             obs, action, next_obs, reward, done = batch.astuple()
-            if i < capacity // batch_size:
+            if i < num_transitions // batch_size:
                 assert len(obs) == batch_size
             else:
-                assert len(obs) == capacity % batch_size
+                assert len(obs) == num_transitions % batch_size
             for j in range(len(obs)):
-                assert obs[j].item() == i * batch_size + j
+                assert obs[j].item() == input_obs[idx_check].item()
                 assert next_obs[j].item() == obs[j].item() + 1
+                idx_check += 1
 
-    for cap in range(10, 20):
-        for bs in range(4, cap + 1):
+    for cap in range(1, 100):
+        for bs in range(1, cap + 1):
             _check_for_capacity_and_batch_size(cap, bs)
 
 
-def test_iterable_buffer_shuffle():
-    def _check(capacity, batch_size):
-        buffer = replay_buffer.IterableReplayBuffer(
-            capacity, batch_size, (1,), (1,), shuffle_each_epoch=True
+def test_transition_iterator_shuffle():
+    def _check(num_transitions, batch_size):
+        dummy = np.zeros((num_transitions, 1))
+        input_obs = np.arange(num_transitions)[:, None]
+        transitions = TransitionBatch(input_obs, dummy, dummy, dummy, dummy)
+        it = replay_buffer.TransitionIterator(
+            transitions, batch_size, shuffle_each_epoch=True
         )
-        for i in range(capacity):
-            buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
 
         all_obs = []
-        for i, batch in enumerate(buffer):
-            obs, action, next_obs, reward, done = batch.astuple()
+        for i, batch in enumerate(it):
+            obs, *_ = batch.astuple()
             for j in range(len(obs)):
                 all_obs.append(obs[j].item())
         all_obs_sorted = sorted(all_obs)
 
         assert any([a != b for a, b in zip(all_obs, all_obs_sorted)])
-        assert all([a == b for a, b in zip(all_obs_sorted, range(capacity))])
+        assert all([a == b for a, b in zip(all_obs_sorted, range(num_transitions))])
 
-    for cap in range(10, 20):
-        for bs in range(4, cap + 1):
+    for cap in range(10, 100):
+        for bs in range(1, cap + 1):
             _check(cap, bs)
 
 
-def test_bootstrap_replay_buffer():
-    capacity = 20
-    batch_size = 4
+def test_bootstrap_iterator():
     num_members = 5
 
-    def _check_for_num_additions(how_many_to_add):
-        buffer = replay_buffer.BootstrapReplayBuffer(
-            capacity, batch_size, num_members, (1,), (1,)
+    def _check(num_transitions, batch_size, permute):
+        dummy = np.zeros((num_transitions, 1))
+        input_obs = np.arange(num_transitions)[:, None]
+        transitions = TransitionBatch(input_obs, dummy, input_obs + 1, dummy, dummy)
+        it = replay_buffer.BootstrapIterator(
+            transitions, batch_size, num_members, permute_indices=permute
         )
 
-        for i in range(how_many_to_add):
-            buffer.add(np.array([i]), np.zeros(1), np.array([i + 1]), 0, False)
+        member_contents = [[] for _ in range(num_members)]
+        for batch in it:
+            obs, *_ = batch.astuple()
+            assert obs.shape[0] == num_members
+            assert obs.shape[2] == 1
+            for i in range(num_members):
+                member_contents[i].extend(obs[i].squeeze(1).tolist())
 
-        for batch in buffer:
-            assert batch.obs.shape[0] == num_members
-            assert batch.obs.shape[2] == 1
+        all_elements = list(range(num_transitions))
+        for i in range(num_members):
 
-        assert len(buffer.member_indices) == num_members
-        for member in buffer.member_indices:
-            assert len(member) == buffer.num_stored
-            for idx in member:
-                assert 0 <= idx < buffer.num_stored
+            if permute:
+                # this checks that all elements are present but shuffled
+                sorted_content = sorted(member_contents[i])
+                assert sorted_content == all_elements
+                assert member_contents[i] != all_elements
+            else:
+                # check that it did sampling with replacement
+                assert len(member_contents[i]) == num_transitions
+                assert min(member_contents[i]) >= 0
+                assert max(member_contents[i]) < num_transitions
+                assert member_contents[i] != all_elements
 
-    for how_many in range(10, 30):
-        _check_for_num_additions(how_many)
+            # this checks that all member samples are different
+            for j in range(i + 1, num_members):
+                assert member_contents[i] != member_contents[j]
+
+    for how_many in [100, 1000]:
+        for bs in [1, how_many, how_many // 10, how_many // 32]:
+            _check(how_many, bs, True)
+            _check(how_many, bs, False)
 
 
 def test_get_all():
     capacity = 20
-    buffer = replay_buffer.SimpleReplayBuffer(capacity, (1,), (1,))
+    buffer = replay_buffer.ReplayBuffer(capacity, (1,), (1,))
     dummy = np.ones(1)
     for i in range(capacity):
         buffer.add(dummy, dummy, dummy, i, False)
