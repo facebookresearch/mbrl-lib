@@ -33,7 +33,7 @@ class DatasetEvaluator:
             model_dir=self.model_path,
         )
 
-        self.replay_buffer = mbrl.util.create_replay_buffers(
+        self.replay_buffer = mbrl.util.create_replay_buffer(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,

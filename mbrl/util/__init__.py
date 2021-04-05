@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 from .common import (
     create_proprioceptive_model,
-    create_replay_buffers,
+    create_replay_buffer,
     load_hydra_cfg,
     rollout_agent_trajectories,
     rollout_model_env,
@@ -13,7 +13,7 @@ from .common import (
 )
 
 __all__ = [
-    "create_replay_buffers",
+    "create_replay_buffer",
     "load_hydra_cfg",
     "create_proprioceptive_model",
     "rollout_model_env",

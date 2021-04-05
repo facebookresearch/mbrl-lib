@@ -86,7 +86,7 @@ proprioceptive_model.save(_DIR.name)
 # Create replay buffers and save to directory with some data
 _CFG.dynamics_model.model.in_size = "???"
 _CFG.dynamics_model.model.out_size = "???"
-replay_buffer = utils.create_replay_buffers(_CFG, _OBS_SHAPE, _ACT_SHAPE)
+replay_buffer = utils.create_replay_buffer(_CFG, _OBS_SHAPE, _ACT_SHAPE)
 utils.rollout_agent_trajectories(
     _ENV, 128, planning.RandomAgent(_ENV), {}, replay_buffer=replay_buffer
 )
@@ -136,7 +136,7 @@ def test_finetuner():
     for i in range(len(new_model_output)):
         assert (new_model_output[i] - model_output[i]).abs().mean().item() > 0
 
-    new_buffer = utils.create_replay_buffers(
+    new_buffer = utils.create_replay_buffer(
         _MBPO_CFG, _OBS_SHAPE, _ACT_SHAPE, load_dir=results_dir
     )
     assert new_buffer.num_stored > replay_buffer.num_stored

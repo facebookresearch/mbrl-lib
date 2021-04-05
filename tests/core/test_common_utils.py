@@ -102,13 +102,13 @@ def test_create_replay_buffer():
         assert buffer.done.shape == (how_many,)
 
     # Test reading from the above configuration and no bootstrap replay buffer
-    buffer = utils.create_replay_buffers(cfg, obs_shape, act_shape)
+    buffer = utils.create_replay_buffer(cfg, obs_shape, act_shape)
     _check_shapes(num_trials * trial_length)
 
     # Now add a training bootstrap and override the dataset size
     cfg_dict["algorithm"]["dataset_size"] = 1500
     cfg = omegaconf.OmegaConf.create(cfg_dict)
-    buffer = utils.create_replay_buffers(cfg, obs_shape, act_shape)
+    buffer = utils.create_replay_buffer(cfg, obs_shape, act_shape)
     _check_shapes(1500)
 
 

@@ -120,7 +120,7 @@ def load_hydra_cfg(
     return omegaconf.OmegaConf.load(cfg_file)
 
 
-def create_replay_buffers(
+def create_replay_buffer(
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
     obs_shape: Tuple[int],
     act_shape: Tuple[int],

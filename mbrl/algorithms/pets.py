@@ -65,7 +65,7 @@ def train(
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
-    replay_buffer = mbrl.util.create_replay_buffers(cfg, obs_shape, act_shape, rng=rng)
+    replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
 
     mbrl.util.rollout_agent_trajectories(
         env,

@@ -42,7 +42,7 @@ class FineTuner:
             model_dir=None if new_model else model_dir,
         )
         self.agent = mbrl.planning.load_agent(agent_dir, self.env, agent_type)
-        self.replay_buffer = mbrl.util.create_replay_buffers(
+        self.replay_buffer = mbrl.util.create_replay_buffer(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
