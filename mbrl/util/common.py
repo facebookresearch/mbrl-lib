@@ -206,17 +206,22 @@ def train_model_and_save_model_and_data(
     Args:
         model (:class:`mbrl.models.Model`): the model to train.
         model_trainer (:class:`mbrl.models.DynamicsModelTrainer`): the model trainer.
-        cfg (:class:`omegaconf.DictConfig`): configuration to use for training.
-            Fields ``cfg.overrides.num_epochs_train_model`` and ``cfg.overrides.patience``
-            will be passed to the model trainer (as ``num_epochs`` and ``patience`` kwargs,
-            respectively). If patience is not given, a default value of 1 will be used.
+        cfg (:class:`omegaconf.DictConfig`): configuration to use for training. It
+            must contain the following fields::
+                -model_batch_size (int)
+                -validation_ratio (float)
+                -num_epochs (int, optional)
+                -patience (int, optional)
+                -bootstrap_permutes (bool, optional)
         replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer to use.
-        work_dir (str or pathlib.Path): directory to save model and datasets to.
-
+        work_dir (str or pathlib.Path): directory to save model and buffer to.
     """
     model_trainer.train(
-        num_epochs=cfg.overrides.get("num_epochs_train_model", None),
-        patience=cfg.overrides.get("patience", 1),
+        cfg.model_batch_size,
+        cfg.validation_ratio,
+        num_epochs=cfg.get("num_epochs_train_model", None),
+        patience=cfg.get("patience", 1),
+        bootstrap_permutes=cfg.get("bootstrap_permutes", False),
     )
     model.save(str(work_dir))
     replay_buffer.save(work_dir)

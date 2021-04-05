@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
-from typing import List, Optional, cast
+from typing import List, Optional
 
 import gym
 import numpy as np
@@ -83,8 +83,7 @@ def train(
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model,
-        dataset_train,
-        dataset_val=dataset_val,
+        replay_buffer,
         optim_lr=cfg.overrides.model_lr,
         weight_decay=cfg.overrides.model_wd,
         logger=logger,
@@ -115,7 +114,11 @@ def train(
             if steps_trial == 0 or env_steps % cfg.algorithm.freq_train_model == 0:
                 dynamics_model.update_normalizer(replay_buffer.get_all())
                 mbrl.util.train_model_and_save_model_and_data(
-                    dynamics_model, model_trainer, cfg, replay_buffer, work_dir
+                    dynamics_model,
+                    model_trainer,
+                    cfg.overrides,
+                    replay_buffer,
+                    work_dir,
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---

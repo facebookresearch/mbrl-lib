@@ -166,7 +166,8 @@ def train(
     model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model,
         replay_buffer,
-        dataset_val=env_dataset_val,
+        optim_lr=cfg.overrides.model_lr,
+        weight_decay=cfg.overrides.model_wd,
         logger=None if silent else logger,
     )
     best_eval_reward = -np.inf
@@ -197,7 +198,11 @@ def train(
             if (env_steps + 1) % cfg.overrides.freq_train_model == 0:
                 dynamics_model.update_normalizer(replay_buffer.get_all())
                 mbrl.util.train_model_and_save_model_and_data(
-                    dynamics_model, model_trainer, cfg, replay_buffer, work_dir
+                    dynamics_model,
+                    model_trainer,
+                    cfg.overrides,
+                    replay_buffer,
+                    work_dir,
                 )
 
                 # --------- Rollout new model and store imagined trajectories --------
