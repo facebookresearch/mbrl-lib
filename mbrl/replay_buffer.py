@@ -2,8 +2,9 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import pathlib
 import warnings
-from typing import List, Optional, Sequence, Sized, Tuple
+from typing import List, Optional, Sequence, Sized, Tuple, Union
 
 import numpy as np
 
@@ -348,12 +349,14 @@ class ReplayBuffer:
     def __len__(self):
         return self.num_stored
 
-    def save(self, path: str):
-        """Saves the data in the replay buffer to a given path.
+    def save(self, save_dir: Union[pathlib.Path, str]):
+        """Saves the data in the replay buffer to a given directory.
 
         Args:
-            path (str): the file name to save the data to (the .npz extension will be appended).
+            save_dir (str): the directory to save the data to. File name will be
+                replay_buffer.npz.
         """
+        path = pathlib.Path(save_dir) / "replay_buffer.npz"
         np.savez(
             path,
             obs=self.obs[: self.num_stored],
@@ -363,12 +366,13 @@ class ReplayBuffer:
             done=self.done[: self.num_stored],
         )
 
-    def load(self, path: str):
-        """Loads transition data from a given path.
+    def load(self, load_dir: Union[pathlib.Path, str]):
+        """Loads transition data from a given directory.
 
         Args:
-            path (str): the full path to the file with the transition data.
+            load_dir (str): the directory where the buffer is stored.
         """
+        path = pathlib.Path(load_dir) / "replay_buffer.npz"
         data = np.load(path)
         num_stored = len(data["obs"])
         self.obs[:num_stored] = data["obs"]
