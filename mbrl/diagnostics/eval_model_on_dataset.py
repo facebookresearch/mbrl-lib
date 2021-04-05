@@ -33,30 +33,22 @@ class DatasetEvaluator:
             model_dir=self.model_path,
         )
 
-        self.training_data, self.val_data = mbrl.util.create_replay_buffers(
+        self.replay_buffer = mbrl.util.create_replay_buffers(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
             load_dir=dataset_dir,
-            train_is_bootstrap=False,
         )
 
     def plot_dataset_results(
-        self, dataset: mbrl.replay_buffer.IterableReplayBuffer, name: str
+        self,
+        dataset: mbrl.replay_buffer.TransitionIterator,
+        name: str,
+        is_ensemble: bool = False,
+        num_members: int = 0,
     ):
         all_means: List[np.ndarray] = []
         all_targets = []
-
-        is_ensemble, num_members = False, None
-        if hasattr(self.dynamics_model, "set_propagation_method"):
-            self.dynamics_model.set_propagation_method(None)
-            # Some models (e.g., GaussianMLP) require the batch size to be
-            # a multiple of number of models
-            dataset.batch_size = dataset.batch_size - dataset.batch_size % len(
-                self.dynamics_model
-            )
-            is_ensemble = True
-            num_members = len(self.dynamics_model.model)
 
         # Iterating over dataset and computing predictions
         for batch in dataset:
@@ -107,8 +99,23 @@ class DatasetEvaluator:
             plt.close()
 
     def run(self):
-        self.plot_dataset_results(self.training_data, "train")
-        self.plot_dataset_results(self.val_data, "val")
+        batch_size = 32
+        is_ensemble, num_members = False, None
+        if hasattr(self.dynamics_model, "set_propagation_method"):
+            self.dynamics_model.set_propagation_method(None)
+            # Some models (e.g., GaussianMLP) require the batch size to be
+            # a multiple of number of models
+            batch_size = len(self.dynamics_model) * 8
+            is_ensemble = True
+            num_members = len(self.dynamics_model.model)
+        dataset_train, dataset_val = self.replay_buffer.get_iterators(
+            batch_size=batch_size, val_ratio=0.2
+        )
+
+        self.plot_dataset_results(
+            dataset_train, "train", is_ensemble=is_ensemble, num_members=num_members
+        )
+        self.plot_dataset_results(dataset_val, "val")
 
 
 if __name__ == "__main__":

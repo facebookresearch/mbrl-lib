@@ -186,7 +186,7 @@ def create_replay_buffers(
 
     if load_dir:
         load_dir = pathlib.Path(load_dir)
-        replay_buffer.load(str(load_dir / "replay_buffer.npz"))
+        replay_buffer.load(str(load_dir))
 
     return replay_buffer
 

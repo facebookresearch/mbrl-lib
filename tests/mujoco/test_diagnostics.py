@@ -86,18 +86,12 @@ proprioceptive_model.save(_DIR.name)
 # Create replay buffers and save to directory with some data
 _CFG.dynamics_model.model.in_size = "???"
 _CFG.dynamics_model.model.out_size = "???"
-train_buffer, val_buffer = utils.create_replay_buffers(_CFG, _OBS_SHAPE, _ACT_SHAPE)
+replay_buffer = utils.create_replay_buffers(_CFG, _OBS_SHAPE, _ACT_SHAPE)
 utils.rollout_agent_trajectories(
-    _ENV,
-    128,
-    planning.RandomAgent(_ENV),
-    {},
-    np.random.default_rng(),
-    train_dataset=train_buffer,
-    val_dataset=val_buffer,
-    val_ratio=0.1,
+    _ENV, 128, planning.RandomAgent(_ENV), {}, replay_buffer=replay_buffer
 )
-utils.save_buffers(train_buffer, val_buffer, _DIR.name)
+
+replay_buffer.save(_DIR.name)
 
 
 def test_eval_on_dataset():
@@ -131,7 +125,7 @@ def test_finetuner():
     )
     num_epochs = 3
     num_steps = 100
-    finetuner.run(num_epochs, 10, num_steps)
+    finetuner.run(256, 0.2, num_epochs, 10, num_steps)
 
     results_dir = pathlib.Path(_DIR.name) / "diagnostics" / "subdir"
 
@@ -142,17 +136,11 @@ def test_finetuner():
     for i in range(len(new_model_output)):
         assert (new_model_output[i] - model_output[i]).abs().mean().item() > 0
 
-    new_train_buffer, new_val_buffer = utils.create_replay_buffers(
+    new_buffer = utils.create_replay_buffers(
         _MBPO_CFG, _OBS_SHAPE, _ACT_SHAPE, load_dir=results_dir
     )
-    assert new_train_buffer.num_stored > train_buffer.num_stored
-    assert new_val_buffer.num_stored > val_buffer.num_stored
-    assert (
-        new_train_buffer.num_stored
-        + new_val_buffer.num_stored
-        - train_buffer.num_stored
-        - val_buffer.num_stored
-    ) == num_steps
+    assert new_buffer.num_stored > replay_buffer.num_stored
+    assert (new_buffer.num_stored - replay_buffer.num_stored) == num_steps
 
     with open(results_dir / "model_train.csv", "r") as f:
         total = 0
