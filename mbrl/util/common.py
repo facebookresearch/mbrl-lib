@@ -191,7 +191,6 @@ def create_replay_buffer(
     return replay_buffer
 
 
-# TODO replace this with optional save inside the trainer (maybe)
 def train_model_and_save_model_and_data(
     model: mbrl.models.Model,
     model_trainer: mbrl.models.DynamicsModelTrainer,
@@ -216,12 +215,20 @@ def train_model_and_save_model_and_data(
         replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer to use.
         work_dir (str or pathlib.Path): directory to save model and buffer to.
     """
-    model_trainer.train(
+    dataset_train, dataset_val = replay_buffer.get_iterators(
         cfg.model_batch_size,
         cfg.validation_ratio,
+        train_ensemble=len(model) is not None,
+        ensemble_size=len(model),
+        shuffle_each_epoch=True,
+        bootstrap_permutes=cfg.get("bootstrap_permutes", False),
+    )
+
+    model_trainer.train(
+        dataset_train,
+        dataset_val=dataset_val,
         num_epochs=cfg.get("num_epochs_train_model", None),
         patience=cfg.get("patience", 1),
-        bootstrap_permutes=cfg.get("bootstrap_permutes", False),
     )
     model.save(str(work_dir))
     replay_buffer.save(work_dir)

@@ -165,7 +165,6 @@ def train(
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model,
-        replay_buffer,
         optim_lr=cfg.overrides.model_lr,
         weight_decay=cfg.overrides.model_wd,
         logger=None if silent else logger,

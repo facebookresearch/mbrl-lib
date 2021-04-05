@@ -75,12 +75,24 @@ class FineTuner:
 
         model_trainer = mbrl.models.DynamicsModelTrainer(
             self.dynamics_model,
-            self.replay_buffer,
             logger=logger,
         )
-        train_losses, val_losses = model_trainer.train(
-            batch_size, val_ratio, num_epochs, patience=patience
+
+        dataset_train, dataset_val = self.replay_buffer.get_iterators(
+            batch_size,
+            val_ratio,
+            train_ensemble=len(self.dynamics_model.model) is not None,
+            ensemble_size=len(self.dynamics_model.model),
+            shuffle_each_epoch=True,
+            bootstrap_permutes=False,
         )
+        train_losses, val_losses = model_trainer.train(
+            dataset_train,
+            dataset_val=dataset_val,
+            num_epochs=num_epochs,
+            patience=patience,
+        )
+
         self.dynamics_model.save(str(self.outdir))
         np.savez(self.outdir / "finetune_losses", train=train_losses, val=val_losses)
         self.replay_buffer.save(self.outdir)
