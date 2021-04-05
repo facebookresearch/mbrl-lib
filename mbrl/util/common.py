@@ -324,7 +324,7 @@ def rollout_agent_trajectories(
         total_reward = 0.0
         while not done:
             if replay_buffer is not None:
-                next_obs, reward, done, info = step_env_and_populate_dataset(
+                next_obs, reward, done, info = step_env_and_add_to_buffer(
                     env,
                     obs,
                     agent,
@@ -353,8 +353,7 @@ def rollout_agent_trajectories(
     return total_rewards
 
 
-# TODO rename this method
-def step_env_and_populate_dataset(
+def step_env_and_add_to_buffer(
     env: gym.Env,
     obs: np.ndarray,
     agent: mbrl.planning.Agent,

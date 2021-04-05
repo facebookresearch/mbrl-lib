@@ -8,7 +8,7 @@ from .common import (
     load_hydra_cfg,
     rollout_agent_trajectories,
     rollout_model_env,
-    step_env_and_populate_dataset,
+    step_env_and_add_to_buffer,
     train_model_and_save_model_and_data,
 )
 
@@ -18,6 +18,6 @@ __all__ = [
     "create_proprioceptive_model",
     "rollout_model_env",
     "rollout_agent_trajectories",
-    "step_env_and_populate_dataset",
+    "step_env_and_add_to_buffer",
     "train_model_and_save_model_and_data",
 ]

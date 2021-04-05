@@ -122,7 +122,7 @@ def train(
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
+            next_obs, reward, done, _ = mbrl.util.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 
