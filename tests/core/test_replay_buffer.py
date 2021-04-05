@@ -290,6 +290,14 @@ def test_transition_iterator_shuffle():
         assert any([a != b for a, b in zip(all_obs, all_obs_sorted)])
         assert all([a == b for a, b in zip(all_obs_sorted, range(num_transitions))])
 
+        # the second time the order should be different
+        all_obs_second = []
+        for i, batch in enumerate(it):
+            obs, *_ = batch.astuple()
+            for j in range(len(obs)):
+                all_obs_second.append(obs[j].item())
+        assert any([a != b for a, b in zip(all_obs, all_obs_second)])
+
     for cap in range(10, 100):
         for bs in range(1, cap + 1):
             _check(cap, bs)
@@ -350,3 +358,19 @@ def test_get_all():
     assert np.allclose(
         buffer.get_all().rewards, np.array([-1] + list(range(1, capacity)))
     )
+
+
+def test_get_iterators():
+    buffer = replay_buffer.ReplayBuffer(1000, (1,), (1,))
+    dummy = np.ones(1)
+    for i in range(900):
+        buffer.add(dummy, dummy, dummy, i, False)
+
+    train_iter, val_iter = buffer.get_iterators(32, 0.1)
+    assert train_iter.num_stored == 810 and val_iter.num_stored == 90
+    all_rewards = []
+    for it in [train_iter, val_iter]:
+        for batch in it:
+            _, _, _, reward, _ = batch.astuple()
+            all_rewards.extend(reward)
+    assert sorted(all_rewards) == list(range(900))
