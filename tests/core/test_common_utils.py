@@ -79,55 +79,36 @@ def test_create_proprioceptive_model():
     assert dynamics_model.obs_process_fn == mock_obs_func
 
 
-def test_create_replay_buffers():
+def test_create_replay_buffer():
     trial_length = 20
     num_trials = 10
-    val_ratio = 0.1
     cfg_dict = {
         "dynamics_model": {"model": {"ensemble_size": 1}},
         "algorithm": {},
         "overrides": {
             "trial_length": trial_length,
             "num_trials": num_trials,
-            "model_batch_size": 64,
-            "validation_ratio": val_ratio,
         },
     }
     cfg = omegaconf.OmegaConf.create(cfg_dict)
     obs_shape = (6,)
     act_shape = (4,)
 
-    def _check_shapes(train_cap):
-        val_cap = int(val_ratio * train_cap)
-        assert train.obs.shape == (train_cap, obs_shape[0])
-        assert val.obs.shape == (val_cap, obs_shape[0])
-        assert train.next_obs.shape == (train_cap, obs_shape[0])
-        assert val.next_obs.shape == (val_cap, obs_shape[0])
-        assert train.action.shape == (train_cap, act_shape[0])
-        assert val.action.shape == (val_cap, act_shape[0])
-        assert train.reward.shape == (train_cap,)
-        assert val.reward.shape == (val_cap,)
-        assert train.done.shape == (train_cap,)
-        assert val.done.shape == (val_cap,)
+    def _check_shapes(how_many):
+        assert buffer.obs.shape == (how_many, obs_shape[0])
+        assert buffer.next_obs.shape == (how_many, obs_shape[0])
+        assert buffer.action.shape == (how_many, act_shape[0])
+        assert buffer.reward.shape == (how_many,)
+        assert buffer.done.shape == (how_many,)
 
     # Test reading from the above configuration and no bootstrap replay buffer
-    train, val = utils.create_replay_buffers(
-        cfg, obs_shape, act_shape, train_is_bootstrap=False
-    )
-    assert isinstance(train, replay_buffer.IterableReplayBuffer)
-    assert isinstance(val, replay_buffer.IterableReplayBuffer)
-
+    buffer = utils.create_replay_buffer(cfg, obs_shape, act_shape)
     _check_shapes(num_trials * trial_length)
 
     # Now add a training bootstrap and override the dataset size
     cfg_dict["algorithm"]["dataset_size"] = 1500
     cfg = omegaconf.OmegaConf.create(cfg_dict)
-    train, val = utils.create_replay_buffers(
-        cfg, obs_shape, act_shape, train_is_bootstrap=True
-    )
-    assert isinstance(train, replay_buffer.BootstrapReplayBuffer)
-    assert isinstance(val, replay_buffer.IterableReplayBuffer)
-
+    buffer = utils.create_replay_buffer(cfg, obs_shape, act_shape)
     _check_shapes(1500)
 
 
@@ -223,47 +204,31 @@ class MockRng:
         return np.arange(size)
 
 
-def test_populate_replay_buffers_no_trajectories():
-    val_ratio = 0.15
+def test_populate_replay_buffer_no_trajectories():
     num_steps = 100
-    size_val = int(num_steps * val_ratio)
-    size_train = num_steps - size_val
-    train = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
-    val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    buffer = replay_buffer.ReplayBuffer(1000, (1,), (1,), obs_type=int)
     env = MockEnv()
 
     utils.rollout_agent_trajectories(
-        env,
-        num_steps,
-        MockZeroAgent(),
-        {},
-        MockRng(),
-        train_dataset=train,
-        val_dataset=val,
-        val_ratio=val_ratio,
+        env, num_steps, MockZeroAgent(), {}, replay_buffer=buffer
     )
-    assert train.num_stored == size_train
-    assert val.num_stored == size_val
+    assert buffer.num_stored == num_steps
 
     # Check the order in which things were inserted
     obs = env.reset(from_zero=True)
     done = False
     for i in range(num_steps):
-        array = train.obs if i < size_train else val.obs
-        idx = i if i < size_train else i - size_train
         if done:
             obs = env.reset()
-        assert array[idx] == obs
+        assert buffer.obs[i] == obs
         obs, _, done, _ = env.step(None)
 
 
-def test_populate_replay_buffers_collect_trajectories():
-    val_ratio = 0.20
+def test_populate_replay_buffer_collect_trajectories():
     num_trials = 10
-    trials_val = int(num_trials * val_ratio)
-    trials_train = num_trials - trials_val
-    train = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
-    val = replay_buffer.SimpleReplayBuffer(1000, (1,), (1,), obs_type=int)
+    buffer = replay_buffer.ReplayBuffer(
+        1000, (1,), (1,), obs_type=int, max_trajectory_length=_MOCK_TRAJ_LEN
+    )
     env = MockEnv()
 
     utils.rollout_agent_trajectories(
@@ -271,27 +236,8 @@ def test_populate_replay_buffers_collect_trajectories():
         num_trials,
         MockZeroAgent(),
         {},
-        MockRng(),
-        train_dataset=train,
-        val_dataset=val,
-        val_ratio=val_ratio,
+        replay_buffer=buffer,
         collect_full_trajectories=True,
     )
-    assert train.num_stored == trials_train * _MOCK_TRAJ_LEN
-    assert val.num_stored == trials_val * _MOCK_TRAJ_LEN
-
-    # Check the that obs were inserted in the right order
-    obs = env.reset(from_zero=True)
-    trial = 0
-    idx = 0
-    array = train.obs
-    while trial < num_trials:
-        assert array[idx] == obs
-        obs, _, done, _ = env.step(None)
-        if done:
-            obs = env.reset()
-            trial += 1
-            if trial == trials_train:
-                array = val.obs
-                idx = -1
-        idx += 1
+    assert buffer.num_stored == num_trials * _MOCK_TRAJ_LEN
+    assert len(buffer.trajectory_indices) == num_trials

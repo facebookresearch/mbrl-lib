@@ -33,5 +33,14 @@ class TransitionBatch:
     def astuple(self) -> Transition:
         return self.obs, self.act, self.next_obs, self.rewards, self.dones
 
+    def __getitem__(self, item):
+        return TransitionBatch(
+            self.obs[item],
+            self.act[item],
+            self.next_obs[item],
+            self.rewards[item],
+            self.dones[item],
+        )
+
 
 ModelInput = Union[torch.Tensor, TransitionBatch]
