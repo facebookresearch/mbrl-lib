@@ -1,0 +1,16 @@
+# @package _group_
+env: "pets_reacher"
+learned_rewards: true
+trial_length: 1000
+num_trials: 15
+
+model_lr: 4e-4
+model_wd: 1.7e-4
+num_epochs_train_model: 38
+patience: 5
+model_batch_size: 32
+validation_ratio: 0.05
+no_delta_list: [ 0 ]
+
+max_planning_horizon: 15
+trial_reach_max_horizon: 1

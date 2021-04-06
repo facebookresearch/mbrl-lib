@@ -1,0 +1,18 @@
+# @package _group_
+model:
+  _target_: mbrl.models.BasicEnsemble
+  ensemble_size: 5
+  member_cfg: ${dynamics_model.member_cfg}
+  device: ${device}
+  propagation_method: fixed_model
+
+member_cfg:
+  _target_: mbrl.models.GaussianMLP
+  device: ${device}
+  num_layers: 4
+  in_size: ???
+  out_size: ???
+  hid_size: 200
+  use_silu: true
+  deterministic: false
+  
