@@ -18,7 +18,7 @@ import mbrl.types
 
 # TODO read proprioceptive model from hydra
 def create_proprioceptive_model(
-    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
+    cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int, ...],
     act_shape: Tuple[int, ...],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
@@ -101,9 +101,7 @@ def create_proprioceptive_model(
     return dynamics_model
 
 
-def load_hydra_cfg(
-    results_dir: Union[str, pathlib.Path]
-) -> Union[omegaconf.ListConfig, omegaconf.DictConfig]:
+def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfig:
     """Loads a Hydra configuration from the given directory path.
 
     Tries to load the configuration from "results_dir/.hydra/config.yaml".
@@ -117,11 +115,14 @@ def load_hydra_cfg(
     """
     results_dir = pathlib.Path(results_dir)
     cfg_file = results_dir / ".hydra" / "config.yaml"
-    return omegaconf.OmegaConf.load(cfg_file)
+    cfg = omegaconf.OmegaConf.load(cfg_file)
+    if not isinstance(cfg, omegaconf.DictConfig):
+        raise RuntimeError("Configuration format not a omegaconf.DictConf")
+    return cfg
 
 
 def create_replay_buffer(
-    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
+    cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int],
     act_shape: Tuple[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
@@ -194,7 +195,7 @@ def create_replay_buffer(
 def train_model_and_save_model_and_data(
     model: mbrl.models.Model,
     model_trainer: mbrl.models.DynamicsModelTrainer,
-    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
+    cfg: omegaconf.DictConfig,
     replay_buffer: mbrl.replay_buffer.ReplayBuffer,
     work_dir: Union[str, pathlib.Path],
     callback: Optional[Callable] = None,
