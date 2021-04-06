@@ -88,7 +88,7 @@ class CartPoleEnv(gym.Env):
             dtype=np.float32,
         )
 
-        act_high = np.array((1,))
+        act_high = np.array((1,), dtype=np.float32)
         self.action_space = spaces.Box(-act_high, act_high, dtype=np.float32)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
