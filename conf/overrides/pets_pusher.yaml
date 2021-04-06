@@ -3,6 +3,7 @@ env: "pets_pusher"
 learned_rewards: false
 trial_length: 150
 num_trials: 100
+init_trajs: 1
 
 model_lr: 1e-5
 model_wd: 5e-4

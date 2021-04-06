@@ -3,6 +3,7 @@ env: "pets_reacher"
 learned_rewards: true
 trial_length: 1000
 num_trials: 15
+init_trajs: 1
 
 model_lr: 4e-4
 model_wd: 1.7e-4

@@ -65,14 +65,26 @@ def train(
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
-    replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
+    replay_buffer = mbrl.util.create_replay_buffer(
+        cfg,
+        obs_shape,
+        act_shape,
+        collect_trajectories=cfg.algorithm.buffer_saves_traj,
+        rng=rng,
+    )
+
+    if cfg.algorithm.buffer_saves_traj:
+        init_steps_or_trials = cfg.overrides.init_trajs
+    else:
+        init_steps_or_trials = cfg.overrides.trial_length
 
     mbrl.util.rollout_agent_trajectories(
         env,
-        cfg.algorithm.initial_exploration_steps,
+        init_steps_or_trials,
         mbrl.planning.RandomAgent(env),
         {},
         replay_buffer=replay_buffer,
+        collect_full_trajectories=cfg.algorithm.buffer_saves_traj,
     )
     replay_buffer.save(work_dir)
 

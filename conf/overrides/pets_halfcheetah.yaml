@@ -5,6 +5,7 @@ obs_process_fn: mbrl.env.pets_halfcheetah.HalfCheetahEnv.preprocess_fn
 learned_rewards: false
 trial_length: 1000
 num_trials: 300
+init_trajs: 1
 
 model_lr: 4e-4
 model_wd: 1.7e-4

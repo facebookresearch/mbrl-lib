@@ -3,6 +3,7 @@ env: "cartpole_continuous"
 learned_rewards: false
 trial_length: 200
 num_trials: 100
+init_trajs: 5
 
 model_lr: 7.5e-4
 model_wd: 3e-5
