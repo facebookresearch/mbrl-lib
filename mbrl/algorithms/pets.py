@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
-from typing import List, Optional, cast
+from typing import List, Optional
 
 import gym
 import numpy as np
@@ -65,26 +65,16 @@ def train(
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
-    dataset_train, dataset_val = mbrl.util.create_replay_buffers(
-        cfg,
-        obs_shape,
-        act_shape,
-        train_is_bootstrap=isinstance(dynamics_model.model, mbrl.models.Ensemble),
-        rng=rng,
-    )
-    dataset_train = cast(mbrl.replay_buffer.BootstrapReplayBuffer, dataset_train)
+    replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
 
     mbrl.util.rollout_agent_trajectories(
         env,
         cfg.algorithm.initial_exploration_steps,
         mbrl.planning.RandomAgent(env),
         {},
-        rng,
-        train_dataset=dataset_train,
-        val_dataset=dataset_val,
-        val_ratio=cfg.overrides.validation_ratio,
+        replay_buffer=replay_buffer,
     )
-    mbrl.util.save_buffers(dataset_train, dataset_val, work_dir)
+    replay_buffer.save(work_dir)
 
     # ---------------------------------------------------------
     # ---------- Create model environment and agent -----------
@@ -93,8 +83,6 @@ def train(
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model,
-        dataset_train,
-        dataset_val=dataset_val,
         optim_lr=cfg.overrides.model_lr,
         weight_decay=cfg.overrides.model_wd,
         logger=logger,
@@ -123,27 +111,18 @@ def train(
         while not done:
             # --------------- Model Training -----------------
             if steps_trial == 0 or env_steps % cfg.algorithm.freq_train_model == 0:
-                dynamics_model.update_normalizer(dataset_train.get_all())
+                dynamics_model.update_normalizer(replay_buffer.get_all())
                 mbrl.util.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
-                    cfg,
-                    dataset_train,
-                    dataset_val,
+                    cfg.overrides,
+                    replay_buffer,
                     work_dir,
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
-                env,
-                obs,
-                agent,
-                {},
-                dataset_train,
-                dataset_val,
-                cfg.algorithm.increase_val_set,
-                cfg.overrides.validation_ratio,
-                rng,
+            next_obs, reward, done, _ = mbrl.util.step_env_and_add_to_buffer(
+                env, obs, agent, {}, replay_buffer
             )
 
             obs = next_obs

@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import argparse
 import pathlib
-from typing import Optional, cast
+from typing import Optional
 
 import numpy as np
 
@@ -42,7 +42,7 @@ class FineTuner:
             model_dir=None if new_model else model_dir,
         )
         self.agent = mbrl.planning.load_agent(agent_dir, self.env, agent_type)
-        self.dataset_train, self.dataset_val = mbrl.util.create_replay_buffers(
+        self.replay_buffer = mbrl.util.create_replay_buffer(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
@@ -57,6 +57,8 @@ class FineTuner:
 
     def run(
         self,
+        batch_size: int,
+        val_ratio: float,
         num_epochs: int,
         patience: int,
         steps_to_collect: int,
@@ -66,25 +68,34 @@ class FineTuner:
             steps_to_collect,
             self.agent,
             {"sample": False},
-            self.rng,
-            train_dataset=self.dataset_train,
-            val_dataset=self.dataset_val,
-            val_ratio=self.cfg.overrides.validation_ratio,
+            replay_buffer=self.replay_buffer,
         )
 
         logger = mbrl.logger.Logger(self.outdir)
 
         model_trainer = mbrl.models.DynamicsModelTrainer(
             self.dynamics_model,
-            cast(mbrl.replay_buffer.BootstrapReplayBuffer, self.dataset_train),
-            dataset_val=self.dataset_val,
             logger=logger,
         )
-        train_losses, val_losses = model_trainer.train(num_epochs, patience=patience)
+
+        dataset_train, dataset_val = self.replay_buffer.get_iterators(
+            batch_size,
+            val_ratio,
+            train_ensemble=len(self.dynamics_model.model) is not None,
+            ensemble_size=len(self.dynamics_model.model),
+            shuffle_each_epoch=True,
+            bootstrap_permutes=False,
+        )
+        train_losses, val_losses = model_trainer.train(
+            dataset_train,
+            dataset_val=dataset_val,
+            num_epochs=num_epochs,
+            patience=patience,
+        )
 
         self.dynamics_model.save(str(self.outdir))
         np.savez(self.outdir / "finetune_losses", train=train_losses, val=val_losses)
-        mbrl.util.save_buffers(self.dataset_train, self.dataset_val, self.outdir)
+        self.replay_buffer.save(self.outdir)
 
 
 if __name__ == "__main__":
@@ -93,6 +104,8 @@ if __name__ == "__main__":
     parser.add_argument("--agent_dir", type=str, default=None)
     parser.add_argument("--agent_type", type=str, default=None)
     parser.add_argument("--results_subdir", type=str, default=None)
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--val_ratio", type=float, default=0.2)
     parser.add_argument("--num_train_epochs", type=int, default=50)
     parser.add_argument("--patience", type=int, default=50)
     parser.add_argument("--num_steps_to_collect", type=int, default=10000)
@@ -107,6 +120,8 @@ if __name__ == "__main__":
         new_model=args.new_model,
     )
     finetuner.run(
+        args.batch_size,
+        args.val_ratio,
         num_epochs=args.num_train_epochs,
         patience=args.patience,
         steps_to_collect=args.num_steps_to_collect,

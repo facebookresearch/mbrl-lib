@@ -31,7 +31,7 @@ MBPO_LOG_FORMAT = [
 
 def rollout_model_and_populate_sac_buffer(
     model_env: mbrl.models.ModelEnv,
-    env_dataset: mbrl.replay_buffer.BootstrapReplayBuffer,
+    replay_buffer: mbrl.replay_buffer.ReplayBuffer,
     agent: SACAgent,
     sac_buffer: pytorch_sac.ReplayBuffer,
     sac_samples_action: bool,
@@ -39,7 +39,7 @@ def rollout_model_and_populate_sac_buffer(
     batch_size: int,
 ):
 
-    batch = env_dataset.sample(batch_size, ensemble=False)
+    batch = replay_buffer.sample(batch_size)
     initial_obs, *_ = cast(mbrl.types.TransitionBatch, batch).astuple()
     obs = model_env.reset(
         initial_obs_batch=cast(np.ndarray, initial_obs),
@@ -139,26 +139,14 @@ def train(
     # -------------- Create initial overrides. dataset --------------
     dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
 
-    env_dataset_train, env_dataset_val = mbrl.util.create_replay_buffers(
-        cfg,
-        obs_shape,
-        act_shape,
-        train_is_bootstrap=isinstance(dynamics_model.model, mbrl.models.Ensemble),
-        rng=rng,
-    )
-    env_dataset_train = cast(
-        mbrl.replay_buffer.BootstrapReplayBuffer, env_dataset_train
-    )
+    replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
     random_explore = cfg.algorithm.random_initial_explore
     mbrl.util.rollout_agent_trajectories(
         env,
         cfg.algorithm.initial_exploration_steps,
         mbrl.planning.RandomAgent(env) if random_explore else agent,
         {} if random_explore else {"sample": True, "batched": False},
-        rng,
-        train_dataset=env_dataset_train,
-        val_dataset=env_dataset_val,
-        val_ratio=cfg.overrides.validation_ratio,
+        replay_buffer=replay_buffer,
     )
 
     # ---------------------------------------------------------
@@ -177,8 +165,8 @@ def train(
     )
     model_trainer = mbrl.models.DynamicsModelTrainer(
         dynamics_model,
-        env_dataset_train,
-        dataset_val=env_dataset_val,
+        optim_lr=cfg.overrides.model_lr,
+        weight_decay=cfg.overrides.model_wd,
         logger=None if silent else logger,
     )
     best_eval_reward = -np.inf
@@ -201,27 +189,18 @@ def train(
             if steps_epoch == 0 or done:
                 obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.step_env_and_populate_dataset(
-                env,
-                obs,
-                agent,
-                {},
-                env_dataset_train,
-                env_dataset_val,
-                cfg.algorithm.increase_val_set,
-                cfg.overrides.validation_ratio,
-                rng,
+            next_obs, reward, done, _ = mbrl.util.step_env_and_add_to_buffer(
+                env, obs, agent, {}, replay_buffer
             )
 
             # --------------- Model Training -----------------
             if (env_steps + 1) % cfg.overrides.freq_train_model == 0:
-                dynamics_model.update_normalizer(env_dataset_train.get_all())
+                dynamics_model.update_normalizer(replay_buffer.get_all())
                 mbrl.util.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
-                    cfg,
-                    env_dataset_train,
-                    env_dataset_val,
+                    cfg.overrides,
+                    replay_buffer,
                     work_dir,
                 )
 
@@ -229,7 +208,7 @@ def train(
                 # Batch all rollouts for the next freq_train_model steps together
                 rollout_model_and_populate_sac_buffer(
                     model_env,
-                    env_dataset_train,
+                    replay_buffer,
                     agent,
                     sac_buffer,
                     cfg.algorithm.sac_samples_action,
