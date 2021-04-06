@@ -8,7 +8,7 @@ increase_val_set: true
 freq_train_model: ${overrides.freq_train_model}
 
 sac_samples_action: true
-initial_exploration_steps: ${overrides.trial_length}
+initial_exploration_steps: 5000
 random_initial_explore: false
 num_eval_episodes: 1
 
