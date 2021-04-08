@@ -73,7 +73,7 @@ class FineTuner:
 
         logger = mbrl.logger.Logger(self.outdir)
 
-        model_trainer = mbrl.models.DynamicsModelTrainer(
+        model_trainer = mbrl.models.ModelTrainer(
             self.dynamics_model,
             logger=logger,
         )

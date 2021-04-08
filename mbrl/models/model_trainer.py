@@ -27,7 +27,7 @@ MODEL_LOG_FORMAT = [
 ]
 
 
-class DynamicsModelTrainer:
+class ModelTrainer:
     """Trainer for dynamics models.
 
     Args:

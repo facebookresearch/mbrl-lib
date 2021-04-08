@@ -194,7 +194,7 @@ def create_replay_buffer(
 
 def train_model_and_save_model_and_data(
     model: mbrl.models.Model,
-    model_trainer: mbrl.models.DynamicsModelTrainer,
+    model_trainer: mbrl.models.ModelTrainer,
     cfg: omegaconf.DictConfig,
     replay_buffer: mbrl.replay_buffer.ReplayBuffer,
     work_dir: Union[str, pathlib.Path],
@@ -206,7 +206,7 @@ def train_model_and_save_model_and_data(
 
     Args:
         model (:class:`mbrl.models.Model`): the model to train.
-        model_trainer (:class:`mbrl.models.DynamicsModelTrainer`): the model trainer.
+        model_trainer (:class:`mbrl.models.ModelTrainer`): the model trainer.
         cfg (:class:`omegaconf.DictConfig`): configuration to use for training. It
             must contain the following fields::
                 -model_batch_size (int)
