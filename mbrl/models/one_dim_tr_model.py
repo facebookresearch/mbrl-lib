@@ -78,9 +78,9 @@ class OneDTransitionRewardModel(Model):
     ):
         super().__init__()
         self.model = model
-        self.obs_normalizer: Optional[mbrl.math.Normalizer] = None
+        self.input_normalizer: Optional[mbrl.math.Normalizer] = None
         if normalize:
-            self.obs_normalizer = mbrl.math.Normalizer(
+            self.input_normalizer = mbrl.math.Normalizer(
                 self.model.in_size, self.model.device
             )
         self.device = self.model.device
@@ -104,17 +104,17 @@ class OneDTransitionRewardModel(Model):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
-        if self.obs_normalizer:
+        if self.input_normalizer:
             # Normalizer lives on device
-            return self.obs_normalizer.normalize(model_in_np)
+            return self.input_normalizer.normalize(model_in_np)
         return torch.from_numpy(model_in_np).to(device)
 
     def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         model_in = torch.cat([obs, action], axis=obs.ndim - 1)
-        if self.obs_normalizer:
-            model_in = self.obs_normalizer.normalize(model_in)
+        if self.input_normalizer:
+            model_in = self.input_normalizer.normalize(model_in)
         return model_in
 
     def _get_model_input_and_target_from_batch(
@@ -155,7 +155,7 @@ class OneDTransitionRewardModel(Model):
             batch (:class:`mbrl.types.TransitionBatch`): The batch of transition data.
                 Only obs and action will be used, since these are the inputs to the model.
         """
-        if self.obs_normalizer is None:
+        if self.input_normalizer is None:
             return
         obs, action = batch.obs, batch.act
         if obs.ndim == 1:
@@ -164,7 +164,7 @@ class OneDTransitionRewardModel(Model):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
-        self.obs_normalizer.update_stats(model_in_np)
+        self.input_normalizer.update_stats(model_in_np)
 
     def loss(
         self,
@@ -303,14 +303,14 @@ class OneDTransitionRewardModel(Model):
     def save(self, save_dir: Union[str, pathlib.Path]):
         save_dir = pathlib.Path(save_dir)
         super().save(save_dir / self._MODEL_FNAME)
-        if self.obs_normalizer:
-            self.obs_normalizer.save(save_dir)
+        if self.input_normalizer:
+            self.input_normalizer.save(save_dir)
 
     def load(self, load_dir: Union[str, pathlib.Path]):
         load_dir = pathlib.Path(load_dir)
         super().load(load_dir / self._MODEL_FNAME)
-        if self.obs_normalizer:
-            self.obs_normalizer.load(load_dir)
+        if self.input_normalizer:
+            self.input_normalizer.load(load_dir)
 
     def set_elite(self, elite_indices: Sequence[int]):
         self.elite_models = list(elite_indices)
