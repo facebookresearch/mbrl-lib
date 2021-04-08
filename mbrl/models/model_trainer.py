@@ -108,7 +108,7 @@ class DynamicsModelTrainer:
         """
         eval_dataset = dataset_train if dataset_val is None else dataset_val
 
-        training_losses, val_losses = [], []
+        training_losses, val_scores = [], []
         best_weights: Optional[Dict] = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
@@ -116,13 +116,13 @@ class DynamicsModelTrainer:
         for epoch in epoch_iter:
             batch_losses: List[float] = []
             for batch in dataset_train:
-                avg_ensemble_loss = self.model.update(batch, self.optimizer)
-                batch_losses.append(avg_ensemble_loss)
+                loss = self.model.update(batch, self.optimizer)
+                batch_losses.append(loss)
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
             eval_score = self.evaluate(eval_dataset)
-            val_losses.append(eval_score.mean().item())
+            val_scores.append(eval_score.mean().item())
 
             maybe_best_weights = self.maybe_get_best_weights(best_val_score, eval_score)
             if maybe_best_weights:
@@ -164,7 +164,7 @@ class DynamicsModelTrainer:
         self._maybe_set_best_weights_and_elite(best_weights, best_val_score)
 
         self._train_iteration += 1
-        return training_losses, val_losses
+        return training_losses, val_scores
 
     def evaluate(self, dataset: mbrl.replay_buffer.TransitionIterator) -> torch.Tensor:
         """Evaluates the model on the validation dataset.
