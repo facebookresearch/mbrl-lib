@@ -35,7 +35,7 @@ class FineTuner:
     ):
         self.cfg = mbrl.util.load_hydra_cfg(model_dir)
         self.env, self.term_fn, self.reward_fn = mujoco_util.make_env(self.cfg)
-        self.dynamics_model = mbrl.util.create_proprioceptive_model(
+        self.dynamics_model = mbrl.util.create_one_dim_tr_model(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,

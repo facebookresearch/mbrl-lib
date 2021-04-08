@@ -141,7 +141,7 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
-    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.create_one_dim_tr_model(cfg, obs_shape, act_shape)
 
     replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
     random_explore = cfg.algorithm.random_initial_explore

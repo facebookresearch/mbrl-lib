@@ -16,14 +16,14 @@ import mbrl.replay_buffer
 import mbrl.types
 
 
-# TODO read proprioceptive model from hydra
-def create_proprioceptive_model(
+# TODO read model from hydra
+def create_one_dim_tr_model(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int, ...],
     act_shape: Tuple[int, ...],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
-    """Creates a dynamics model from a given configuration.
+    """Creates a 1-D transition reward model from a given configuration.
 
     This method creates a new model from the given configuration and wraps it into a
     :class:`mbrl.models.OneDTransitionRewardModel` (see its documentation for explanation of some
@@ -65,7 +65,7 @@ def create_proprioceptive_model(
             "model_dir / env_stats.pickle", respectively.
 
     Returns:
-        (:class:`mbrl.models.OneDTransitionRewardModel`): the proprioceptive model created.
+        (:class:`mbrl.models.OneDTransitionRewardModel`): the model created.
 
     """
     # This first part takes care of the case where model is BasicEnsemble and in/out sizes

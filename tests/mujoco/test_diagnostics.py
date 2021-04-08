@@ -80,8 +80,8 @@ _CFG = OmegaConf.create(_CFG_DICT)
 _MBPO_CFG = OmegaConf.create(_MBPO_CFG_DICT)
 
 # Create a model to train and run then save to directory
-proprioceptive_model = utils.create_proprioceptive_model(_CFG, _OBS_SHAPE, _ACT_SHAPE)
-proprioceptive_model.save(_DIR.name)
+one_dim_model = utils.create_one_dim_tr_model(_CFG, _OBS_SHAPE, _ACT_SHAPE)
+one_dim_model.save(_DIR.name)
 
 # Create replay buffers and save to directory with some data
 _CFG.dynamics_model.model.in_size = "???"
@@ -117,9 +117,9 @@ def test_finetuner():
         OmegaConf.save(_MBPO_CFG, f)
 
     model_input = torch.ones(
-        8, proprioceptive_model.model.in_size, device=torch.device(_CFG.device)
+        8, one_dim_model.model.in_size, device=torch.device(_CFG.device)
     )
-    model_output = proprioceptive_model.forward(model_input, use_propagation=False)
+    model_output = one_dim_model.forward(model_input, use_propagation=False)
     finetuner = diagnostics.FineTuner(
         _DIR.name, _DIR.name, "pytorch_sac", subdir="subdir", new_model=False
     )
@@ -129,8 +129,8 @@ def test_finetuner():
 
     results_dir = pathlib.Path(_DIR.name) / "diagnostics" / "subdir"
 
-    proprioceptive_model.load(results_dir)
-    new_model_output = proprioceptive_model.forward(model_input, use_propagation=False)
+    one_dim_model.load(results_dir)
+    new_model_output = one_dim_model.forward(model_input, use_propagation=False)
 
     # the model after fine
     for i in range(len(new_model_output)):

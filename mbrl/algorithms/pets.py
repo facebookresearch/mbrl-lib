@@ -63,7 +63,7 @@ def train(
         )
 
     # -------- Create and populate initial env dataset --------
-    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.create_one_dim_tr_model(cfg, obs_shape, act_shape)
 
     replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
 

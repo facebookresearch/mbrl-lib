@@ -68,7 +68,7 @@ class Visualizer:
             self.reference_agent = None
         self.reward_fn = reward_fn
 
-        self.dynamics_model = mbrl.util.create_proprioceptive_model(
+        self.dynamics_model = mbrl.util.create_one_dim_tr_model(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
