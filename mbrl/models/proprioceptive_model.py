@@ -158,6 +158,8 @@ class ProprioceptiveModel(Model):
             batch (:class:`mbrl.types.TransitionBatch`): The batch of transition data.
                 Only obs and action will be used, since these are the inputs to the model.
         """
+        if self.obs_normalizer is None:
+            return
         obs, action = batch.obs, batch.act
         if obs.ndim == 1:
             obs = obs[None, :]
@@ -165,8 +167,7 @@ class ProprioceptiveModel(Model):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
-        if self.obs_normalizer:
-            self.obs_normalizer.update_stats(model_in_np)
+        self.obs_normalizer.update_stats(model_in_np)
 
     def loss(
         self,

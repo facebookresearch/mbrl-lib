@@ -86,6 +86,7 @@ class FineTuner:
             shuffle_each_epoch=True,
             bootstrap_permutes=False,
         )
+        self.dynamics_model.update_normalizer(self.replay_buffer.get_all())
         train_losses, val_losses = model_trainer.train(
             dataset_train,
             dataset_val=dataset_val,

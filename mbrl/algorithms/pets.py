@@ -111,7 +111,6 @@ def train(
         while not done:
             # --------------- Model Training -----------------
             if env_steps % cfg.algorithm.freq_train_model == 0:
-                dynamics_model.update_normalizer(replay_buffer.get_all())
                 mbrl.util.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,

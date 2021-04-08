@@ -203,6 +203,8 @@ def train_model_and_save_model_and_data(
     """Convenience function for training a model and saving results.
 
     Runs `model_trainer.train()`, then saves the resulting model and the data used.
+    If the model has an "update_normalizer" method it will be called before training,
+    passing `replay_buffer.get_all()` as input.
 
     Args:
         model (:class:`mbrl.models.Model`): the model to train.
@@ -227,7 +229,8 @@ def train_model_and_save_model_and_data(
         shuffle_each_epoch=True,
         bootstrap_permutes=cfg.get("bootstrap_permutes", False),
     )
-
+    if hasattr(model, "update_normalizer"):
+        model.update_normalizer(replay_buffer.get_all())
     model_trainer.train(
         dataset_train,
         dataset_val=dataset_val,
