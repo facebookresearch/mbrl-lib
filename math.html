@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Math utilities module &mdash; mbrl-lib  documentation</title>
+  <title>Math utilities module &mdash; MBRL-Lib  documentation</title>
   
 
   
@@ -51,7 +51,7 @@
           
 
           
-            <a href="index.html" class="icon icon-home" alt="Documentation Home"> mbrl-lib
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MBRL-Lib
           
 
           
@@ -105,7 +105,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">mbrl-lib</a>
+          <a href="index.html">MBRL-Lib</a>
         
       </nav>
 
@@ -199,8 +199,8 @@
 <dt id="mbrl.math.Normalizer.denormalize">
 <code class="sig-name descname">denormalize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.Normalizer.denormalize" title="Permalink to this definition">¶</a></dt>
 <dd><p>De-normalizes the value according to the stored statistics.</p>
-<p>Equivalent to sqrt(var) * val + mu, where mu and var are the stored mean and
-variance, respectively.</p>
+<p>Equivalent to sigma * val + mu, where mu and sigma are the stored mean and
+standard deviation, respectively.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>val</strong> (<em>float</em><em>, </em><em>np.ndarray</em><em> or </em><em>torch.Tensor</em>) – The value to de-normalize.</p>
@@ -224,8 +224,8 @@ variance, respectively.</p>
 <dt id="mbrl.math.Normalizer.normalize">
 <code class="sig-name descname">normalize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.Normalizer.normalize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalizes the value according to the stored statistics.</p>
-<p>Equivalent to (val - mu) / sqrt(var), where mu and var are the stored mean and
-variance, respectively.</p>
+<p>Equivalent to (val - mu) / sigma, where mu and sigma are the stored mean and
+standard deviation, respectively.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>val</strong> (<em>float</em><em>, </em><em>np.ndarray</em><em> or </em><em>torch.Tensor</em>) – The value to normalize.</p>
@@ -247,28 +247,21 @@ variance, respectively.</p>
 
 <dl class="py method">
 <dt id="mbrl.math.Normalizer.update_stats">
-<code class="sig-name descname">update_stats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Normalizer.update_stats" title="Permalink to this definition">¶</a></dt>
-<dd><p>Updates the stored statistics with the given value.</p>
-<p>This uses Welford’s online algorithm as described in
-<a class="reference external" href="https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm">https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford’s_online_algorithm</a></p>
+<code class="sig-name descname">update_stats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Normalizer.update_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the stored statistics using the given data.</p>
+<p>Equivalent to <cite>self.stats.mean = data.mean(0) and self.stats.std = data.std(0)</cite>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>val</strong> (<em>float</em><em>, </em><em>np.ndarray</em><em> or </em><em>torch.Tensor</em>) – The value used to update the statistics.</p>
+<dd class="field-odd"><p><strong>data</strong> (<em>np.ndarray</em><em> or </em><em>torch.Tensor</em>) – The data used to compute the statistics.</p>
 </dd>
 </dl>
 </dd></dl>
 
 </dd></dl>
 
-<dl class="py class">
-<dt id="mbrl.math.Stats">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">Stats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mean</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">m2</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">count</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.Stats" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-</dd></dl>
-
 <dl class="py function">
 <dt id="mbrl.math.gaussian_nll">
-<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">gaussian_nll</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pred_mean</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">pred_logvar</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.gaussian_nll" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">gaussian_nll</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pred_mean</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">pred_logvar</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">reduce</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.math.gaussian_nll" title="Permalink to this definition">¶</a></dt>
 <dd><p>Negative log-likelihood for Gaussian distribution</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -276,6 +269,8 @@ variance, respectively.</p>
 <li><p><strong>pred_mean</strong> (<em>tensor</em>) – the predicted mean.</p></li>
 <li><p><strong>pred_logvar</strong> (<em>tensor</em>) – the predicted log variance.</p></li>
 <li><p><strong>target</strong> (<em>tensor</em>) – the target value.</p></li>
+<li><p><strong>reduce</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">False</span></code> the loss is returned w/o reducing.
+Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -437,7 +432,7 @@ f(x) = min(max_y, max(min_y, f1(x)))</p>
 
 <dl class="py function">
 <dt id="mbrl.math.truncated_normal_">
-<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">truncated_normal_</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">tensor</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">mean</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">std</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">clip</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.truncated_normal_" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.math.</code><code class="sig-name descname">truncated_normal_</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">tensor</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">mean</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">std</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.math.truncated_normal_" title="Permalink to this definition">¶</a></dt>
 <dd><p>Samples from a truncated normal distribution in-place.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -445,8 +440,6 @@ f(x) = min(max_y, max(min_y, f1(x)))</p>
 <li><p><strong>tensor</strong> (<em>tensor</em>) – the tensor in which sampled values will be stored.</p></li>
 <li><p><strong>mean</strong> (<em>float</em>) – the desired mean (default = 0).</p></li>
 <li><p><strong>std</strong> (<em>float</em>) – the desired standard deviation (default = 1).</p></li>
-<li><p><strong>clip</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, clips values beyond two standard deviations. This is rarely
-needed, but it can happen. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -485,7 +478,7 @@ needed, but it can happen. Defaults to <code class="docutils literal notranslate
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Facebook AI Research
+        &copy; Copyright 2021, Facebook AI Research
 
     </p>
   </div>

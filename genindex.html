@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; mbrl-lib  documentation</title>
+  <title>Index &mdash; MBRL-Lib  documentation</title>
   
 
   
@@ -49,7 +49,7 @@
           
 
           
-            <a href="index.html" class="icon icon-home" alt="Documentation Home"> mbrl-lib
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MBRL-Lib
           
 
           
@@ -103,7 +103,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">mbrl-lib</a>
+          <a href="index.html">MBRL-Lib</a>
         
       </nav>
 
@@ -162,7 +162,6 @@
  | <a href="#E"><strong>E</strong></a>
  | <a href="#F"><strong>F</strong></a>
  | <a href="#G"><strong>G</strong></a>
- | <a href="#I"><strong>I</strong></a>
  | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
@@ -182,14 +181,12 @@
       <ul>
         <li><a href="planning.html#mbrl.planning.RandomAgent.act">(mbrl.planning.RandomAgent method)</a>
 </li>
-        <li><a href="planning.html#mbrl.planning.SACAgent.act">(mbrl.planning.SACAgent method)</a>
-</li>
         <li><a href="planning.html#mbrl.planning.TrajectoryOptimizerAgent.act">(mbrl.planning.TrajectoryOptimizerAgent method)</a>
 </li>
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer.add">add() (mbrl.replay_buffer.SimpleReplayBuffer method)</a>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer.add">add() (mbrl.replay_buffer.ReplayBuffer method)</a>
 </li>
       <li><a href="planning.html#mbrl.planning.Agent">Agent (class in mbrl.planning)</a>
 </li>
@@ -203,7 +200,7 @@
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.BootstrapReplayBuffer">BootstrapReplayBuffer (class in mbrl.replay_buffer)</a>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.BootstrapIterator">BootstrapIterator (class in mbrl.replay_buffer)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -217,9 +214,9 @@
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="util.html#mbrl.util.common.create_dynamics_model">create_dynamics_model() (in module mbrl.util.common)</a>
+      <li><a href="util.html#mbrl.util.common.create_proprioceptive_model">create_proprioceptive_model() (in module mbrl.util.common)</a>
 </li>
-      <li><a href="util.html#mbrl.util.common.create_replay_buffers">create_replay_buffers() (in module mbrl.util.common)</a>
+      <li><a href="util.html#mbrl.util.common.create_replay_buffer">create_replay_buffer() (in module mbrl.util.common)</a>
 </li>
       <li><a href="planning.html#mbrl.planning.create_trajectory_optim_agent_for_model">create_trajectory_optim_agent_for_model() (in module mbrl.planning)</a>
 </li>
@@ -232,32 +229,34 @@
       <li><a href="math.html#mbrl.math.Normalizer.denormalize">denormalize() (mbrl.math.Normalizer method)</a>
 </li>
   </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="models.html#mbrl.models.DynamicsModelTrainer">DynamicsModelTrainer (class in mbrl.models)</a>
-</li>
-      <li><a href="models.html#mbrl.models.DynamicsModelWrapper">DynamicsModelWrapper (class in mbrl.models)</a>
-</li>
-  </ul></td>
 </tr></table>
 
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="models.html#mbrl.models.Ensemble">Ensemble (class in mbrl.models)</a>
+</li>
+      <li><a href="models.html#mbrl.models.EnsembleLinearLayer">EnsembleLinearLayer (class in mbrl.models)</a>
+</li>
       <li><a href="models.html#mbrl.models.BasicEnsemble.eval_score">eval_score() (mbrl.models.BasicEnsemble method)</a>
 
       <ul>
+        <li><a href="models.html#mbrl.models.Ensemble.eval_score">(mbrl.models.Ensemble method)</a>
+</li>
         <li><a href="models.html#mbrl.models.GaussianMLP.eval_score">(mbrl.models.GaussianMLP method)</a>
 </li>
         <li><a href="models.html#mbrl.models.Model.eval_score">(mbrl.models.Model method)</a>
 </li>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.eval_score">(mbrl.models.ProprioceptiveModel method)</a>
+</li>
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="models.html#mbrl.models.DynamicsModelWrapper.eval_score_from_simple_batch">eval_score_from_simple_batch() (mbrl.models.DynamicsModelWrapper method)</a>
-</li>
-      <li><a href="models.html#mbrl.models.DynamicsModelTrainer.evaluate">evaluate() (mbrl.models.DynamicsModelTrainer method)</a>
+      <li><a href="models.html#mbrl.models.ModelTrainer.evaluate">evaluate() (mbrl.models.ModelTrainer method)</a>
 </li>
       <li><a href="models.html#mbrl.models.ModelEnv.evaluate_action_sequences">evaluate_action_sequences() (mbrl.models.ModelEnv method)</a>
+</li>
+      <li><a href="models.html#mbrl.models.EnsembleLinearLayer.extra_repr">extra_repr() (mbrl.models.EnsembleLinearLayer method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -268,9 +267,15 @@
       <li><a href="models.html#mbrl.models.BasicEnsemble.forward">forward() (mbrl.models.BasicEnsemble method)</a>
 
       <ul>
+        <li><a href="models.html#mbrl.models.Ensemble.forward">(mbrl.models.Ensemble method)</a>
+</li>
+        <li><a href="models.html#mbrl.models.EnsembleLinearLayer.forward">(mbrl.models.EnsembleLinearLayer method)</a>
+</li>
         <li><a href="models.html#mbrl.models.GaussianMLP.forward">(mbrl.models.GaussianMLP method)</a>
 </li>
         <li><a href="models.html#mbrl.models.Model.forward">(mbrl.models.Model method)</a>
+</li>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.forward">(mbrl.models.ProprioceptiveModel method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -287,31 +292,15 @@
 </li>
       <li><a href="models.html#mbrl.models.GaussianMLP">GaussianMLP (class in mbrl.models)</a>
 </li>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer.get_all">get_all() (mbrl.replay_buffer.ReplayBuffer method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="util.html#mbrl.util.mujoco.get_current_state">get_current_state() (in module mbrl.util.mujoco)</a>
 </li>
-      <li><a href="models.html#mbrl.models.DynamicsModelWrapper.get_output_and_targets_from_simple_batch">get_output_and_targets_from_simple_batch() (mbrl.models.DynamicsModelWrapper method)</a>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer.get_iterators">get_iterators() (mbrl.replay_buffer.ReplayBuffer method)</a>
 </li>
-  </ul></td>
-</tr></table>
-
-<h2 id="I">I</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="models.html#mbrl.models.Model.is_deterministic">is_deterministic() (mbrl.models.Model property)</a>
-</li>
-      <li><a href="models.html#mbrl.models.Model.is_ensemble">is_ensemble() (mbrl.models.Model property)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.BootstrapReplayBuffer.is_train_compatible_with_ensemble">is_train_compatible_with_ensemble() (mbrl.replay_buffer.BootstrapReplayBuffer method)</a>
-
-      <ul>
-        <li><a href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer.is_train_compatible_with_ensemble">(mbrl.replay_buffer.SimpleReplayBuffer method)</a>
-</li>
-      </ul></li>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.IterableReplayBuffer">IterableReplayBuffer (class in mbrl.replay_buffer)</a>
+      <li><a href="models.html#mbrl.models.ProprioceptiveModel.get_output_and_targets">get_output_and_targets() (mbrl.models.ProprioceptiveModel method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -322,23 +311,19 @@
       <li><a href="math.html#mbrl.math.Normalizer.load">load() (mbrl.math.Normalizer method)</a>
 
       <ul>
-        <li><a href="models.html#mbrl.models.BasicEnsemble.load">(mbrl.models.BasicEnsemble method)</a>
-</li>
-        <li><a href="models.html#mbrl.models.GaussianMLP.load">(mbrl.models.GaussianMLP method)</a>
-</li>
         <li><a href="models.html#mbrl.models.Model.load">(mbrl.models.Model method)</a>
 </li>
-        <li><a href="replay_buffer.html#mbrl.replay_buffer.IterableReplayBuffer.load">(mbrl.replay_buffer.IterableReplayBuffer method)</a>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.load">(mbrl.models.ProprioceptiveModel method)</a>
 </li>
-        <li><a href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer.load">(mbrl.replay_buffer.SimpleReplayBuffer method)</a>
+        <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer.load">(mbrl.replay_buffer.ReplayBuffer method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="planning.html#mbrl.planning.load_agent">load_agent() (in module mbrl.planning)</a>
 </li>
       <li><a href="util.html#mbrl.util.common.load_hydra_cfg">load_hydra_cfg() (in module mbrl.util.common)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="logging.html#mbrl.logger.Logger.log_data">log_data() (mbrl.logger.Logger method)</a>
 </li>
       <li><a href="logging.html#mbrl.logger.Logger">Logger (class in mbrl.logger)</a>
@@ -346,9 +331,13 @@
       <li><a href="models.html#mbrl.models.BasicEnsemble.loss">loss() (mbrl.models.BasicEnsemble method)</a>
 
       <ul>
+        <li><a href="models.html#mbrl.models.Ensemble.loss">(mbrl.models.Ensemble method)</a>
+</li>
         <li><a href="models.html#mbrl.models.GaussianMLP.loss">(mbrl.models.GaussianMLP method)</a>
 </li>
         <li><a href="models.html#mbrl.models.Model.loss">(mbrl.models.Model method)</a>
+</li>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.loss">(mbrl.models.ProprioceptiveModel method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -361,7 +350,7 @@
 </li>
       <li><a href="util.html#mbrl.util.mujoco.make_env_from_str">make_env_from_str() (in module mbrl.util.mujoco)</a>
 </li>
-      <li><a href="models.html#mbrl.models.DynamicsModelTrainer.maybe_save_best_weights">maybe_save_best_weights() (mbrl.models.DynamicsModelTrainer method)</a>
+      <li><a href="models.html#mbrl.models.ModelTrainer.maybe_get_best_weights">maybe_get_best_weights() (mbrl.models.ModelTrainer method)</a>
 </li>
       <li>
     mbrl.logger
@@ -398,8 +387,6 @@
         <li><a href="replay_buffer.html#module-mbrl.replay_buffer">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     mbrl.util.common
 
@@ -407,6 +394,8 @@
         <li><a href="util.html#module-mbrl.util.common">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     mbrl.util.mujoco
 
@@ -417,6 +406,8 @@
       <li><a href="models.html#mbrl.models.Model">Model (class in mbrl.models)</a>
 </li>
       <li><a href="models.html#mbrl.models.ModelEnv">ModelEnv (class in mbrl.models)</a>
+</li>
+      <li><a href="models.html#mbrl.models.ModelTrainer">ModelTrainer (class in mbrl.models)</a>
 </li>
       <li>
     module
@@ -473,7 +464,7 @@
         <li><a href="planning.html#mbrl.planning.TrajectoryOptimizerAgent.plan">(mbrl.planning.TrajectoryOptimizerAgent method)</a>
 </li>
       </ul></li>
-      <li><a href="models.html#mbrl.models.DynamicsModelWrapper.predict">predict() (mbrl.models.DynamicsModelWrapper method)</a>
+      <li><a href="models.html#mbrl.models.ProprioceptiveModel.predict">predict() (mbrl.models.ProprioceptiveModel method)</a>
 </li>
       <li><a href="math.html#mbrl.math.propagate">propagate() (in module mbrl.math)</a>
 </li>
@@ -487,6 +478,8 @@
 </li>
       <li><a href="math.html#mbrl.math.propagate_random_model">propagate_random_model() (in module mbrl.math)</a>
 </li>
+      <li><a href="models.html#mbrl.models.ProprioceptiveModel">ProprioceptiveModel (class in mbrl.models)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -497,9 +490,19 @@
 </li>
       <li><a href="logging.html#mbrl.logger.Logger.register_group">register_group() (mbrl.logger.Logger method)</a>
 </li>
-      <li><a href="models.html#mbrl.models.ModelEnv.reset">reset() (mbrl.models.ModelEnv method)</a>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer">ReplayBuffer (class in mbrl.replay_buffer)</a>
+</li>
+      <li><a href="models.html#mbrl.models.BasicEnsemble.reset">reset() (mbrl.models.BasicEnsemble method)</a>
 
       <ul>
+        <li><a href="models.html#mbrl.models.GaussianMLP.reset">(mbrl.models.GaussianMLP method)</a>
+</li>
+        <li><a href="models.html#mbrl.models.Model.reset">(mbrl.models.Model method)</a>
+</li>
+        <li><a href="models.html#mbrl.models.ModelEnv.reset">(mbrl.models.ModelEnv method)</a>
+</li>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.reset">(mbrl.models.ProprioceptiveModel method)</a>
+</li>
         <li><a href="planning.html#mbrl.planning.Agent.reset">(mbrl.planning.Agent method)</a>
 </li>
         <li><a href="planning.html#mbrl.planning.TrajectoryOptimizer.reset">(mbrl.planning.TrajectoryOptimizer method)</a>
@@ -521,59 +524,45 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="planning.html#mbrl.planning.SACAgent">SACAgent (class in mbrl.planning)</a>
-</li>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.BootstrapReplayBuffer.sample">sample() (mbrl.replay_buffer.BootstrapReplayBuffer method)</a>
+      <li><a href="models.html#mbrl.models.Ensemble.sample">sample() (mbrl.models.Ensemble method)</a>
 
       <ul>
-        <li><a href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer.sample">(mbrl.replay_buffer.SimpleReplayBuffer method)</a>
+        <li><a href="models.html#mbrl.models.Model.sample">(mbrl.models.Model method)</a>
+</li>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.sample">(mbrl.models.ProprioceptiveModel method)</a>
+</li>
+        <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer.sample">(mbrl.replay_buffer.ReplayBuffer method)</a>
 </li>
       </ul></li>
-      <li><a href="models.html#mbrl.models.BasicEnsemble.sample_propagation_indices">sample_propagation_indices() (mbrl.models.BasicEnsemble method)</a>
-
-      <ul>
-        <li><a href="models.html#mbrl.models.GaussianMLP.sample_propagation_indices">(mbrl.models.GaussianMLP method)</a>
-</li>
-        <li><a href="models.html#mbrl.models.Model.sample_propagation_indices">(mbrl.models.Model method)</a>
-</li>
-      </ul></li>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer.sample_trajectory">sample_trajectory() (mbrl.replay_buffer.SimpleReplayBuffer method)</a>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer.sample_trajectory">sample_trajectory() (mbrl.replay_buffer.ReplayBuffer method)</a>
 </li>
       <li><a href="math.html#mbrl.math.Normalizer.save">save() (mbrl.math.Normalizer method)</a>
 
       <ul>
-        <li><a href="models.html#mbrl.models.BasicEnsemble.save">(mbrl.models.BasicEnsemble method)</a>
-</li>
-        <li><a href="models.html#mbrl.models.GaussianMLP.save">(mbrl.models.GaussianMLP method)</a>
-</li>
         <li><a href="models.html#mbrl.models.Model.save">(mbrl.models.Model method)</a>
 </li>
-        <li><a href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer.save">(mbrl.replay_buffer.SimpleReplayBuffer method)</a>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.save">(mbrl.models.ProprioceptiveModel method)</a>
+</li>
+        <li><a href="replay_buffer.html#mbrl.replay_buffer.ReplayBuffer.save">(mbrl.replay_buffer.ReplayBuffer method)</a>
 </li>
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="util.html#mbrl.util.common.save_buffers">save_buffers() (in module mbrl.util.common)</a>
-</li>
       <li><a href="models.html#mbrl.models.BasicEnsemble.set_elite">set_elite() (mbrl.models.BasicEnsemble method)</a>
 
       <ul>
-        <li><a href="models.html#mbrl.models.GaussianMLP.set_elite">(mbrl.models.GaussianMLP method)</a>
+        <li><a href="models.html#mbrl.models.Ensemble.set_elite">(mbrl.models.Ensemble method)</a>
 </li>
-        <li><a href="models.html#mbrl.models.Model.set_elite">(mbrl.models.Model method)</a>
+        <li><a href="models.html#mbrl.models.GaussianMLP.set_elite">(mbrl.models.GaussianMLP method)</a>
 </li>
       </ul></li>
       <li><a href="util.html#mbrl.util.mujoco.set_env_state">set_env_state() (in module mbrl.util.mujoco)</a>
 </li>
       <li><a href="planning.html#mbrl.planning.TrajectoryOptimizerAgent.set_trajectory_eval_fn">set_trajectory_eval_fn() (mbrl.planning.TrajectoryOptimizerAgent method)</a>
 </li>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.SimpleReplayBuffer">SimpleReplayBuffer (class in mbrl.replay_buffer)</a>
-</li>
-      <li><a href="math.html#mbrl.math.Stats">Stats (class in mbrl.math)</a>
-</li>
       <li><a href="models.html#mbrl.models.ModelEnv.step">step() (mbrl.models.ModelEnv method)</a>
 </li>
-      <li><a href="util.html#mbrl.util.common.step_env_and_populate_dataset">step_env_and_populate_dataset() (in module mbrl.util.common)</a>
+      <li><a href="util.html#mbrl.util.common.step_env_and_add_to_buffer">step_env_and_add_to_buffer() (in module mbrl.util.common)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -581,21 +570,25 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="replay_buffer.html#mbrl.replay_buffer.BootstrapReplayBuffer.toggle_bootstrap">toggle_bootstrap() (mbrl.replay_buffer.BootstrapReplayBuffer method)</a>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.BootstrapIterator.toggle_bootstrap">toggle_bootstrap() (mbrl.replay_buffer.BootstrapIterator method)</a>
 </li>
-      <li><a href="models.html#mbrl.models.DynamicsModelTrainer.train">train() (mbrl.models.DynamicsModelTrainer method)</a>
+      <li><a href="models.html#mbrl.models.ModelTrainer.train">train() (mbrl.models.ModelTrainer method)</a>
 </li>
       <li><a href="util.html#mbrl.util.common.train_model_and_save_model_and_data">train_model_and_save_model_and_data() (in module mbrl.util.common)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="planning.html#mbrl.planning.TrajectoryOptimizer">TrajectoryOptimizer (class in mbrl.planning)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="planning.html#mbrl.planning.TrajectoryOptimizerAgent">TrajectoryOptimizerAgent (class in mbrl.planning)</a>
+</li>
+      <li><a href="replay_buffer.html#mbrl.replay_buffer.TransitionIterator">TransitionIterator (class in mbrl.replay_buffer)</a>
 </li>
       <li><a href="math.html#mbrl.math.truncated_linear">truncated_linear() (in module mbrl.math)</a>
 </li>
       <li><a href="math.html#mbrl.math.truncated_normal_">truncated_normal_() (in module mbrl.math)</a>
+</li>
+      <li><a href="models.html#mbrl.models.truncated_normal_init">truncated_normal_init() (in module mbrl.models)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -603,19 +596,15 @@
 <h2 id="U">U</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="models.html#mbrl.models.BasicEnsemble.update">update() (mbrl.models.BasicEnsemble method)</a>
+      <li><a href="models.html#mbrl.models.Model.update">update() (mbrl.models.Model method)</a>
 
       <ul>
-        <li><a href="models.html#mbrl.models.Model.update">(mbrl.models.Model method)</a>
+        <li><a href="models.html#mbrl.models.ProprioceptiveModel.update">(mbrl.models.ProprioceptiveModel method)</a>
 </li>
       </ul></li>
-      <li><a href="models.html#mbrl.models.DynamicsModelWrapper.update_from_bootstrap_batch">update_from_bootstrap_batch() (mbrl.models.DynamicsModelWrapper method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="models.html#mbrl.models.DynamicsModelWrapper.update_from_simple_batch">update_from_simple_batch() (mbrl.models.DynamicsModelWrapper method)</a>
-</li>
-      <li><a href="models.html#mbrl.models.DynamicsModelWrapper.update_normalizer">update_normalizer() (mbrl.models.DynamicsModelWrapper method)</a>
+      <li><a href="models.html#mbrl.models.ProprioceptiveModel.update_normalizer">update_normalizer() (mbrl.models.ProprioceptiveModel method)</a>
 </li>
       <li><a href="math.html#mbrl.math.Normalizer.update_stats">update_stats() (mbrl.math.Normalizer method)</a>
 </li>
@@ -635,7 +624,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Facebook AI Research
+        &copy; Copyright 2021, Facebook AI Research
 
     </p>
   </div>
