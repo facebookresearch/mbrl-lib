@@ -12,6 +12,7 @@ import omegaconf
 import pytorch_sac.utils
 import torch
 
+import mbrl.constants
 import mbrl.logger
 import mbrl.math
 import mbrl.models
@@ -21,11 +22,9 @@ import mbrl.types
 import mbrl.util
 from mbrl.planning.sac_wrapper import SACAgent
 
-MBPO_LOG_FORMAT = [
+MBPO_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT + [
     ("epoch", "E", "int"),
-    ("env_step", "S", "int"),
     ("rollout_length", "RL", "int"),
-    ("eval_reward", "ER", "float"),
 ]
 
 
@@ -128,7 +127,12 @@ def train(
     work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
     logger = mbrl.logger.Logger(work_dir, enable_back_compatible=True)
-    logger.register_group("mbpo", MBPO_LOG_FORMAT, color="red", dump_frequency=1)
+    logger.register_group(
+        mbrl.constants.RESULTS_LOG_NAME,
+        MBPO_LOG_FORMAT,
+        color="green",
+        dump_frequency=1,
+    )
     video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
 
     rng = np.random.default_rng(seed=cfg.seed)
@@ -240,11 +244,11 @@ def train(
                     test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
                 )
                 logger.log_data(
-                    "mbpo",
+                    mbrl.constants.RESULTS_LOG_NAME,
                     {
                         "epoch": epoch,
                         "env_step": env_steps,
-                        "eval_reward": avg_reward,
+                        "episode_reward": avg_reward,
                         "rollout_length": rollout_length,
                     },
                 )

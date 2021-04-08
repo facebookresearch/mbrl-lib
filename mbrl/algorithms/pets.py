@@ -10,6 +10,7 @@ import numpy as np
 import omegaconf
 import torch
 
+import mbrl.constants
 import mbrl.logger
 import mbrl.math
 import mbrl.models
@@ -18,10 +19,7 @@ import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
 
-EVAL_LOG_FORMAT = [
-    ("trial", "T", "int"),
-    ("episode_reward", "R", "float"),
-]
+EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 
 
 def get_rollout_schedule(cfg: omegaconf.DictConfig) -> List[int]:
@@ -60,7 +58,9 @@ def train(
         logger = None
     else:
         logger = mbrl.logger.Logger(work_dir)
-        logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
+        logger.register_group(
+            mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
+        )
 
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
@@ -137,7 +137,8 @@ def train(
 
         if logger is not None:
             logger.log_data(
-                "pets_eval", {"trial": current_trial, "episode_reward": total_reward}
+                mbrl.constants.RESULTS_LOG_NAME,
+                {"env_step": env_steps, "episode_reward": total_reward},
             )
         current_trial += 1
         if debug_mode:
