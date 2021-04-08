@@ -205,7 +205,7 @@ def get_mock_env(propagation_method):
         member_cfg,
         propagation_method=propagation_method,
     )
-    dynamics_model = mbrl.models.ProprioceptiveModel(
+    dynamics_model = mbrl.models.OneDTransitionRewardModel(
         ensemble, target_is_delta=True, normalize=False, obs_process_fn=None
     )
     # With value we can uniquely id the output of each member
@@ -323,7 +323,7 @@ class DummyModel(mbrl.models.Model):
 
 def test_model_env_evaluate_action_sequences():
     model = DummyModel()
-    wrapper = mbrl.models.ProprioceptiveModel(model, target_is_delta=False)
+    wrapper = mbrl.models.OneDTransitionRewardModel(model, target_is_delta=False)
     model_env = mbrl.models.ModelEnv(
         MockEnv(), wrapper, no_termination, generator=torch.Generator()
     )

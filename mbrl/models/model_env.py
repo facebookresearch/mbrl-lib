@@ -10,7 +10,7 @@ import torch
 
 import mbrl.types
 
-from . import proprioceptive_model
+from . import one_dim_tr_model
 
 
 class ModelEnv:
@@ -37,7 +37,7 @@ class ModelEnv:
     def __init__(
         self,
         env: gym.Env,
-        model: proprioceptive_model.ProprioceptiveModel,
+        model: one_dim_tr_model.OneDTransitionRewardModel,
         termination_fn: mbrl.types.TermFnType,
         reward_fn: Optional[mbrl.types.RewardFnType] = None,
         generator: Optional[torch.Generator] = None,

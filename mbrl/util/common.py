@@ -26,7 +26,7 @@ def create_proprioceptive_model(
     """Creates a dynamics model from a given configuration.
 
     This method creates a new model from the given configuration and wraps it into a
-    :class:`mbrl.models.ProprioceptiveModel` (see its documentation for explanation of some
+    :class:`mbrl.models.OneDTransitionRewardModel` (see its documentation for explanation of some
     of the config args under ``cfg.algorithm``).
     The configuration should be structured as follows::
 
@@ -65,7 +65,7 @@ def create_proprioceptive_model(
             "model_dir / env_stats.pickle", respectively.
 
     Returns:
-        (:class:`mbrl.models.ProprioceptiveModel`): the proprioceptive model created.
+        (:class:`mbrl.models.OneDTransitionRewardModel`): the proprioceptive model created.
 
     """
     # This first part takes care of the case where model is BasicEnsemble and in/out sizes
@@ -86,7 +86,7 @@ def create_proprioceptive_model(
         obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
     else:
         obs_process_fn = None
-    dynamics_model = mbrl.models.ProprioceptiveModel(
+    dynamics_model = mbrl.models.OneDTransitionRewardModel(
         model,
         target_is_delta=cfg.algorithm.target_is_delta,
         normalize=cfg.algorithm.normalize,

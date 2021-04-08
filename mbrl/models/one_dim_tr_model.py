@@ -26,22 +26,19 @@ MODEL_LOG_FORMAT = [
 ]
 
 
-class ProprioceptiveModel(Model):
-    """Wrapper class for dynamics models using proprioceptive observations.
+class OneDTransitionRewardModel(Model):
+    """Wrapper class for 1-D dynamics models.
 
-    This :class:`mbrl.model.Model` class is essentially a wrapper for another model,
-    providing utility operations that are common
-    when using dynamics models with proprioceptive observation, so that users
-    don't have to manipulate the underlying model's inputs and outputs directly.
+    This model functions as a wrapper for another model to convert transition
+    batches into 1-D transition reward models. It also provides
+    data manipulations that are common when using dynamics models with 1-D observations
+    and actions, so that users don't have to manipulate the underlying model's
+    inputs and outputs directly (e.g., predicting delta observations, input
+    normalization).
 
     The wrapper assumes that the wrapped model inputs/outputs will be consistent with
 
-        [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),
-
-    and it provides methods to construct model inputs and targets given a batch of transitions,
-    accordingly. Moreover, the constructor provides options to perform diverse data manipulations
-    that will be used every time the model needs to be accessed for prediction or training;
-    for example, input/output normalization, and observation pre-processing.
+        [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]).
 
     Args:
         model (:class:`mbrl.model.Model`): the model to wrap.
