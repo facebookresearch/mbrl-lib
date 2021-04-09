@@ -12,8 +12,9 @@ import omegaconf
 
 import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer
 import mbrl.types
+
+from .replay_buffer import ReplayBuffer
 
 
 # TODO read model from hydra
@@ -128,7 +129,7 @@ def create_replay_buffer(
     load_dir: Optional[Union[str, pathlib.Path]] = None,
     collect_trajectories: bool = False,
     rng: Optional[np.random.Generator] = None,
-) -> mbrl.replay_buffer.ReplayBuffer:
+) -> ReplayBuffer:
     """Creates a replay buffer from a given configuration.
 
     The configuration should be structured as follows::
@@ -177,7 +178,7 @@ def create_replay_buffer(
             )
         maybe_max_trajectory_len = cfg.overrides.trial_length
 
-    replay_buffer = mbrl.replay_buffer.ReplayBuffer(
+    replay_buffer = ReplayBuffer(
         dataset_size,
         obs_shape,
         act_shape,
@@ -196,7 +197,7 @@ def train_model_and_save_model_and_data(
     model: mbrl.models.Model,
     model_trainer: mbrl.models.ModelTrainer,
     cfg: omegaconf.DictConfig,
-    replay_buffer: mbrl.replay_buffer.ReplayBuffer,
+    replay_buffer: ReplayBuffer,
     work_dir: Union[str, pathlib.Path],
     callback: Optional[Callable] = None,
 ):
@@ -216,7 +217,7 @@ def train_model_and_save_model_and_data(
                 -num_epochs (int, optional)
                 -patience (int, optional)
                 -bootstrap_permutes (bool, optional)
-        replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer to use.
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer to use.
         work_dir (str or pathlib.Path): directory to save model and buffer to.
         callback (callable, optional): if provided, this function will be called after
             every training epoch. See :class:`mbrl.models.ModelTrainer` for signature.
@@ -289,7 +290,7 @@ def rollout_agent_trajectories(
     agent_kwargs: Dict,
     trial_length: Optional[int] = None,
     callback: Optional[Callable] = None,
-    replay_buffer: Optional[mbrl.replay_buffer.ReplayBuffer] = None,
+    replay_buffer: Optional[ReplayBuffer] = None,
     collect_full_trajectories: bool = False,
 ) -> List[float]:
     """Rollout agent trajectories in the given environment.
@@ -308,7 +309,7 @@ def rollout_agent_trajectories(
             will end when the environment returns ``done=True``.
         callback (callable, optional): a function that will be called using the generated
             transition data `(obs, action. next_obs, reward, done)`.
-        replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`, optional):
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`, optional):
             a replay buffer to store data to use for training.
         collect_full_trajectories (bool): if ``True``, indicates that replay buffers should
             collect full trajectories. This only affects the split between training and
@@ -373,7 +374,7 @@ def step_env_and_add_to_buffer(
     obs: np.ndarray,
     agent: mbrl.planning.Agent,
     agent_kwargs: Dict,
-    replay_buffer: mbrl.replay_buffer.ReplayBuffer,
+    replay_buffer: ReplayBuffer,
     callback: Optional[Callable] = None,
 ) -> Tuple[np.ndarray, float, bool, Dict]:
     """Steps the environment with an agent's action and populates the replay buffer.
@@ -384,7 +385,7 @@ def step_env_and_add_to_buffer(
             an action from the agent).
         agent (:class:`mbrl.planning.Agent`): the agent used to generate an action.
         agent_kwargs (dict): any keyword arguments to pass to `agent.act()` method.
-        replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer
             containing stored data.
         callback (callable, optional): a function that will be called using the generated
             transition data `(obs, action. next_obs, reward, done)`.

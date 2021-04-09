@@ -11,13 +11,12 @@ import omegaconf
 import torch
 
 import mbrl.constants
-import mbrl.logger
-import mbrl.math
 import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
+import mbrl.util.common
+import mbrl.util.math
 
 EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 
@@ -57,17 +56,17 @@ def train(
     if silent:
         logger = None
     else:
-        logger = mbrl.logger.Logger(work_dir)
+        logger = mbrl.util.Logger(work_dir)
         logger.register_group(
             mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
         )
 
     # -------- Create and populate initial env dataset --------
-    dynamics_model = mbrl.util.create_one_dim_tr_model(cfg, obs_shape, act_shape)
-
-    replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
-
-    mbrl.util.rollout_agent_trajectories(
+    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+    replay_buffer = mbrl.util.common.create_replay_buffer(
+        cfg, obs_shape, act_shape, rng=rng
+    )
+    mbrl.util.common.rollout_agent_trajectories(
         env,
         cfg.algorithm.initial_exploration_steps,
         mbrl.planning.RandomAgent(env),
@@ -101,7 +100,7 @@ def train(
         obs = env.reset()
 
         planning_horizon = int(
-            mbrl.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial + 1]))
+            mbrl.util.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial + 1]))
         )
 
         agent.reset(planning_horizon=planning_horizon)
@@ -111,7 +110,7 @@ def train(
         while not done:
             # --------------- Model Training -----------------
             if env_steps % cfg.algorithm.freq_train_model == 0:
-                mbrl.util.train_model_and_save_model_and_data(
+                mbrl.util.common.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
                     cfg.overrides,
@@ -120,7 +119,7 @@ def train(
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.step_env_and_add_to_buffer(
+            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 

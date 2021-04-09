@@ -13,13 +13,12 @@ import pytorch_sac.utils
 import torch
 
 import mbrl.constants
-import mbrl.logger
-import mbrl.math
 import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
+import mbrl.util.common
+import mbrl.util.math
 from mbrl.planning.sac_wrapper import SACAgent
 
 MBPO_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT + [
@@ -30,7 +29,7 @@ MBPO_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT + [
 
 def rollout_model_and_populate_sac_buffer(
     model_env: mbrl.models.ModelEnv,
-    replay_buffer: mbrl.replay_buffer.ReplayBuffer,
+    replay_buffer: mbrl.util.ReplayBuffer,
     agent: SACAgent,
     sac_buffer: pytorch_sac.ReplayBuffer,
     sac_samples_action: bool,
@@ -126,7 +125,7 @@ def train(
 
     work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
-    logger = mbrl.logger.Logger(work_dir, enable_back_compatible=True)
+    logger = mbrl.util.Logger(work_dir, enable_back_compatible=True)
     logger.register_group(
         mbrl.constants.RESULTS_LOG_NAME,
         MBPO_LOG_FORMAT,
@@ -141,11 +140,13 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
-    dynamics_model = mbrl.util.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
 
-    replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
+    replay_buffer = mbrl.util.common.create_replay_buffer(
+        cfg, obs_shape, act_shape, rng=rng
+    )
     random_explore = cfg.algorithm.random_initial_explore
-    mbrl.util.rollout_agent_trajectories(
+    mbrl.util.common.rollout_agent_trajectories(
         env,
         cfg.algorithm.initial_exploration_steps,
         mbrl.planning.RandomAgent(env) if random_explore else agent,
@@ -161,7 +162,6 @@ def train(
     trains_per_epoch = int(
         np.ceil(cfg.overrides.trial_length / cfg.overrides.freq_train_model)
     )
-
     updates_made = 0
     env_steps = 0
     model_env = mbrl.models.ModelEnv(
@@ -178,7 +178,9 @@ def train(
     sac_buffer = None
     while epoch < cfg.overrides.num_trials:
         rollout_length = int(
-            mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch + 1]))
+            mbrl.util.math.truncated_linear(
+                *(cfg.overrides.rollout_schedule + [epoch + 1])
+            )
         )
         sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
         sac_buffer = maybe_replace_sac_buffer(
@@ -193,13 +195,13 @@ def train(
             if steps_epoch == 0 or done:
                 obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.step_env_and_add_to_buffer(
+            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 
             # --------------- Model Training -----------------
             if (env_steps + 1) % cfg.overrides.freq_train_model == 0:
-                mbrl.util.train_model_and_save_model_and_data(
+                mbrl.util.common.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
                     cfg.overrides,

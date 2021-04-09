@@ -10,9 +10,8 @@ import numpy as np
 import torch
 from torch import optim as optim
 
-import mbrl.logger
-import mbrl.replay_buffer
-import mbrl.types
+from mbrl.util.logger import Logger
+from mbrl.util.replay_buffer import BootstrapIterator, TransitionIterator
 
 from .model import Model
 
@@ -44,7 +43,7 @@ class ModelTrainer:
         model: Model,
         optim_lr: float = 1e-4,
         weight_decay: float = 1e-5,
-        logger: Optional[mbrl.logger.Logger] = None,
+        logger: Optional[Logger] = None,
     ):
         self.model = model
         self._train_iteration = 0
@@ -66,8 +65,8 @@ class ModelTrainer:
 
     def train(
         self,
-        dataset_train: mbrl.replay_buffer.TransitionIterator,
-        dataset_val: Optional[mbrl.replay_buffer.TransitionIterator] = None,
+        dataset_train: TransitionIterator,
+        dataset_val: Optional[TransitionIterator] = None,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = 1,
         callback: Optional[Callable] = None,
@@ -84,9 +83,9 @@ class ModelTrainer:
         will keep the model with the best loss over training data.
 
         Args:
-            dataset_train (:class:`mbrl.replay_buffer.TransitionIterator`): the iterator to
+            dataset_train (:class:`mbrl.util.TransitionIterator`): the iterator to
                 use for the training data.
-            dataset_val (:class:`mbrl.replay_buffer.TransitionIterator`, optional):
+            dataset_val (:class:`mbrl.util.TransitionIterator`, optional):
                 an iterator to use for the validation data.
             num_epochs (int, optional): if provided, the maximum number of epochs to train for.
                 Default is ``None``, which indicates there is no limit.
@@ -166,7 +165,7 @@ class ModelTrainer:
         self._train_iteration += 1
         return training_losses, val_scores
 
-    def evaluate(self, dataset: mbrl.replay_buffer.TransitionIterator) -> torch.Tensor:
+    def evaluate(self, dataset: TransitionIterator) -> torch.Tensor:
         """Evaluates the model on the validation dataset.
 
         Iterates over the dataset, one batch at a time, and calls
@@ -180,7 +179,7 @@ class ModelTrainer:
             (tensor): The average score of the model over the dataset (and for ensembles, per
                 ensemble member).
         """
-        if isinstance(dataset, mbrl.replay_buffer.BootstrapIterator):
+        if isinstance(dataset, BootstrapIterator):
             dataset.toggle_bootstrap()
 
         batch_scores_list = []
@@ -189,7 +188,7 @@ class ModelTrainer:
             batch_scores_list.append(avg_batch_score)
         batch_scores = torch.cat(batch_scores_list, axis=batch_scores_list[0].ndim - 2)
 
-        if isinstance(dataset, mbrl.replay_buffer.BootstrapIterator):
+        if isinstance(dataset, BootstrapIterator):
             dataset.toggle_bootstrap()
 
         mean_axis = 1 if batch_scores.ndim == 2 else (1, 2)

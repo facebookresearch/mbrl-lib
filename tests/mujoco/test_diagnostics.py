@@ -15,7 +15,7 @@ from omegaconf import OmegaConf
 
 import mbrl.diagnostics as diagnostics
 import mbrl.planning as planning
-import mbrl.util as utils
+import mbrl.util.common
 
 _REPO_DIR = os.getcwd()
 _DIR = tempfile.TemporaryDirectory()
@@ -80,14 +80,14 @@ _CFG = OmegaConf.create(_CFG_DICT)
 _MBPO_CFG = OmegaConf.create(_MBPO_CFG_DICT)
 
 # Create a model to train and run then save to directory
-one_dim_model = utils.create_one_dim_tr_model(_CFG, _OBS_SHAPE, _ACT_SHAPE)
+one_dim_model = mbrl.util.common.create_one_dim_tr_model(_CFG, _OBS_SHAPE, _ACT_SHAPE)
 one_dim_model.save(_DIR.name)
 
 # Create replay buffers and save to directory with some data
 _CFG.dynamics_model.model.in_size = "???"
 _CFG.dynamics_model.model.out_size = "???"
-replay_buffer = utils.create_replay_buffer(_CFG, _OBS_SHAPE, _ACT_SHAPE)
-utils.rollout_agent_trajectories(
+replay_buffer = mbrl.util.common.create_replay_buffer(_CFG, _OBS_SHAPE, _ACT_SHAPE)
+mbrl.util.common.rollout_agent_trajectories(
     _ENV, 128, planning.RandomAgent(_ENV), {}, replay_buffer=replay_buffer
 )
 
@@ -136,7 +136,7 @@ def test_finetuner():
     for i in range(len(new_model_output)):
         assert (new_model_output[i] - model_output[i]).abs().mean().item() > 0
 
-    new_buffer = utils.create_replay_buffer(
+    new_buffer = mbrl.util.common.create_replay_buffer(
         _MBPO_CFG, _OBS_SHAPE, _ACT_SHAPE, load_dir=results_dir
     )
     assert new_buffer.num_stored > replay_buffer.num_stored
