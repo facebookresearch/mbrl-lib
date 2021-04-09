@@ -8,7 +8,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-import mbrl.math
+import mbrl.util.math
 
 from .model import Ensemble
 from .util import EnsembleLinearLayer, truncated_normal_init
@@ -250,7 +250,7 @@ class GaussianMLP(Ensemble):
             model gets exactly the same number of samples (which are assigned randomly
             with equal probability), resulting in a smaller batch size which we use for the forward
             pass. If this is a concern, consider using ``propagation=None``, and passing
-            the output to :func:`mbrl.math.propagate`.
+            the output to :func:`mbrl.util.math.propagate`.
 
         """
         if use_propagation:
@@ -274,7 +274,7 @@ class GaussianMLP(Ensemble):
         if target.shape[0] != self.num_members:
             target = target.repeat(self.num_members, 1, 1)
         nll = (
-            mbrl.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
+            mbrl.util.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
             .mean((1, 2))  # average over batch and target dimension
             .sum()
         )  # sum over ensemble dimension

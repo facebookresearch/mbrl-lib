@@ -7,7 +7,7 @@ import pytest
 import pytorch_sac.replay_buffer as sac_buffer
 import torch
 
-import mbrl.replay_buffer as replay_buffer
+import mbrl.util.replay_buffer as replay_buffer
 from mbrl.types import TransitionBatch
 
 

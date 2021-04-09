@@ -7,7 +7,7 @@ import omegaconf
 import pytest
 
 import mbrl.models as models
-import mbrl.replay_buffer as replay_buffer
+import mbrl.util
 import mbrl.util.common as utils
 
 
@@ -206,7 +206,7 @@ class MockRng:
 
 def test_populate_replay_buffer_no_trajectories():
     num_steps = 100
-    buffer = replay_buffer.ReplayBuffer(1000, (1,), (1,), obs_type=int)
+    buffer = mbrl.util.ReplayBuffer(1000, (1,), (1,), obs_type=int)
     env = MockEnv()
 
     utils.rollout_agent_trajectories(
@@ -226,7 +226,7 @@ def test_populate_replay_buffer_no_trajectories():
 
 def test_populate_replay_buffer_collect_trajectories():
     num_trials = 10
-    buffer = replay_buffer.ReplayBuffer(
+    buffer = mbrl.util.ReplayBuffer(
         1000, (1,), (1,), obs_type=int, max_trajectory_length=_MOCK_TRAJ_LEN
     )
     env = MockEnv()

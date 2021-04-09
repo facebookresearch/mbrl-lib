@@ -8,9 +8,8 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-import mbrl.logger
-import mbrl.math
 import mbrl.types
+import mbrl.util.math
 
 from .model import Ensemble, Model
 
@@ -78,9 +77,9 @@ class OneDTransitionRewardModel(Model):
     ):
         super().__init__()
         self.model = model
-        self.input_normalizer: Optional[mbrl.math.Normalizer] = None
+        self.input_normalizer: Optional[mbrl.util.math.Normalizer] = None
         if normalize:
-            self.input_normalizer = mbrl.math.Normalizer(
+            self.input_normalizer = mbrl.util.math.Normalizer(
                 self.model.in_size, self.model.device
             )
         self.device = self.model.device
