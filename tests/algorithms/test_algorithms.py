@@ -66,7 +66,7 @@ class MockLineEnv(gym.Env):
 
 
 def mock_reward_fn(action, obs):
-    return -_REW_C * (obs[:, 0] ** 2)
+    return -_REW_C * (obs[:, 0] ** 2).unsqueeze(1)
 
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
