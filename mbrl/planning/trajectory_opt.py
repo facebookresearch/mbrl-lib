@@ -38,6 +38,8 @@ class CEMOptimizer:
         upper_bound (sequence of floats): the upper bound for the optimization variables.
         alpha (float): momentum term.
         device (torch.device): device where computations will be performed.
+        return_mean_elites (bool): if ``True`` returns the mean of the elites of the last
+            iteration. Otherwise, it returns the max solution found over all iterations.
 
     [1] R. Rubinstein and W. Davidson. "The cross-entropy method for combinatorial and continuous
     optimization". Methodology and Computing in Applied Probability, 1999.
@@ -52,7 +54,9 @@ class CEMOptimizer:
         upper_bound: Sequence[float],
         alpha: float,
         device: torch.device,
+        return_mean_elites: bool = False,
     ):
+        super().__init__()
         self.num_iterations = num_iterations
         self.elite_ratio = elite_ratio
         self.population_size = population_size
@@ -63,6 +67,7 @@ class CEMOptimizer:
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
         self.initial_var = ((self.upper_bound - self.lower_bound) ** 2) / 16
         self.alpha = alpha
+        self.return_mean_elites = return_mean_elites
         self.device = device
 
     def _init_history(self, x_shape: Tuple[int, ...]) -> Dict[str, np.ndarray]:
@@ -167,6 +172,7 @@ class CEMOptimizer:
             self._update_history(i, values, mu, best_solution, history)
 
         return best_solution, history
+        return mu if self.return_mean_elites else best_solution
 
 
 class TrajectoryOptimizer:

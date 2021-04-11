@@ -18,6 +18,7 @@ optimizer:
   alpha: 0.1
   lower_bound: ???
   upper_bound: ???
+  return_mean_elites: true
   device: ${device}
 
 normalize: true
