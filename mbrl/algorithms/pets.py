@@ -143,5 +143,7 @@ def train(
             print(f"Trial: {current_trial }, reward: {total_reward}.")
 
         max_total_reward = max(max_total_reward, total_reward)
+        if env_steps > cfg.max_steps:
+            break
 
     return np.float32(max_total_reward)
