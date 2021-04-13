@@ -8,9 +8,8 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-import mbrl.logger
-import mbrl.math
 import mbrl.types
+import mbrl.util.math
 
 from .model import Ensemble, Model
 
@@ -26,22 +25,19 @@ MODEL_LOG_FORMAT = [
 ]
 
 
-class ProprioceptiveModel(Model):
-    """Wrapper class for dynamics models using proprioceptive observations.
+class OneDTransitionRewardModel(Model):
+    """Wrapper class for 1-D dynamics models.
 
-    This :class:`mbrl.model.Model` class is essentially a wrapper for another model,
-    providing utility operations that are common
-    when using dynamics models with proprioceptive observation, so that users
-    don't have to manipulate the underlying model's inputs and outputs directly.
+    This model functions as a wrapper for another model to convert transition
+    batches into 1-D transition reward models. It also provides
+    data manipulations that are common when using dynamics models with 1-D observations
+    and actions, so that users don't have to manipulate the underlying model's
+    inputs and outputs directly (e.g., predicting delta observations, input
+    normalization).
 
     The wrapper assumes that the wrapped model inputs/outputs will be consistent with
 
-        [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),
-
-    and it provides methods to construct model inputs and targets given a batch of transitions,
-    accordingly. Moreover, the constructor provides options to perform diverse data manipulations
-    that will be used every time the model needs to be accessed for prediction or training;
-    for example, input/output normalization, and observation pre-processing.
+        [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]).
 
     Args:
         model (:class:`mbrl.model.Model`): the model to wrap.
@@ -81,9 +77,9 @@ class ProprioceptiveModel(Model):
     ):
         super().__init__()
         self.model = model
-        self.obs_normalizer: Optional[mbrl.math.Normalizer] = None
+        self.input_normalizer: Optional[mbrl.util.math.Normalizer] = None
         if normalize:
-            self.obs_normalizer = mbrl.math.Normalizer(
+            self.input_normalizer = mbrl.util.math.Normalizer(
                 self.model.in_size, self.model.device
             )
         self.device = self.model.device
@@ -107,17 +103,17 @@ class ProprioceptiveModel(Model):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
-        if self.obs_normalizer:
+        if self.input_normalizer:
             # Normalizer lives on device
-            return self.obs_normalizer.normalize(model_in_np)
+            return self.input_normalizer.normalize(model_in_np)
         return torch.from_numpy(model_in_np).to(device)
 
     def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         model_in = torch.cat([obs, action], axis=obs.ndim - 1)
-        if self.obs_normalizer:
-            model_in = self.obs_normalizer.normalize(model_in)
+        if self.input_normalizer:
+            model_in = self.input_normalizer.normalize(model_in)
         return model_in
 
     def _get_model_input_and_target_from_batch(
@@ -158,6 +154,8 @@ class ProprioceptiveModel(Model):
             batch (:class:`mbrl.types.TransitionBatch`): The batch of transition data.
                 Only obs and action will be used, since these are the inputs to the model.
         """
+        if self.input_normalizer is None:
+            return
         obs, action = batch.obs, batch.act
         if obs.ndim == 1:
             obs = obs[None, :]
@@ -165,8 +163,7 @@ class ProprioceptiveModel(Model):
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
-        if self.obs_normalizer:
-            self.obs_normalizer.update_stats(model_in_np)
+        self.input_normalizer.update_stats(model_in_np)
 
     def loss(
         self,
@@ -305,14 +302,14 @@ class ProprioceptiveModel(Model):
     def save(self, save_dir: Union[str, pathlib.Path]):
         save_dir = pathlib.Path(save_dir)
         super().save(save_dir / self._MODEL_FNAME)
-        if self.obs_normalizer:
-            self.obs_normalizer.save(save_dir)
+        if self.input_normalizer:
+            self.input_normalizer.save(save_dir)
 
     def load(self, load_dir: Union[str, pathlib.Path]):
         load_dir = pathlib.Path(load_dir)
         super().load(load_dir / self._MODEL_FNAME)
-        if self.obs_normalizer:
-            self.obs_normalizer.load(load_dir)
+        if self.input_normalizer:
+            self.input_normalizer.load(load_dir)
 
     def set_elite(self, elite_indices: Sequence[int]):
         self.elite_models = list(elite_indices)

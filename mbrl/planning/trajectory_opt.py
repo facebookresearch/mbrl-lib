@@ -11,9 +11,9 @@ import omegaconf
 import torch
 import torch.distributions
 
-import mbrl.math
 import mbrl.models
 import mbrl.types
+import mbrl.util.math
 
 from .core import Agent, complete_agent_cfg
 
@@ -143,7 +143,7 @@ class CEMOptimizer:
             mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
             constrained_var = torch.min(mv, var)
 
-            population = mbrl.math.truncated_normal_(population)
+            population = mbrl.util.math.truncated_normal_(population)
             population = population * torch.sqrt(constrained_var) + mu
 
             values = obj_fun(population)

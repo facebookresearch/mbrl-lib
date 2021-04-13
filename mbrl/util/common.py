@@ -12,21 +12,22 @@ import omegaconf
 
 import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer
 import mbrl.types
 
+from .replay_buffer import ReplayBuffer
 
-# TODO read proprioceptive model from hydra
-def create_proprioceptive_model(
+
+# TODO read model from hydra
+def create_one_dim_tr_model(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int, ...],
     act_shape: Tuple[int, ...],
     model_dir: Optional[Union[str, pathlib.Path]] = None,
 ):
-    """Creates a dynamics model from a given configuration.
+    """Creates a 1-D transition reward model from a given configuration.
 
     This method creates a new model from the given configuration and wraps it into a
-    :class:`mbrl.models.ProprioceptiveModel` (see its documentation for explanation of some
+    :class:`mbrl.models.OneDTransitionRewardModel` (see its documentation for explanation of some
     of the config args under ``cfg.algorithm``).
     The configuration should be structured as follows::
 
@@ -65,7 +66,7 @@ def create_proprioceptive_model(
             "model_dir / env_stats.pickle", respectively.
 
     Returns:
-        (:class:`mbrl.models.ProprioceptiveModel`): the proprioceptive model created.
+        (:class:`mbrl.models.OneDTransitionRewardModel`): the model created.
 
     """
     # This first part takes care of the case where model is BasicEnsemble and in/out sizes
@@ -86,7 +87,7 @@ def create_proprioceptive_model(
         obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
     else:
         obs_process_fn = None
-    dynamics_model = mbrl.models.ProprioceptiveModel(
+    dynamics_model = mbrl.models.OneDTransitionRewardModel(
         model,
         target_is_delta=cfg.algorithm.target_is_delta,
         normalize=cfg.algorithm.normalize,
@@ -128,7 +129,7 @@ def create_replay_buffer(
     load_dir: Optional[Union[str, pathlib.Path]] = None,
     collect_trajectories: bool = False,
     rng: Optional[np.random.Generator] = None,
-) -> mbrl.replay_buffer.ReplayBuffer:
+) -> ReplayBuffer:
     """Creates a replay buffer from a given configuration.
 
     The configuration should be structured as follows::
@@ -177,7 +178,7 @@ def create_replay_buffer(
             )
         maybe_max_trajectory_len = cfg.overrides.trial_length
 
-    replay_buffer = mbrl.replay_buffer.ReplayBuffer(
+    replay_buffer = ReplayBuffer(
         dataset_size,
         obs_shape,
         act_shape,
@@ -194,19 +195,21 @@ def create_replay_buffer(
 
 def train_model_and_save_model_and_data(
     model: mbrl.models.Model,
-    model_trainer: mbrl.models.DynamicsModelTrainer,
+    model_trainer: mbrl.models.ModelTrainer,
     cfg: omegaconf.DictConfig,
-    replay_buffer: mbrl.replay_buffer.ReplayBuffer,
+    replay_buffer: ReplayBuffer,
     work_dir: Union[str, pathlib.Path],
     callback: Optional[Callable] = None,
 ):
     """Convenience function for training a model and saving results.
 
     Runs `model_trainer.train()`, then saves the resulting model and the data used.
+    If the model has an "update_normalizer" method it will be called before training,
+    passing `replay_buffer.get_all()` as input.
 
     Args:
         model (:class:`mbrl.models.Model`): the model to train.
-        model_trainer (:class:`mbrl.models.DynamicsModelTrainer`): the model trainer.
+        model_trainer (:class:`mbrl.models.ModelTrainer`): the model trainer.
         cfg (:class:`omegaconf.DictConfig`): configuration to use for training. It
             must contain the following fields::
                 -model_batch_size (int)
@@ -214,7 +217,7 @@ def train_model_and_save_model_and_data(
                 -num_epochs (int, optional)
                 -patience (int, optional)
                 -bootstrap_permutes (bool, optional)
-        replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer to use.
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer to use.
         work_dir (str or pathlib.Path): directory to save model and buffer to.
         callback (callable, optional): if provided, this function will be called after
             every training epoch. See :class:`mbrl.models.ModelTrainer` for signature.
@@ -227,7 +230,8 @@ def train_model_and_save_model_and_data(
         shuffle_each_epoch=True,
         bootstrap_permutes=cfg.get("bootstrap_permutes", False),
     )
-
+    if hasattr(model, "update_normalizer"):
+        model.update_normalizer(replay_buffer.get_all())
     model_trainer.train(
         dataset_train,
         dataset_val=dataset_val,
@@ -286,7 +290,7 @@ def rollout_agent_trajectories(
     agent_kwargs: Dict,
     trial_length: Optional[int] = None,
     callback: Optional[Callable] = None,
-    replay_buffer: Optional[mbrl.replay_buffer.ReplayBuffer] = None,
+    replay_buffer: Optional[ReplayBuffer] = None,
     collect_full_trajectories: bool = False,
 ) -> List[float]:
     """Rollout agent trajectories in the given environment.
@@ -305,7 +309,7 @@ def rollout_agent_trajectories(
             will end when the environment returns ``done=True``.
         callback (callable, optional): a function that will be called using the generated
             transition data `(obs, action. next_obs, reward, done)`.
-        replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`, optional):
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`, optional):
             a replay buffer to store data to use for training.
         collect_full_trajectories (bool): if ``True``, indicates that replay buffers should
             collect full trajectories. This only affects the split between training and
@@ -370,7 +374,7 @@ def step_env_and_add_to_buffer(
     obs: np.ndarray,
     agent: mbrl.planning.Agent,
     agent_kwargs: Dict,
-    replay_buffer: mbrl.replay_buffer.ReplayBuffer,
+    replay_buffer: ReplayBuffer,
     callback: Optional[Callable] = None,
 ) -> Tuple[np.ndarray, float, bool, Dict]:
     """Steps the environment with an agent's action and populates the replay buffer.
@@ -381,7 +385,7 @@ def step_env_and_add_to_buffer(
             an action from the agent).
         agent (:class:`mbrl.planning.Agent`): the agent used to generate an action.
         agent_kwargs (dict): any keyword arguments to pass to `agent.act()` method.
-        replay_buffer (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer
             containing stored data.
         callback (callable, optional): a function that will be called using the generated
             transition data `(obs, action. next_obs, reward, done)`.

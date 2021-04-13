@@ -11,6 +11,9 @@ import torch
 import torch.nn as nn
 
 import mbrl.models
+from mbrl.env.termination_fns import no_termination
+
+_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 def test_basic_ensemble_gaussian_forward():
@@ -19,16 +22,16 @@ def test_basic_ensemble_gaussian_forward():
     member_cfg = omegaconf.OmegaConf.create(
         {
             "_target_": "mbrl.models.GaussianMLP",
-            "device": "cpu",
+            "device": _DEVICE,
             "in_size": model_in_size,
             "out_size": model_out_size,
         }
     )
     ensemble = mbrl.models.BasicEnsemble(
-        2, torch.device("cpu"), member_cfg, propagation_method="expectation"
+        2, torch.device(_DEVICE), member_cfg, propagation_method="expectation"
     )
     batch_size = 4
-    model_in = torch.zeros(batch_size, 2)
+    model_in = torch.zeros(batch_size, 2).to(_DEVICE)
 
     member_out_mean_ex, member_out_var_ex = ensemble[0].forward(model_in)
     assert member_out_mean_ex.shape == torch.Size([batch_size, model_out_size])
@@ -60,7 +63,7 @@ _OUTPUT_FACTOR = 10
 
 def _create_gaussian_ensemble_mock(ensemble_size, as_float=False):
     model = mbrl.models.GaussianMLP(
-        1, 1, "cpu", num_layers=2, ensemble_size=ensemble_size
+        1, 1, _DEVICE, num_layers=2, ensemble_size=ensemble_size
     )
 
     # With this we can use the output value to identify which model produced the output
@@ -198,11 +201,11 @@ def get_mock_env(propagation_method):
     num_members = 3
     ensemble = mbrl.models.BasicEnsemble(
         num_members,
-        torch.device("cpu"),
+        torch.device(_DEVICE),
         member_cfg,
         propagation_method=propagation_method,
     )
-    dynamics_model = mbrl.models.ProprioceptiveModel(
+    dynamics_model = mbrl.models.OneDTransitionRewardModel(
         ensemble, target_is_delta=True, normalize=False, obs_process_fn=None
     )
     # With value we can uniquely id the output of each member
@@ -290,3 +293,52 @@ def test_model_env_expectation_fixed():
 
     for h in history:
         assert len(set([c for c in h])) == 1
+
+
+class DummyModel(mbrl.models.Model):
+    def __init__(self):
+        super().__init__()
+        self.device = torch.device(_DEVICE)
+        self.to(self.device)
+
+    def forward(self, x, **kwargs):
+        obs = x[:, :_MOCK_OBS_DIM]
+        act = x[:, _MOCK_OBS_DIM:]
+        new_obs = obs + act.mean(axis=1, keepdim=True)
+        # reward is also equal to new_obs
+        return torch.cat([new_obs, new_obs], axis=1)
+
+    def sample(self, x, deterministic=False, rng=None):
+        return self.forward(x)
+
+    def loss(self, _input, target=None):
+        pass
+
+    def eval_score(self, _input, target=None):
+        pass
+
+    def _is_deterministic_impl(self):
+        return False
+
+
+def test_model_env_evaluate_action_sequences():
+    model = DummyModel()
+    wrapper = mbrl.models.OneDTransitionRewardModel(model, target_is_delta=False)
+    model_env = mbrl.models.ModelEnv(
+        MockEnv(), wrapper, no_termination, generator=torch.Generator()
+    )
+    for num_particles in range(1, 10):
+        for horizon in range(1, 10):
+            action_sequences = torch.stack(
+                [
+                    torch.ones(horizon, _MOCK_ACT_DIM),
+                    2 * torch.ones(horizon, _MOCK_ACT_DIM),
+                ]
+            ).to(_DEVICE)
+            expected_returns = horizon * (horizon + 1) * action_sequences[..., 0, 0] / 2
+            returns = model_env.evaluate_action_sequences(
+                action_sequences,
+                np.zeros((1, _MOCK_OBS_DIM)),
+                num_particles=num_particles,
+            )
+            assert torch.allclose(expected_returns, returns)

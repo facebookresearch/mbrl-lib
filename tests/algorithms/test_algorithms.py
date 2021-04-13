@@ -103,6 +103,7 @@ def _check_pets(model_type):
     cfg = OmegaConf.create(cfg_dict)
     cfg.algorithm.dataset_size = _TRIAL_LEN * _NUM_TRIALS_PETS + _INITIAL_EXPLORE
     cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
+    cfg.algorithm.freq_train_model = _TRIAL_LEN
     if model_type == "basic_ensemble":
         cfg.dynamics_model.model.member_cfg.deterministic = True
 

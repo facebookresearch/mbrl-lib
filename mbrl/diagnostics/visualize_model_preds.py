@@ -15,8 +15,8 @@ import torch
 import mbrl
 import mbrl.models
 import mbrl.planning
-import mbrl.util
-import mbrl.util.mujoco as mujoco_util
+import mbrl.util.common
+import mbrl.util.mujoco
 
 VisData = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
@@ -49,9 +49,9 @@ class Visualizer:
         self.num_model_samples = num_model_samples
         self.num_steps = num_steps
 
-        self.cfg = mbrl.util.load_hydra_cfg(self.results_path)
+        self.cfg = mbrl.util.common.load_hydra_cfg(self.results_path)
 
-        self.env, term_fn, reward_fn = mujoco_util.make_env(self.cfg)
+        self.env, term_fn, reward_fn = mbrl.util.mujoco.make_env(self.cfg)
 
         if reference_agent_type:
             self.reference_agent: mbrl.planning.Agent
@@ -68,7 +68,7 @@ class Visualizer:
             self.reference_agent = None
         self.reward_fn = reward_fn
 
-        self.dynamics_model = mbrl.util.create_proprioceptive_model(
+        self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
@@ -100,14 +100,14 @@ class Visualizer:
         self, obs: np.ndarray, use_mpc: bool = False
     ) -> VisData:
         if use_mpc:
-            model_obses, model_rewards, actions = mbrl.util.rollout_model_env(
+            model_obses, model_rewards, actions = mbrl.util.common.rollout_model_env(
                 self.model_env,
                 obs,
                 plan=None,
                 agent=self.agent,
                 num_samples=self.num_model_samples,
             )
-            real_obses, real_rewards, _ = mujoco_util.rollout_mujoco_env(
+            real_obses, real_rewards, _ = mbrl.util.mujoco.rollout_mujoco_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,
@@ -115,13 +115,13 @@ class Visualizer:
                 plan=actions,
             )
         else:
-            real_obses, real_rewards, actions = mujoco_util.rollout_mujoco_env(
+            real_obses, real_rewards, actions = mbrl.util.mujoco.rollout_mujoco_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,
                 agent=self.reference_agent,
             )
-            model_obses, model_rewards, _ = mbrl.util.rollout_model_env(
+            model_obses, model_rewards, _ = mbrl.util.common.rollout_model_env(
                 self.model_env,
                 obs,
                 plan=actions,

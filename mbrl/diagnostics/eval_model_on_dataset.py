@@ -10,9 +10,9 @@ import matplotlib as mpl
 import matplotlib.pylab as plt
 import numpy as np
 
-import mbrl.replay_buffer
 import mbrl.util
-import mbrl.util.mujoco as mujoco_util
+import mbrl.util.common
+import mbrl.util.mujoco
 
 
 class DatasetEvaluator:
@@ -21,19 +21,19 @@ class DatasetEvaluator:
         self.output_path = pathlib.Path(output_dir)
         pathlib.Path.mkdir(self.output_path, parents=True, exist_ok=True)
 
-        self.cfg = mbrl.util.load_hydra_cfg(self.model_path)
+        self.cfg = mbrl.util.common.load_hydra_cfg(self.model_path)
 
-        self.env, term_fn, reward_fn = mujoco_util.make_env(self.cfg)
+        self.env, term_fn, reward_fn = mbrl.util.mujoco.make_env(self.cfg)
         self.reward_fn = reward_fn
 
-        self.dynamics_model = mbrl.util.create_proprioceptive_model(
+        self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
             model_dir=self.model_path,
         )
 
-        self.replay_buffer = mbrl.util.create_replay_buffer(
+        self.replay_buffer = mbrl.util.common.create_replay_buffer(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
@@ -42,7 +42,7 @@ class DatasetEvaluator:
 
     def plot_dataset_results(
         self,
-        dataset: mbrl.replay_buffer.TransitionIterator,
+        dataset: mbrl.util.TransitionIterator,
         name: str,
         is_ensemble: bool = False,
         num_members: int = 0,

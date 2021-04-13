@@ -12,26 +12,24 @@ import omegaconf
 import pytorch_sac.utils
 import torch
 
-import mbrl.logger
-import mbrl.math
+import mbrl.constants
 import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
+import mbrl.util.common
+import mbrl.util.math
 from mbrl.planning.sac_wrapper import SACAgent
 
-MBPO_LOG_FORMAT = [
+MBPO_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT + [
     ("epoch", "E", "int"),
-    ("env_step", "S", "int"),
     ("rollout_length", "RL", "int"),
-    ("eval_reward", "ER", "float"),
 ]
 
 
 def rollout_model_and_populate_sac_buffer(
     model_env: mbrl.models.ModelEnv,
-    replay_buffer: mbrl.replay_buffer.ReplayBuffer,
+    replay_buffer: mbrl.util.ReplayBuffer,
     agent: SACAgent,
     sac_buffer: pytorch_sac.ReplayBuffer,
     sac_samples_action: bool,
@@ -127,8 +125,13 @@ def train(
 
     work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
-    logger = mbrl.logger.Logger(work_dir, enable_back_compatible=True)
-    logger.register_group("mbpo", MBPO_LOG_FORMAT, color="red", dump_frequency=1)
+    logger = mbrl.util.Logger(work_dir, enable_back_compatible=True)
+    logger.register_group(
+        mbrl.constants.RESULTS_LOG_NAME,
+        MBPO_LOG_FORMAT,
+        color="green",
+        dump_frequency=1,
+    )
     video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
 
     rng = np.random.default_rng(seed=cfg.seed)
@@ -137,11 +140,13 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial overrides. dataset --------------
-    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
 
-    replay_buffer = mbrl.util.create_replay_buffer(cfg, obs_shape, act_shape, rng=rng)
+    replay_buffer = mbrl.util.common.create_replay_buffer(
+        cfg, obs_shape, act_shape, rng=rng
+    )
     random_explore = cfg.algorithm.random_initial_explore
-    mbrl.util.rollout_agent_trajectories(
+    mbrl.util.common.rollout_agent_trajectories(
         env,
         cfg.algorithm.initial_exploration_steps,
         mbrl.planning.RandomAgent(env) if random_explore else agent,
@@ -157,13 +162,12 @@ def train(
     trains_per_epoch = int(
         np.ceil(cfg.overrides.trial_length / cfg.overrides.freq_train_model)
     )
-
     updates_made = 0
     env_steps = 0
     model_env = mbrl.models.ModelEnv(
         env, dynamics_model, termination_fn, None, generator=torch_generator
     )
-    model_trainer = mbrl.models.DynamicsModelTrainer(
+    model_trainer = mbrl.models.ModelTrainer(
         dynamics_model,
         optim_lr=cfg.overrides.model_lr,
         weight_decay=cfg.overrides.model_wd,
@@ -174,7 +178,9 @@ def train(
     sac_buffer = None
     while epoch < cfg.overrides.num_trials:
         rollout_length = int(
-            mbrl.math.truncated_linear(*(cfg.overrides.rollout_schedule + [epoch + 1]))
+            mbrl.util.math.truncated_linear(
+                *(cfg.overrides.rollout_schedule + [epoch + 1])
+            )
         )
         sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
         sac_buffer = maybe_replace_sac_buffer(
@@ -189,14 +195,13 @@ def train(
             if steps_epoch == 0 or done:
                 obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.step_env_and_add_to_buffer(
+            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 
             # --------------- Model Training -----------------
             if (env_steps + 1) % cfg.overrides.freq_train_model == 0:
-                dynamics_model.update_normalizer(replay_buffer.get_all())
-                mbrl.util.train_model_and_save_model_and_data(
+                mbrl.util.common.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
                     cfg.overrides,
@@ -240,11 +245,11 @@ def train(
                     test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
                 )
                 logger.log_data(
-                    "mbpo",
+                    mbrl.constants.RESULTS_LOG_NAME,
                     {
                         "epoch": epoch,
                         "env_step": env_steps,
-                        "eval_reward": avg_reward,
+                        "episode_reward": avg_reward,
                         "rollout_length": rollout_length,
                     },
                 )

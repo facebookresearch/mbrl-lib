@@ -7,7 +7,7 @@ import omegaconf
 import pytest
 
 import mbrl.models as models
-import mbrl.replay_buffer as replay_buffer
+import mbrl.util
 import mbrl.util.common as utils
 
 
@@ -34,7 +34,7 @@ def mock_obs_func():
     pass
 
 
-def test_create_proprioceptive_model():
+def test_create_one_dim_tr_model():
     cfg_dict = {
         "dynamics_model": {
             "model": {
@@ -54,7 +54,7 @@ def test_create_proprioceptive_model():
     act_shape = (1,)
 
     cfg = omegaconf.OmegaConf.create(cfg_dict)
-    dynamics_model = utils.create_proprioceptive_model(cfg, obs_shape, act_shape)
+    dynamics_model = utils.create_one_dim_tr_model(cfg, obs_shape, act_shape)
 
     assert isinstance(dynamics_model.model, MockModel)
     assert dynamics_model.model.in_size == obs_shape[0] + act_shape[0]
@@ -70,7 +70,7 @@ def test_create_proprioceptive_model():
     cfg.overrides.no_delta_list = [0]
     cfg.overrides.num_elites = 8
     cfg.overrides.obs_process_fn = "tests.core.test_common_utils.mock_obs_func"
-    dynamics_model = utils.create_proprioceptive_model(cfg, obs_shape, act_shape)
+    dynamics_model = utils.create_one_dim_tr_model(cfg, obs_shape, act_shape)
 
     assert dynamics_model.model.in_size == 11
     assert dynamics_model.model.out_size == 7
@@ -206,7 +206,7 @@ class MockRng:
 
 def test_populate_replay_buffer_no_trajectories():
     num_steps = 100
-    buffer = replay_buffer.ReplayBuffer(1000, (1,), (1,), obs_type=int)
+    buffer = mbrl.util.ReplayBuffer(1000, (1,), (1,), obs_type=int)
     env = MockEnv()
 
     utils.rollout_agent_trajectories(
@@ -226,7 +226,7 @@ def test_populate_replay_buffer_no_trajectories():
 
 def test_populate_replay_buffer_collect_trajectories():
     num_trials = 10
-    buffer = replay_buffer.ReplayBuffer(
+    buffer = mbrl.util.ReplayBuffer(
         1000, (1,), (1,), obs_type=int, max_trajectory_length=_MOCK_TRAJ_LEN
     )
     env = MockEnv()

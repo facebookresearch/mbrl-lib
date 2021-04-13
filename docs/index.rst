@@ -28,7 +28,7 @@ If you also want the developer tools for contributing, run
     pip install -e ".[dev]"
 
 Finally, make sure your Python environment has
-`PyTorch (>= 1.6) <https://pytorch.org/>`_ installed with the appropriate CUDA configuration
+`PyTorch (>= 1.7) <https://pytorch.org/>`_ installed with the appropriate CUDA configuration
 for your system.
 
 
@@ -36,7 +36,7 @@ To test your installation, run
 
 .. code-block:: bash
 
-    python -m pytest tests
+    python -m pytest tests/core
 
 .. toctree::
    :maxdepth: 3

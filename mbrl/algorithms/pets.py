@@ -10,18 +10,15 @@ import numpy as np
 import omegaconf
 import torch
 
-import mbrl.logger
-import mbrl.math
+import mbrl.constants
 import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer
 import mbrl.types
 import mbrl.util
+import mbrl.util.common
+import mbrl.util.math
 
-EVAL_LOG_FORMAT = [
-    ("trial", "T", "int"),
-    ("episode_reward", "R", "float"),
-]
+EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 
 
 def get_rollout_schedule(cfg: omegaconf.DictConfig) -> List[int]:
@@ -59,26 +56,26 @@ def train(
     if silent:
         logger = None
     else:
-        logger = mbrl.logger.Logger(work_dir)
-        logger.register_group("pets_eval", EVAL_LOG_FORMAT, color="green")
+        logger = mbrl.util.Logger(work_dir)
+        logger.register_group(
+            mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
+        )
 
     # -------- Create and populate initial env dataset --------
-    dynamics_model = mbrl.util.create_proprioceptive_model(cfg, obs_shape, act_shape)
-
-    replay_buffer = mbrl.util.create_replay_buffer(
-        cfg,
-        obs_shape,
-        act_shape,
-        collect_trajectories=cfg.algorithm.buffer_saves_traj,
-        rng=rng,
-    )
-
     if cfg.algorithm.buffer_saves_traj:
         init_steps_or_trials = cfg.overrides.init_trajs
     else:
         init_steps_or_trials = cfg.overrides.trial_length
 
-    mbrl.util.rollout_agent_trajectories(
+    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+    replay_buffer = mbrl.util.common.create_replay_buffer(
+        cfg,
+        obs_shape,
+        act_shape,
+        rng=rng,
+        collect_trajectories=cfg.algorithm.buffer_saves_traj,
+    )
+    mbrl.util.common.rollout_agent_trajectories(
         env,
         init_steps_or_trials,
         mbrl.planning.RandomAgent(env),
@@ -93,7 +90,7 @@ def train(
     model_env = mbrl.models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
     )
-    model_trainer = mbrl.models.DynamicsModelTrainer(
+    model_trainer = mbrl.models.ModelTrainer(
         dynamics_model,
         optim_lr=cfg.overrides.model_lr,
         weight_decay=cfg.overrides.model_wd,
@@ -113,7 +110,7 @@ def train(
         obs = env.reset()
 
         planning_horizon = int(
-            mbrl.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial + 1]))
+            mbrl.util.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial + 1]))
         )
 
         agent.reset(planning_horizon=planning_horizon)
@@ -122,9 +119,8 @@ def train(
         steps_trial = 0
         while not done:
             # --------------- Model Training -----------------
-            if steps_trial == 0 or env_steps % cfg.algorithm.freq_train_model == 0:
-                dynamics_model.update_normalizer(replay_buffer.get_all())
-                mbrl.util.train_model_and_save_model_and_data(
+            if env_steps % cfg.algorithm.freq_train_model == 0:
+                mbrl.util.common.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
                     cfg.overrides,
@@ -133,7 +129,7 @@ def train(
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.step_env_and_add_to_buffer(
+            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 
@@ -149,7 +145,8 @@ def train(
 
         if logger is not None:
             logger.log_data(
-                "pets_eval", {"trial": current_trial, "episode_reward": total_reward}
+                mbrl.constants.RESULTS_LOG_NAME,
+                {"env_step": env_steps, "episode_reward": total_reward},
             )
         current_trial += 1
         if debug_mode:

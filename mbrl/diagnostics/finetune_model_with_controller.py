@@ -8,12 +8,10 @@ from typing import Optional
 
 import numpy as np
 
-import mbrl.logger
 import mbrl.models
 import mbrl.planning
-import mbrl.replay_buffer
-import mbrl.util
-import mbrl.util.mujoco as mujoco_util
+import mbrl.util.common
+import mbrl.util.mujoco
 
 LOG_FORMAT = [
     ("epoch", "E", "int"),
@@ -33,16 +31,16 @@ class FineTuner:
         subdir: Optional[str] = None,
         new_model: bool = False,
     ):
-        self.cfg = mbrl.util.load_hydra_cfg(model_dir)
-        self.env, self.term_fn, self.reward_fn = mujoco_util.make_env(self.cfg)
-        self.dynamics_model = mbrl.util.create_proprioceptive_model(
+        self.cfg = mbrl.util.common.load_hydra_cfg(model_dir)
+        self.env, self.term_fn, self.reward_fn = mbrl.util.mujoco.make_env(self.cfg)
+        self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
             model_dir=None if new_model else model_dir,
         )
         self.agent = mbrl.planning.load_agent(agent_dir, self.env, agent_type)
-        self.replay_buffer = mbrl.util.create_replay_buffer(
+        self.replay_buffer = mbrl.util.common.create_replay_buffer(
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
@@ -63,7 +61,7 @@ class FineTuner:
         patience: int,
         steps_to_collect: int,
     ):
-        mbrl.util.rollout_agent_trajectories(
+        mbrl.util.common.rollout_agent_trajectories(
             self.env,
             steps_to_collect,
             self.agent,
@@ -71,9 +69,9 @@ class FineTuner:
             replay_buffer=self.replay_buffer,
         )
 
-        logger = mbrl.logger.Logger(self.outdir)
+        logger = mbrl.util.Logger(self.outdir)
 
-        model_trainer = mbrl.models.DynamicsModelTrainer(
+        model_trainer = mbrl.models.ModelTrainer(
             self.dynamics_model,
             logger=logger,
         )
@@ -86,6 +84,7 @@ class FineTuner:
             shuffle_each_epoch=True,
             bootstrap_permutes=False,
         )
+        self.dynamics_model.update_normalizer(self.replay_buffer.get_all())
         train_losses, val_losses = model_trainer.train(
             dataset_train,
             dataset_val=dataset_val,
