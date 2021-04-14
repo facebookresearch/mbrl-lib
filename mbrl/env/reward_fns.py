@@ -10,13 +10,13 @@ from . import termination_fns
 def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
 
-    return (~termination_fns.cartpole(act, next_obs)).float()
+    return (~termination_fns.cartpole(act, next_obs)).float().view(-1, 1)
 
 
 def inverted_pendulum(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
 
-    return (~termination_fns.inverted_pendulum(act, next_obs)).float()
+    return (~termination_fns.inverted_pendulum(act, next_obs)).float().view(-1, 1)
 
 
 def halfcheetah(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
@@ -24,7 +24,7 @@ def halfcheetah(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 
     reward_ctrl = -0.1 * act.square().sum(dim=1)
     reward_run = next_obs[:, 0] - 0.0 * next_obs[:, 2].square()
-    return reward_run + reward_ctrl
+    return (reward_run + reward_ctrl).view(-1, 1)
 
 
 def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
@@ -39,4 +39,4 @@ def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 
     act_cost = 0.1 * (act ** 2).sum(axis=1)
 
-    return -(obs_cost + act_cost)
+    return -(obs_cost + act_cost).view(-1, 1)
