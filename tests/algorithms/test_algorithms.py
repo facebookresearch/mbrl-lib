@@ -99,6 +99,7 @@ def _check_pets(model_type):
             "cem_population_size": 500,
             "cem_num_iters": 5,
             "cem_alpha": 0.1,
+            "planning_horizon": 15,
         },
         "debug_mode": _DEBUG_MODE,
         "seed": SEED,
