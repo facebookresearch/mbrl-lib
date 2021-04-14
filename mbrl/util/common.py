@@ -336,6 +336,7 @@ def rollout_agent_trajectories(
     total_rewards: List[float] = []
     while True:
         obs = env.reset()
+        agent.reset()
         done = False
         total_reward = 0.0
         while not done:
