@@ -67,6 +67,10 @@ _MBPO_CFG_DICT["overrides"].update(
         "sac_hidden_depth": 2,
         "trial_length": 1000,
         "num_trials": 2,
+        "cem_elite_ratio": 0.1,
+        "cem_population_size": 500,
+        "cem_num_iters": 5,
+        "cem_alpha": 0.1,
     }
 )
 

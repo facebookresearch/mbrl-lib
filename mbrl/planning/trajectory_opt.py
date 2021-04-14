@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import time
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
+from typing import Callable, List, Optional, Sequence, cast
 
 import hydra
 import numpy as np
@@ -18,7 +18,29 @@ import mbrl.util.math
 from .core import Agent, complete_agent_cfg
 
 
-class CEMOptimizer:
+class Optimizer:
+    def __init__(self):
+        pass
+
+    def optimize(
+        self,
+        obj_fun: Callable[[torch.Tensor], torch.Tensor],
+        x0: Optional[torch.Tensor] = None,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Runs optimization.
+
+        Args:
+            obj_fun (callable(tensor) -> tensor): objective function to maximize.
+            x0 (tensor, optional): initial solution, if necessary.
+
+        Returns:
+            (torch.Tensor): the best solution found.
+        """
+        pass
+
+
+class CEMOptimizer(Optimizer):
     """Implements the Cross-Entropy Method optimization algorithm.
 
     A good description of CEM [1] can be found at https://arxiv.org/pdf/2008.06389.pdf. This
@@ -38,6 +60,8 @@ class CEMOptimizer:
         upper_bound (sequence of floats): the upper bound for the optimization variables.
         alpha (float): momentum term.
         device (torch.device): device where computations will be performed.
+        return_mean_elites (bool): if ``True`` returns the mean of the elites of the last
+            iteration. Otherwise, it returns the max solution found over all iterations.
 
     [1] R. Rubinstein and W. Davidson. "The cross-entropy method for combinatorial and continuous
     optimization". Methodology and Computing in Applied Probability, 1999.
@@ -52,7 +76,9 @@ class CEMOptimizer:
         upper_bound: Sequence[float],
         alpha: float,
         device: torch.device,
+        return_mean_elites: bool = False,
     ):
+        super().__init__()
         self.num_iterations = num_iterations
         self.elite_ratio = elite_ratio
         self.population_size = population_size
@@ -63,48 +89,22 @@ class CEMOptimizer:
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
         self.initial_var = ((self.upper_bound - self.lower_bound) ** 2) / 16
         self.alpha = alpha
+        self.return_mean_elites = return_mean_elites
         self.device = device
-
-    def _init_history(self, x_shape: Tuple[int, ...]) -> Dict[str, np.ndarray]:
-        return {
-            "value_means": np.zeros(self.num_iterations),
-            "value_stds": np.zeros(self.num_iterations),
-            "value_maxs": np.zeros(self.num_iterations),
-            "best_xs": np.zeros((self.num_iterations,) + x_shape),
-            "mus": np.zeros((self.num_iterations,) + x_shape),
-        }
-
-    # TODO since callback now receives values, replace this with callback
-    @staticmethod
-    def _update_history(
-        iter_idx: int,
-        values: torch.Tensor,
-        mu: torch.Tensor,
-        best_x: torch.Tensor,
-        history: Mapping[str, np.ndarray],
-    ):
-        history["value_means"][iter_idx] = values.mean().item()
-        history["value_stds"][iter_idx] = values.std().item()
-        history["value_maxs"][iter_idx] = values.max().item()
-        history["best_xs"][iter_idx] = best_x.cpu().numpy()
-        history["mus"][iter_idx] = mu.cpu().numpy()
 
     def optimize(
         self,
         obj_fun: Callable[[torch.Tensor], torch.Tensor],
-        x_shape: Tuple[int, ...],
-        initial_mu: Optional[torch.Tensor] = None,
+        x0: Optional[torch.Tensor] = None,
         callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, np.ndarray]]:
+        **kwargs,
+    ) -> torch.Tensor:
         """Runs the optimization using CEM.
 
         Args:
             obj_fun (callable(tensor) -> tensor): objective function to maximize.
-            x_shape (tuple(int)): the shape of the optimization variables. Must be consistent with
-                the upper and lower bounds given in the constructor, otherwise unexpected behavior
-                might occur.
-            initial_mu (tensor, optional): if given, uses this value as the initial mean for the
-                population. Must be consistent with lower/upper bounds.
+            x0 (tensor, optional): initial mean for the population. Must
+                be consistent with lower/upper bounds.
             callback (callable(tensor, tensor, int) -> any, optional): if given, this
                 function will be called after every iteration, passing it as input the full
                 population tensor, its corresponding objective function values, and
@@ -112,29 +112,14 @@ class CEMOptimizer:
                 purposes.
 
         Returns:
-            (torch.Tensor, dict(str, np.ndarray): the first element is the best solution found
-            over the course of optimization. The second element is a dictionary with information
-            about the optimization process, containing the following keys:
-
-                - "value_means" (np.ndarray): the mean of objective functions for each iteration.
-                - "value_stds" (np.ndarray): the standard deviation of objective function values,
-                  for each iteration.
-                - "value_maxs" (np.ndarray): the maximum of objective function values for
-                  each iteration.
-                - "best_xs" (np.ndarray): the best solution found at each iteration.
-                - "mus" (np.ndarray): the mean of the population at each iteration.
+            (torch.Tensor): the best solution found.
         """
-        mu = (
-            torch.zeros(x_shape, device=self.device)
-            if initial_mu is None
-            else initial_mu.clone()
-        )
+        mu = x0.clone()
         var = self.initial_var.clone()
 
-        history = self._init_history(x_shape)
-        best_solution = np.empty(x_shape)
+        best_solution = torch.empty_like(mu)
         best_value = -np.inf
-        population = torch.zeros((self.population_size,) + x_shape).to(
+        population = torch.zeros((self.population_size,) + x0.shape).to(
             device=self.device
         )
         for i in range(self.num_iterations):
@@ -164,9 +149,8 @@ class CEMOptimizer:
             if best_values[0] > best_value:
                 best_value = best_values[0]
                 best_solution = population[elite_idx[0]].clone()
-            self._update_history(i, values, mu, best_solution, history)
 
-        return best_solution, history
+        return mu if self.return_mean_elites else best_solution
 
 
 class TrajectoryOptimizer:
@@ -206,7 +190,7 @@ class TrajectoryOptimizer:
     ):
         optimizer_cfg.lower_bound = np.tile(action_lb, (planning_horizon, 1)).tolist()
         optimizer_cfg.upper_bound = np.tile(action_ub, (planning_horizon, 1)).tolist()
-        self.optimizer = hydra.utils.instantiate(optimizer_cfg)
+        self.optimizer: Optimizer = hydra.utils.instantiate(optimizer_cfg)
         self.initial_solution = (
             ((torch.tensor(action_lb) + torch.tensor(action_ub)) / 2)
             .float()
@@ -217,13 +201,12 @@ class TrajectoryOptimizer:
         self.replan_freq = replan_freq
         self.keep_last_solution = keep_last_solution
         self.horizon = planning_horizon
-        self.x_shape = (self.horizon,) + (len(action_lb),)
 
     def optimize(
         self,
         trajectory_eval_fn: Callable[[torch.Tensor], torch.Tensor],
         callback: Optional[Callable] = None,
-    ) -> Tuple[np.ndarray, float]:
+    ) -> np.ndarray:
         """Runs the trajectory optimization.
 
         Args:
@@ -236,13 +219,11 @@ class TrajectoryOptimizer:
                 to pass to the optimizer.
 
         Returns:
-            (tuple of np.ndarray and float): first element is the best action sequence, as a numpy
-            array, and the second is the corresponding objective function value.
+            (tuple of np.ndarray and float): the best action sequence.
         """
-        best_solution, opt_history = self.optimizer.optimize(
+        best_solution = self.optimizer.optimize(
             trajectory_eval_fn,
-            self.x_shape,
-            initial_mu=self.previous_solution,
+            x0=self.previous_solution,
             callback=callback,
         )
         if self.keep_last_solution:
@@ -250,7 +231,7 @@ class TrajectoryOptimizer:
             # Note that initial_solution[i] is the same for all values of [i],
             # so just pick i = 0
             self.previous_solution[-self.replan_freq :] = self.initial_solution[0]
-        return best_solution.cpu().numpy(), opt_history["value_maxs"].max()
+        return best_solution.cpu().numpy()
 
     def reset(self):
         """Resets the previous solution cache to the initial solution."""
@@ -356,7 +337,7 @@ class TrajectoryOptimizerAgent(Agent):
                 return self.trajectory_eval_fn(obs, action_sequences)
 
             start_time = time.time()
-            plan, _ = self.optimizer.optimize(trajectory_eval_fn)
+            plan = self.optimizer.optimize(trajectory_eval_fn)
             plan_time = time.time() - start_time
 
             self.actions_to_use.extend([a for a in plan[: self.replan_freq]])
@@ -385,7 +366,7 @@ class TrajectoryOptimizerAgent(Agent):
         def trajectory_eval_fn(action_sequences):
             return self.trajectory_eval_fn(obs, action_sequences)
 
-        plan, _ = self.optimizer.optimize(trajectory_eval_fn)
+        plan = self.optimizer.optimize(trajectory_eval_fn)
         return plan
 
 

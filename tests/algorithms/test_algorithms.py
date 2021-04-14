@@ -66,7 +66,7 @@ class MockLineEnv(gym.Env):
 
 
 def mock_reward_fn(action, obs):
-    return -_REW_C * (obs[:, 0] ** 2)
+    return -_REW_C * (obs[:, 0] ** 2).unsqueeze(1)
 
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -95,6 +95,11 @@ def _check_pets(model_type):
             "validation_ratio": 0.1,
             "num_epochs_train_model": 50,
             "patience": 10,
+            "cem_elite_ratio": 0.1,
+            "cem_population_size": 500,
+            "cem_num_iters": 5,
+            "cem_alpha": 0.1,
+            "planning_horizon": 15,
         },
         "debug_mode": _DEBUG_MODE,
         "seed": SEED,

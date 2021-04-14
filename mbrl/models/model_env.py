@@ -163,13 +163,17 @@ class ModelEnv:
             initial_state, (num_particles * population_size, 1)
         ).astype(np.float32)
         self.reset(initial_obs_batch, return_as_np=False)
-        total_rewards: torch.Tensor = 0
+        batch_size = initial_obs_batch.shape[0]
+        total_rewards = torch.zeros(batch_size, 1).to(self.device)
+        terminated = torch.zeros(batch_size, 1, dtype=bool).to(self.device)
         for time_step in range(horizon):
             actions_for_step = action_sequences[:, time_step, :]
             action_batch = torch.repeat_interleave(
                 actions_for_step, num_particles, dim=0
             )
-            _, rewards, _, _ = self.step(action_batch, sample=True)
+            _, rewards, dones, _ = self.step(action_batch, sample=True)
+            rewards[terminated] = 0
+            terminated |= dones
             total_rewards += rewards
 
         total_rewards = total_rewards.reshape(-1, num_particles)

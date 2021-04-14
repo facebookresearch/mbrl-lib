@@ -130,10 +130,13 @@ if __name__ == "__main__":
                     current_state__,
                 )
 
+            best_value = [0]  # this is hacky, sorry
+
             def compute_population_stats(_population, values, opt_step):
                 value_history[t, :, opt_step] = values.numpy()
+                best_value[0] = max(best_value[0], values.max().item())
 
-            plan, pred_value = controller.optimize(
+            plan = controller.optimize(
                 trajectory_eval_fn, callback=compute_population_stats
             )
             action__ = plan[0]
@@ -143,16 +146,18 @@ if __name__ == "__main__":
 
             print(
                 f"step: {t}, time: {time.time() - start: .3f}, "
-                f"reward: {reward__: .3f}, pred_value: {pred_value: .3f}"
+                f"reward: {reward__: .3f}, pred_value: {best_value[0]: .3f}"
             )
+
+        output_dir = pathlib.Path(args.output_dir)
+        pathlib.Path.mkdir(output_dir, exist_ok=True)
+
         if args.render:
             frames_np = np.stack(frames)
-            writer = skvideo.io.FFmpegWriter(
-                pathlib.Path(args.output_dir) / "video.mp4"
-            )
+            writer = skvideo.io.FFmpegWriter(output_dir / "video.mp4")
             for i in range(len(frames_np)):
                 writer.writeFrame(frames_np[i, :, :, :])
             writer.close()
 
         print("total_reward: ", total_reward__)
-        np.save(pathlib.Path(args.output_dir) / "value_history.npy", value_history)
+        np.save(output_dir / "value_history.npy", value_history)

@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
-from typing import List, Optional
+from typing import Optional
 
 import gym
 import numpy as np
@@ -19,16 +19,6 @@ import mbrl.util.common
 import mbrl.util.math
 
 EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
-
-
-def get_rollout_schedule(cfg: omegaconf.DictConfig) -> List[int]:
-    max_horizon = cfg.overrides.get(
-        "max_planning_horizon", cfg.algorithm.agent.planning_horizon
-    )
-    if "trial_reach_max_horizon" in cfg.overrides:
-        return [1, cfg.overrides.trial_reach_max_horizon, 1, max_horizon]
-    else:
-        return [1, cfg.overrides.num_trials, max_horizon, max_horizon]
 
 
 def train(
@@ -98,12 +88,7 @@ def train(
     max_total_reward = -np.inf
     for trial in range(cfg.overrides.num_trials):
         obs = env.reset()
-
-        planning_horizon = int(
-            mbrl.util.math.truncated_linear(*(get_rollout_schedule(cfg) + [trial + 1]))
-        )
-
-        agent.reset(planning_horizon=planning_horizon)
+        agent.reset()
         done = False
         total_reward = 0.0
         steps_trial = 0

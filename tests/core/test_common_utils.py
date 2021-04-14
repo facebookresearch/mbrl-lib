@@ -196,6 +196,9 @@ class MockZeroAgent:
     def act(self, _obs):
         return 0
 
+    def reset(self):
+        pass
+
 
 class MockRng:
     def permutation(self, size):
