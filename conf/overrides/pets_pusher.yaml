@@ -6,10 +6,11 @@ num_steps: 15000
 
 model_lr: 1e-5
 model_wd: 5e-4
-patience: 1
 model_batch_size: 32
 validation_ratio: 0
 freq_train_model: 150
+patience: 25
+num_epochs_train_model: 25
 
 planning_horizon: 25
 cem_num_iters: 5
