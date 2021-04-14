@@ -11,5 +11,8 @@ patience: 20
 model_batch_size: 32
 validation_ratio: 0
 
-max_planning_horizon: 25
-trial_reach_max_horizon: 1
+planning_horizon: 25
+cem_num_iters: 5
+cem_elite_ratio: 0.1
+cem_population_size: 350
+cem_alpha: 0.1

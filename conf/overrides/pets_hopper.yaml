@@ -4,7 +4,6 @@ term_fn: "hopper"
 learned_rewards: true
 trial_length: 1000
 num_trials: 10000
-max_steps: 125000
 
 model_lr: 2e-4
 model_wd: 3e-5
@@ -13,8 +12,7 @@ patience: 100
 model_batch_size: 32
 validation_ratio: 0
 
-max_planning_horizon: 30
-trial_reach_max_horizon: 1
+planning_horizon: 30
 cem_num_iters: 5
 cem_elite_ratio: 0.1
 cem_population_size: 350

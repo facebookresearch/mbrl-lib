@@ -12,8 +12,7 @@ validation_ratio: 0
 num_epochs_train_model: 33
 patience: 50
 
-max_planning_horizon: 15
-trial_reach_max_horizon: 1
+planning_horizon: 15
 cem_num_iters: 5
 cem_elite_ratio: 0.1
 cem_population_size: 350

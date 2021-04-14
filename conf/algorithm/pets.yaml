@@ -5,7 +5,7 @@ agent:
   _target_: mbrl.planning.TrajectoryOptimizerAgent
   action_lb: ???
   action_ub: ???
-  planning_horizon: 15  # default horizon (can overridden by agent.reset())
+  planning_horizon: ${overrides.planning_horizon}
   optimizer_cfg: ${algorithm.optimizer}
   replan_freq: 1
   verbose: ${debug_mode}
