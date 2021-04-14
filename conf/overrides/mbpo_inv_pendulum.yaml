@@ -2,8 +2,8 @@
 env: "gym___InvertedPendulum-v2"
 term_fn: "inverted_pendulum"
 
-num_trials: 80
-trial_length: 250
+num_steps: 20000
+epoch_length: 250
 patience: 1
 model_lr: 4.3e-5
 model_wd: 3.2e-5

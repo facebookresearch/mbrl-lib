@@ -138,16 +138,13 @@ def create_replay_buffer(
           -algorithm
             -dataset_size (int, optional): the maximum size of the train dataset/buffer
           -overrides
-            -trial_length (int, optional): the length of a trial/episode in the environment.
-                If ``collect_trajectories == True``, this must be provided to be used as
-                max_trajectory_length
-            -num_trials (int, optional): how many trial/episodes will be run
+            -num_steps (int, optional): how many steps to take in the environment
+            -trial_length (int, optional): the maximum length for trials. Only needed if
+                ``collect_trajectories == True``.
 
     The size of the replay buffer can be determined by either providing
-    ``cfg.algorithm.dataset_size``, or providing both ``cfg.overrides.trial_length`` and
-    ``cfg.overrides.num_trials``, in which case it's set to the product of the two.
-    The second method (using overrides) is more convenient, but the first one takes precedence
-    (i.e., if the user provides a size, it will be respected).
+    ``cfg.algorithm.dataset_size``, or providing ``cfg.overrides.num_steps``.
+    Specifying dataset set size directly takes precedence over number of steps.
 
     Args:
         cfg (omegaconf.DictConfig): the configuration to use.
@@ -168,7 +165,7 @@ def create_replay_buffer(
         cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
     )
     if not dataset_size:
-        dataset_size = cfg.overrides.trial_length * cfg.overrides.num_trials
+        dataset_size = cfg.overrides.num_steps
     maybe_max_trajectory_len = None
     if collect_trajectories:
         if cfg.overrides.trial_length is None:

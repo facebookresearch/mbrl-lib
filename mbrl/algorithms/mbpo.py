@@ -160,7 +160,7 @@ def train(
         cfg.overrides.effective_model_rollouts_per_step * cfg.algorithm.freq_train_model
     )
     trains_per_epoch = int(
-        np.ceil(cfg.overrides.trial_length / cfg.overrides.freq_train_model)
+        np.ceil(cfg.overrides.epoch_length / cfg.overrides.freq_train_model)
     )
     updates_made = 0
     env_steps = 0
@@ -176,7 +176,7 @@ def train(
     best_eval_reward = -np.inf
     epoch = 0
     sac_buffer = None
-    while epoch < cfg.overrides.num_trials:
+    while env_steps < cfg.overrides.num_steps:
         rollout_length = int(
             mbrl.util.math.truncated_linear(
                 *(cfg.overrides.rollout_schedule + [epoch + 1])
@@ -191,7 +191,7 @@ def train(
             torch.device(cfg.device),
         )
         obs, done = None, False
-        for steps_epoch in range(cfg.overrides.trial_length):
+        for steps_epoch in range(cfg.overrides.epoch_length):
             if steps_epoch == 0 or done:
                 obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
@@ -223,6 +223,7 @@ def train(
 
                 if debug_mode:
                     print(
+                        f"Epoch: {epoch}. "
                         f"SAC buffer size: {len(sac_buffer)}. "
                         f"Rollout length: {rollout_length}. "
                         f"Steps: {env_steps}"
@@ -240,7 +241,7 @@ def train(
                     logger.dump(updates_made, save=True)
 
             # ------ Epoch ended (evaluate and save model) ------
-            if (env_steps + 1) % cfg.overrides.trial_length == 0:
+            if (env_steps + 1) % cfg.overrides.epoch_length == 0:
                 avg_reward = evaluate(
                     test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
                 )

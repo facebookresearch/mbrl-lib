@@ -1,8 +1,8 @@
 # @package _group_
 env: "ant_truncated_obs"
 
-num_trials: 300
-trial_length: 1000
+num_steps: 300000
+epoch_length: 1000
 patience: 5
 model_lr: 5e-4
 model_wd: 1.2e-5

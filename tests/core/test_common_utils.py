@@ -86,8 +86,7 @@ def test_create_replay_buffer():
         "dynamics_model": {"model": {"ensemble_size": 1}},
         "algorithm": {},
         "overrides": {
-            "trial_length": trial_length,
-            "num_trials": num_trials,
+            "num_steps": num_trials * trial_length,
         },
     }
     cfg = omegaconf.OmegaConf.create(cfg_dict)

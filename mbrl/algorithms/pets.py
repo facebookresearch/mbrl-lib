@@ -86,7 +86,7 @@ def train(
     env_steps = 0
     current_trial = 0
     max_total_reward = -np.inf
-    for trial in range(cfg.overrides.num_trials):
+    while env_steps < cfg.overrides.num_steps:
         obs = env.reset()
         agent.reset()
         done = False
@@ -112,8 +112,6 @@ def train(
             total_reward += reward
             steps_trial += 1
             env_steps += 1
-            if steps_trial == cfg.overrides.trial_length:
-                break
 
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")

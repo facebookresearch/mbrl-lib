@@ -2,8 +2,8 @@
 env: "gym___Walker2d-v2"
 term_fn: "walker2d"
 
-num_trials: 300
-trial_length: 1000
+num_steps: 300000
+epoch_length: 1000
 patience: 10
 model_lr: 0.0003
 model_wd: 0.00002

@@ -87,8 +87,7 @@ def _check_pets(model_type):
         "dynamics_model": model_cfg,
         "overrides": {
             "learned_rewards": False,
-            "trial_length": _TRIAL_LEN,
-            "num_trials": _NUM_TRIALS_PETS,
+            "num_steps": _NUM_TRIALS_PETS * _TRIAL_LEN,
             "model_lr": 1e-3,
             "model_wd": 1e-5,
             "model_batch_size": 256,
@@ -144,9 +143,9 @@ def test_mbpo():
         "algorithm": algorithm_cfg,
         "dynamics_model": model_cfg,
         "overrides": {
-            "num_trials": _NUM_TRIALS_MBPO,
+            "num_steps": _NUM_TRIALS_MBPO * _TRIAL_LEN,
             "term_fn": "no_termination",
-            "trial_length": _TRIAL_LEN,
+            "epoch_length": _TRIAL_LEN,
             "freq_train_model": _TRIAL_LEN // 4,
             "patience": 5,
             "model_lr": 1e-3,

@@ -2,14 +2,14 @@
 env: "pets_pusher"
 learned_rewards: false
 trial_length: 150
-num_trials: 100
+num_steps: 15000
 
 model_lr: 1e-5
 model_wd: 5e-4
-num_epochs_train_model: 20
-patience: 20
+patience: 1
 model_batch_size: 32
 validation_ratio: 0
+freq_train_model: 150
 
 planning_horizon: 25
 cem_num_iters: 5

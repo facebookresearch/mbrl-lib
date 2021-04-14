@@ -2,8 +2,8 @@
 env: "gym___HalfCheetah-v2"
 term_fn: "no_termination"
 
-num_trials: 400
-trial_length: 1000
+num_steps: 400000
+epoch_length: 1000
 patience: 5
 model_lr: 1.3e-3
 model_wd: 4e-6

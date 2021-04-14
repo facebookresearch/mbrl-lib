@@ -50,8 +50,11 @@ def make_env(
           If that's not present either, it will return a ``None`` reward function.
           If provided, it should correspond to the name of a function in
           :mod:`mbrl.env.reward_fns`.
-        - ``cfg.learned_rewards``: (optional) if present indicates that the reward function
-          will be learned, in which case the method will return a ``None`` reward function.
+        - ``cfg.overrides.learned_rewards``: (optional) if present indicates that
+          the reward function will be learned, in which case the method will return
+          a ``None`` reward function.
+        - ``cfg.overrides.trial_length``: (optional) if presents indicates the maximum length
+          of trials. Defaults to 1000.
 
     Args:
         cfg (omegaconf.DictConf): the configuration to use.
@@ -103,7 +106,9 @@ def make_env(
             reward_fn = None
         else:
             raise ValueError("Invalid environment string.")
-        env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
+        env = gym.wrappers.TimeLimit(
+            env, max_episode_steps=cfg.overrides.get("trial_length", 1000)
+        )
 
     learned_rewards = cfg.overrides.get("learned_rewards", True)
     if learned_rewards:
