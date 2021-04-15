@@ -183,6 +183,7 @@ def train(
             )
         )
         sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
+        sac_buffer_capacity *= cfg.overrides.num_epochs_to_retain_sac_buffer
         sac_buffer = maybe_replace_sac_buffer(
             sac_buffer,
             sac_buffer_capacity,

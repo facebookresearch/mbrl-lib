@@ -14,6 +14,7 @@ effective_model_rollouts_per_step: 400
 rollout_schedule: [20, 150, 1, 15]
 num_sac_updates_per_step: 20
 sac_updates_every_steps: 1
+num_epochs_to_retain_sac_buffer: 1
 
 sac_critic_lr: 0.0003
 sac_actor_lr: 0.00003
