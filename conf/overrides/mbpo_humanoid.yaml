@@ -11,7 +11,6 @@ validation_ratio: 0.2
 freq_train_model: 250
 effective_model_rollouts_per_step: 400
 rollout_schedule: [20, 300, 1, 25]
-sac_buffer_capacity_modifier: 5
 num_sac_updates_per_step: 20
 sac_updates_every_steps: 1
 num_epochs_to_retain_sac_buffer: 5
