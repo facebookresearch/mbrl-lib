@@ -26,8 +26,7 @@ class Visualizer:
         self,
         lookahead: int,
         results_dir: str,
-        reference_agent_type: Optional[str] = None,
-        reference_agent_dir: Optional[str] = None,
+        agent_dir: Optional[str],
         num_steps: Optional[int] = None,
         num_model_samples: int = 1,
         model_subdir: Optional[str] = None,
@@ -53,19 +52,6 @@ class Visualizer:
 
         self.env, term_fn, reward_fn = mbrl.util.mujoco.make_env(self.cfg)
 
-        if reference_agent_type:
-            self.reference_agent: mbrl.planning.Agent
-            if reference_agent_type == "random":
-                self.reference_agent = mbrl.planning.RandomAgent(self.env)
-            else:
-                agent_path = pathlib.Path(reference_agent_dir)
-                self.reference_agent = mbrl.planning.load_agent(
-                    agent_path,
-                    self.env,
-                    reference_agent_type,
-                )
-        else:
-            self.reference_agent = None
         self.reward_fn = reward_fn
 
         self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(
@@ -82,12 +68,22 @@ class Visualizer:
             generator=torch.Generator(),
         )
 
-        self.cfg.algorithm.agent.planning_horizon = lookahead
-        self.agent = mbrl.planning.create_trajectory_optim_agent_for_model(
-            self.model_env,
-            self.cfg.algorithm.agent,
-            num_particles=self.cfg.algorithm.num_particles,
-        )
+        self.agent: mbrl.planning.Agent
+        if agent_dir is None:
+            self.agent = mbrl.planning.RandomAgent(self.env)
+        else:
+            if (
+                self.cfg.algorithm.agent._target_
+                == "mbrl.planning.TrajectoryOptimizerAgent"
+            ):
+                self.cfg.algorithm.agent.planning_horizon = lookahead
+                self.agent = mbrl.planning.create_trajectory_optim_agent_for_model(
+                    self.model_env,
+                    self.cfg.algorithm.agent,
+                    num_particles=self.cfg.algorithm.num_particles,
+                )
+            else:
+                self.agent = mbrl.planning.load_agent(agent_dir, self.env)
 
         self.fig = None
         self.axs: List[plt.Axes] = []
@@ -100,6 +96,7 @@ class Visualizer:
         self, obs: np.ndarray, use_mpc: bool = False
     ) -> VisData:
         if use_mpc:
+            # When using MPC, rollout model trajectories to see the controller actions
             model_obses, model_rewards, actions = mbrl.util.common.rollout_model_env(
                 self.model_env,
                 obs,
@@ -107,23 +104,27 @@ class Visualizer:
                 agent=self.agent,
                 num_samples=self.num_model_samples,
             )
+            # Then evaluate in the environment
             real_obses, real_rewards, _ = mbrl.util.mujoco.rollout_mujoco_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,
-                agent=self.reference_agent,
+                agent=None,
                 plan=actions,
             )
         else:
+            # When not using MPC, rollout the agent on the environment and get its actions
             real_obses, real_rewards, actions = mbrl.util.mujoco.rollout_mujoco_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,
-                agent=self.reference_agent,
+                agent=self.agent,
             )
+            # Then see what the model would predict for this
             model_obses, model_rewards, _ = mbrl.util.common.rollout_model_env(
                 self.model_env,
                 obs,
+                agent=None,
                 plan=actions,
                 num_samples=self.num_model_samples,
             )
@@ -167,16 +168,11 @@ class Visualizer:
         adjust_ylim(self.axs[plot_idx], model_data.mean(1)[:, data_idx])
         self.lines[4 * plot_idx].set_data(x_data, real_data[:, data_idx])
         model_obs_mean = model_data[:, :, data_idx].mean(axis=1)
-        model_obs_ste = model_data[:, :, data_idx].std(axis=1) / np.sqrt(
-            model_data.shape[1]
-        )
+        model_obs_min = model_data[:, :, data_idx].min(axis=1)
+        model_obs_max = model_data[:, :, data_idx].max(axis=1)
         self.lines[4 * plot_idx + 1].set_data(x_data, model_obs_mean)
-        self.lines[4 * plot_idx + 2].set_data(
-            x_data, model_obs_mean - 2 * model_obs_ste
-        )
-        self.lines[4 * plot_idx + 3].set_data(
-            x_data, model_obs_mean + 2 * model_obs_ste
-        )
+        self.lines[4 * plot_idx + 2].set_data(x_data, model_obs_min)
+        self.lines[4 * plot_idx + 3].set_data(x_data, model_obs_max)
 
     def plot_func(self, data: VisData):
         real_obses, real_rewards, model_obses, model_rewards, actions = data
@@ -231,27 +227,34 @@ class Visualizer:
         self.axs = axs
         self.lines = lines
 
-    def run(self):
+    def run(self, use_mpc: bool, name: str):
         self.create_axes()
-        mpc_cases = [True, False] if self.reference_agent else [True]
-        for use_mpc in mpc_cases:
-            ani = animation.FuncAnimation(
-                self.fig,
-                self.plot_func,
-                frames=lambda: self.vis_rollout(use_mpc=use_mpc),
-                blit=True,
-                interval=100,
-                repeat=False,
-            )
-            fname = "mpc" if use_mpc else "ref"
-            ani.save(self.vis_path / f"{fname}.mp4", writer=self.writer)
+        ani = animation.FuncAnimation(
+            self.fig,
+            self.plot_func,
+            frames=lambda: self.vis_rollout(use_mpc=use_mpc),
+            blit=True,
+            interval=100,
+            repeat=False,
+        )
+        ani.save(self.vis_path / f"rollout_{name}_policy.mp4", writer=self.writer)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--experiments_dir", type=str, default=None)
-    parser.add_argument("--agent_dir", type=str, default=None)
-    parser.add_argument("--agent_type", type=str, default=None)
+    parser.add_argument(
+        "--experiments_dir",
+        type=str,
+        default=None,
+        help="The directory where the original experiment was run.",
+    )
+    parser.add_argument(
+        "--agent_dir",
+        type=str,
+        default=None,
+        help="The directory where the agent configuration and data is stored. "
+        "If not provided, a random agent will be used.",
+    )
     parser.add_argument("--num_steps", type=int, default=200)
     parser.add_argument(
         "--model_subdir",
@@ -270,11 +273,11 @@ if __name__ == "__main__":
     visualizer = Visualizer(
         lookahead=25,
         results_dir=args.experiments_dir,
-        reference_agent_dir=args.agent_dir,
-        reference_agent_type=args.agent_type,
+        agent_dir=args.agent_dir,
         num_steps=args.num_steps,
         num_model_samples=args.num_model_samples,
         model_subdir=args.model_subdir,
     )
-
-    visualizer.run()
+    use_mpc = isinstance(visualizer.agent, mbrl.planning.TrajectoryOptimizerAgent)
+    name = "random" if not args.agent_dir else "learned"
+    visualizer.run(use_mpc=use_mpc, name=name)
