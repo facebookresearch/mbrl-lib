@@ -154,7 +154,9 @@ if __name__ == "__main__":
 
         if args.render:
             frames_np = np.stack(frames)
-            writer = skvideo.io.FFmpegWriter(output_dir / "video.mp4")
+            writer = skvideo.io.FFmpegWriter(
+                output_dir / f"control_{args.env}_video.mp4", verbosity=1
+            )
             for i in range(len(frames_np)):
                 writer.writeFrame(frames_np[i, :, :, :])
             writer.close()
