@@ -40,13 +40,7 @@ class DatasetEvaluator:
             load_dir=dataset_dir,
         )
 
-    def plot_dataset_results(
-        self,
-        dataset: mbrl.util.TransitionIterator,
-        name: str,
-        is_ensemble: bool = False,
-        num_members: int = 0,
-    ):
+    def plot_dataset_results(self, dataset: mbrl.util.TransitionIterator):
         all_means: List[np.ndarray] = []
         all_targets = []
 
@@ -61,8 +55,12 @@ class DatasetEvaluator:
             all_targets.append(target.cpu().numpy())
 
         # Consolidating targets and predictions
-        all_means_np = np.concatenate(all_means, axis=1 if is_ensemble else 0)
+        all_means_np = np.concatenate(all_means, axis=-2)
         targets_np = np.concatenate(all_targets, axis=0)
+
+        if all_means_np.ndim == 2:
+            all_means_np = all_means_np[np.newaxis, :]
+        assert all_means_np.ndim == 3  # ensemble, batch, target_dim
 
         # Visualization
         num_dim = targets_np.shape[1]
@@ -74,11 +72,9 @@ class DatasetEvaluator:
             target = targets_np[sort_idx, dim][subsample]
 
             plt.figure(figsize=(8, 8))
-            mean_of_means = means
-            if num_members:
-                for i in range(num_members):
-                    plt.plot(target, means[i], ".", markersize=2)
-                mean_of_means = means.mean(0)
+            for i in range(all_means_np.shape[0]):
+                plt.plot(target, means[i], ".", markersize=2)
+            mean_of_means = means.mean(0)
             mean_sort_idx = target.argsort()
             plt.plot(
                 target[mean_sort_idx],
@@ -94,28 +90,22 @@ class DatasetEvaluator:
             )
             plt.xlabel("Target")
             plt.ylabel("Prediction")
-            fname = self.output_path / f"pred_{name}_dim{dim}.png"
+            fname = self.output_path / f"pred_dim{dim}.png"
             plt.savefig(fname)
             plt.close()
 
     def run(self):
         batch_size = 32
-        is_ensemble, num_members = False, None
         if hasattr(self.dynamics_model, "set_propagation_method"):
             self.dynamics_model.set_propagation_method(None)
             # Some models (e.g., GaussianMLP) require the batch size to be
             # a multiple of number of models
             batch_size = len(self.dynamics_model) * 8
-            is_ensemble = True
-            num_members = len(self.dynamics_model.model)
-        dataset_train, dataset_val = self.replay_buffer.get_iterators(
-            batch_size=batch_size, val_ratio=0.2
+        dataset, _ = self.replay_buffer.get_iterators(
+            batch_size=batch_size, val_ratio=0
         )
 
-        self.plot_dataset_results(
-            dataset_train, "train", is_ensemble=is_ensemble, num_members=num_members
-        )
-        self.plot_dataset_results(dataset_val, "val")
+        self.plot_dataset_results(dataset)
 
 
 if __name__ == "__main__":

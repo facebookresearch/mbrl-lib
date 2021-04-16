@@ -26,7 +26,6 @@ class FineTuner:
         self,
         model_dir: str,
         agent_dir: str,
-        agent_type: str,
         seed: Optional[int] = None,
         subdir: Optional[str] = None,
         new_model: bool = False,
@@ -39,7 +38,7 @@ class FineTuner:
             self.env.action_space.shape,
             model_dir=None if new_model else model_dir,
         )
-        self.agent = mbrl.planning.load_agent(agent_dir, self.env, agent_type)
+        self.agent = mbrl.planning.load_agent(agent_dir, self.env)
         self.replay_buffer = mbrl.util.common.create_replay_buffer(
             self.cfg,
             self.env.observation_space.shape,
@@ -101,7 +100,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, default=None)
     parser.add_argument("--agent_dir", type=str, default=None)
-    parser.add_argument("--agent_type", type=str, default=None)
     parser.add_argument("--results_subdir", type=str, default=None)
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--val_ratio", type=float, default=0.2)
@@ -114,7 +112,6 @@ if __name__ == "__main__":
     finetuner = FineTuner(
         args.model_dir,
         args.agent_dir,
-        args.agent_type,
         subdir=args.results_subdir,
         new_model=args.new_model,
     )
