@@ -86,23 +86,23 @@ def make_env(
             term_fn = mbrl.env.termination_fns.cartpole
             reward_fn = mbrl.env.reward_fns.cartpole
         elif cfg.overrides.env == "pets_halfcheetah":
-            env = mbrl.env.mujoco_envs.pets_halfcheetah.HalfCheetahEnv()
+            env = mbrl.env.mujoco_envs.HalfCheetahEnv()
             term_fn = mbrl.env.termination_fns.no_termination
             reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
         elif cfg.overrides.env == "pets_reacher":
-            env = mbrl.env.mujoco_envs.pets_reacher.Reacher3DEnv()
+            env = mbrl.env.mujoco_envs.Reacher3DEnv()
             term_fn = mbrl.env.termination_fns.no_termination
             reward_fn = None
         elif cfg.overrides.env == "pets_pusher":
-            env = mbrl.env.mujoco_envs.pets_pusher.PusherEnv()
+            env = mbrl.env.mujoco_envs.PusherEnv()
             term_fn = mbrl.env.termination_fns.no_termination
             reward_fn = mbrl.env.reward_fns.pusher
         elif cfg.overrides.env == "ant_truncated_obs":
-            env = mbrl.env.mujoco_envs.ant_truncated_obs.AntTruncatedObsEnv()
+            env = mbrl.env.mujoco_envs.AntTruncatedObsEnv()
             term_fn = mbrl.env.termination_fns.ant
             reward_fn = None
         elif cfg.overrides.env == "humanoid_truncated_obs":
-            env = mbrl.env.mujoco_envs.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
+            env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
             term_fn = mbrl.env.termination_fns.ant
             reward_fn = None
         else:
@@ -154,15 +154,15 @@ def make_env_from_str(env_name: str) -> gym.Env:
         if env_name == "cartpole_continuous":
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
         elif env_name == "pets_halfcheetah":
-            env = mbrl.env.mujoco_envs.pets_halfcheetah.HalfCheetahEnv()
+            env = mbrl.env.mujoco_envs.HalfCheetahEnv()
         elif env_name == "pets_reacher":
-            env = mbrl.env.mujoco_envs.pets_reacher.Reacher3DEnv()
+            env = mbrl.env.mujoco_envs.Reacher3DEnv()
         elif env_name == "pets_pusher":
-            env = mbrl.env.mujoco_envs.pets_pusher.PusherEnv()
+            env = mbrl.env.mujoco_envs.PusherEnv()
         elif env_name == "ant_truncated_obs":
-            env = mbrl.env.mujoco_envs.ant_truncated_obs.AntTruncatedObsEnv()
+            env = mbrl.env.mujoco_envs.AntTruncatedObsEnv()
         elif env_name == "humanoid_truncated_obs":
-            env = mbrl.env.mujoco_envs.humanoid_truncated_obs.HumanoidTruncatedObsEnv()
+            env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
         else:
             raise ValueError("Invalid environment string.")
         env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
