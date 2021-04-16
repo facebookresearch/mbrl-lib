@@ -106,8 +106,8 @@ def test_eval_on_dataset():
 
     files = os.listdir(_DIR.name)
     for i in range(_OBS_SHAPE[0] + 1):
-        assert f"pred_train_dim{i}.png" in files
-        assert f"pred_val_dim{i}.png" in files
+        assert f"pred_dim{i}.png" in files
+        assert f"pred_dim{i}.png" in files
 
 
 def test_finetuner():
@@ -124,7 +124,7 @@ def test_finetuner():
     )
     model_output = one_dim_model.forward(model_input, use_propagation=False)
     finetuner = diagnostics.FineTuner(
-        _DIR.name, _DIR.name, "pytorch_sac", subdir="subdir", new_model=False
+        _DIR.name, _DIR.name, subdir="subdir", new_model=False
     )
     num_epochs = 3
     num_steps = 100
@@ -162,9 +162,9 @@ def test_visualizer():
         OmegaConf.save(_CFG, f)
 
     visualizer = diagnostics.Visualizer(
-        5, _DIR.name, reference_agent_type="random", num_steps=5, num_model_samples=5
+        5, _DIR.name, agent_dir=_DIR.name, num_steps=5, num_model_samples=5
     )
-    visualizer.run()
+    visualizer.run(use_mpc=False, name="test")
 
     files = os.listdir(pathlib.Path(_DIR.name) / "diagnostics")
-    assert "mpc.mp4" in files and "ref.mp4" in files
+    assert "rollout_test_policy.mp4" in files
