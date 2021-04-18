@@ -59,6 +59,8 @@ class GaussianMLP(Ensemble):
             logvar prediction will be done. Defaults to ``False``.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
+        learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
+            they will be constant. Defaults to ``False``.
     """
 
     def __init__(
@@ -72,6 +74,7 @@ class GaussianMLP(Ensemble):
         use_silu: bool = False,
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
+        learn_logvar_bounds: bool = False,
     ):
         super().__init__(
             ensemble_size, device, propagation_method, deterministic=deterministic
@@ -102,10 +105,10 @@ class GaussianMLP(Ensemble):
         else:
             self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
             self.min_logvar = nn.Parameter(
-                -10 * torch.ones(1, out_size), requires_grad=False
+                -10 * torch.ones(1, out_size), requires_grad=learn_logvar_bounds
             )
             self.max_logvar = nn.Parameter(
-                0.5 * torch.ones(1, out_size), requires_grad=False
+                0.5 * torch.ones(1, out_size), requires_grad=learn_logvar_bounds
             )
 
         self.apply(truncated_normal_init)
