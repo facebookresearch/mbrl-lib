@@ -75,3 +75,11 @@ class EnsembleLinearLayer(nn.Module):
 
     def toggle_use_only_elite(self):
         self.use_only_elite = not self.use_only_elite
+
+
+def to_tensor(x: mbrl.types.TensorType):
+    if isinstance(x, torch.Tensor):
+        return x
+    if isinstance(x, np.ndarray):
+        return torch.from_numpy(x)
+    raise ValueError("Input must be torch.Tensor or np.ndarray.")
