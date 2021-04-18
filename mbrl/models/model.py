@@ -26,9 +26,6 @@ class Model(nn.Module, abc.ABC):
           for the model on the input data (e.g., squared error per element).
         - ``save``: saves the model to a given path.
         - ``load``: loads the model from a given path.
-        - ``_is_deterministic_impl``: a method that returns ``True`` if the instantiated
-            model is fully deterministic, or ``False`` if it can return random samples.
-            This is mainly used for compatibility with :class:`mbrl.models.Ensemble`.
 
     Subclasses may also want to overrides :meth:`sample` and :meth:`reset`.
 
@@ -166,14 +163,6 @@ class Model(nn.Module, abc.ABC):
         optimizer.step()
         return loss.item()
 
-    @abc.abstractmethod
-    def _is_deterministic_impl(self):
-        pass
-
-    @property
-    def deterministic(self):
-        return self._is_deterministic_impl()
-
     def __len__(self):
         return None
 
@@ -217,6 +206,8 @@ class Ensemble(Model, abc.ABC):
         device (str or torch.device): device to use for the model.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
+        deterministic (bool): if ``True``, the model will be trained using MSE loss and no
+            logvar prediction will be done. Defaults to ``False``.
     """
 
     def __init__(
@@ -224,6 +215,7 @@ class Ensemble(Model, abc.ABC):
         num_members: int,
         device: Union[str, torch.device],
         propagation_method: str,
+        deterministic: bool = False,
         *args,
         **kwargs,
     ):
@@ -231,6 +223,7 @@ class Ensemble(Model, abc.ABC):
         self.num_members = num_members
         self.propagation_method = propagation_method
         self.device = torch.device(device)
+        self.deterministic = deterministic
         self.to(device)
 
     def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:

@@ -317,9 +317,6 @@ class DummyModel(mbrl.models.Model):
     def eval_score(self, _input, target=None):
         pass
 
-    def _is_deterministic_impl(self):
-        return False
-
 
 def test_model_env_evaluate_action_sequences():
     model = DummyModel()

@@ -73,7 +73,9 @@ class GaussianMLP(Ensemble):
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
     ):
-        super().__init__(ensemble_size, device, propagation_method)
+        super().__init__(
+            ensemble_size, device, propagation_method, deterministic=deterministic
+        )
 
         self.in_size = in_size
         self.out_size = out_size
@@ -95,7 +97,6 @@ class GaussianMLP(Ensemble):
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
 
-        self._deterministic = deterministic
         if deterministic:
             self.mean_and_logvar = create_linear_layer(hid_size, out_size)
         else:
@@ -132,7 +133,7 @@ class GaussianMLP(Ensemble):
         x = self.hidden_layers(x)
         mean_and_logvar = self.mean_and_logvar(x)
         self._maybe_toggle_layers_use_only_elite(only_elite)
-        if self._deterministic:
+        if self.deterministic:
             return mean_and_logvar, None
         else:
             mean = mean_and_logvar[..., : self.out_size]
@@ -304,7 +305,7 @@ class GaussianMLP(Ensemble):
             the model over the given input/target. If the model is an ensemble, returns
             the average over all models.
         """
-        if self._deterministic:
+        if self.deterministic:
             return self._mse_loss(model_in, target)
         else:
             return self._nll_loss(model_in, target)
@@ -371,6 +372,3 @@ class GaussianMLP(Ensemble):
     def set_elite(self, elite_indices: Sequence[int]):
         if len(elite_indices) != self.num_members:
             self.elite_models = list(elite_indices)
-
-    def _is_deterministic_impl(self):
-        return self._deterministic

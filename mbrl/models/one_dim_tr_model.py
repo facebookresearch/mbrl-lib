@@ -315,9 +315,6 @@ class OneDTransitionRewardModel(Model):
         self.elite_models = list(elite_indices)
         self.model.set_elite(elite_indices)
 
-    def _is_deterministic_impl(self):
-        return self.model.deterministic
-
     def __len__(self):
         return len(self.model)
 

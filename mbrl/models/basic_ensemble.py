@@ -24,7 +24,8 @@ class BasicEnsemble(Ensemble):
     (hence the term basic).
 
     All members of the ensemble will be identical, and they must be subclasses of
-    :class:`mbrl.models.Model`.
+    :class:`mbrl.models.Model`. This method assumes that the models have an attribute
+    ``model.deterministic`` that indicates if the model is deterministic or not.
 
     Members can be accessed using `ensemble[i]`, to recover the i-th model in the ensemble. Doing
     `len(ensemble)` returns its size, and the ensemble can also be iterated over the models
@@ -58,14 +59,19 @@ class BasicEnsemble(Ensemble):
         member_cfg: omegaconf.DictConfig,
         propagation_method: Optional[str] = None,
     ):
-        super().__init__(ensemble_size, device, propagation_method)
+        super().__init__(
+            ensemble_size,
+            device,
+            propagation_method,
+            deterministic=False,
+        )
         self.members = []
         for i in range(ensemble_size):
             model = hydra.utils.instantiate(member_cfg)
             self.members.append(model)
+        self.deterministic = self.members[0].deterministic
         self.in_size = getattr(self.members[0], "in_size", None)
         self.out_size = getattr(self.members[0], "out_size", None)
-        self._deterministic = self.members[0].deterministic
         self.members = nn.ModuleList(self.members)
         self._propagation_indices = None
 
@@ -266,6 +272,3 @@ class BasicEnsemble(Ensemble):
             warnings.warn(
                 "BasicEnsemble does not support elite models yet. All models will be used."
             )
-
-    def _is_deterministic_impl(self):
-        return self._deterministic

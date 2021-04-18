@@ -26,9 +26,6 @@ class MockModel(models.Model):
     def eval_score(self, model_in, target):
         pass
 
-    def _is_deterministic_impl(self):
-        return True
-
 
 def mock_obs_func():
     pass
