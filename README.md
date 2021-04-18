@@ -1,3 +1,13 @@
+<p align="center">
+   <a href="https://github.com/facebookresearch/mbrl-lib/tree/master/LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="LICENSE" />
+  </a>
+    <a href="https://circleci.com/gh/facebookresearch/mbrl-lib/tree/master">
+    <img src="https://github.com/facebookresearch/mbrl-lib/actions/workflows/python-package.yml/badge.svg" alt="CI" />
+  </a>
+ </p>
+ 
+
 # MBRL-Lib
 
 ``mbrl-lib`` is a toolbox for facilitating development of 
