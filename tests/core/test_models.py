@@ -309,7 +309,7 @@ class DummyModel(mbrl.models.Model):
         return torch.cat([new_obs, new_obs], axis=1)
 
     def sample(self, x, deterministic=False, rng=None):
-        return self.forward(x)
+        return (self.forward(x),)
 
     def loss(self, _input, target=None):
         pass

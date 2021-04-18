@@ -79,12 +79,10 @@ class ModelEnv:
             by ``return_as_np``.
         """
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
-        self._current_obs = torch.from_numpy(
-            np.copy(initial_obs_batch.astype(np.float32))
-        ).to(self.device)
-
-        self._current_obs = self.dynamics_model.reset(self._current_obs, rng=self._rng)
-
+        batch = mbrl.types.TransitionBatch(
+            initial_obs_batch.astype(np.float32), None, None, None, None
+        )
+        self._current_obs = self.dynamics_model.reset(batch, rng=self._rng)
         self._return_as_np = return_as_np
         if self._return_as_np:
             return self._current_obs.cpu().numpy()
@@ -101,8 +99,7 @@ class ModelEnv:
                 and ``A`` is the action dimension. Note that ``B`` must correspond to the
                 batch size used when calling :meth:`reset`. If a np.ndarray is given, it's
                 converted to a torch.Tensor and sent to the model device.
-            sample (bool): If ``True`` model predictions are sampled using gaussian
-                model matching. Defaults to ``False``.
+            sample (bool): if ``True`` model predictions are stochastic. Defaults to ``False``.
 
         Returns:
             (tuple): contains the predicted next observation, reward, done flag and metadata.
@@ -113,10 +110,12 @@ class ModelEnv:
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
                 actions = torch.from_numpy(actions).to(self.device)
-            next_observs, pred_rewards = self.dynamics_model.predict(
-                self._current_obs,
-                actions,
-                sample=sample,
+            model_in = mbrl.types.TransitionBatch(
+                self._current_obs, actions, None, None, None
+            )
+            next_observs, pred_rewards = self.dynamics_model.sample(
+                model_in,
+                deterministic=not sample,
                 rng=self._rng,
             )
             rewards = (
