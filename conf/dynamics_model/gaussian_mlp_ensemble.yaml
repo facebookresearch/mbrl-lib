@@ -9,4 +9,5 @@ model:
   hid_size: 200
   use_silu: true
   deterministic: false
-  propagation_method: fixed_model
+  propagation_method: random_model
+  learn_logvar_bounds: false  # works better for MBPO

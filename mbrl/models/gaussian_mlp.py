@@ -59,6 +59,8 @@ class GaussianMLP(Ensemble):
             logvar prediction will be done. Defaults to ``False``.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
+        learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
+            they will be constant. Defaults to ``False``.
     """
 
     def __init__(
@@ -72,8 +74,11 @@ class GaussianMLP(Ensemble):
         use_silu: bool = False,
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
+        learn_logvar_bounds: bool = False,
     ):
-        super().__init__(ensemble_size, device, propagation_method)
+        super().__init__(
+            ensemble_size, device, propagation_method, deterministic=deterministic
+        )
 
         self.in_size = in_size
         self.out_size = out_size
@@ -95,16 +100,15 @@ class GaussianMLP(Ensemble):
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
 
-        self._deterministic = deterministic
         if deterministic:
             self.mean_and_logvar = create_linear_layer(hid_size, out_size)
         else:
             self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
             self.min_logvar = nn.Parameter(
-                -10 * torch.ones(1, out_size), requires_grad=False
+                -10 * torch.ones(1, out_size), requires_grad=learn_logvar_bounds
             )
             self.max_logvar = nn.Parameter(
-                0.5 * torch.ones(1, out_size), requires_grad=False
+                0.5 * torch.ones(1, out_size), requires_grad=learn_logvar_bounds
             )
 
         self.apply(truncated_normal_init)
@@ -132,7 +136,7 @@ class GaussianMLP(Ensemble):
         x = self.hidden_layers(x)
         mean_and_logvar = self.mean_and_logvar(x)
         self._maybe_toggle_layers_use_only_elite(only_elite)
-        if self._deterministic:
+        if self.deterministic:
             return mean_and_logvar, None
         else:
             mean = mean_and_logvar[..., : self.out_size]
@@ -304,7 +308,7 @@ class GaussianMLP(Ensemble):
             the model over the given input/target. If the model is an ensemble, returns
             the average over all models.
         """
-        if self._deterministic:
+        if self.deterministic:
             return self._mse_loss(model_in, target)
         else:
             return self._nll_loss(model_in, target)
@@ -371,6 +375,3 @@ class GaussianMLP(Ensemble):
     def set_elite(self, elite_indices: Sequence[int]):
         if len(elite_indices) != self.num_members:
             self.elite_models = list(elite_indices)
-
-    def _is_deterministic_impl(self):
-        return self._deterministic

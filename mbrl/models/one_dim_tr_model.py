@@ -8,6 +8,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
+import mbrl.models.util as model_util
 import mbrl.types
 import mbrl.util.math
 
@@ -242,17 +243,43 @@ class OneDTransitionRewardModel(Model):
             output = self.model.forward(model_in)
         return output, target
 
-    # TODO replace predict with sample
     def sample(  # type: ignore
         self,
-        x: torch.Tensor,
+        x: mbrl.types.TransitionBatch,
         deterministic: bool = False,
         rng: Optional[torch.Generator] = None,
-    ) -> torch.Tensor:
-        raise NotImplementedError
+        **kwargs,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Samples next observations and rewards from the underlying model.
+
+        This wrapper assumes that the underlying model's sample method returns a tuple
+        with just one tensor, which concatenates next_observation and reward.
+
+        Args:
+            x (transition): a batch of transitions.
+            deterministic (bool): if ``True``, the model returns a deterministic
+                "sample" (e.g., the mean prediction). Defaults to ``False``.
+            rng (random number generator): a rng to use for sampling.
+
+        Returns:
+            (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
+        """
+        obs = model_util.to_tensor(x.obs).to(self.device)
+        actions = model_util.to_tensor(x.act).to(self.device)
+
+        model_in = self._get_model_input_from_tensors(obs, actions)
+        preds = self.model.sample(model_in, rng=rng, deterministic=deterministic)[0]
+        next_observs = preds[:, :-1] if self.learned_rewards else preds
+        if self.target_is_delta:
+            tmp_ = next_observs + obs
+            for dim in self.no_delta_list:
+                tmp_[:, dim] = next_observs[:, dim]
+            next_observs = tmp_
+        rewards = preds[:, -1:] if self.learned_rewards else None
+        return next_observs, rewards
 
     def reset(  # type: ignore
-        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
+        self, x: mbrl.types.TransitionBatch, rng: Optional[torch.Generator] = None
     ) -> torch.Tensor:
         """Calls reset on the underlying model.
 
@@ -264,40 +291,8 @@ class OneDTransitionRewardModel(Model):
         Returns:
             (tensor): the output of the underlying model.
         """
-        return self.model.reset(x, rng=rng)
-
-    def predict(
-        self,
-        obs: torch.Tensor,
-        actions: torch.Tensor,
-        sample: bool = False,
-        rng: Optional[torch.Generator] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Predicts next observations and rewards given observations and actions.
-
-        This method generates a sample using ``self.model.sample()``, then processes the
-        output and return predicted observations and rewards.
-
-        Args:
-            obs (tensor): the input observations corresponding to o_t.
-            actions (tensor): the input actions corresponding to a_t.
-            sample (bool): If ``True`` model predictions are sampled using gaussian
-                model matching. Defaults to ``False``.
-            rng (torch.Generator, optional): random number generator for uncertainty propagation.
-
-        Returns:
-            (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
-        """
-        model_in = self._get_model_input_from_tensors(obs, actions)
-        predictions = self.model.sample(model_in, rng=rng, deterministic=not sample)
-        next_observs = predictions[:, :-1] if self.learned_rewards else predictions
-        if self.target_is_delta:
-            tmp_ = next_observs + obs
-            for dim in self.no_delta_list:
-                tmp_[:, dim] = next_observs[:, dim]
-            next_observs = tmp_
-        rewards = predictions[:, -1:] if self.learned_rewards else None
-        return next_observs, rewards
+        obs = model_util.to_tensor(x.obs).to(self.device)
+        return self.model.reset(obs, rng=rng)
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         save_dir = pathlib.Path(save_dir)
@@ -314,9 +309,6 @@ class OneDTransitionRewardModel(Model):
     def set_elite(self, elite_indices: Sequence[int]):
         self.elite_models = list(elite_indices)
         self.model.set_elite(elite_indices)
-
-    def _is_deterministic_impl(self):
-        return self.model.deterministic
 
     def __len__(self):
         return len(self.model)

@@ -26,9 +26,6 @@ class Model(nn.Module, abc.ABC):
           for the model on the input data (e.g., squared error per element).
         - ``save``: saves the model to a given path.
         - ``load``: loads the model from a given path.
-        - ``_is_deterministic_impl``: a method that returns ``True`` if the instantiated
-            model is fully deterministic, or ``False`` if it can return random samples.
-            This is mainly used for compatibility with :class:`mbrl.models.Ensemble`.
 
     Subclasses may also want to overrides :meth:`sample` and :meth:`reset`.
 
@@ -56,10 +53,11 @@ class Model(nn.Module, abc.ABC):
 
     def sample(
         self, x: ModelInput, deterministic: bool = False, **kwargs
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, ...]:
         """Samples an output of the dynamics model.
 
-        For deterministic models this is equivalent to :meth:`forward`.
+        The default implementation for all models is equivalent to `self.forward(x)[0]`.
+        This method will be used by :class:`ModelEnv` to simulate a step with the model.
 
         Args:
             x (tensor or batch of transitions): the input to the model.
@@ -67,14 +65,15 @@ class Model(nn.Module, abc.ABC):
                 "sample" (e.g., the mean prediction). Defaults to ``False``.
 
         Returns:
-            (tensor): the sampled output.
+            (tuple of tensor): any number of tensors that can be sampled from
+                the model (e.g., observations, rewards, terminations).
         """
-        return cast(torch.Tensor, self.forward(x))
+        return (self.forward(x)[0],)
 
     def reset(self, x: ModelInput, **kwargs) -> torch.Tensor:
         """Initializes any internal dependent state when using the model for simulation.
 
-        For most models this just returns the same tensor that is given as input. However,
+        For most models this just returns the same input that is given as input. However,
         for some models this method can be used to initialize data that should be kept
         constant during a simulated trajectory (for example model indices when using
         a bootstrapped ensemble with TSinf propagation). It can also be used to return
@@ -166,14 +165,6 @@ class Model(nn.Module, abc.ABC):
         optimizer.step()
         return loss.item()
 
-    @abc.abstractmethod
-    def _is_deterministic_impl(self):
-        pass
-
-    @property
-    def deterministic(self):
-        return self._is_deterministic_impl()
-
     def __len__(self):
         return None
 
@@ -217,6 +208,8 @@ class Ensemble(Model, abc.ABC):
         device (str or torch.device): device to use for the model.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
+        deterministic (bool): if ``True``, the model will be trained using MSE loss and no
+            logvar prediction will be done. Defaults to ``False``.
     """
 
     def __init__(
@@ -224,6 +217,7 @@ class Ensemble(Model, abc.ABC):
         num_members: int,
         device: Union[str, torch.device],
         propagation_method: str,
+        deterministic: bool = False,
         *args,
         **kwargs,
     ):
@@ -231,6 +225,7 @@ class Ensemble(Model, abc.ABC):
         self.num_members = num_members
         self.propagation_method = propagation_method
         self.device = torch.device(device)
+        self.deterministic = deterministic
         self.to(device)
 
     def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:
@@ -299,10 +294,11 @@ class Ensemble(Model, abc.ABC):
 
     def sample(  # type: ignore
         self,
-        x: torch.Tensor,
+        x: ModelInput,
         deterministic: bool = False,
         rng: Optional[torch.Generator] = None,
-    ) -> torch.Tensor:
+        **kwargs,
+    ) -> Tuple[torch.Tensor, ...]:
         """Samples an output of the dynamics model from the modeled Gaussian.
 
         Args:
@@ -315,9 +311,9 @@ class Ensemble(Model, abc.ABC):
             (tensor): the sampled output.
         """
         if deterministic or self.deterministic:
-            return self.forward(x, rng=rng)[0]
+            return (self.forward(x, rng=rng)[0],)
         assert rng is not None
         means, logvars = self.forward(x, rng=rng)
         variances = logvars.exp()
         stds = torch.sqrt(variances)
-        return torch.normal(means, stds, generator=rng)
+        return (torch.normal(means, stds, generator=rng),)
