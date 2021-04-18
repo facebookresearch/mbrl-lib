@@ -127,8 +127,7 @@ def load_agent(agent_path: Union[str, pathlib.Path], env: gym.Env) -> Agent:
             the agent's configuration).
 
     Returns:
-        (Agent): the new agent. For "pytorch_sac", this is an agent of type
-        :class:`SACAgent`.
+        (Agent): the new agent.
     """
     agent_path = pathlib.Path(agent_path)
     cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")

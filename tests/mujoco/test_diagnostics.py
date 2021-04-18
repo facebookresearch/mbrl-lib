@@ -164,7 +164,7 @@ def test_visualizer():
     visualizer = diagnostics.Visualizer(
         5, _DIR.name, agent_dir=_DIR.name, num_steps=5, num_model_samples=5
     )
-    visualizer.run(use_mpc=False, name="test")
+    visualizer.run(use_mpc=False)
 
     files = os.listdir(pathlib.Path(_DIR.name) / "diagnostics")
-    assert "rollout_test_policy.mp4" in files
+    assert "rollout_TrajectoryOptimizerAgent_policy.mp4" in files

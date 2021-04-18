@@ -72,15 +72,16 @@ class Visualizer:
         if agent_dir is None:
             self.agent = mbrl.planning.RandomAgent(self.env)
         else:
+            agent_cfg = mbrl.util.common.load_hydra_cfg(agent_dir)
             if (
-                self.cfg.algorithm.agent._target_
+                agent_cfg.algorithm.agent._target_
                 == "mbrl.planning.TrajectoryOptimizerAgent"
             ):
-                self.cfg.algorithm.agent.planning_horizon = lookahead
+                agent_cfg.algorithm.agent.planning_horizon = lookahead
                 self.agent = mbrl.planning.create_trajectory_optim_agent_for_model(
                     self.model_env,
-                    self.cfg.algorithm.agent,
-                    num_particles=self.cfg.algorithm.num_particles,
+                    agent_cfg.algorithm.agent,
+                    num_particles=agent_cfg.algorithm.num_particles,
                 )
             else:
                 self.agent = mbrl.planning.load_agent(agent_dir, self.env)
@@ -134,15 +135,18 @@ class Visualizer:
         obs = self.env.reset()
         done = False
         i = 0
+        total_reward = 0
         while not done:
             vis_data = self.get_obs_rewards_and_actions(obs, use_mpc=use_mpc)
             next_obs, reward, done, _ = self.env.step(vis_data[-1][0])
+            total_reward += reward
             obs = next_obs
             i += 1
             if self.num_steps and i == self.num_steps:
                 break
 
             yield vis_data
+        print(f"Total Reward: {total_reward}")
 
     def set_data_lines_idx(
         self,
@@ -159,11 +163,21 @@ class Visualizer:
                 self.axs[plot_idx].set_ylim(min(ymin, real_ymin), max(ymax, real_ymax))
                 self.axs[plot_idx].figure.canvas.draw()
 
-        x_data = range(len(real_data))
+        def fix_array_len(array):
+            if len(array) < self.lookahead + 1:
+                new_array = np.ones((self.lookahead + 1,) + tuple(array.shape[1:]))
+                new_array *= array[-1]
+                new_array[: len(array)] = array
+                return new_array
+            return array
+
+        x_data = range(self.lookahead + 1)
         if real_data.ndim == 1:
             real_data = real_data[:, None]
         if model_data.ndim == 2:
             model_data = model_data[:, :, None]
+        real_data = fix_array_len(real_data)
+        model_data = fix_array_len(model_data)
         adjust_ylim(self.axs[plot_idx], real_data[:, data_idx])
         adjust_ylim(self.axs[plot_idx], model_data.mean(1)[:, data_idx])
         self.lines[4 * plot_idx].set_data(x_data, real_data[:, data_idx])
@@ -227,7 +241,7 @@ class Visualizer:
         self.axs = axs
         self.lines = lines
 
-    def run(self, use_mpc: bool, name: str):
+    def run(self, use_mpc: bool):
         self.create_axes()
         ani = animation.FuncAnimation(
             self.fig,
@@ -237,7 +251,9 @@ class Visualizer:
             interval=100,
             repeat=False,
         )
-        ani.save(self.vis_path / f"rollout_{name}_policy.mp4", writer=self.writer)
+        save_path = self.vis_path / f"rollout_{type(self.agent).__name__}_policy.mp4"
+        ani.save(save_path, writer=self.writer)
+        print(f"Video saved at {save_path}.")
 
 
 if __name__ == "__main__":
@@ -279,5 +295,4 @@ if __name__ == "__main__":
         model_subdir=args.model_subdir,
     )
     use_mpc = isinstance(visualizer.agent, mbrl.planning.TrajectoryOptimizerAgent)
-    name = "random" if not args.agent_dir else "learned"
-    visualizer.run(use_mpc=use_mpc, name=name)
+    visualizer.run(use_mpc=use_mpc)
