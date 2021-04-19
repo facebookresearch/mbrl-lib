@@ -62,11 +62,11 @@ As a starting point, check out our
 on how to write the PETS algorithm
 `(Chua et al., NeurIPS 2018) <https://arxiv.org/pdf/1805.12114.pdf>`_
 using our toolbox, and running it on a continuous version of the cartpole
-environment.
+environment. Then, please take a look at our API documentation below.
 
 .. toctree::
    :maxdepth: 3
-   :caption: Contents
+   :caption: API Documentation
 
    models.rst
    planning.rst
