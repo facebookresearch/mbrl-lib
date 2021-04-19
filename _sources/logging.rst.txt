@@ -1,6 +1,6 @@
 Logging module
 ==============
 
-.. automodule:: mbrl.logger
+.. automodule:: mbrl.util.logger
     :members:
     :show-inheritance:

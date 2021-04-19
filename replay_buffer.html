@@ -179,12 +179,12 @@
     text-align: unset;
 }
 </style>
-<div class="section" id="module-mbrl.replay_buffer">
-<span id="replay-buffer-module"></span><h1>Replay buffer module<a class="headerlink" href="#module-mbrl.replay_buffer" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-mbrl.util.replay_buffer">
+<span id="replay-buffer-module"></span><h1>Replay buffer module<a class="headerlink" href="#module-mbrl.util.replay_buffer" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
-<dt id="mbrl.replay_buffer.BootstrapIterator">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.replay_buffer.</code><code class="sig-name descname">BootstrapIterator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transitions</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">permute_indices</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.BootstrapIterator" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.TransitionIterator</span></code></a></p>
+<dt id="mbrl.util.replay_buffer.BootstrapIterator">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.replay_buffer.</code><code class="sig-name descname">BootstrapIterator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transitions</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">permute_indices</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.BootstrapIterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.replay_buffer.TransitionIterator</span></code></a></p>
 <p>A transition iterator that can be used to train ensemble of bootstrapped models.</p>
 <p>When iterating, this iterator samples from a different set of indices for each model in the
 ensemble, essentially assigning a different dataset to each model. Each batch is of
@@ -205,20 +205,20 @@ batches. If None (default value), a new default generator will be used.</p></li>
 </dd>
 </dl>
 <dl class="py method">
-<dt id="mbrl.replay_buffer.BootstrapIterator.toggle_bootstrap">
-<code class="sig-name descname">toggle_bootstrap</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.BootstrapIterator.toggle_bootstrap" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.BootstrapIterator.toggle_bootstrap">
+<code class="sig-name descname">toggle_bootstrap</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.BootstrapIterator.toggle_bootstrap" title="Permalink to this definition">¶</a></dt>
 <dd><p>Toggles whether the iterator returns a batch per model or a single batch.</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
-<dt id="mbrl.replay_buffer.ReplayBuffer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.replay_buffer.</code><code class="sig-name descname">ReplayBuffer</code><span class="sig-paren">(</span><em class="sig-param">capacity: int, obs_shape: Tuple[int], action_shape: Tuple[int], obs_type=&lt;class 'numpy.float32'&gt;, action_type=&lt;class 'numpy.float32'&gt;, rng: Optional[numpy.random._generator.Generator] = None, max_trajectory_length: Optional[int] = None</em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.replay_buffer.</code><code class="sig-name descname">ReplayBuffer</code><span class="sig-paren">(</span><em class="sig-param">capacity: int, obs_shape: Tuple[int], action_shape: Tuple[int], obs_type=&lt;class 'numpy.float32'&gt;, action_type=&lt;class 'numpy.float32'&gt;, rng: Optional[numpy.random._generator.Generator] = None, max_trajectory_length: Optional[int] = None</em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A replay buffer with support for training/validation iterators and ensembles.</p>
 <p>This buffer can be pushed to and sampled from as a typical replay buffer.
-Additionally, it provides a method called <a class="reference internal" href="#mbrl.replay_buffer.ReplayBuffer.get_iterators" title="mbrl.replay_buffer.ReplayBuffer.get_iterators"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_iterators()</span></code></a>, which returns
+Additionally, it provides a method called <a class="reference internal" href="#mbrl.util.replay_buffer.ReplayBuffer.get_iterators" title="mbrl.util.replay_buffer.ReplayBuffer.get_iterators"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_iterators()</span></code></a>, which returns
 training/validation iterators for the data stored in the buffer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -235,7 +235,7 @@ batches. If None (default value), a new default generator will be used.</p></li>
 information should be stored and that trajectories will be at most this
 number of steps. Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code> in which case no trajectory
 information will be kept. The buffer will keep trajectory information
-automatically using the done value when calling <a class="reference internal" href="#mbrl.replay_buffer.ReplayBuffer.add" title="mbrl.replay_buffer.ReplayBuffer.add"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add()</span></code></a>.</p></li>
+automatically using the done value when calling <a class="reference internal" href="#mbrl.util.replay_buffer.ReplayBuffer.add" title="mbrl.util.replay_buffer.ReplayBuffer.add"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add()</span></code></a>.</p></li>
 </ul>
 </dd>
 </dl>
@@ -245,8 +245,8 @@ automatically using the done value when calling <a class="reference internal" hr
 that trajectories are stored continuously in the replay buffer.</p>
 </div>
 <dl class="py method">
-<dt id="mbrl.replay_buffer.ReplayBuffer.add">
-<code class="sig-name descname">add</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">action</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">next_obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">reward</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">done</span><span class="p">:</span> <span class="n">bool</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer.add" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer.add">
+<code class="sig-name descname">add</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">action</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">next_obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">reward</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">done</span><span class="p">:</span> <span class="n">bool</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer.add" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds a transition (s, a, s’, r, done) to the replay buffer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -262,14 +262,14 @@ that trajectories are stored continuously in the replay buffer.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.replay_buffer.ReplayBuffer.get_all">
-<code class="sig-name descname">get_all</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; mbrl.types.TransitionBatch<a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer.get_all" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer.get_all">
+<code class="sig-name descname">get_all</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; mbrl.types.TransitionBatch<a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer.get_all" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns all data stored in the replay buffer.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.replay_buffer.ReplayBuffer.get_iterators">
-<code class="sig-name descname">get_iterators</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">val_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">train_ensemble</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">bootstrap_permutes</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span><a class="reference internal" href="#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator">mbrl.replay_buffer.TransitionIterator</a><span class="p">, </span>Optional<span class="p">[</span><a class="reference internal" href="#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator">mbrl.replay_buffer.TransitionIterator</a><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer.get_iterators" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer.get_iterators">
+<code class="sig-name descname">get_iterators</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">val_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">train_ensemble</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">bootstrap_permutes</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span><a class="reference internal" href="#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a><span class="p">, </span>Optional<span class="p">[</span><a class="reference internal" href="#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer.get_iterators" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns training/validation iterators for the data in the replay buffer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -278,7 +278,7 @@ that trajectories are stored continuously in the replay buffer.</p>
 <li><p><strong>val_ratio</strong> (<em>float</em>) – the proportion of data to use for validation. If 0., the
 validation buffer will be set to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
 <li><p><strong>train_ensemble</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the training iterator will be and
-instance of <a class="reference internal" href="#mbrl.replay_buffer.BootstrapIterator" title="mbrl.replay_buffer.BootstrapIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">BootstrapIterator</span></code></a>. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+instance of <a class="reference internal" href="#mbrl.util.replay_buffer.BootstrapIterator" title="mbrl.util.replay_buffer.BootstrapIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">BootstrapIterator</span></code></a>. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 <li><p><strong>ensemble_size</strong> (<em>int</em>) – the size of the ensemble being trained. Must be
 provided if <code class="docutils literal notranslate"><span class="pre">train_ensemble</span> <span class="pre">==</span> <span class="pre">True</span></code>.</p></li>
 <li><p><strong>shuffle_each_epoch</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the iterator will shuffle the
@@ -293,8 +293,8 @@ it will use sampling with replacement. Defaults to <code class="docutils literal
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.replay_buffer.ReplayBuffer.load">
-<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">load_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pathlib.Path<span class="p">, </span>str<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer.load" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer.load">
+<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">load_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pathlib.Path<span class="p">, </span>str<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer.load" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads transition data from a given directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -304,8 +304,8 @@ it will use sampling with replacement. Defaults to <code class="docutils literal
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.replay_buffer.ReplayBuffer.sample">
-<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; Sized<a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer.sample" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer.sample">
+<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; Sized<a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer.sample" title="Permalink to this definition">¶</a></dt>
 <dd><p>Samples a batch of transitions from the replay buffer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -323,8 +323,8 @@ to (obs[i], act[i], next_obs[i], rewards[i], dones[i]).</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.replay_buffer.ReplayBuffer.sample_trajectory">
-<code class="sig-name descname">sample_trajectory</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; Optional<span class="p">[</span>mbrl.types.TransitionBatch<span class="p">]</span><a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer.sample_trajectory" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer.sample_trajectory">
+<code class="sig-name descname">sample_trajectory</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; Optional<span class="p">[</span>mbrl.types.TransitionBatch<span class="p">]</span><a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer.sample_trajectory" title="Permalink to this definition">¶</a></dt>
 <dd><p>Samples a full trajectory and returns it as a batch.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -340,8 +340,8 @@ to (obs[i], act[i], next_obs[i], rewards[i], dones[i]).</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.replay_buffer.ReplayBuffer.save">
-<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">save_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pathlib.Path<span class="p">, </span>str<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.ReplayBuffer.save" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.ReplayBuffer.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">save_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pathlib.Path<span class="p">, </span>str<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.ReplayBuffer.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves the data in the replay buffer to a given directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -354,8 +354,8 @@ replay_buffer.npz.</p>
 </dd></dl>
 
 <dl class="py class">
-<dt id="mbrl.replay_buffer.TransitionIterator">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.replay_buffer.</code><code class="sig-name descname">TransitionIterator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transitions</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.replay_buffer.TransitionIterator" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.util.replay_buffer.TransitionIterator">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.replay_buffer.</code><code class="sig-name descname">TransitionIterator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transitions</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.TransitionIterator" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>An iterator for batches of transitions.</p>
 <p>The iterator can be used doing:</p>
@@ -364,7 +364,7 @@ replay_buffer.npz.</p>
 </pre></div>
 </div>
 <p>Rather than be constructed directly, the preferred way to use objects of this class
-is for the user to obtain them from <a class="reference internal" href="#mbrl.replay_buffer.ReplayBuffer" title="mbrl.replay_buffer.ReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReplayBuffer</span></code></a>.</p>
+is for the user to obtain them from <a class="reference internal" href="#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReplayBuffer</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">

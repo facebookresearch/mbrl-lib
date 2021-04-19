@@ -206,6 +206,29 @@ for your system.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m pytest tests/core
 </pre></div>
 </div>
+</div>
+<div class="section" id="mujoco">
+<h2>Mujoco<a class="headerlink" href="#mujoco" title="Permalink to this headline">¶</a></h2>
+<p>Mujoco is a popular library for testing RL methods. Installing Mujoco is not
+required to use most of the components and utilities in MBRL-Lib, but if you
+have a working Mujoco installation (and license) and want to test MBRL-Lib
+on it, you please install</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install -r requirements/mujoco.txt
+</pre></div>
+</div>
+<p>and to test our mujoco-related utilities, run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m pytest tests/mujoco
+</pre></div>
+</div>
+</div>
+<div class="section" id="basic-example">
+<h2>Basic Example<a class="headerlink" href="#basic-example" title="Permalink to this headline">¶</a></h2>
+<p>As a starting point, check out our
+<a class="reference external" href="https://github.com/facebookresearch/mbrl-lib/blob/master/notebooks/pets_example.ipynb">tutorial notebook</a>
+on how to write the PETS algorithm
+<a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">(Chua et al., NeurIPS 2018)</a>
+using our toolbox, and running it on a continuous version of the cartpole
+environment.</p>
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Contents</span></p>
 <ul>
@@ -223,7 +246,6 @@ for your system.</p>
 <h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
 <ul class="simple">
 <li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
-<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
 <li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
 </ul>
 </div>

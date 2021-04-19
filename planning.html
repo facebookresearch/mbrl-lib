@@ -231,8 +231,8 @@
 
 <dl class="py class">
 <dt id="mbrl.planning.CEMOptimizer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">CEMOptimizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_iterations</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">elite_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">population_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">lower_bound</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">upper_bound</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.CEMOptimizer" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">CEMOptimizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_iterations</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">elite_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">population_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">lower_bound</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">upper_bound</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em>, <em class="sig-param"><span class="n">return_mean_elites</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.CEMOptimizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.trajectory_opt.Optimizer</span></code></p>
 <p>Implements the Cross-Entropy Method optimization algorithm.</p>
 <p>A good description of CEM [1] can be found at <a class="reference external" href="https://arxiv.org/pdf/2008.06389.pdf">https://arxiv.org/pdf/2008.06389.pdf</a>. This
 code implements the version described in Section 2.1, labeled CEM_PETS
@@ -251,6 +251,8 @@ elite (rounds up).</p></li>
 <li><p><strong>upper_bound</strong> (<em>sequence of floats</em>) – the upper bound for the optimization variables.</p></li>
 <li><p><strong>alpha</strong> (<em>float</em>) – momentum term.</p></li>
 <li><p><strong>device</strong> (<em>torch.device</em>) – device where computations will be performed.</p></li>
+<li><p><strong>return_mean_elites</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code> returns the mean of the elites of the last
+iteration. Otherwise, it returns the max solution found over all iterations.</p></li>
 </ul>
 </dd>
 </dl>
@@ -258,17 +260,14 @@ elite (rounds up).</p></li>
 optimization”. Methodology and Computing in Applied Probability, 1999.</p>
 <dl class="py method">
 <dt id="mbrl.planning.CEMOptimizer.optimize">
-<code class="sig-name descname">optimize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj_fun</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">x_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">initial_mu</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">, </span>int<span class="p">]</span><span class="p">, </span>None<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.planning.CEMOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">optimize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj_fun</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">x0</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">, </span>int<span class="p">]</span><span class="p">, </span>None<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.planning.CEMOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Runs the optimization using CEM.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>obj_fun</strong> (<em>callable</em><em>(</em><em>tensor</em><em>) </em><em>-&gt; tensor</em>) – objective function to maximize.</p></li>
-<li><p><strong>x_shape</strong> (<em>tuple</em><em>(</em><em>int</em><em>)</em>) – the shape of the optimization variables. Must be consistent with
-the upper and lower bounds given in the constructor, otherwise unexpected behavior
-might occur.</p></li>
-<li><p><strong>initial_mu</strong> (<em>tensor</em><em>, </em><em>optional</em>) – if given, uses this value as the initial mean for the
-population. Must be consistent with lower/upper bounds.</p></li>
+<li><p><strong>x0</strong> (<em>tensor</em><em>, </em><em>optional</em>) – initial mean for the population. Must
+be consistent with lower/upper bounds.</p></li>
 <li><p><strong>callback</strong> (<em>callable</em><em>(</em><em>tensor</em><em>, </em><em>tensor</em><em>, </em><em>int</em><em>) </em><em>-&gt; any</em><em>, </em><em>optional</em>) – if given, this
 function will be called after every iteration, passing it as input the full
 population tensor, its corresponding objective function values, and
@@ -277,24 +276,10 @@ purposes.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p><p>the first element is the best solution found
-over the course of optimization. The second element is a dictionary with information
-about the optimization process, containing the following keys:</p>
-<blockquote>
-<div><ul class="simple">
-<li><p>”value_means” (np.ndarray): the mean of objective functions for each iteration.</p></li>
-<li><p>”value_stds” (np.ndarray): the standard deviation of objective function values,
-for each iteration.</p></li>
-<li><p>”value_maxs” (np.ndarray): the maximum of objective function values for
-each iteration.</p></li>
-<li><p>”best_xs” (np.ndarray): the best solution found at each iteration.</p></li>
-<li><p>”mus” (np.ndarray): the mean of the population at each iteration.</p></li>
-</ul>
-</div></blockquote>
-</p>
+<dd class="field-even"><p>the best solution found.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(torch.Tensor, dict(str, np.ndarray)</p>
+<dd class="field-odd"><p>(torch.Tensor)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -359,7 +344,7 @@ solution. Defaults to <code class="docutils literal notranslate"><span class="pr
 </dl>
 <dl class="py method">
 <dt id="mbrl.planning.TrajectoryOptimizer.optimize">
-<code class="sig-name descname">optimize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trajectory_eval_fn</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>float<span class="p">]</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">optimize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trajectory_eval_fn</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Runs the trajectory optimization.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -374,8 +359,7 @@ to pass to the optimizer.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>first element is the best action sequence, as a numpy
-array, and the second is the corresponding objective function value.</p>
+<dd class="field-even"><p>the best action sequence.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>(tuple of np.ndarray and float)</p>
@@ -528,10 +512,10 @@ total rewards.</p></li>
 
 <dl class="py function">
 <dt id="mbrl.planning.load_agent">
-<code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">load_agent</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">agent_path</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">agent_type</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; mbrl.planning.core.Agent<a class="headerlink" href="#mbrl.planning.load_agent" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">load_agent</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">agent_path</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em><span class="sig-paren">)</span> &#x2192; mbrl.planning.core.Agent<a class="headerlink" href="#mbrl.planning.load_agent" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads an agent from a Hydra config file at the given path.</p>
-<p>For agent of type “pytorch_sac”, the directory must contain the following files,
-as generated by <code class="docutils literal notranslate"><span class="pre">pytorch_sac</span></code> library:</p>
+<p>For agent of type “pytorch_sac.agent.sac.SACAgent”, the directory
+must contain the following files:</p>
 <blockquote>
 <div><ul class="simple">
 <li><p>“.hydra/config.yaml”: the Hydra configuration for the agent.</p></li>
@@ -545,12 +529,10 @@ as generated by <code class="docutils literal notranslate"><span class="pre">pyt
 <li><p><strong>agent_path</strong> (<em>str</em><em> or </em><em>pathlib.Path</em>) – a path to the directory where the agent is saved.</p></li>
 <li><p><strong>env</strong> (<em>gym.Env</em>) – the environment on which the agent will operate (only used to complete
 the agent’s configuration).</p></li>
-<li><p><strong>agent_type</strong> (<em>str</em>) – the agent’s type. For now, only “pytorch_sac” is supported.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the new agent. For “pytorch_sac”, this is an agent of type
-<code class="xref py py-class docutils literal notranslate"><span class="pre">SACAgent</span></code>.</p>
+<dd class="field-even"><p>the new agent.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>(<a class="reference internal" href="#mbrl.planning.Agent" title="mbrl.planning.Agent">Agent</a>)</p>

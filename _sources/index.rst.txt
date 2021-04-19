@@ -38,6 +38,32 @@ To test your installation, run
 
     python -m pytest tests/core
 
+Mujoco
+------
+Mujoco is a popular library for testing RL methods. Installing Mujoco is not
+required to use most of the components and utilities in MBRL-Lib, but if you
+have a working Mujoco installation (and license) and want to test MBRL-Lib
+on it, you please install
+
+.. code-block:: bash
+
+    pip install -r requirements/mujoco.txt
+
+and to test our mujoco-related utilities, run
+
+.. code-block:: bash
+
+    python -m pytest tests/mujoco
+
+Basic Example
+-------------
+As a starting point, check out our
+`tutorial notebook <https://github.com/facebookresearch/mbrl-lib/blob/master/notebooks/pets_example.ipynb>`_
+on how to write the PETS algorithm
+`(Chua et al., NeurIPS 2018) <https://arxiv.org/pdf/1805.12114.pdf>`_
+using our toolbox, and running it on a continuous version of the cartpole
+environment.
+
 .. toctree::
    :maxdepth: 3
    :caption: Contents
@@ -53,5 +79,4 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

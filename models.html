@@ -203,7 +203,8 @@ The underlying model can be any subclass of <a class="reference internal" href="
 forward simply loops over all models during the forward and backward pass
 (hence the term basic).</p>
 <p>All members of the ensemble will be identical, and they must be subclasses of
-<a class="reference internal" href="#mbrl.models.Model" title="mbrl.models.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code></a>.</p>
+<a class="reference internal" href="#mbrl.models.Model" title="mbrl.models.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code></a>. This method assumes that the models have an attribute
+<code class="docutils literal notranslate"><span class="pre">model.deterministic</span></code> that indicates if the model is deterministic or not.</p>
 <p>Members can be accessed using <cite>ensemble[i]</cite>, to recover the i-th model in the ensemble. Doing
 <cite>len(ensemble)</cite> returns its size, and the ensemble can also be iterated over the models
 (e.g., calling <cite>for i, model in enumerate(ensemble)</cite>.</p>
@@ -339,7 +340,7 @@ indices.</p></li>
 
 <dl class="py class">
 <dt id="mbrl.models.Ensemble">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">Ensemble</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_members</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Ensemble" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">Ensemble</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_members</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.Ensemble" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.model.Model</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
 <p>Base abstract class for all ensemble of bootstrapped models.</p>
 <p>Implements an ensemble of bootstrapped models described in the
@@ -368,6 +369,8 @@ method returns all outputs of all models.</p>
 <li><p><strong>device</strong> (<em>str</em><em> or </em><em>torch.device</em>) – device to use for the model.</p></li>
 <li><p><strong>propagation_method</strong> (<em>str</em><em>, </em><em>optional</em>) – the uncertainty propagation method to use (see
 above). Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>deterministic</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the model will be trained using MSE loss and no
+logvar prediction will be done. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 </ul>
 </dd>
 </dl>
@@ -440,7 +443,7 @@ cannot be computed from <code class="docutils literal notranslate"><span class="
 
 <dl class="py method">
 <dt id="mbrl.models.Ensemble.sample">
-<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.Ensemble.sample" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.Ensemble.sample" title="Permalink to this definition">¶</a></dt>
 <dd><p>Samples an output of the dynamics model from the modeled Gaussian.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -500,7 +503,7 @@ registered hooks while the latter silently ignores them.</p>
 
 <dl class="py class">
 <dt id="mbrl.models.GaussianMLP">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">GaussianMLP</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">num_layers</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">4</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">hid_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">200</span></em>, <em class="sig-param"><span class="n">use_silu</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">GaussianMLP</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">out_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">num_layers</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">4</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">hid_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">200</span></em>, <em class="sig-param"><span class="n">use_silu</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">learn_logvar_bounds</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.GaussianMLP" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.model.Ensemble</span></code></p>
 <p>Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.</p>
 <p>This model corresponds to a Probabilistic Ensemble in the Chua et al.,
@@ -545,6 +548,8 @@ ReLU activations will be used. Defaults to <code class="docutils literal notrans
 logvar prediction will be done. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 <li><p><strong>propagation_method</strong> (<em>str</em><em>, </em><em>optional</em>) – the uncertainty propagation method to use (see
 above). Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>learn_logvar_bounds</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the logvar bounds will be learned, otherwise
+they will be constant. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 </ul>
 </dd>
 </dl>
@@ -630,7 +635,7 @@ sampling models independently for each input in the batch, we ensure that each
 model gets exactly the same number of samples (which are assigned randomly
 with equal probability), resulting in a smaller batch size which we use for the forward
 pass. If this is a concern, consider using <code class="docutils literal notranslate"><span class="pre">propagation=None</span></code>, and passing
-the output to <a class="reference internal" href="math.html#mbrl.math.propagate" title="mbrl.math.propagate"><code class="xref py py-func docutils literal notranslate"><span class="pre">mbrl.math.propagate()</span></code></a>.</p>
+the output to <code class="xref py py-func docutils literal notranslate"><span class="pre">mbrl.util.math.propagate()</span></code>.</p>
 </div>
 </dd></dl>
 
@@ -707,12 +712,6 @@ indices.</p></li>
 for the model on the input data (e.g., squared error per element).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">save</span></code>: saves the model to a given path.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">load</span></code>: loads the model from a given path.</p></li>
-<li><dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">_is_deterministic_impl</span></code>: a method that returns <code class="docutils literal notranslate"><span class="pre">True</span></code> if the instantiated</dt><dd><p>model is fully deterministic, or <code class="docutils literal notranslate"><span class="pre">False</span></code> if it can return random samples.
-This is mainly used for compatibility with <a class="reference internal" href="#mbrl.models.Ensemble" title="mbrl.models.Ensemble"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Ensemble</span></code></a>.</p>
-</dd>
-</dl>
-</li>
 </ul>
 </div></blockquote>
 <p>Subclasses may also want to overrides <a class="reference internal" href="#mbrl.models.Model.sample" title="mbrl.models.Model.sample"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sample()</span></code></a> and <a class="reference internal" href="#mbrl.models.Model.reset" title="mbrl.models.Model.reset"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reset()</span></code></a>.</p>
@@ -798,7 +797,7 @@ cannot be computed from <code class="docutils literal notranslate"><span class="
 <dt id="mbrl.models.Model.reset">
 <code class="sig-name descname">reset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.Model.reset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initializes any internal dependent state when using the model for simulation.</p>
-<p>For most models this just returns the same tensor that is given as input. However,
+<p>For most models this just returns the same input that is given as input. However,
 for some models this method can be used to initialize data that should be kept
 constant during a simulated trajectory (for example model indices when using
 a bootstrapped ensemble with TSinf propagation). It can also be used to return
@@ -818,9 +817,10 @@ latent states computed by the model.</p>
 
 <dl class="py method">
 <dt id="mbrl.models.Model.sample">
-<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.Model.sample" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.Model.sample" title="Permalink to this definition">¶</a></dt>
 <dd><p>Samples an output of the dynamics model.</p>
-<p>For deterministic models this is equivalent to <a class="reference internal" href="#mbrl.models.Model.forward" title="mbrl.models.Model.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a>.</p>
+<p>The default implementation for all models is equivalent to <cite>self.forward(x)[0]</cite>.
+This method will be used by <a class="reference internal" href="#mbrl.models.ModelEnv" title="mbrl.models.ModelEnv"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelEnv</span></code></a> to simulate a step with the model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -830,10 +830,14 @@ latent states computed by the model.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the sampled output.</p>
+<dd class="field-even"><p><dl class="simple">
+<dt>any number of tensors that can be sampled from</dt><dd><p>the model (e.g., observations, rewards, terminations).</p>
+</dd>
+</dl>
+</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tensor)</p>
+<dd class="field-odd"><p>(tuple of tensor)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -877,7 +881,7 @@ cannot be computed from <code class="docutils literal notranslate"><span class="
 
 <dl class="py class">
 <dt id="mbrl.models.ModelEnv">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ModelEnv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.proprioceptive_model.ProprioceptiveModel</span></em>, <em class="sig-param"><span class="n">termination_fn</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">reward_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">generator</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ModelEnv" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ModelEnv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.one_dim_tr_model.OneDTransitionRewardModel</span></em>, <em class="sig-param"><span class="n">termination_fn</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">reward_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">generator</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ModelEnv" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Wraps a dynamics model into a gym-like environment.</p>
 <p>This class can wrap a dynamics model to be used as an environment. The only requirement
@@ -962,8 +966,7 @@ Shape must be <code class="docutils literal notranslate"><span class="pre">B</sp
 and <code class="docutils literal notranslate"><span class="pre">A</span></code> is the action dimension. Note that <code class="docutils literal notranslate"><span class="pre">B</span></code> must correspond to the
 batch size used when calling <a class="reference internal" href="#mbrl.models.ModelEnv.reset" title="mbrl.models.ModelEnv.reset"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reset()</span></code></a>. If a np.ndarray is given, it’s
 converted to a torch.Tensor and sent to the model device.</p></li>
-<li><p><strong>sample</strong> (<em>bool</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code> model predictions are sampled using gaussian
-model matching. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<li><p><strong>sample</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code> model predictions are stochastic. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -980,7 +983,7 @@ The done flag is computed using the termination_fn passed in the constructor.</p
 
 <dl class="py class">
 <dt id="mbrl.models.ModelTrainer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ModelTrainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">optim_lr</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0001</span></em>, <em class="sig-param"><span class="n">weight_decay</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1e-05</span></em>, <em class="sig-param"><span class="n">logger</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="logging.html#mbrl.logger.Logger" title="mbrl.logger.Logger">mbrl.logger.Logger</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ModelTrainer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ModelTrainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">optim_lr</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0001</span></em>, <em class="sig-param"><span class="n">weight_decay</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1e-05</span></em>, <em class="sig-param"><span class="n">logger</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>mbrl.util.logger.Logger<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ModelTrainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Trainer for dynamics models.</p>
 <dl class="field-list simple">
@@ -989,13 +992,13 @@ The done flag is computed using the termination_fn passed in the constructor.</p
 <li><p><strong>model</strong> (<a class="reference internal" href="#mbrl.models.Model" title="mbrl.models.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code></a>) – a model to train.</p></li>
 <li><p><strong>optim_lr</strong> (<em>float</em>) – the learning rate for the optimizer (using Adam).</p></li>
 <li><p><strong>weight_decay</strong> (<em>float</em>) – the weight decay to use.</p></li>
-<li><p><strong>logger</strong> (<a class="reference internal" href="logging.html#mbrl.logger.Logger" title="mbrl.logger.Logger"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.logger.Logger</span></code></a>, optional) – the logger to use.</p></li>
+<li><p><strong>logger</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.Logger</span></code>, optional) – the logger to use.</p></li>
 </ul>
 </dd>
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.ModelTrainer.evaluate">
-<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator">mbrl.replay_buffer.TransitionIterator</a></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset</span><span class="p">:</span> <span class="n">mbrl.util.replay_buffer.TransitionIterator</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates the model on the validation dataset.</p>
 <p>Iterates over the dataset, one batch at a time, and calls
 <a class="reference internal" href="#mbrl.models.Model.eval_score" title="mbrl.models.Model.eval_score"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbrl.models.Model.eval_score()</span></code></a> to compute the model score
@@ -1043,7 +1046,7 @@ of the stored model, otherwise returns <code class="docutils literal notranslate
 
 <dl class="py method">
 <dt id="mbrl.models.ModelTrainer.train">
-<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset_train</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator">mbrl.replay_buffer.TransitionIterator</a></span></em>, <em class="sig-param"><span class="n">dataset_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator">mbrl.replay_buffer.TransitionIterator</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_epochs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">patience</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>List<span class="p">[</span>float<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>float<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelTrainer.train" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset_train</span><span class="p">:</span> <span class="n">mbrl.util.replay_buffer.TransitionIterator</span></em>, <em class="sig-param"><span class="n">dataset_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>mbrl.util.replay_buffer.TransitionIterator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_epochs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">patience</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>List<span class="p">[</span>float<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>float<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelTrainer.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Trains the model for some number of epochs.</p>
 <p>This method iterates over the stored train dataset, one batch of transitions at a time,
 updates the model.</p>
@@ -1055,9 +1058,9 @@ will keep the model with the best loss over training data.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset_train</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.TransitionIterator</span></code></a>) – the iterator to
+<li><p><strong>dataset_train</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.TransitionIterator</span></code>) – the iterator to
 use for the training data.</p></li>
-<li><p><strong>dataset_val</strong> (<a class="reference internal" href="replay_buffer.html#mbrl.replay_buffer.TransitionIterator" title="mbrl.replay_buffer.TransitionIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.TransitionIterator</span></code></a>, optional) – an iterator to use for the validation data.</p></li>
+<li><p><strong>dataset_val</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.TransitionIterator</span></code>, optional) – an iterator to use for the validation data.</p></li>
 <li><p><strong>num_epochs</strong> (<em>int</em><em>, </em><em>optional</em>) – if provided, the maximum number of epochs to train for.
 Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>, which indicates there is no limit.</p></li>
 <li><p><strong>patience</strong> (<em>int</em><em>, </em><em>optional</em>) – if provided, the patience to use for training. That is,
@@ -1089,22 +1092,20 @@ every training epoch with the following positional arguments:</p>
 </dd></dl>
 
 <dl class="py class">
-<dt id="mbrl.models.ProprioceptiveModel">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ProprioceptiveModel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">target_is_delta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">learned_rewards</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">obs_process_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">no_delta_list</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_elites</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ProprioceptiveModel" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">OneDTransitionRewardModel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">target_is_delta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">learned_rewards</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">obs_process_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">no_delta_list</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_elites</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.model.Model</span></code></p>
-<p>Wrapper class for dynamics models using proprioceptive observations.</p>
-<p>This <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.model.Model</span></code> class is essentially a wrapper for another model,
-providing utility operations that are common
-when using dynamics models with proprioceptive observation, so that users
-don’t have to manipulate the underlying model’s inputs and outputs directly.</p>
+<p>Wrapper class for 1-D dynamics models.</p>
+<p>This model functions as a wrapper for another model to convert transition
+batches into 1-D transition reward models. It also provides
+data manipulations that are common when using dynamics models with 1-D observations
+and actions, so that users don’t have to manipulate the underlying model’s
+inputs and outputs directly (e.g., predicting delta observations, input
+normalization).</p>
 <p>The wrapper assumes that the wrapped model inputs/outputs will be consistent with</p>
 <blockquote>
-<div><p>[pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]),</p>
+<div><p>[pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]).</p>
 </div></blockquote>
-<p>and it provides methods to construct model inputs and targets given a batch of transitions,
-accordingly. Moreover, the constructor provides options to perform diverse data manipulations
-that will be used every time the model needs to be accessed for prediction or training;
-for example, input/output normalization, and observation pre-processing.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -1116,7 +1117,7 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">True</s
 <li><p><strong>normalize</strong> (<em>bool</em>) – if true, the wrapper will create a normalizer for model inputs,
 which will be used every time the model is called using the methods in this
 class. To update the normalizer statistics, the user needs to call
-<a class="reference internal" href="#mbrl.models.ProprioceptiveModel.update_normalizer" title="mbrl.models.ProprioceptiveModel.update_normalizer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_normalizer()</span></code></a> before using the model. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<a class="reference internal" href="#mbrl.models.OneDTransitionRewardModel.update_normalizer" title="mbrl.models.OneDTransitionRewardModel.update_normalizer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_normalizer()</span></code></a> before using the model. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
 <li><p><strong>learned_rewards</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the wrapper considers the last output of the model
 to correspond to rewards predictions, and will use it to construct training
 targets for the model and when returning model predictions. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
@@ -1127,14 +1128,14 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">None</s
 <li><p><strong>no_delta_list</strong> (<em>list</em><em>(</em><em>int</em><em>)</em><em>, </em><em>optional</em>) – if provided, represents a list of dimensions over
 which the model predicts the actual observation and not just a delta.</p></li>
 <li><p><strong>num_elites</strong> (<em>int</em><em>, </em><em>optional</em>) – if provided, only the best <code class="docutils literal notranslate"><span class="pre">num_elites</span></code> models according
-to validation score are used when calling <a class="reference internal" href="#mbrl.models.ProprioceptiveModel.predict" title="mbrl.models.ProprioceptiveModel.predict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">predict()</span></code></a>. Defaults to
+to validation score are used when calling <code class="xref py py-meth docutils literal notranslate"><span class="pre">predict()</span></code>. Defaults to
 <code class="docutils literal notranslate"><span class="pre">None</span></code> which means that all models will always be included in the elite set.</p></li>
 </ul>
 </dd>
 </dl>
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.eval_score">
-<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ProprioceptiveModel.eval_score" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.eval_score">
+<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.eval_score" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates the model score over a batch of transitions.</p>
 <p>This method constructs input and targets from the information in the batch,
 then calls <cite>self.model.eval_score()</cite> on them and returns the value.</p>
@@ -1152,14 +1153,14 @@ then calls <cite>self.model.eval_score()</cite> on them and returns the value.</
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.forward">
-<code class="sig-name descname">forward</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.ProprioceptiveModel.forward" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.forward">
+<code class="sig-name descname">forward</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.forward" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calls forward method of base model with the given input and args.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.get_output_and_targets">
-<code class="sig-name descname">get_output_and_targets</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.ProprioceptiveModel.get_output_and_targets" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.get_output_and_targets">
+<code class="sig-name descname">get_output_and_targets</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.get_output_and_targets" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the model output and the target tensors given a batch of transitions.</p>
 <p>This method constructs input and targets from the information in the batch,
 then calls <cite>self.model.forward()</cite> on them and returns the value.
@@ -1178,14 +1179,14 @@ No gradient information will be kept.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.load">
-<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">load_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ProprioceptiveModel.load" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.load">
+<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">load_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.load" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads the model from the given path.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.loss">
-<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ProprioceptiveModel.loss" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.loss">
+<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.loss" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates the model score over a batch of transitions.</p>
 <p>This method constructs input and targets from the information in the batch,
 then calls <cite>self.model.eval_score()</cite> on them and returns the value.</p>
@@ -1203,33 +1204,8 @@ then calls <cite>self.model.eval_score()</cite> on them and returns the value.</
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.predict">
-<code class="sig-name descname">predict</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">actions</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">sample</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.ProprioceptiveModel.predict" title="Permalink to this definition">¶</a></dt>
-<dd><p>Predicts next observations and rewards given observations and actions.</p>
-<p>This method generates a sample using <code class="docutils literal notranslate"><span class="pre">self.model.sample()</span></code>, then processes the
-output and return predicted observations and rewards.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>obs</strong> (<em>tensor</em>) – the input observations corresponding to o_t.</p></li>
-<li><p><strong>actions</strong> (<em>tensor</em>) – the input actions corresponding to a_t.</p></li>
-<li><p><strong>sample</strong> (<em>bool</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code> model predictions are sampled using gaussian
-model matching. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
-<li><p><strong>rng</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – random number generator for uncertainty propagation.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>predicted next_observation (o_{t+1}) and rewards (r_{t+1}).</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tuple of two tensors)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.reset">
-<code class="sig-name descname">reset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ProprioceptiveModel.reset" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.reset">
+<code class="sig-name descname">reset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.reset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calls reset on the underlying model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1249,36 +1225,38 @@ indices.</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.sample">
-<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ProprioceptiveModel.sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Samples an output of the dynamics model.</p>
-<p>For deterministic models this is equivalent to <a class="reference internal" href="#mbrl.models.ProprioceptiveModel.forward" title="mbrl.models.ProprioceptiveModel.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a>.</p>
+<dt id="mbrl.models.OneDTransitionRewardModel.sample">
+<code class="sig-name descname">sample</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">deterministic</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch._C.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Samples next observations and rewards from the underlying model.</p>
+<p>This wrapper assumes that the underlying model’s sample method returns a tuple
+with just one tensor, which concatenates next_observation and reward.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>x</strong> (<em>tensor</em><em> or </em><em>batch of transitions</em>) – the input to the model.</p></li>
+<li><p><strong>x</strong> (<em>transition</em>) – a batch of transitions.</p></li>
 <li><p><strong>deterministic</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the model returns a deterministic
 “sample” (e.g., the mean prediction). Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<li><p><strong>rng</strong> (<em>random number generator</em>) – a rng to use for sampling.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the sampled output.</p>
+<dd class="field-even"><p>predicted next_observation (o_{t+1}) and rewards (r_{t+1}).</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tensor)</p>
+<dd class="field-odd"><p>(tuple of two tensors)</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.save">
-<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">save_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ProprioceptiveModel.save" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">save_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves the model to the given path.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.update">
-<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">torch.optim.optimizer.Optimizer</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.ProprioceptiveModel.update" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.update">
+<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">torch.optim.optimizer.Optimizer</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.update" title="Permalink to this definition">¶</a></dt>
 <dd><p>Updates the model given a batch of transitions and an optimizer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1291,8 +1269,8 @@ indices.</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt id="mbrl.models.ProprioceptiveModel.update_normalizer">
-<code class="sig-name descname">update_normalizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ProprioceptiveModel.update_normalizer" title="Permalink to this definition">¶</a></dt>
+<dt id="mbrl.models.OneDTransitionRewardModel.update_normalizer">
+<code class="sig-name descname">update_normalizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.update_normalizer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Updates the normalizer statistics using the batch of transition data.</p>
 <p>The normalizer will compute mean and standard deviation the obs and action in
 the transition. If an observation processing function has been provided, it will
