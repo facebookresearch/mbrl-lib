@@ -82,7 +82,7 @@
               
             
             
-              <p class="caption"><span class="caption-text">Contents</span></p>
+              <p class="caption"><span class="caption-text">API Documentation</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Models module</a></li>
 <li class="toctree-l1"><a class="reference internal" href="planning.html">Planning module</a></li>
@@ -196,7 +196,10 @@ with negative log-likelihood.</p>
 <em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">BasicEnsemble</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>torch.device<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">member_cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.BasicEnsemble" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.model.Ensemble</span></code></p>
 <p>Implements an ensemble of bootstrapped models.</p>
-<p>This model is a basic implementation of the ensemble of bootstrapped models described in the
+<p>Note: This model is provided as an easy way to build ensembles of generic Models. For
+more optimized implementations, please check other subclasses of
+<a class="reference internal" href="#mbrl.models.Ensemble" title="mbrl.models.Ensemble"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Ensemble</span></code></a>, for example <a class="reference internal" href="#mbrl.models.GaussianMLP" title="mbrl.models.GaussianMLP"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.GaussianMLP</span></code></a>.</p>
+<p>This model is inspired by the ensemble of bootstrapped models described in the
 Chua et al., NeurIPS 2018 paper (PETS) <a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">https://arxiv.org/pdf/1805.12114.pdf</a>,
 and includes support for different uncertainty propagation options (see <a class="reference internal" href="#mbrl.models.BasicEnsemble.forward" title="mbrl.models.BasicEnsemble.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a>).
 The underlying model can be any subclass of <a class="reference internal" href="#mbrl.models.Model" title="mbrl.models.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code></a>, and the ensemble
@@ -635,7 +638,7 @@ sampling models independently for each input in the batch, we ensure that each
 model gets exactly the same number of samples (which are assigned randomly
 with equal probability), resulting in a smaller batch size which we use for the forward
 pass. If this is a concern, consider using <code class="docutils literal notranslate"><span class="pre">propagation=None</span></code>, and passing
-the output to <code class="xref py py-func docutils literal notranslate"><span class="pre">mbrl.util.math.propagate()</span></code>.</p>
+the output to <a class="reference internal" href="math.html#mbrl.util.math.propagate" title="mbrl.util.math.propagate"><code class="xref py py-func docutils literal notranslate"><span class="pre">mbrl.util.math.propagate()</span></code></a>.</p>
 </div>
 </dd></dl>
 
@@ -983,7 +986,7 @@ The done flag is computed using the termination_fn passed in the constructor.</p
 
 <dl class="py class">
 <dt id="mbrl.models.ModelTrainer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ModelTrainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">optim_lr</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0001</span></em>, <em class="sig-param"><span class="n">weight_decay</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1e-05</span></em>, <em class="sig-param"><span class="n">logger</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>mbrl.util.logger.Logger<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ModelTrainer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">ModelTrainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">optim_lr</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0001</span></em>, <em class="sig-param"><span class="n">weight_decay</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1e-05</span></em>, <em class="sig-param"><span class="n">logger</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="logging.html#mbrl.util.logger.Logger" title="mbrl.util.logger.Logger">mbrl.util.logger.Logger</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.ModelTrainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Trainer for dynamics models.</p>
 <dl class="field-list simple">
@@ -998,7 +1001,7 @@ The done flag is computed using the termination_fn passed in the constructor.</p
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.ModelTrainer.evaluate">
-<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset</span><span class="p">:</span> <span class="n">mbrl.util.replay_buffer.TransitionIterator</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates the model on the validation dataset.</p>
 <p>Iterates over the dataset, one batch at a time, and calls
 <a class="reference internal" href="#mbrl.models.Model.eval_score" title="mbrl.models.Model.eval_score"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbrl.models.Model.eval_score()</span></code></a> to compute the model score
@@ -1046,7 +1049,7 @@ of the stored model, otherwise returns <code class="docutils literal notranslate
 
 <dl class="py method">
 <dt id="mbrl.models.ModelTrainer.train">
-<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset_train</span><span class="p">:</span> <span class="n">mbrl.util.replay_buffer.TransitionIterator</span></em>, <em class="sig-param"><span class="n">dataset_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>mbrl.util.replay_buffer.TransitionIterator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_epochs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">patience</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>List<span class="p">[</span>float<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>float<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelTrainer.train" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset_train</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a></span></em>, <em class="sig-param"><span class="n">dataset_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_epochs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">patience</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>List<span class="p">[</span>float<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>float<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelTrainer.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Trains the model for some number of epochs.</p>
 <p>This method iterates over the stored train dataset, one batch of transitions at a time,
 updates the model.</p>
@@ -1067,16 +1070,14 @@ Default is <code class="docutils literal notranslate"><span class="pre">None</sp
 training will stop after <code class="docutils literal notranslate"><span class="pre">patience</span></code> number of epochs without improvement.</p></li>
 <li><p><strong>callback</strong> (<em>callable</em><em>, </em><em>optional</em>) – <p>if provided, this function will be called after
 every training epoch with the following positional arguments:</p>
-<blockquote>
-<div><ul>
-<li><p>the model that’s being trained</p></li>
-<li><p>total number of calls made to <code class="docutils literal notranslate"><span class="pre">trainer.train()</span></code></p></li>
-<li><p>current epoch</p></li>
-<li><p>training loss</p></li>
-<li><p>validation score (for ensembles, factored per member)</p></li>
-<li><p>best validation score so far</p></li>
-</ul>
-</div></blockquote>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>- the model that&#39;s being trained
+- total number of calls made to ``trainer.train()``
+- current epoch
+- training loss
+- validation score (for ensembles, factored per member)
+- best validation score so far
+</pre></div>
+</div>
 </p></li>
 </ul>
 </dd>
