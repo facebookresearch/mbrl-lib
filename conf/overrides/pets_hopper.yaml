@@ -1,0 +1,21 @@
+# @package _group_
+env: "gym___Hopper-v2"
+term_fn: "hopper"
+learned_rewards: true
+num_steps: 125000
+trial_length: 1000
+
+num_elites: 5
+model_lr: 2e-4
+model_wd: 3e-5
+model_batch_size: 32
+validation_ratio: 0
+freq_train_model: 250
+patience: 25
+num_epochs_train_model: 25
+
+planning_horizon: 30
+cem_num_iters: 5
+cem_elite_ratio: 0.1
+cem_population_size: 350
+cem_alpha: 0.1

@@ -1,0 +1,13 @@
+# @package _group_
+model:
+  _target_: mbrl.models.GaussianMLP
+  device: ${device}
+  num_layers: 4
+  in_size: ???
+  out_size: ???
+  ensemble_size: 7
+  hid_size: 200
+  use_silu: true
+  deterministic: false
+  propagation_method: random_model
+  learn_logvar_bounds: false  # so far this works better

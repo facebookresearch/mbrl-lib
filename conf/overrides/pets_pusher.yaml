@@ -1,0 +1,21 @@
+# @package _group_
+env: "pets_pusher"
+term_fn: "no_termination"
+learned_rewards: true
+trial_length: 150
+num_steps: 15000
+
+num_elites: 5
+model_lr: 1e-5
+model_wd: 5e-4
+model_batch_size: 32
+validation_ratio: 0
+freq_train_model: 150
+patience: 25
+num_epochs_train_model: 25
+
+planning_horizon: 25
+cem_num_iters: 5
+cem_elite_ratio: 0.1
+cem_population_size: 350
+cem_alpha: 0.1
