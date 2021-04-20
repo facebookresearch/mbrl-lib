@@ -147,7 +147,7 @@ We are planning to extend this in the future; if you have useful suggestions
 don't hesitate to raise an issue or submit a pull request!
 
 ## Documentation 
-Please check out our **[documentation](https://luisenp.github.io/mbrl-lib/)** 
+Please check out our **[documentation](https://facebookresearch.github.io/mbrl-lib/)** 
 and don't hesitate to raise issues or contribute if anything is unclear!
 
 ## License
