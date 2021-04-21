@@ -11,6 +11,8 @@ Model-Based Reinforcement Learning algorithms. It provides easily interchangeabl
 modeling and planning components, and a set of utility functions that allow writing
 model-based RL algorithms with only a few lines of code. 
 
+See also our companion [paper](https://arxiv.org/abs/2104.10159). 
+
 ## Getting Started
 
 ### Installation
