@@ -155,3 +155,16 @@ and don't hesitate to raise issues or contribute if anything is unclear!
 additional details about it. See also our 
 [Terms of Use](https://opensource.facebook.com/legal/terms) and 
 [Privacy Policy](https://opensource.facebook.com/legal/privacy).
+
+## Citing
+If you use this project in your research, please cite:
+
+```BibTeX
+@Article{Pineda2021MBRL,
+  author  = {Luis Pineda and Brandon Amos and Amy Zhang and Nathan O. Lambert and Roberto Calandra},
+  journal = {Arxiv},
+  title   = {MBRL-Lib: A Modular Library for Model-based Reinforcement Learning},
+  year    = {2021},
+  url     = {https://arxiv.org/abs/2104.10159},
+}
+```
