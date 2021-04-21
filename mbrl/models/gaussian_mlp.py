@@ -2,6 +2,9 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import pathlib
+import pickle
+import warnings
 from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -62,6 +65,9 @@ class GaussianMLP(Ensemble):
         learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
             they will be constant. Defaults to ``False``.
     """
+
+    # TODO integrate this with the checkpoint in the next version
+    _ELITE_FNAME = "elite_models.pkl"
 
     def __init__(
         self,
@@ -375,3 +381,31 @@ class GaussianMLP(Ensemble):
     def set_elite(self, elite_indices: Sequence[int]):
         if len(elite_indices) != self.num_members:
             self.elite_models = list(elite_indices)
+
+    def save(self, path: Union[str, pathlib.Path]):
+        """Saves the model to the given path. """
+        super().save(path)
+        path = pathlib.Path(path)
+        elite_path = path / self._ELITE_FNAME
+        if self.elite_models:
+            warnings.warn(
+                "Future versions of GaussianMLP will save elite models in the same "
+                "checkpoint file as the model weights."
+            )
+            with open(elite_path, "wb") as f:
+                pickle.dump(self.elite_models, f)
+
+    def load(self, path: Union[str, pathlib.Path]):
+        """Loads the model from the given path. """
+        super().load(path)
+        path = pathlib.Path(path)
+        elite_path = path / self._ELITE_FNAME
+        if pathlib.Path.is_file(elite_path):
+            warnings.warn(
+                "Future versions of GaussianMLP will load elite models from the same "
+                "checkpoint file as the model weights."
+            )
+            with open(elite_path, "rb") as f:
+                self.elite_models = pickle.load(f)
+        else:
+            warnings.warn("No elite model information found in model load directory.")
