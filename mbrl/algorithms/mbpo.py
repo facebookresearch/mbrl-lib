@@ -207,7 +207,7 @@ def train(
                     model_trainer,
                     cfg.overrides,
                     replay_buffer,
-                    work_dir,
+                    work_dir=work_dir,
                 )
 
                 # --------- Rollout new model and store imagined trajectories --------

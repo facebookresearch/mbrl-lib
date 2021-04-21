@@ -195,7 +195,7 @@ def train_model_and_save_model_and_data(
     model_trainer: mbrl.models.ModelTrainer,
     cfg: omegaconf.DictConfig,
     replay_buffer: ReplayBuffer,
-    work_dir: Union[str, pathlib.Path],
+    work_dir: Optional[Union[str, pathlib.Path]] = None,
     callback: Optional[Callable] = None,
 ):
     """Convenience function for training a model and saving results.
@@ -215,7 +215,8 @@ def train_model_and_save_model_and_data(
                 -patience (int, optional)
                 -bootstrap_permutes (bool, optional)
         replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer to use.
-        work_dir (str or pathlib.Path): directory to save model and buffer to.
+        work_dir (str or pathlib.Path, optional): if given, a directory to save
+            model and buffer to.
         callback (callable, optional): if provided, this function will be called after
             every training epoch. See :class:`mbrl.models.ModelTrainer` for signature.
     """
