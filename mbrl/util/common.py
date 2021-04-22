@@ -211,7 +211,7 @@ def train_model_and_save_model_and_data(
             must contain the following fields::
                 -model_batch_size (int)
                 -validation_ratio (float)
-                -num_epochs (int, optional)
+                -num_epochs_train_model (int, optional)
                 -patience (int, optional)
                 -bootstrap_permutes (bool, optional)
         replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer to use.
@@ -237,8 +237,9 @@ def train_model_and_save_model_and_data(
         patience=cfg.get("patience", 1),
         callback=callback,
     )
-    model.save(str(work_dir))
-    replay_buffer.save(work_dir)
+    if work_dir is not None:
+        model.save(str(work_dir))
+        replay_buffer.save(work_dir)
 
 
 def rollout_model_env(
