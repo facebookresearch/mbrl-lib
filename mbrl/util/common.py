@@ -357,6 +357,7 @@ def rollout_agent_trajectories(
             total_reward += reward
             step += 1
             if not collect_full_trajectories and step == steps_or_trials_to_collect:
+                total_rewards.append(total_reward)
                 return total_rewards
             if trial_length and step % trial_length == 0:
                 if collect_full_trajectories and not done and replay_buffer is not None:
