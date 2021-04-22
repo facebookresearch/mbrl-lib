@@ -68,7 +68,7 @@ class ModelTrainer:
         dataset_train: TransitionIterator,
         dataset_val: Optional[TransitionIterator] = None,
         num_epochs: Optional[int] = None,
-        patience: Optional[int] = 1,
+        patience: Optional[int] = None,
         callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
@@ -157,7 +157,7 @@ class ModelTrainer:
                     best_val_score,
                 )
 
-            if epochs_since_update >= patience:
+            if patience and epochs_since_update >= patience:
                 break
 
         # saving the best models:
