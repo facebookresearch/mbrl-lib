@@ -47,6 +47,7 @@ _CFG_DICT = {
         "term_fn": "no_termination",
         "model_batch_size": 32,
         "validation_ratio": 0.1,
+        "num_elites": 5,
     },
     "device": "cuda:0" if torch.cuda.is_available() else "cpu",
 }
@@ -84,6 +85,7 @@ _MBPO_CFG = OmegaConf.create(_MBPO_CFG_DICT)
 
 # Create a model to train and run then save to directory
 one_dim_model = mbrl.util.common.create_one_dim_tr_model(_CFG, _OBS_SHAPE, _ACT_SHAPE)
+one_dim_model.set_elite(range(_CFG["overrides"]["num_elites"]))
 one_dim_model.save(_DIR.name)
 
 # Create replay buffers and save to directory with some data

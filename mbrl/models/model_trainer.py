@@ -68,7 +68,7 @@ class ModelTrainer:
         dataset_train: TransitionIterator,
         dataset_val: Optional[TransitionIterator] = None,
         num_epochs: Optional[int] = None,
-        patience: Optional[int] = 1,
+        patience: Optional[int] = None,
         callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
@@ -92,7 +92,8 @@ class ModelTrainer:
             patience (int, optional): if provided, the patience to use for training. That is,
                 training will stop after ``patience`` number of epochs without improvement.
             callback (callable, optional): if provided, this function will be called after
-                every training epoch with the following positional arguments:
+                every training epoch with the following positional arguments::
+
                     - the model that's being trained
                     - total number of calls made to ``trainer.train()``
                     - current epoch
@@ -156,7 +157,7 @@ class ModelTrainer:
                     best_val_score,
                 )
 
-            if epochs_since_update >= patience:
+            if patience and epochs_since_update >= patience:
                 break
 
         # saving the best models:

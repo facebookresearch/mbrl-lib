@@ -16,7 +16,11 @@ from .model import Ensemble
 class BasicEnsemble(Ensemble):
     """Implements an ensemble of bootstrapped models.
 
-    This model is a basic implementation of the ensemble of bootstrapped models described in the
+    Note: This model is provided as an easy way to build ensembles of generic Models. For
+    more optimized implementations, please check other subclasses of
+    :class:`mbrl.models.Ensemble`, for example :class:`mbrl.models.GaussianMLP`.
+
+    This model is inspired by the ensemble of bootstrapped models described in the
     Chua et al., NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf,
     and includes support for different uncertainty propagation options (see :meth:`forward`).
     The underlying model can be any subclass of :class:`mbrl.models.Model`, and the ensemble

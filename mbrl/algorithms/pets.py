@@ -100,7 +100,7 @@ def train(
                     model_trainer,
                     cfg.overrides,
                     replay_buffer,
-                    work_dir,
+                    work_dir=work_dir,
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---
