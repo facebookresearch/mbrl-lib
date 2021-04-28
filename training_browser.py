@@ -10,12 +10,12 @@ from scipy import stats
 import pandas as pd
 
 
-# SOURCE = 'results.csv'
-# XCOL = 'env_step'
-# YCOL = 'episode_reward'
-SOURCE = 'model_train.csv'
-XCOL = 'step'
-YCOL = 'model_best_val_score'
+SOURCE = 'results.csv'
+XCOL = 'env_step'
+YCOL = 'episode_reward'
+# SOURCE = 'model_train.csv'
+# XCOL = 'step'
+# YCOL = 'model_best_val_score'
 
 
 class ExperimentsModel(QAbstractTableModel):
@@ -128,6 +128,7 @@ class BasicTrainingResultsWindow(QMainWindow):
             self.chart.addAxis(yAxis, Qt.AlignLeft)
             for series in self.chart.series():
                 series.attachAxis(xAxis)
+                series.attachAxis(yAxis)
                 
 
 if __name__ == '__main__':
