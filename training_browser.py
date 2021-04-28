@@ -3,11 +3,13 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtChart import *
 
+import os
 import sys
 import glob
 import numpy as np
 from scipy import stats
 import pandas as pd
+from argparse import ArgumentParser
 
 
 SOURCE = 'results.csv'
@@ -46,14 +48,15 @@ class ExperimentsModel(QAbstractTableModel):
 
 
 class BasicTrainingResultsWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, experiment_root):
         super(BasicTrainingResultsWindow, self).__init__()
 
-        self.experiment_root = QDir.currentPath() + '/exp/'
-        self.experiment_results = glob.glob(self.experiment_root + '**/{}'.format(SOURCE), recursive=True)
+        if experiment_root[-1] != '/':
+            experiment_root = experiment_root + '/'
+        self.experiment_results = glob.glob(experiment_root + '**/{}'.format(SOURCE), recursive=True)
         self.experiment_names = []
         for path in self.experiment_results:
-            name = path.replace(self.experiment_root, '').replace('/{}'.format(SOURCE), '')
+            name = path.replace(experiment_root, '').replace('/{}'.format(SOURCE), '')
             name = name[:-4] + ':' + name[-4:-2] + ':' + name[-2:]
             self.experiment_names.append(name)
 
@@ -121,7 +124,9 @@ class BasicTrainingResultsWindow(QMainWindow):
             xAxis = QValueAxis()
             xAxis.setMin(minX)
             xAxis.setMax(maxX)
-            yAxis = QLogValueAxis() if self.logYAxisCheckbox.checkState() else QValueAxis()
+
+            use_log = (minY > 0.0) and self.logYAxisCheckbox.checkState()
+            yAxis = QLogValueAxis() if use_log else QValueAxis()
             yAxis.setMin(minY)
             yAxis.setMax(maxY)
             self.chart.addAxis(xAxis, Qt.AlignBottom)
@@ -132,9 +137,18 @@ class BasicTrainingResultsWindow(QMainWindow):
                 
 
 if __name__ == '__main__':
+    argparser = ArgumentParser(description='Visualize training results')
+    argparser.add_argument('--experiments', type=str, default=QDir.currentPath() + '/exp/',
+                        help='The path to the experiments folder')
+    args = argparser.parse_args()
+
+    if not os.path.exists(args.experiments):
+        print('Path ' + args.experiments + ' does not exist.')
+        exit(-1)
+
     # create the application and the main window
     app = QApplication(sys.argv)
-    window = BasicTrainingResultsWindow()
+    window = BasicTrainingResultsWindow(args.experiments)
 
     # run
     window.showMaximized()
