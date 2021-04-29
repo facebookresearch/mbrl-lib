@@ -54,9 +54,9 @@ class ModelEnv:
         self._propagation_method: Optional[str] = None
         self._model_indices = None
         if generator:
-            self._rng = torch.Generator(device=self.device)
-        else:
             self._rng = generator
+        else:
+            self._rng = torch.Generator(device=self.device)
         self._return_as_np = True
 
     def reset(
