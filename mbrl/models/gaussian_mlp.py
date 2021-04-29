@@ -383,7 +383,7 @@ class GaussianMLP(Ensemble):
             self.elite_models = list(elite_indices)
 
     def save(self, path: Union[str, pathlib.Path]):
-        """Saves the model to the given path. """
+        """Saves the model to the given path."""
         super().save(path)
         path = pathlib.Path(path)
         elite_path = path / self._ELITE_FNAME
@@ -396,7 +396,7 @@ class GaussianMLP(Ensemble):
                 pickle.dump(self.elite_models, f)
 
     def load(self, path: Union[str, pathlib.Path]):
-        """Loads the model from the given path. """
+        """Loads the model from the given path."""
         super().load(path)
         path = pathlib.Path(path)
         elite_path = path / self._ELITE_FNAME
