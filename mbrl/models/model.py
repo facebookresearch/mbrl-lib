@@ -169,11 +169,11 @@ class Model(nn.Module, abc.ABC):
         return None
 
     def save(self, path: Union[str, pathlib.Path]):
-        """Saves the model to the given path. """
+        """Saves the model to the given path."""
         torch.save(self.state_dict(), path)
 
     def load(self, path: Union[str, pathlib.Path]):
-        """Loads the model from the given path. """
+        """Loads the model from the given path."""
         self.load_state_dict(torch.load(path))
 
 
