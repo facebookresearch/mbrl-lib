@@ -10,6 +10,7 @@ import numpy as np
 from scipy import stats
 import pandas as pd
 from argparse import ArgumentParser
+import yaml
 
 
 SOURCE = 'results.csv'
@@ -26,14 +27,21 @@ class ExperimentsModel(QAbstractTableModel):
     """
     def __init__(self, data, parent=None):
         QAbstractTableModel.__init__(self, parent)
-        self.data = [path.split('/') for path in data]
-        self._headers = ['Algorithm', 'Sub-experiment', 'Environment', 'Date', 'Time']
+        self.data = []
+        for path in [path.replace('/{}'.format(SOURCE), '/.hydra/config.yaml') for path in data]:
+            config = yaml.load(open(path, 'r'), Loader=yaml.FullLoader)
+            entry = [config['algorithm']['name']]
+            entry = entry + [config['experiment']]
+            entry = entry + [config['env'] if 'env' in config else config['overrides']['env']]
+            entry = entry + [config['seed']]
+            self.data.append(entry)
+        self._headers = ['Algorithm', 'Experiment', 'Environment', 'Seed']
 
     def rowCount(self, parent=None):
         return len(self.data)
 
     def columnCount(self, parent=None):
-        return len(self.data[0])
+        return len(self.data[0]) if self.rowCount(parent) > 0 else 0
 
     def data(self, index, role=Qt.DisplayRole):
         if index.isValid():
@@ -57,7 +65,6 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.experiment_names = []
         for path in self.experiment_results:
             name = path.replace(experiment_root, '').replace('/{}'.format(SOURCE), '')
-            name = name[:-4] + ':' + name[-4:-2] + ':' + name[-2:]
             self.experiment_names.append(name)
 
         self.chart = QChart()
@@ -79,7 +86,7 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.addToolBar(self.optionsToolBar)
 
         self.resultsWidget = QDockWidget('Experiments', self)
-        self.experimentTable = ExperimentsModel(self.experiment_names, self)
+        self.experimentTable = ExperimentsModel(self.experiment_results, self)
         self.tableView = QTableView()
         self.tableView.setModel(self.experimentTable)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
