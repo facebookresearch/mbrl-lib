@@ -130,7 +130,7 @@ def test_gaussian_mlp_ensemble_fixed_model_propagation():
     num_reps = 200
     batch = _OUTPUT_FACTOR * torch.arange(batch_size).view(-1, 1)
     history = ["" for _ in range(batch_size)]
-    rng = torch.Generator()
+    rng = torch.Generator(device=_DEVICE)
     # This creates propagation indices to use for all runs
     reset_output = model.reset(batch, rng)
     with torch.no_grad():
@@ -213,7 +213,7 @@ def get_mock_env(propagation_method):
     for i in range(num_members):
         ensemble.members[i].value = member_incs[i]
 
-    rng = torch.Generator()
+    rng = torch.Generator(device=_DEVICE)
     model_env = mbrl.models.ModelEnv(
         MockEnv(), dynamics_model, mock_term_fn, generator=rng
     )

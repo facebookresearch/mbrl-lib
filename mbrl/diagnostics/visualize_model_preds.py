@@ -65,7 +65,7 @@ class Visualizer:
             self.dynamics_model,
             term_fn,
             reward_fn,
-            generator=torch.Generator(),
+            generator=torch.Generator(self.dynamics_model.device),
         )
 
         self.agent: mbrl.planning.Agent
