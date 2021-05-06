@@ -6,7 +6,7 @@
 
 # MBRL-Lib
 
-``mbrl-lib`` is a toolbox for facilitating development of 
+``mbrl`` is a toolbox for facilitating development of 
 Model-Based Reinforcement Learning algorithms. It provides easily interchangeable 
 modeling and planning components, and a set of utility functions that allow writing
 model-based RL algorithms with only a few lines of code. 
@@ -19,7 +19,7 @@ See also our companion [paper](https://arxiv.org/abs/2104.10159).
 
 #### Standard Installation
 
-``mbrl-lib`` requires Python 3.7+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
+``mbrl`` requires Python 3.7+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
 To install the latest stable version, run
 
     pip install mbrl
@@ -148,7 +148,7 @@ Please check out our **[documentation](https://facebookresearch.github.io/mbrl-l
 and don't hesitate to raise issues or contribute if anything is unclear!
 
 ## License
-`mbrl-lib` is released under the MIT license. See [LICENSE](LICENSE) for 
+`mbrl` is released under the MIT license. See [LICENSE](LICENSE) for 
 additional details about it. See also our 
 [Terms of Use](https://opensource.facebook.com/legal/terms) and 
 [Privacy Policy](https://opensource.facebook.com/legal/privacy).

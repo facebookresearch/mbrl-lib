@@ -1,6 +1,6 @@
 Documentation for mbrl-lib
 ========================================
-``mbrl-lib`` is library to facilitate research on Model-Based Reinforcement Learning.
+``mbrl`` is library to facilitate research on Model-Based Reinforcement Learning.
 
 Getting started
 ===============
@@ -10,7 +10,7 @@ Installation
 
 Standard Installation
 ^^^^^^^^^^^^^^^^^^^^^
-``mbrl-lib`` requires Python 3.7+ and `PyTorch (>= 1.7) <https://pytorch.org/>`_.
+``mbrl`` requires Python 3.7+ and `PyTorch (>= 1.7) <https://pytorch.org/>`_.
 
 To install the latest stable version, run
 
