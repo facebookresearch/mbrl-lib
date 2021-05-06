@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>Planning module &mdash; MBRL-Lib  documentation</title>
   
@@ -16,7 +16,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -51,7 +54,7 @@
           
 
           
-            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MBRL-Lib
+            <a href="index.html" class="icon icon-home"> MBRL-Lib
           
 
           
@@ -130,6 +133,8 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -141,7 +146,7 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="_sources/planning.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -183,12 +188,12 @@
 <span id="planning-module"></span><h1>Planning module<a class="headerlink" href="#module-mbrl.planning" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
 <dt id="mbrl.planning.Agent">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">Agent</code><a class="headerlink" href="#mbrl.planning.Agent" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">Agent</span></code><a class="headerlink" href="#mbrl.planning.Agent" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Abstract class for all agents.</p>
 <dl class="py method">
 <dt id="mbrl.planning.Agent.act">
-<em class="property">abstract </em><code class="sig-name descname">act</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">_kwargs</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#mbrl.planning.Agent.act" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">act</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">numpy.ndarray</span><a class="headerlink" href="#mbrl.planning.Agent.act" title="Permalink to this definition">¶</a></dt>
 <dd><p>Issues an action given an observation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -205,7 +210,7 @@
 
 <dl class="py method">
 <dt id="mbrl.planning.Agent.plan">
-<code class="sig-name descname">plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">_kwargs</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#mbrl.planning.Agent.plan" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">plan</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">numpy.ndarray</span><a class="headerlink" href="#mbrl.planning.Agent.plan" title="Permalink to this definition">¶</a></dt>
 <dd><p>Issues a sequence of actions given an observation.</p>
 <p>Unless overridden by a child class, this will be equivalent to <a class="reference internal" href="#mbrl.planning.Agent.act" title="mbrl.planning.Agent.act"><code class="xref py py-meth docutils literal notranslate"><span class="pre">act()</span></code></a>.</p>
 <dl class="field-list simple">
@@ -223,7 +228,7 @@
 
 <dl class="py method">
 <dt id="mbrl.planning.Agent.reset">
-<code class="sig-name descname">reset</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.Agent.reset" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">reset</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.Agent.reset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resets any internal state of the agent.</p>
 </dd></dl>
 
@@ -231,7 +236,7 @@
 
 <dl class="py class">
 <dt id="mbrl.planning.CEMOptimizer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">CEMOptimizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_iterations</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">elite_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">population_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">lower_bound</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">upper_bound</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em>, <em class="sig-param"><span class="n">return_mean_elites</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.CEMOptimizer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">CEMOptimizer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_iterations</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elite_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">population_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower_bound</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper_bound</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.device</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_mean_elites</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.CEMOptimizer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.trajectory_opt.Optimizer</span></code></p>
 <p>Implements the Cross-Entropy Method optimization algorithm.</p>
 <p>A good description of CEM [1] can be found at <a class="reference external" href="https://arxiv.org/pdf/2008.06389.pdf">https://arxiv.org/pdf/2008.06389.pdf</a>. This
@@ -260,7 +265,7 @@ iteration. Otherwise, it returns the max solution found over all iterations.</p>
 optimization”. Methodology and Computing in Applied Probability, 1999.</p>
 <dl class="py method">
 <dt id="mbrl.planning.CEMOptimizer.optimize">
-<code class="sig-name descname">optimize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj_fun</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">x0</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">, </span>int<span class="p">]</span><span class="p">, </span>None<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.planning.CEMOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">optimize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj_fun</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x0</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">torch.Tensor</span><a class="headerlink" href="#mbrl.planning.CEMOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Runs the optimization using CEM.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -288,7 +293,7 @@ purposes.</p></li>
 
 <dl class="py class">
 <dt id="mbrl.planning.RandomAgent">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">RandomAgent</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.RandomAgent" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">RandomAgent</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.core.Env</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.RandomAgent" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.core.Agent</span></code></p>
 <p>An agent that samples action from the environments action space.</p>
 <dl class="field-list simple">
@@ -298,7 +303,7 @@ purposes.</p></li>
 </dl>
 <dl class="py method">
 <dt id="mbrl.planning.RandomAgent.act">
-<code class="sig-name descname">act</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">_args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">_kwargs</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#mbrl.planning.RandomAgent.act" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">act</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">_args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">numpy.ndarray</span><a class="headerlink" href="#mbrl.planning.RandomAgent.act" title="Permalink to this definition">¶</a></dt>
 <dd><p>Issues an action given an observation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -314,7 +319,7 @@ purposes.</p></li>
 
 <dl class="py class">
 <dt id="mbrl.planning.TrajectoryOptimizer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">TrajectoryOptimizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">optimizer_cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">action_lb</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">action_ub</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">planning_horizon</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">replan_freq</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">keep_last_solution</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">TrajectoryOptimizer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer_cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">omegaconf.dictconfig.DictConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action_lb</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action_ub</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">planning_horizon</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replan_freq</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_last_solution</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class for using generic optimizers on trajectory optimization problems.</p>
 <p>This is a convenience class that sets up optimization problem for trajectories, given only
@@ -344,7 +349,7 @@ solution. Defaults to <code class="docutils literal notranslate"><span class="pr
 </dl>
 <dl class="py method">
 <dt id="mbrl.planning.TrajectoryOptimizer.optimize">
-<code class="sig-name descname">optimize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trajectory_eval_fn</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">optimize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trajectory_eval_fn</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">numpy.ndarray</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer.optimize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Runs the trajectory optimization.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -369,7 +374,7 @@ to pass to the optimizer.</p></li>
 
 <dl class="py method">
 <dt id="mbrl.planning.TrajectoryOptimizer.reset">
-<code class="sig-name descname">reset</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer.reset" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">reset</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizer.reset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resets the previous solution cache to the initial solution.</p>
 </dd></dl>
 
@@ -377,7 +382,7 @@ to pass to the optimizer.</p></li>
 
 <dl class="py class">
 <dt id="mbrl.planning.TrajectoryOptimizerAgent">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">TrajectoryOptimizerAgent</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">optimizer_cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">action_lb</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">action_ub</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">planning_horizon</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">replan_freq</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">TrajectoryOptimizerAgent</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer_cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">omegaconf.dictconfig.DictConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action_lb</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action_ub</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">planning_horizon</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replan_freq</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.core.Agent</span></code></p>
 <p>Agent that performs trajectory optimization on a given objective function for each action.</p>
 <p>This class uses an internal <a class="reference internal" href="#mbrl.planning.TrajectoryOptimizer" title="mbrl.planning.TrajectoryOptimizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrajectoryOptimizer</span></code></a> object to generate
@@ -406,7 +411,7 @@ agent with an agent of another type via config-only changes).</p>
 </div>
 <dl class="py method">
 <dt id="mbrl.planning.TrajectoryOptimizerAgent.act">
-<code class="sig-name descname">act</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">_kwargs</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.act" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">act</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">numpy.ndarray</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.act" title="Permalink to this definition">¶</a></dt>
 <dd><p>Issues an action given an observation.</p>
 <p>This method optimizes a full sequence of length <code class="docutils literal notranslate"><span class="pre">self.planning_horizon</span></code> and returns
 the first action in the sequence. If <code class="docutils literal notranslate"><span class="pre">self.replan_freq</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>, future calls will use
@@ -427,7 +432,7 @@ After that, the method will plan again, and repeat this process.</p>
 
 <dl class="py method">
 <dt id="mbrl.planning.TrajectoryOptimizerAgent.plan">
-<code class="sig-name descname">plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">_kwargs</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.plan" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">plan</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">numpy.ndarray</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.plan" title="Permalink to this definition">¶</a></dt>
 <dd><p>Issues a sequence of actions given an observation.</p>
 <p>Returns s sequence of length self.planning_horizon.</p>
 <dl class="field-list simple">
@@ -445,13 +450,13 @@ After that, the method will plan again, and repeat this process.</p>
 
 <dl class="py method">
 <dt id="mbrl.planning.TrajectoryOptimizerAgent.reset">
-<code class="sig-name descname">reset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">planning_horizon</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.reset" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">reset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">planning_horizon</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.reset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resets the underlying trajectory optimizer.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="mbrl.planning.TrajectoryOptimizerAgent.set_trajectory_eval_fn">
-<code class="sig-name descname">set_trajectory_eval_fn</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trajectory_eval_fn</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>Union<span class="p">[</span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.set_trajectory_eval_fn" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_trajectory_eval_fn</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trajectory_eval_fn</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.TrajectoryOptimizerAgent.set_trajectory_eval_fn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sets the trajectory evaluation function.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -465,7 +470,7 @@ After that, the method will plan again, and repeat this process.</p>
 
 <dl class="py function">
 <dt id="mbrl.planning.complete_agent_cfg">
-<code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">complete_agent_cfg</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>gym.core.Env<span class="p">, </span>mbrl.models.model_env.ModelEnv<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">agent_cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.complete_agent_cfg" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">complete_agent_cfg</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">gym.core.Env</span><span class="p"><span class="pre">,</span> </span><span class="pre">mbrl.models.model_env.ModelEnv</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent_cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">omegaconf.dictconfig.DictConfig</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.planning.complete_agent_cfg" title="Permalink to this definition">¶</a></dt>
 <dd><p>Completes an agent’s configuration given information from the environment.</p>
 <p>The goal of this function is to completed information about state and action shapes and ranges,
 without requiring the user to manually enter this into the Omegaconf configuration object.</p>
@@ -488,7 +493,7 @@ without requiring the user to manually enter this into the Omegaconf configurati
 
 <dl class="py function">
 <dt id="mbrl.planning.create_trajectory_optim_agent_for_model">
-<code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">create_trajectory_optim_agent_for_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_env</span><span class="p">:</span> <span class="n">mbrl.models.model_env.ModelEnv</span></em>, <em class="sig-param"><span class="n">agent_cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">num_particles</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em><span class="sig-paren">)</span> &#x2192; mbrl.planning.trajectory_opt.TrajectoryOptimizerAgent<a class="headerlink" href="#mbrl.planning.create_trajectory_optim_agent_for_model" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">create_trajectory_optim_agent_for_model</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mbrl.models.model_env.ModelEnv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent_cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">omegaconf.dictconfig.DictConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_particles</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">mbrl.planning.trajectory_opt.TrajectoryOptimizerAgent</span><a class="headerlink" href="#mbrl.planning.create_trajectory_optim_agent_for_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Utility function for creating a trajectory optimizer agent for a model environment.</p>
 <p>This is a convenience function for creating a <a class="reference internal" href="#mbrl.planning.TrajectoryOptimizerAgent" title="mbrl.planning.TrajectoryOptimizerAgent"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrajectoryOptimizerAgent</span></code></a>,
 using <a class="reference internal" href="models.html#mbrl.models.ModelEnv.evaluate_action_sequences" title="mbrl.models.ModelEnv.evaluate_action_sequences"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbrl.models.ModelEnv.evaluate_action_sequences()</span></code></a> as its objective function.</p>
@@ -512,7 +517,7 @@ total rewards.</p></li>
 
 <dl class="py function">
 <dt id="mbrl.planning.load_agent">
-<code class="sig-prename descclassname">mbrl.planning.</code><code class="sig-name descname">load_agent</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">agent_path</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em><span class="sig-paren">)</span> &#x2192; mbrl.planning.core.Agent<a class="headerlink" href="#mbrl.planning.load_agent" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.planning.</span></code><code class="sig-name descname"><span class="pre">load_agent</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.core.Env</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">mbrl.planning.core.Agent</span><a class="headerlink" href="#mbrl.planning.load_agent" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads an agent from a Hydra config file at the given path.</p>
 <p>For agent of type “pytorch_sac.agent.sac.SACAgent”, the directory
 must contain the following files:</p>
@@ -547,37 +552,29 @@ the agent’s configuration).</p></li>
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="math.html" class="btn btn-neutral float-right" title="Math utilities module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="models.html" class="btn btn-neutral float-left" title="Models module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="math.html" class="btn btn-neutral float-right" title="Math utilities module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="models.html" class="btn btn-neutral float-left" title="Models module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; Copyright 2021, Facebook AI Research
+        &#169; Copyright 2021, Facebook AI Research.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 

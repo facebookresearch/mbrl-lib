@@ -1,6 +1,6 @@
 Documentation for mbrl-lib
 ========================================
-``mbrl-lib`` is library to facilitate research on Model-Based Reinforcement Learning.
+``mbrl`` is library to facilitate research on Model-Based Reinforcement Learning.
 
 Getting started
 ===============
@@ -8,52 +8,33 @@ Getting started
 Installation
 ------------
 
-``mbrl-lib`` is a Python 3.7+ library. To install it, clone the repository,
+Standard Installation
+^^^^^^^^^^^^^^^^^^^^^
+``mbrl`` requires Python 3.7+ and `PyTorch (>= 1.7) <https://pytorch.org/>`_.
+
+To install the latest stable version, run
+
+.. code-block:: bash
+
+    pip install mbrl
+
+Development Installation
+^^^^^^^^^^^^^^^^^^^^^^^^
+If you are interested in modifying parts of the library, you can clone the repository
+and set up a development environment, as follows
 
 .. code-block:: bash
 
     git clone https://github.com/facebookresearch/mbrl-lib.git
-
-then run
-
-.. code-block:: bash
-
-    cd mbrl-lib
-    pip install -e .
-
-If you also want the developer tools for contributing, run
-
-.. code-block:: bash
-
     pip install -e ".[dev]"
 
-Finally, make sure your Python environment has
-`PyTorch (>= 1.7) <https://pytorch.org/>`_ installed with the appropriate CUDA configuration
-for your system.
-
-
-To test your installation, run
+And test it by running
 
 .. code-block:: bash
 
     python -m pytest tests/core
+    python -m pytest tests/algorithms
 
-Mujoco
-------
-Mujoco is a popular library for testing RL methods. Installing Mujoco is not
-required to use most of the components and utilities in MBRL-Lib, but if you
-have a working Mujoco installation (and license) and want to test MBRL-Lib
-on it, you please install
-
-.. code-block:: bash
-
-    pip install -r requirements/mujoco.txt
-
-and to test our mujoco-related utilities, run
-
-.. code-block:: bash
-
-    python -m pytest tests/mujoco
 
 Basic Example
 -------------

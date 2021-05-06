@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>Math utilities module &mdash; MBRL-Lib  documentation</title>
   
@@ -16,7 +16,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -51,7 +54,7 @@
           
 
           
-            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MBRL-Lib
+            <a href="index.html" class="icon icon-home"> MBRL-Lib
           
 
           
@@ -130,6 +133,8 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -141,7 +146,7 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="_sources/math.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -183,7 +188,7 @@
 <span id="math-utilities-module"></span><h1>Math utilities module<a class="headerlink" href="#module-mbrl.util.math" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
 <dt id="mbrl.util.math.Normalizer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">Normalizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">Normalizer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.device</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class that keeps a running mean and variance and normalizes data accordingly.</p>
 <p>The statistics kept are stored in torch tensors.</p>
@@ -197,7 +202,7 @@
 </dl>
 <dl class="py method">
 <dt id="mbrl.util.math.Normalizer.denormalize">
-<code class="sig-name descname">denormalize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.util.math.Normalizer.denormalize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">denormalize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">torch.Tensor</span><a class="headerlink" href="#mbrl.util.math.Normalizer.denormalize" title="Permalink to this definition">¶</a></dt>
 <dd><p>De-normalizes the value according to the stored statistics.</p>
 <p>Equivalent to sigma * val + mu, where mu and sigma are the stored mean and
 standard deviation, respectively.</p>
@@ -216,13 +221,13 @@ standard deviation, respectively.</p>
 
 <dl class="py method">
 <dt id="mbrl.util.math.Normalizer.load">
-<code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer.load" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">load</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results_dir</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer.load" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads saved statistics from the given path.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="mbrl.util.math.Normalizer.normalize">
-<code class="sig-name descname">normalize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">val</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>float<span class="p">, </span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.util.math.Normalizer.normalize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">normalize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">torch.Tensor</span><a class="headerlink" href="#mbrl.util.math.Normalizer.normalize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Normalizes the value according to the stored statistics.</p>
 <p>Equivalent to (val - mu) / sigma, where mu and sigma are the stored mean and
 standard deviation, respectively.</p>
@@ -241,13 +246,13 @@ standard deviation, respectively.</p>
 
 <dl class="py method">
 <dt id="mbrl.util.math.Normalizer.save">
-<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">save_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer.save" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">save</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_dir</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves stored statistics to the given path.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="mbrl.util.math.Normalizer.update_stats">
-<code class="sig-name descname">update_stats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>numpy.ndarray<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer.update_stats" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">update_stats</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer.update_stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>Updates the stored statistics using the given data.</p>
 <p>Equivalent to <cite>self.stats.mean = data.mean(0) and self.stats.std = data.std(0)</cite>.</p>
 <dl class="field-list simple">
@@ -261,7 +266,7 @@ standard deviation, respectively.</p>
 
 <dl class="py function">
 <dt id="mbrl.util.math.gaussian_nll">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">gaussian_nll</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pred_mean</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">pred_logvar</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">reduce</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.util.math.gaussian_nll" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">gaussian_nll</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred_mean</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_logvar</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">torch.Tensor</span><a class="headerlink" href="#mbrl.util.math.gaussian_nll" title="Permalink to this definition">¶</a></dt>
 <dd><p>Negative log-likelihood for Gaussian distribution</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -284,7 +289,7 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">True</s
 
 <dl class="py function">
 <dt id="mbrl.util.math.propagate">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">propagate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'expectation'</span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.math.propagate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">propagate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">predictions</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">propagation_method</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'expectation'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">propagation_indices</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.math.propagate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Propagates ensemble outputs according to desired method.</p>
 <p>Implements propagations options as described in  Chua et al., NeurIPS 2018 paper (PETS)
 <a class="reference external" href="https://arxiv.org/pdf/1805.12114.pdf">https://arxiv.org/pdf/1805.12114.pdf</a></p>
@@ -321,7 +326,7 @@ Only needed if <code class="docutils literal notranslate"><span class="pre">prop
 
 <dl class="py function">
 <dt id="mbrl.util.math.propagate_expectation">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">propagate_expectation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.math.propagate_expectation" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">propagate_expectation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">predictions</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.math.propagate_expectation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Propagates ensemble outputs by taking expectation over model predictions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -344,7 +349,7 @@ number of models, batch size, and output dimension, respectively.</p>
 
 <dl class="py function">
 <dt id="mbrl.util.math.propagate_fixed_model">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">propagate_fixed_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.math.propagate_fixed_model" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">propagate_fixed_model</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">predictions</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">propagation_indices</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.math.propagate_fixed_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Propagates ensemble outputs by taking expectation over model predictions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -371,7 +376,7 @@ predictions).</p></li>
 
 <dl class="py function">
 <dt id="mbrl.util.math.propagate_from_indices">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">propagate_from_indices</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predicted_tensor</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">indices</span><span class="p">:</span> <span class="n">torch.Tensor</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.util.math.propagate_from_indices" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">propagate_from_indices</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">predicted_tensor</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indices</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">torch.Tensor</span><a class="headerlink" href="#mbrl.util.math.propagate_from_indices" title="Permalink to this definition">¶</a></dt>
 <dd><p>Propagates ensemble outputs using the given indices.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -397,7 +402,7 @@ number of models, batch size, and output dimension, respectively.</p></li>
 
 <dl class="py function">
 <dt id="mbrl.util.math.propagate_random_model">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">propagate_random_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.math.propagate_random_model" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">propagate_random_model</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">predictions</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.math.propagate_random_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Propagates ensemble outputs by choosing a random model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -420,7 +425,7 @@ number of models, batch size, and output dimension, respectively.</p>
 
 <dl class="py function">
 <dt id="mbrl.util.math.truncated_linear">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">truncated_linear</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">min_x</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">max_x</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">min_y</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">max_y</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.util.math.truncated_linear" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">truncated_linear</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_x</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_x</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_y</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_y</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">float</span><a class="headerlink" href="#mbrl.util.math.truncated_linear" title="Permalink to this definition">¶</a></dt>
 <dd><p>Truncated linear function.</p>
 <dl class="simple">
 <dt>Implements the following function:</dt><dd><p>f1(x) = min_y + (x - min_x) / (max_x - min_x) * (max_y - min_y)
@@ -432,7 +437,7 @@ f(x) = min(max_y, max(min_y, f1(x)))</p>
 
 <dl class="py function">
 <dt id="mbrl.util.math.truncated_normal_">
-<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">truncated_normal_</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">tensor</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">mean</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">std</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.truncated_normal_" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">mbrl.util.math.</span></code><code class="sig-name descname"><span class="pre">truncated_normal_</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tensor</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.truncated_normal_" title="Permalink to this definition">¶</a></dt>
 <dd><p>Samples from a truncated normal distribution in-place.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -462,37 +467,29 @@ f(x) = min(max_y, max(min_y, f1(x)))</p>
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="util.html" class="btn btn-neutral float-right" title="General utilities module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="planning.html" class="btn btn-neutral float-left" title="Planning module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="util.html" class="btn btn-neutral float-right" title="General utilities module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="planning.html" class="btn btn-neutral float-left" title="Planning module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; Copyright 2021, Facebook AI Research
+        &#169; Copyright 2021, Facebook AI Research.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 

@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>Documentation for mbrl-lib &mdash; MBRL-Lib  documentation</title>
   
@@ -16,7 +16,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -50,7 +53,7 @@
           
 
           
-            <a href="#" class="icon icon-home" alt="Documentation Home"> MBRL-Lib
+            <a href="#" class="icon icon-home"> MBRL-Lib
           
 
           
@@ -129,6 +132,8 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -140,7 +145,7 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -180,45 +185,33 @@
 </style>
 <div class="section" id="documentation-for-mbrl-lib">
 <h1>Documentation for mbrl-lib<a class="headerlink" href="#documentation-for-mbrl-lib" title="Permalink to this headline">¶</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">mbrl-lib</span></code> is library to facilitate research on Model-Based Reinforcement Learning.</p>
+<p><code class="docutils literal notranslate"><span class="pre">mbrl</span></code> is library to facilitate research on Model-Based Reinforcement Learning.</p>
 </div>
 <div class="section" id="getting-started">
 <h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">mbrl-lib</span></code> is a Python 3.7+ library. To install it, clone the repository,</p>
+<div class="section" id="standard-installation">
+<h3>Standard Installation<a class="headerlink" href="#standard-installation" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">mbrl</span></code> requires Python 3.7+ and <a class="reference external" href="https://pytorch.org/">PyTorch (&gt;= 1.7)</a>.</p>
+<p>To install the latest stable version, run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install mbrl
+</pre></div>
+</div>
+</div>
+<div class="section" id="development-installation">
+<h3>Development Installation<a class="headerlink" href="#development-installation" title="Permalink to this headline">¶</a></h3>
+<p>If you are interested in modifying parts of the library, you can clone the repository
+and set up a development environment, as follows</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/facebookresearch/mbrl-lib.git
+pip install -e <span class="s2">&quot;.[dev]&quot;</span>
 </pre></div>
 </div>
-<p>then run</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> mbrl-lib
-pip install -e .
-</pre></div>
-</div>
-<p>If you also want the developer tools for contributing, run</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install -e <span class="s2">&quot;.[dev]&quot;</span>
-</pre></div>
-</div>
-<p>Finally, make sure your Python environment has
-<a class="reference external" href="https://pytorch.org/">PyTorch (&gt;= 1.7)</a> installed with the appropriate CUDA configuration
-for your system.</p>
-<p>To test your installation, run</p>
+<p>And test it by running</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m pytest tests/core
+python -m pytest tests/algorithms
 </pre></div>
 </div>
-</div>
-<div class="section" id="mujoco">
-<h2>Mujoco<a class="headerlink" href="#mujoco" title="Permalink to this headline">¶</a></h2>
-<p>Mujoco is a popular library for testing RL methods. Installing Mujoco is not
-required to use most of the components and utilities in MBRL-Lib, but if you
-have a working Mujoco installation (and license) and want to test MBRL-Lib
-on it, you please install</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install -r requirements/mujoco.txt
-</pre></div>
-</div>
-<p>and to test our mujoco-related utilities, run</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m pytest tests/mujoco
-</pre></div>
 </div>
 </div>
 <div class="section" id="basic-example">
@@ -248,35 +241,28 @@ environment. Then, please take a look at our API documentation below.</p>
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="models.html" class="btn btn-neutral float-right" title="Models module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
+        <a href="models.html" class="btn btn-neutral float-right" title="Models module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; Copyright 2021, Facebook AI Research
+        &#169; Copyright 2021, Facebook AI Research.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
