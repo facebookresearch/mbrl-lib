@@ -4,9 +4,9 @@
 # LICENSE file in the root directory of this source tree.
 import numpy as np
 import pytest
-import pytorch_sac.replay_buffer as sac_buffer
 import torch
 
+import mbrl.third_party.pytorch_sac.replay_buffer as sac_buffer
 import mbrl.util.replay_buffer as replay_buffer
 from mbrl.types import TransitionBatch
 

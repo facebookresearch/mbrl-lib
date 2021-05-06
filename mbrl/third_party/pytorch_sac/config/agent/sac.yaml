@@ -1,0 +1,37 @@
+# @package _global_
+agent:
+  _target_: pytorch_sac.agent.sac.SACAgent
+  obs_dim: ??? # to be specified later
+  action_dim: ??? # to be specified later
+  action_range: ??? # to be specified later
+  device: ${device}
+  critic_cfg: ${double_q_critic}
+  actor_cfg: ${diag_gaussian_actor}
+  discount: 0.99
+  init_temperature: 0.1
+  alpha_lr: 1e-4
+  alpha_betas: [0.9, 0.999]
+  actor_lr: 1e-4
+  actor_betas: [0.9, 0.999]
+  actor_update_frequency: 1
+  critic_lr: 1e-4
+  critic_betas: [0.9, 0.999]
+  critic_tau: 0.005
+  critic_target_update_frequency: 2
+  batch_size: 1024
+  learnable_temperature: true
+    
+double_q_critic:
+  _target_: pytorch_sac.agent.critic.DoubleQCritic
+  obs_dim: ${agent.obs_dim}
+  action_dim: ${agent.action_dim}
+  hidden_dim: 1024
+  hidden_depth: 2
+    
+diag_gaussian_actor:
+  _target_: pytorch_sac.agent.actor.DiagGaussianActor
+  obs_dim: ${agent.obs_dim}
+  action_dim: ${agent.action_dim}
+  hidden_depth: 2
+  hidden_dim: 1024
+  log_std_bounds: [-5, 2]

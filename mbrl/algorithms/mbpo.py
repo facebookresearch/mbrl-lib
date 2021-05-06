@@ -9,12 +9,12 @@ import gym
 import hydra.utils
 import numpy as np
 import omegaconf
-import pytorch_sac.utils
 import torch
 
 import mbrl.constants
 import mbrl.models
 import mbrl.planning
+import mbrl.third_party.pytorch_sac as pytorch_sac
 import mbrl.types
 import mbrl.util
 import mbrl.util.common
