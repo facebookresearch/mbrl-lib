@@ -17,7 +17,7 @@ import mbrl.diagnostics as diagnostics
 import mbrl.planning as planning
 import mbrl.util.common
 
-_REPO_DIR = os.getcwd()
+_REPO_DIR = pathlib.Path(os.getcwd())
 _DIR = tempfile.TemporaryDirectory()
 _HYDRA_DIR = pathlib.Path(_DIR.name) / ".hydra"
 pathlib.Path.mkdir(_HYDRA_DIR)
@@ -27,10 +27,12 @@ _ENV_NAME = "HalfCheetah-v2"
 _ENV = gym.make(_ENV_NAME)
 _OBS_SHAPE = _ENV.observation_space.shape
 _ACT_SHAPE = _ENV.action_space.shape
+_CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
 
 # Creating config files
 with open(
-    os.path.join(_REPO_DIR, "conf/dynamics_model/gaussian_mlp_ensemble.yaml"), "r"
+    _REPO_DIR / _CONF_DIR / "dynamics_model" / "gaussian_mlp_ensemble.yaml",
+    "r",
 ) as f:
     _MODEL_CFG = yaml.safe_load(f)
 
@@ -52,8 +54,8 @@ _CFG_DICT = {
     "device": "cuda:0" if torch.cuda.is_available() else "cpu",
 }
 
-# Config file for loafing a pytorch_sac agent
-with open(os.path.join(_REPO_DIR, "conf/algorithm/mbpo.yaml"), "r") as f:
+# Config file for loading a pytorch_sac agent
+with open(_REPO_DIR / _CONF_DIR / "algorithm" / "mbpo.yaml", "r") as f:
     _MBPO__ALGO_CFG = yaml.safe_load(f)
 _MBPO_CFG_DICT = _CFG_DICT.copy()
 _MBPO_CFG_DICT["algorithm"] = _MBPO__ALGO_CFG
@@ -75,7 +77,7 @@ _MBPO_CFG_DICT["overrides"].update(
 )
 
 # Extend default config file with information for a trajectory optimizer agent
-with open(os.path.join(_REPO_DIR, "conf/algorithm/pets.yaml"), "r") as f:
+with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets.yaml", "r") as f:
     _PETS_ALGO_CFG = yaml.safe_load(f)
 _CFG_DICT["algorithm"].update(_PETS_ALGO_CFG)
 _CFG_DICT["algorithm"]["learned_rewards"] = True

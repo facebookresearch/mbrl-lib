@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
+import pathlib
 import random
 import tempfile
 
@@ -22,11 +23,12 @@ _NUM_TRIALS_PETS = 5
 _NUM_TRIALS_MBPO = 10
 _REW_C = 0.001
 _INITIAL_EXPLORE = 500
+_CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
 
 # Not optimal, but the prob. of observing this by random seems to be < 1e-5
 _TARGET_REWARD = -10 * _REW_C
 
-_REPO_DIR = os.getcwd()
+_REPO_DIR = pathlib.Path(os.getcwd())
 _DIR = tempfile.TemporaryDirectory()
 
 _SILENT = True
@@ -74,11 +76,11 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 # TODO replace this using pytest fixture
 def _check_pets(model_type):
-    with open(os.path.join(_REPO_DIR, "conf/algorithm/pets.yaml"), "r") as f:
+    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets.yaml", "r") as f:
         algorithm_cfg = yaml.safe_load(f)
 
     with open(
-        os.path.join(_REPO_DIR, f"conf/dynamics_model/{model_type}.yaml"), "r"
+        _REPO_DIR / _CONF_DIR / "dynamics_model" / f"{model_type}.yaml", "r"
     ) as f:
         model_cfg = yaml.safe_load(f)
 
@@ -132,11 +134,12 @@ def test_pets_basic_ensemble_deterministic_mlp():
 
 
 def test_mbpo():
-    with open(os.path.join(_REPO_DIR, "conf/algorithm/mbpo.yaml"), "r") as f:
+    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "mbpo.yaml", "r") as f:
         algorithm_cfg = yaml.safe_load(f)
 
     with open(
-        os.path.join(_REPO_DIR, "conf/dynamics_model/gaussian_mlp_ensemble.yaml"), "r"
+        _REPO_DIR / _CONF_DIR / "dynamics_model" / "gaussian_mlp_ensemble.yaml",
+        "r",
     ) as f:
         model_cfg = yaml.safe_load(f)
 
