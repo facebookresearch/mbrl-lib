@@ -5,14 +5,11 @@
 from typing import Optional, Tuple, Union, cast
 
 import gym
-import gym.envs.mujoco
 import gym.wrappers
 import numpy as np
 import omegaconf
 import torch
 
-import mbrl.env
-import mbrl.env.mujoco_envs
 import mbrl.planning
 import mbrl.types
 
@@ -64,7 +61,8 @@ def make_env(
         ``cfg.learned_rewards == True``).
     """
     if "dmcontrol___" in cfg.overrides.env:
-        import dmc2gym.wrappers
+        import mbrl.env
+        import mbrl.third_party.dmc2gym as dmc2gym
 
         domain, task = cfg.overrides.env.split("___")[1].split("--")
         term_fn = getattr(mbrl.env.termination_fns, domain)
@@ -74,6 +72,8 @@ def make_env(
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
         env = dmc2gym.make(domain_name=domain, task_name=task)
     elif "gym___" in cfg.overrides.env:
+        import mbrl.env
+
         env = gym.make(cfg.overrides.env.split("___")[1])
         term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
         if hasattr(cfg.overrides, "reward_fn") and cfg.overrides.reward_fn is not None:
@@ -81,6 +81,8 @@ def make_env(
         else:
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
     else:
+        import mbrl.env.mujoco_envs
+
         if cfg.overrides.env == "cartpole_continuous":
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
             term_fn = mbrl.env.termination_fns.cartpole
@@ -144,13 +146,15 @@ def make_env_from_str(env_name: str) -> gym.Env:
         (gym.Env): the created environment.
     """
     if "dmcontrol___" in env_name:
-        import dmc2gym.wrappers
+        import mbrl.third_party.dmc2gym as dmc2gym
 
         domain, task = env_name.split("___")[1].split("--")
         env = dmc2gym.make(domain_name=domain, task_name=task)
     elif "gym___" in env_name:
         env = gym.make(env_name.split("___")[1])
     else:
+        import mbrl.env.mujoco_envs
+
         if env_name == "cartpole_continuous":
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
         elif env_name == "pets_halfcheetah":
@@ -201,17 +205,14 @@ class freeze_mujoco_env:
         self._elapsed_steps = 0
         self._step_count = 0
 
-        if isinstance(self._env.env, gym.envs.mujoco.MujocoEnv):
+        if "gym.envs.mujoco" in self._env.env.__class__.__module__:
             self._enter_method = self._enter_mujoco_gym
             self._exit_method = self._exit_mujoco_gym
+        elif "mbrl.third_party.dmc2gym" in self._env.env.__class__.__module__:
+            self._enter_method = self._enter_dmcontrol
+            self._exit_method = self._exit_dmcontrol
         else:
-            import dmc2gym.wrappers
-
-            if isinstance(self._env.env, dmc2gym.wrappers.DMCWrapper):
-                self._enter_method = self._enter_dmcontrol
-                self._exit_method = self._exit_dmcontrol
-            else:
-                raise RuntimeError("Tried to freeze an unsupported environment.")
+            raise RuntimeError("Tried to freeze an unsupported environment.")
 
     def _enter_mujoco_gym(self):
         self._init_state = (
@@ -260,25 +261,22 @@ def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
         environments it returns `physics.get_state().copy()`, elapsed steps and step_count.
 
     """
-    if isinstance(env.env, gym.envs.mujoco.MujocoEnv):
+    if "gym.envs.mujoco" in env.env.__class__.__module__:
         state = (
             env.env.data.qpos.ravel().copy(),
             env.env.data.qvel.ravel().copy(),
         )
         elapsed_steps = env._elapsed_steps
         return state, elapsed_steps
+    elif "mbrl.third_party.dmc2gym" in env.env.__class__.__module__:
+        state = env.env._env.physics.get_state().copy()
+        elapsed_steps = env._elapsed_steps
+        step_count = env.env._env._step_count
+        return state, elapsed_steps, step_count
     else:
-        import dmc2gym.wrappers
-
-        if isinstance(env.env, dmc2gym.wrappers.DMCWrapper):
-            state = env.env._env.physics.get_state().copy()
-            elapsed_steps = env._elapsed_steps
-            step_count = env.env._env._step_count
-            return state, elapsed_steps, step_count
-        else:
-            raise NotImplementedError(
-                "Only gym mujoco and dm_control environments supported by get_current_state."
-            )
+        raise NotImplementedError(
+            "Only gym mujoco and dm_control environments supported."
+        )
 
 
 def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
@@ -293,19 +291,18 @@ def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
         state (tuple): see :func:`get_current_state` for a description.
         env (:class:`gym.wrappers.TimeLimit`): the environment.
     """
-    if isinstance(env.env, gym.envs.mujoco.MujocoEnv):
+    if "gym.envs.mujoco" in env.env.__class__.__module__:
         env.set_state(*state[0])
         env._elapsed_steps = state[1]
+    elif "mbrl.third_party.dmc2gym" in env.env.__class__.__module__:
+        with env.env._env.physics.reset_context():
+            env.env._env.physics.set_state(state[0])
+            env._elapsed_steps = state[1]
+            env.env._env._step_count = state[2]
     else:
-        import dmc2gym.wrappers
-
-        if isinstance(env.env, dmc2gym.wrappers.DMCWrapper):
-            with env.env._env.physics.reset_context():
-                env.env._env.physics.set_state(state[0])
-                env._elapsed_steps = state[1]
-                env.env._env._step_count = state[2]
-        else:
-            raise NotImplementedError
+        raise NotImplementedError(
+            "Only gym mujoco and dm_control environments supported."
+        )
 
 
 def rollout_mujoco_env(

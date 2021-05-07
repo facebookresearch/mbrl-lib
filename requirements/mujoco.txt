@@ -1,3 +1,0 @@
-mujoco-py>=2.0.0
-dm_control @ git+https://github.com/deepmind/dm_control.git
-dmc2gym @ git+https://github.com/denisyarats/dmc2gym.git

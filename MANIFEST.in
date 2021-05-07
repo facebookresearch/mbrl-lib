@@ -1,0 +1,6 @@
+include LICENSE README.md
+include requirements/*.txt
+include mbrl/examples/conf/*.yaml
+include mbrl/examples/conf/algorithm/*.yaml
+include mbrl/examples/conf/dynamics_model/*.yaml
+include mbrl/examples/conf/overrides/*.yaml

@@ -1,0 +1,20 @@
+defaults:
+  - algorithm: pets
+  - dynamics_model: gaussian_mlp_ensemble
+  - overrides: pets_cartpole
+
+seed: 0
+device: "cuda:0"
+log_frequency_agent: 1000
+save_video: false
+debug_mode: false
+
+experiment: default
+
+root_dir: "./exp"
+hydra:
+  run:
+    dir: ${root_dir}/${algorithm.name}/${experiment}/${overrides.env}/${now:%Y.%m.%d}/${now:%H%M%S}
+
+  sweep:
+    dir: ${root_dir}/${algorithm.name}/${experiment}/${overrides.env}/${now:%Y.%m.%d}/${now:%H%M%S}

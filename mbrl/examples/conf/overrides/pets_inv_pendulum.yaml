@@ -1,0 +1,21 @@
+# @package _group_
+env: "gym___InvertedPendulum-v2"
+term_fn: "inverted_pendulum"
+learned_rewards: true
+trial_length: 1000
+num_steps: 20000
+
+num_elites: 5
+model_lr: 00143
+model_wd: 0.000033
+model_batch_size: 256
+validation_ratio: 0.2
+freq_train_model: 250
+patience: 50
+num_epochs_train_model: 31
+
+planning_horizon: 45
+cem_num_iters: 5
+cem_elite_ratio: 0.078
+cem_population_size: 480
+cem_alpha: 0.134484

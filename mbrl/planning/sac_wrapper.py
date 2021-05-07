@@ -3,9 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import numpy as np
-import pytorch_sac
-import pytorch_sac.utils
 import torch
+
+import mbrl.third_party.pytorch_sac as pytorch_sac
+import mbrl.third_party.pytorch_sac.utils as pytorch_sac_utils
 
 from .core import Agent
 
@@ -40,5 +41,5 @@ class SACAgent(Agent):
         Returns:
             (np.ndarray): the action.
         """
-        with pytorch_sac.utils.eval_mode(), torch.no_grad():
+        with pytorch_sac_utils.eval_mode(), torch.no_grad():
             return self.sac_agent.act(obs, sample=sample, batched=batched)
