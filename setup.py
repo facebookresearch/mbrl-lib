@@ -21,7 +21,7 @@ init_str = Path("mbrl/__init__.py").read_text()
 version = init_str.split("__version__ = ")[1].rstrip().strip('"')
 
 setup(
-    name="mbrl_lib",
+    name="mbrl",
     version=version,
     author="Facebook AI Research",
     description="A PyTorch library for model-based reinforcement learning research",
