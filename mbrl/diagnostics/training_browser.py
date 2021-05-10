@@ -77,7 +77,6 @@ class BasicTrainingResultsWindow(QMainWindow):
             self.experiment_names.append(name)
 
         self.chart = QChart()
-        self.chart.setAnimationOptions(QChart.AllAnimations)
 
         self.graphWidget = QChartView(self.chart)
         self.graphWidget.setRenderHint(QPainter.Antialiasing)
