@@ -93,7 +93,7 @@ class BasicEnsemble(Ensemble):
     # --------------------------------------------------------------------- #
     # These are customized for this class, to avoid unnecessary computation
     def _default_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        predictions = [model(x) for model in self.members]
+        predictions = [model.forward(x) for model in self.members]
         all_means = torch.stack([p[0] for p in predictions], dim=0)
         if predictions[0][1] is not None:
             all_logvars = torch.stack([p[1] for p in predictions], dim=0)

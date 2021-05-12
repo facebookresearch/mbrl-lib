@@ -10,7 +10,8 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Union, cast
 import torch
 from torch import nn as nn
 
-from mbrl.types import ModelInput
+from mbrl.models.util import to_tensor
+from mbrl.types import ModelInput, TransitionBatch
 
 # TODO: these are temporary, eventually it will be tuple(tensor, dict), keeping this
 #  for back-compatibility with v0.1.x, and will be removed in v0.2.0
@@ -55,6 +56,18 @@ class Model(nn.Module, abc.ABC):
     ):
         super().__init__()
         self.device = device
+
+    def _process_batch(self, batch: TransitionBatch) -> Tuple[torch.Tensor, ...]:
+        def _convert(x):
+            return to_tensor(x).to(self.device)
+
+        return (
+            _convert(batch.obs),
+            _convert(batch.act),
+            _convert(batch.next_obs),
+            _convert(batch.rewards).view(-1, 1),
+            _convert(batch.dones).view(-1, 1),
+        )
 
     def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Computes the output of the dynamics model.
