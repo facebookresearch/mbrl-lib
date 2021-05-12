@@ -14,7 +14,7 @@ import mbrl.util.common as utils
 
 class MockModel(models.Model):
     def __init__(self, x, y, in_size, out_size):
-        super().__init__()
+        super().__init__(None)
         self.in_size = in_size
         self.out_size = out_size
         self.x = x

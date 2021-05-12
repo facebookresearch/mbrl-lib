@@ -300,10 +300,8 @@ def test_model_env_expectation_fixed():
 
 class DummyModel(mbrl.models.Model):
     def __init__(self):
-        super().__init__()
+        super().__init__(torch.device(_DEVICE))
         self.param = nn.Parameter(torch.ones(1))
-        self.device = torch.device(_DEVICE)
-        self.to(self.device)
 
     def forward(self, x, **kwargs):
         obs = x[:, :_MOCK_OBS_DIM]

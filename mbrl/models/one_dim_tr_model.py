@@ -79,7 +79,7 @@ class OneDTransitionRewardModel(Model):
         no_delta_list: Optional[List[int]] = None,
         num_elites: Optional[int] = None,
     ):
-        super().__init__()
+        super().__init__(model.device)
         self.model = model
         self.input_normalizer: Optional[mbrl.util.math.Normalizer] = None
         if normalize:

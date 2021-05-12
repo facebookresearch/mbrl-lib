@@ -42,15 +42,19 @@ class Model(nn.Module, abc.ABC):
     Subclasses may also want to overrides :meth:`sample` and :meth:`reset`.
 
     Args:
-        device (str or torch.device): device to use for the model.
+        device (str or torch.device): device to use for the model. Note that the
+            model is not actually sent to the device. Subclasses must take care
+            of this.
     """
 
     def __init__(
         self,
+        device,
         *args,
         **kwargs,
     ):
         super().__init__()
+        self.device = device
 
     def forward(self, x: ModelInput, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Computes the output of the dynamics model.
@@ -174,7 +178,6 @@ class Model(nn.Module, abc.ABC):
              (float): the numeric value of the computed loss.
              (dict): any additional metadata dictionary computed by :meth:`loss`.
         """
-        optimizer = cast(torch.optim.Optimizer, optimizer)
         self.train()
         optimizer.zero_grad()
         loss_and_maybe_meta = self.loss(model_in, target)
@@ -257,7 +260,7 @@ class Ensemble(Model, abc.ABC):
         *args,
         **kwargs,
     ):
-        super().__init__()
+        super().__init__(device)
         self.num_members = num_members
         self.propagation_method = propagation_method
         self.device = torch.device(device)
