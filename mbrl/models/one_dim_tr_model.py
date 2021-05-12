@@ -53,7 +53,8 @@ class OneDTransitionRewardModel(Model):
             Defaults to ``True``. Can be deactivated per dimension using ``no_delta_list``.
         normalize (bool): if true, the wrapper will create a normalizer for model inputs,
             which will be used every time the model is called using the methods in this
-            class. To update the normalizer statistics, the user needs to call
+            class. Assumes the given base model has an attributed ``in_size``.
+            To update the normalizer statistics, the user needs to call
             :meth:`update_normalizer` before using the model. Defaults to ``False``.
         normalize_double_precision (bool): if ``True``, the normalizer will work with
             double precision.
@@ -109,26 +110,21 @@ class OneDTransitionRewardModel(Model):
             else None
         )
 
-    def _get_model_input_from_np(
-        self, obs: np.ndarray, action: np.ndarray, device: torch.device
-    ) -> torch.Tensor:
+    def _get_model_input(
+        self,
+        obs: mbrl.types.TensorType,
+        action: mbrl.types.TensorType,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
-        model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
-        if self.input_normalizer:
-            # Normalizer lives on device
-            return self.input_normalizer.normalize(model_in_np).float().to(device)
-        return torch.from_numpy(model_in_np).to(device)
-
-    def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
-        if self.obs_process_fn:
-            obs = self.obs_process_fn(obs)
-        model_in = torch.cat([obs, action], axis=obs.ndim - 1)
+        obs = model_util.to_tensor(obs).to(self.device)
+        action = model_util.to_tensor(action).to(self.device)
+        model_in = torch.cat([obs, action], dim=obs.ndim - 1)
         if self.input_normalizer:
             model_in = self.input_normalizer.normalize(model_in).float()
-        return model_in
+        return model_in, obs, action
 
-    def _get_model_input_and_target_from_batch(
+    def _process_batch(
         self, batch: mbrl.types.TransitionBatch
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         obs, action, next_obs, reward, _ = batch.astuple()
@@ -138,21 +134,14 @@ class OneDTransitionRewardModel(Model):
                 target_obs[..., dim] = next_obs[..., dim]
         else:
             target_obs = next_obs
+        target_obs = model_util.to_tensor(target_obs).to(self.device)
 
-        model_in = self._get_model_input_from_np(obs, action, self.device)
+        model_in, *_ = self._get_model_input(obs, action)
         if self.learned_rewards:
-            target = (
-                torch.from_numpy(
-                    np.concatenate(
-                        [target_obs, np.expand_dims(reward, axis=reward.ndim)],
-                        axis=obs.ndim - 1,
-                    )
-                )
-                .float()
-                .to(self.device)
-            )
+            reward = model_util.to_tensor(reward).to(self.device).unsqueeze(reward.ndim)
+            target = torch.cat([target_obs, reward], dim=obs.ndim - 1)
         else:
-            target = torch.from_numpy(target_obs).float().to(self.device)
+            target = target_obs
         return model_in, target
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
@@ -199,7 +188,7 @@ class OneDTransitionRewardModel(Model):
             (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
-        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        model_in, target = self._process_batch(batch)
         return self.model.loss(model_in, target=target)
 
     def update(
@@ -239,7 +228,7 @@ class OneDTransitionRewardModel(Model):
         """
         assert target is None
         with torch.no_grad():
-            model_in, target = self._get_model_input_and_target_from_batch(batch)
+            model_in, target = self._process_batch(batch)
             return self.model.eval_score(model_in, target=target)
 
     def get_output_and_targets(
@@ -258,7 +247,7 @@ class OneDTransitionRewardModel(Model):
             (tuple(tensor), tensor): the model outputs and the target for this batch.
         """
         with torch.no_grad():
-            model_in, target = self._get_model_input_and_target_from_batch(batch)
+            model_in, target = self._process_batch(batch)
             output = self.model.forward(model_in)
         return output, target
 
@@ -289,10 +278,7 @@ class OneDTransitionRewardModel(Model):
         Returns:
             (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
         """
-        obs = model_util.to_tensor(model_state["obs"]).to(self.device)
-        actions = model_util.to_tensor(act).to(self.device)
-
-        model_in = self._get_model_input_from_tensors(obs, actions)
+        model_in, obs, action = self._get_model_input(model_state["obs"], act)
         if not hasattr(self.model, "sample_1d"):
             raise RuntimeError(
                 "OneDTransitionRewardModel requires wrapped model to define method sample_1d"
