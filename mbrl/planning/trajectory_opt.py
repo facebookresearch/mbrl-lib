@@ -153,6 +153,91 @@ class CEMOptimizer(Optimizer):
         return mu if self.return_mean_elites else best_solution
 
 
+class MPPIOptimizer(Optimizer):
+
+    def __init__(
+            self,
+            planning_horizon: int,
+            batch_size: int,
+            rew_weight: float,
+            noise_magnifier: float,
+            lower_bound: Sequence[float],
+            upper_bound: Sequence[float],
+            beta: float,
+            device: torch.device,
+    ):
+        super().__init__()
+        self.planning_horizon = planning_horizon
+        self.batch_size = batch_size
+        self.action_dimension = 6
+        self.mean = torch.zeros((batch_size, planning_horizon, self.action_dimension),
+                                device=device,
+                                dtype=torch.float32)
+
+        self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
+        self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
+        self.sigma = noise_magnifier * torch.ones_like(self.lower_bound)
+        self.beta = beta
+        self.rew_weight = rew_weight
+        self.device = device
+
+    def optimize(
+            self,
+            obj_fun: Callable[[torch.Tensor], torch.Tensor],
+            x0: Optional[torch.Tensor] = None,
+            callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
+            **kwargs,
+    ) -> torch.Tensor:
+        """Runs the optimization using MPPI.
+
+        Args:
+            obj_fun (callable(tensor) -> tensor): objective function to maximize.
+            x0 (tensor, optional): Not required
+            callback (callable(tensor, tensor, int) -> any, optional): if given, this
+                function will be called after every iteration, passing it as input the full
+                population tensor, its corresponding objective function values, and
+                the index of the current iteration. This can be used for logging and plotting
+                purposes.
+
+        Returns:
+            (torch.Tensor): the best solution found.
+        """
+        past_action = self.mean[0].clone()
+        self.mean[:-1] = self.mppi_mean[1:]  # shift by one and double last action
+
+        # sample noise
+        noise = torch.normal(mean=0.0,
+                             std=1.0,
+                             size=(self.batch_size, self.planning_horizon, self.action_dimension))
+
+        # smoothed actions with noise
+        action_samples = noise.clone()
+
+        action_samples[:, 0, :] = self.beta*(self.mean[0, :] + noise[:, 0, :]) \
+            + (1-self.beta)*past_action
+        for i in range(max(self.planning_horizon-1, 0)):
+            action_samples[:, i+1, :] = self.beta*(self.mean[i+1] + noise[:, 0, :]) \
+            + (1-self.beta)*action_samples[:, i, :]
+
+        # clipping actions
+        action_samples = torch.where(action_samples > self.upper_bound,
+                                     self.upper_bound,
+                                     action_samples)
+        action_samples = torch.where(action_samples < self.lower_bound,
+                                     self.lower_bound,
+                                     action_samples)
+
+        values = obj_fun(action_samples)
+
+        # weight actions
+        weights = torch.exp(self.rew_weight * (values - values.max())).resize((self.batch_size, 1, 1))
+        norm = torch.sum(sum) + 1e-10
+        weighted_actions = action_samples * weights
+        self.mean = torch.sum(weighted_actions, dim=0) / norm
+
+        return self.mean.clone()
+
+
 class TrajectoryOptimizer:
     """Class for using generic optimizers on trajectory optimization problems.
 

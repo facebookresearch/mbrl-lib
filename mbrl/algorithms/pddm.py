@@ -15,15 +15,11 @@ import mbrl.util
 import mbrl.util.common
 import mbrl.util.math
 
+EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 
-PDDM_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT + [
-    ("epoch", "E", "int"),
-    ("rollout_length", "RL", "int"),
-]
 
 def train(
     env: gym.Env,
-    test_env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
     cfg: omegaconf.DictConfig,
     silent: bool = False,
@@ -35,13 +31,13 @@ def train(
     act_shape = env.action_space.shape
 
     # set up planner which serves as an agent
-    planner = None
+    agent = None
 
     work_dir = work_dir or os.getcwd()
     logger = mbrl.util.Logger(work_dir, enable_back_compatible=True)
     logger.register_group(
         mbrl.constants.RESULTS_LOG_NAME,
-        PDDM_LOG_FORMAT,
+        EVAL_LOG_FORMAT,
         color="green",
         dump_frequency=1,
     )
@@ -65,9 +61,6 @@ def train(
     )
 
     # Training Loop
-    rollout_batch_size = (
-            cfg.overrides.effective_model_rollouts_per_step * cfg.algorithm.freq_train_model
-    )
     updates_made = 0
     env_steps = 0
     model_env = mbrl.models.ModelEnv(
@@ -85,4 +78,39 @@ def train(
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
     while env_steps < cfg.overrides.num_steps:
-        pass
+        obs = env.reset()
+        done = False
+        total_reward = 0.0
+        step_trial = 0
+        while not done:
+            # --------------- Model Training -----------------
+            if env_steps % cfg.algorithm.freq_train_model == 0:
+                mbrl.util.common.train_model_and_save_model_and_data(
+                    dynamics_model,
+                    model_trainer,
+                    cfg.overrides,
+                    replay_buffer,
+                    work_dir=work_dir,
+                )
+
+            # --- Doing env step using the agent and adding to model dataset ---
+            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
+                env, obs, agent, {}, replay_buffer
+            )
+
+            obs = next_obs
+            total_reward += reward
+            step_trial += 1
+            env_steps += 1
+
+            if debug_mode:
+                print(f"Step {env_steps}: Reward {reward:.3f}.")
+
+        if logger is not None:
+            logger.log_data(
+                mbrl.constants.RESULTS_LOG_NAME,
+                {"env_step": env_steps, "episode_reward": total_reward},
+            )
+        max_total_reward = max(max_total_reward, total_reward)
+
+    return np.float32(max_total_reward)
