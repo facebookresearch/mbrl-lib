@@ -8,11 +8,13 @@ from .trajectory_opt import (
     TrajectoryOptimizer,
     TrajectoryOptimizerAgent,
     create_trajectory_optim_agent_for_model,
+    MPPIOptimizer,
 )
 
 __all__ = [
     "Agent",
     "CEMOptimizer",
+    "MPPIOptimizer",
     "RandomAgent",
     "TrajectoryOptimizer",
     "TrajectoryOptimizerAgent",

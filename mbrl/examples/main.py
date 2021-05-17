@@ -24,7 +24,7 @@ def run(cfg: omegaconf.DictConfig):
         test_env, *_ = mujoco_util.make_env(cfg)
         return mbpo.train(env, test_env, term_fn, cfg)
     if cfg.algorithm.name == 'pddm':
-        return pddm.train(env, term_fn, cfg)
+        return pddm.train(env, term_fn, reward_fn, cfg)
 
 
 if __name__ == "__main__":

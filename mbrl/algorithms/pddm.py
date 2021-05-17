@@ -21,6 +21,7 @@ EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 def train(
     env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
+    reward_fn: mbrl.types.RewardFnType,
     cfg: omegaconf.DictConfig,
     silent: bool = False,
     work_dir: Optional[str] = None,
@@ -30,8 +31,6 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    # set up planner which serves as an agent
-    agent = None
 
     work_dir = work_dir or os.getcwd()
     logger = mbrl.util.Logger(work_dir, enable_back_compatible=True)
@@ -50,13 +49,14 @@ def train(
 
     # create model ensembles and initiate buffer with random agent
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
-    replay_buffer = mbrl.util.common.craete_replay_buffer(
+    replay_buffer = mbrl.util.common.create_replay_buffer(
         cfg, obs_shape, act_shape, rng=rng
     )
     mbrl.util.common.rollout_agent_trajectories(
         env,
         cfg.algorithm.initial_exploration_steps,
-        mbrl.planning.RandomAgent(env), # no option for non-rng explorer
+        mbrl.planning.RandomAgent(env),
+        {},
         replay_buffer=replay_buffer,
     )
 
@@ -64,15 +64,18 @@ def train(
     updates_made = 0
     env_steps = 0
     model_env = mbrl.models.ModelEnv(
-        env, dynamics_model, termination_fn, None, generator=torch_generator
+        env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
+    )
+    agent = mbrl.planning.create_trajectory_optim_agent_for_model(
+        model_env, cfg.algorithm.agent
     )
     model_trainer = mbrl.models.ModelTrainer(
         dynamics_model,
-        optim_lr=cfg.overrides.model_rl,
+        optim_lr=cfg.overrides.model_lr,
         weight_decay=cfg.overrides.model_wd,
         logger=None if silent else logger,
     )
-    best_eval_reward = -np.inf
+    max_total_reward = -np.inf
     epoch = 0
 
     # ---------------------------------------------------------

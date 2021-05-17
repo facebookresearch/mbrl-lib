@@ -1,12 +1,11 @@
 # @package _group_
-env: "pddm_halfcheetah"
+env: "pets_halfcheetah"
 term_fn: "no_termination"
 obs_process_fn: mbrl.env.pets_halfcheetah.HalfCheetahEnv.preprocess_fn
 learned_rewards: false
 num_steps: 300000
 trial_length: 1000
 
-num_elites: 5
 model_lr: 2e-4
 model_wd: 3e-5
 model_batch_size: 32
@@ -16,7 +15,8 @@ freq_train_model: 1000
 patience: 25
 num_epochs_train_model: 25
 
-planning_horizon: 20
+mppi_planning_horizon: 20
+planning_horizon: 20 # need to find an alternative !!!
 mppi_batch_size: 700
 mppi_beta: 0.9 # need to check that .. seems to high
 mppi_rew_weight: 1

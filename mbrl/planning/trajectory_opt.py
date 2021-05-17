@@ -169,8 +169,8 @@ class MPPIOptimizer(Optimizer):
         super().__init__()
         self.planning_horizon = planning_horizon
         self.batch_size = batch_size
-        self.action_dimension = 6
-        self.mean = torch.zeros((batch_size, planning_horizon, self.action_dimension),
+        self.action_dimension = len(lower_bound[0])
+        self.mean = torch.zeros((planning_horizon, self.action_dimension),
                                 device=device,
                                 dtype=torch.float32)
 
@@ -203,12 +203,13 @@ class MPPIOptimizer(Optimizer):
             (torch.Tensor): the best solution found.
         """
         past_action = self.mean[0].clone()
-        self.mean[:-1] = self.mppi_mean[1:]  # shift by one and double last action
+        self.mean[:-1] = self.mean[1:].clone()  # shift by one and double last action
 
         # sample noise
         noise = torch.normal(mean=0.0,
                              std=1.0,
-                             size=(self.batch_size, self.planning_horizon, self.action_dimension))
+                             size=(self.batch_size, self.planning_horizon, self.action_dimension),
+                             device=self.device)
 
         # smoothed actions with noise
         action_samples = noise.clone()
@@ -230,8 +231,9 @@ class MPPIOptimizer(Optimizer):
         values = obj_fun(action_samples)
 
         # weight actions
-        weights = torch.exp(self.rew_weight * (values - values.max())).resize((self.batch_size, 1, 1))
-        norm = torch.sum(sum) + 1e-10
+        weights = torch.reshape(torch.exp(self.rew_weight * (values - values.max())),
+                                (self.batch_size, 1, 1))
+        norm = torch.sum(weights) + 1e-10
         weighted_actions = action_samples * weights
         self.mean = torch.sum(weighted_actions, dim=0) / norm
 
