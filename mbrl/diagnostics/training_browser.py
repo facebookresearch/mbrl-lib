@@ -16,6 +16,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 
+MULTI_ROOT = "multirun.yaml"
 SOURCE = "results.csv"
 XCOL = "env_step"
 YCOL = "episode_reward"
@@ -162,7 +163,7 @@ class BasicTrainingResultsWindow(QMainWindow):
                         series.append(result[XCOL])
                     series.append(result[YCOL])
                 else:
-                    self.axes.plot(result[XCOL], result[YCOL])
+                    self.axes.plot(result[XCOL], result[YCOL], label=self.experiment_names[rowIndex])
 
             if displayAsDistribution:
                 time_series = series[0]
@@ -172,12 +173,13 @@ class BasicTrainingResultsWindow(QMainWindow):
                 mean_series = df.mean(axis=1)
                 var_series = df.std(axis=1)
                 
-                mean_line = self.axes.plot(time_series, mean_series)
+                mean_line = self.axes.plot(time_series, mean_series, label=self.experiment_results[rowIndex])
                 self.axes.fill_between(time_series, mean_series + var_series, mean_series - var_series, color = mean_line[0].get_color(), alpha = 0.25)
 
             if self.logYAxisCheckbox.checkState():
                 self.axes.semilogy()
 
+            self.axes.legend()
             self.graphWidget.draw()
 
 
