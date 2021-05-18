@@ -1,7 +1,6 @@
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5.QtChart import *
 
 import os
 import sys
@@ -13,14 +12,13 @@ from argparse import ArgumentParser
 import yaml
 import signal
 
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 
 SOURCE = "results.csv"
 XCOL = "env_step"
 YCOL = "episode_reward"
-# SOURCE = 'model_train.csv'
-# XCOL = 'step'
-# YCOL = 'model_best_val_score'
-USE_AREA_DISTRIBUTION = False
 
 
 class ExperimentsModel(QAbstractTableModel):
@@ -76,17 +74,13 @@ class BasicTrainingResultsWindow(QMainWindow):
             name = path.replace(experiment_root, "").replace("/{}".format(SOURCE), "")
             self.experiment_names.append(name)
 
-        self.chart = QChart()
-
-        self.graphWidget = QChartView(self.chart)
-        self.graphWidget.setRenderHint(QPainter.Antialiasing)
+        self.chart = Figure()
+        self.axes = self.chart.add_subplot(111)
+        self.graphWidget = FigureCanvas(self.chart)
         self.setCentralWidget(self.graphWidget)
 
         self.logYAxisCheckbox = QCheckBox("Log Scale (Y Axis)")
         self.logYAxisCheckbox.stateChanged.connect(self.onChangeScale)
-
-        self.filterOutliersCheckbox = QCheckBox("Filter Outliers")
-        self.filterOutliersCheckbox.stateChanged.connect(self.onFilterOutliers)
 
         self.displayAsDistributionCheckbox = QCheckBox("Display As Distribution")
         self.displayAsDistributionCheckbox.stateChanged.connect(
@@ -96,7 +90,6 @@ class BasicTrainingResultsWindow(QMainWindow):
 
         self.optionsToolBar = QToolBar(self)
         self.optionsToolBar.addWidget(self.logYAxisCheckbox)
-        self.optionsToolBar.addWidget(self.filterOutliersCheckbox)
         self.optionsToolBar.addWidget(self.displayAsDistributionCheckbox)
         self.addToolBar(self.optionsToolBar)
 
@@ -150,9 +143,7 @@ class BasicTrainingResultsWindow(QMainWindow):
         selection = self.tableView.selectionModel()
 
         if selection.hasSelection():
-            self.chart.removeAllSeries()
-            for axis in self.chart.axes():
-                self.chart.removeAxis(axis)
+            self.axes.cla()
 
             self.displayAsDistributionCheckbox.setEnabled(
                 self.selectedMatchingSequences()
@@ -162,53 +153,16 @@ class BasicTrainingResultsWindow(QMainWindow):
                 and self.displayAsDistributionCheckbox.checkState()
             )
 
-            minX = None
-            maxX = None
-            minY = None
-            maxY = None
             series = []
             for rowIndex in [row.row() for row in selection.selectedRows()]:
-                line_series = QLineSeries()
-                line_series.setName(self.experiment_names[rowIndex])
-
                 result = pd.read_csv(self.experiment_results[rowIndex])
-
-                clipped = (
-                    result[(np.abs(stats.zscore(result[YCOL])) < 3)]
-                    if self.filterOutliersCheckbox.checkState()
-                    else result
-                )
-
-                minX = (
-                    clipped[XCOL].min()
-                    if minX is None
-                    else min(minX, clipped[XCOL].min())
-                )
-                maxX = (
-                    clipped[XCOL].max()
-                    if maxX is None
-                    else max(maxX, clipped[XCOL].max())
-                )
-                minY = (
-                    clipped[YCOL].min()
-                    if minY is None
-                    else min(minY, clipped[YCOL].min())
-                )
-                maxY = (
-                    clipped[YCOL].max()
-                    if maxY is None
-                    else max(maxY, clipped[YCOL].max())
-                )
-
-                for x, y in zip(result[XCOL], result[YCOL]):
-                    line_series.append(x, y)
 
                 if displayAsDistribution:
                     if len(series) == 0:
                         series.append(result[XCOL])
                     series.append(result[YCOL])
                 else:
-                    self.chart.addSeries(line_series)
+                    self.axes.plot(result[XCOL], result[YCOL])
 
             if displayAsDistribution:
                 time_series = series[0]
@@ -217,54 +171,14 @@ class BasicTrainingResultsWindow(QMainWindow):
                 df = pd.concat(data_series, axis=1)
                 mean_series = df.mean(axis=1)
                 var_series = df.std(axis=1)
+                
+                mean_line = self.axes.plot(time_series, mean_series)
+                self.axes.fill_between(time_series, mean_series + var_series, mean_series - var_series, color = mean_line[0].get_color(), alpha = 0.25)
 
-                line_series = QLineSeries()
-                line_series.setName(self.experiment_names[rowIndex])
-                for x, y in zip(time_series, mean_series):
-                    line_series.append(x, y)
-                self.chart.addSeries(line_series)
+            if self.logYAxisCheckbox.checkState():
+                self.axes.semilogy()
 
-                dist_color = line_series.color()
-                dist_color.setHsvF(
-                    dist_color.hueF(),
-                    0.5 * dist_color.saturationF(),
-                    dist_color.valueF(),
-                )
-
-                lower_series = QLineSeries()
-                for x, y in zip(time_series, mean_series.sub(other=var_series)):
-                    lower_series.append(x, y)
-                if not USE_AREA_DISTRIBUTION:
-                    lower_series.setName("Minus one standard deviation")
-                    lower_series.setColor(dist_color)
-                    self.chart.addSeries(lower_series)
-
-                upper_series = QLineSeries()
-                for x, y in zip(time_series, mean_series.add(other=var_series)):
-                    upper_series.append(x, y)
-                if not USE_AREA_DISTRIBUTION:
-                    upper_series.setName("Plus one standard deviation")
-                    upper_series.setPen(lower_series.pen())
-                    self.chart.addSeries(upper_series)
-
-                if USE_AREA_DISTRIBUTION:
-                    area_series = QAreaSeries(lower_series, upper_series)
-                    area_series.setColor(dist_color)
-                    self.chart.addSeries(area_series)
-
-            xAxis = QValueAxis()
-            xAxis.setMin(minX)
-            xAxis.setMax(maxX)
-
-            use_log = (minY > 0.0) and self.logYAxisCheckbox.checkState()
-            yAxis = QLogValueAxis() if use_log else QValueAxis()
-            yAxis.setMin(minY)
-            yAxis.setMax(maxY)
-            self.chart.addAxis(xAxis, Qt.AlignBottom)
-            self.chart.addAxis(yAxis, Qt.AlignLeft)
-            for series in self.chart.series():
-                series.attachAxis(xAxis)
-                series.attachAxis(yAxis)
+            self.graphWidget.draw()
 
 
 if __name__ == "__main__":
