@@ -62,6 +62,8 @@ class ExperimentsModel(QAbstractTableModel):
             entry = entry + [config["seed"]]
             self.data.append(entry)
 
+        self.modelReset.emit()
+
     def rowCount(self, parent=None):
         return len(self.data)
 
@@ -94,6 +96,8 @@ class GraphLabels(QAbstractTableModel):
     def reloadExperiments(self, names):
         self.names = copy.deepcopy(names)
         self.names = self.names + ["x_label", "y_label"]
+
+        self.modelReset.emit()
 
     def rowCount(self, parent=None):
         return len(self.names)
