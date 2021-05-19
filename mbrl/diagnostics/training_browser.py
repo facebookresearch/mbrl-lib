@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QDockWidget,
     QFileDialog,
+    QHeaderView,
     QMainWindow,
     QPushButton,
     QTableView,
@@ -182,6 +183,10 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.tableView.selectionModel().selectionChanged.connect(
             self.onExperimentsSelectionChanged
         )
+        for i in range(self.tableView.horizontalHeader().count()):
+            self.tableView.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.Stretch
+            )
         self.resultsWidget.setWidget(self.tableView)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.resultsWidget)
 
@@ -189,6 +194,10 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.labelTable = GraphLabels(self.experiment_names, self)
         self.labelView = QTableView()
         self.labelView.setModel(self.labelTable)
+        for i in range(self.labelView.horizontalHeader().count()):
+            self.labelView.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.Stretch
+            )
         self.graphLabelsWidget.setWidget(self.labelView)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.graphLabelsWidget)
 
