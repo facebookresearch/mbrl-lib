@@ -1,3 +1,4 @@
+import copy
 import glob
 import os
 import sys
@@ -7,8 +8,7 @@ import pandas as pd
 import yaml
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt5.QtCore import QAbstractTableModel, QDir
-from PyQt5.QtGui import Qt
+from PyQt5.QtCore import QAbstractTableModel, QDir, Qt
 from PyQt5.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -32,13 +32,25 @@ class ExperimentsModel(QAbstractTableModel):
     Class to populate a table view with a pandas dataframe
     """
 
-    def __init__(self, data, parent=None):
+    def __init__(self, data, distributionCheckbox, parent=None):
         QAbstractTableModel.__init__(self, parent)
+        self.distributionCheckbox = distributionCheckbox
+        self.reloadExperiments(data)
+
+        self._headers = ["Algorithm", "Experiment", "Environment", "Seed"]
+
+    def reloadExperiments(self, data):
         self.data = []
-        for path in [
-            path.replace("/{}".format(SOURCE), "/.hydra/config.yaml") for path in data
-        ]:
-            config = yaml.load(open(path, "r"), Loader=yaml.FullLoader)
+        for path in data:
+            if path.endswith(SOURCE):
+                config = yaml.load(
+                    open(
+                        path.replace("/{}".format(SOURCE), "/.hydra/config.yaml"), "r"
+                    ),
+                    Loader=yaml.FullLoader,
+                )
+            elif path.endswith(MULTI_ROOT):
+                config = yaml.load(open(path, "r"), Loader=yaml.FullLoader)
             entry = [config["algorithm"]["name"]]
             entry = entry + [config["experiment"]]
             entry = entry + [
@@ -46,7 +58,6 @@ class ExperimentsModel(QAbstractTableModel):
             ]
             entry = entry + [config["seed"]]
             self.data.append(entry)
-        self._headers = ["Algorithm", "Experiment", "Environment", "Seed"]
 
     def rowCount(self, parent=None):
         return len(self.data)
@@ -74,8 +85,6 @@ class BasicTrainingResultsWindow(QMainWindow):
         if self.experiment_root[-1] != "/":
             self.experiment_root = self.experiment_root + "/"
 
-        self.load_experiments()
-
         self.chart = Figure()
         self.axes = self.chart.add_subplot(111)
         self.graphWidget = FigureCanvas(self.chart)
@@ -85,10 +94,7 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.logYAxisCheckbox.stateChanged.connect(self.onChangeScale)
 
         self.displayAsDistributionCheckbox = QCheckBox("Display As Distribution")
-        self.displayAsDistributionCheckbox.stateChanged.connect(
-            self.onChangeDisplayAsDistribution
-        )
-        self.displayAsDistributionCheckbox.setEnabled(False)
+        self.displayAsDistributionCheckbox.setChecked(True)
 
         self.saveFigureButton = QPushButton("&Save Figure")
         self.saveFigureButton.clicked.connect(self.onSaveFigure)
@@ -99,8 +105,12 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.optionsToolBar.addWidget(self.displayAsDistributionCheckbox)
         self.addToolBar(self.optionsToolBar)
 
+        self.load_experiments()
+
         self.resultsWidget = QDockWidget("Experiments", self)
-        self.experimentTable = ExperimentsModel(self.experiment_results, self)
+        self.experimentTable = ExperimentsModel(
+            self.experiment_results, self.displayAsDistributionCheckbox, self
+        )
         self.tableView = QTableView()
         self.tableView.setModel(self.experimentTable)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -110,6 +120,10 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.resultsWidget.setWidget(self.tableView)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.resultsWidget)
 
+        self.displayAsDistributionCheckbox.stateChanged.connect(
+            self.onChangeDisplayAsDistribution
+        )
+
     def load_experiments(self):
         self.experiment_results = glob.glob(
             self.experiment_root + "**/{}".format(SOURCE), recursive=True
@@ -117,6 +131,16 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.multirun_results = glob.glob(
             self.experiment_root + "**/{}".format(MULTI_ROOT), recursive=True
         )
+        if self.displayAsDistributionCheckbox.checkState():
+            for path in self.multirun_results:
+                root = copy.deepcopy(path).replace("/" + MULTI_ROOT, "")
+
+                self.experiment_results = list(
+                    filter(lambda entry: root not in entry, self.experiment_results)
+                )
+
+                self.experiment_results.append(path)
+
         self.experiment_names = []
         for path in self.experiment_results:
             name = path.replace(self.experiment_root, "").replace(
@@ -160,10 +184,10 @@ class BasicTrainingResultsWindow(QMainWindow):
     def onChangeScale(self, state):
         self.onExperimentsSelectionChanged()
 
-    def onFilterOutliers(self, state):
-        self.onExperimentsSelectionChanged()
-
     def onChangeDisplayAsDistribution(self, state):
+        self.load_experiments()
+        self.experimentTable.reloadExperiments(self.experiment_results)
+
         self.onExperimentsSelectionChanged()
 
     def onExperimentsSelectionChanged(self, sel1=None, sel2=None):
@@ -172,47 +196,46 @@ class BasicTrainingResultsWindow(QMainWindow):
         if selection.hasSelection():
             self.axes.cla()
 
-            self.displayAsDistributionCheckbox.setEnabled(
-                self.selectedMatchingSequences()
-            )
-            displayAsDistribution = (
-                self.displayAsDistributionCheckbox.isEnabled()
-                and self.displayAsDistributionCheckbox.checkState()
-            )
-
-            series = []
             for rowIndex in [row.row() for row in selection.selectedRows()]:
-                result = pd.read_csv(self.experiment_results[rowIndex])
+                if self.experiment_results[rowIndex].endswith(SOURCE):
+                    result = pd.read_csv(self.experiment_results[rowIndex])
 
-                if displayAsDistribution:
-                    if len(series) == 0:
-                        series.append(result[XCOL])
-                    series.append(result[YCOL])
-                else:
                     self.axes.plot(
                         result[XCOL],
                         result[YCOL],
                         label=self.experiment_names[rowIndex],
                     )
+                elif self.experiment_results[rowIndex].endswith(MULTI_ROOT):
+                    time_series = None
+                    data_series = []
+                    for path in glob.glob(
+                        self.experiment_results[rowIndex].replace(MULTI_ROOT, "")
+                        + "**/{}".format(SOURCE),
+                        recursive=True,
+                    ):
+                        result = pd.read_csv(path)
 
-            if displayAsDistribution:
-                time_series = series[0]
-                data_series = series[1:]
+                        time_series = (
+                            result[XCOL] if time_series is None else time_series
+                        )
+                        data_series.append(result[YCOL])
 
-                df = pd.concat(data_series, axis=1)
-                mean_series = df.mean(axis=1)
-                var_series = df.std(axis=1)
+                    df = pd.concat(data_series, axis=1)
+                    mean_series = df.mean(axis=1)
+                    var_series = df.std(axis=1)
 
-                mean_line = self.axes.plot(
-                    time_series, mean_series, label=self.experiment_results[rowIndex]
-                )
-                self.axes.fill_between(
-                    time_series,
-                    mean_series + var_series,
-                    mean_series - var_series,
-                    color=mean_line[0].get_color(),
-                    alpha=0.25,
-                )
+                    mean_line = self.axes.plot(
+                        time_series,
+                        mean_series,
+                        label=self.experiment_results[rowIndex],
+                    )
+                    self.axes.fill_between(
+                        time_series,
+                        mean_series + var_series,
+                        mean_series - var_series,
+                        color=mean_line[0].get_color(),
+                        alpha=0.25,
+                    )
 
             if self.logYAxisCheckbox.checkState():
                 self.axes.semilogy()
