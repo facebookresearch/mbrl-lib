@@ -1,20 +1,25 @@
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-
+import glob
 import os
 import sys
-import glob
-import numpy as np
-from scipy import stats
-import pandas as pd
 from argparse import ArgumentParser
-import yaml
-import signal
 
+import pandas as pd
+import yaml
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
+from PyQt5.QtCore import QAbstractTableModel, QDir
+from PyQt5.QtGui import Qt
+from PyQt5.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QDockWidget,
+    QFileDialog,
+    QMainWindow,
+    QPushButton,
+    QTableView,
+    QToolBar,
+)
 
 MULTI_ROOT = "multirun.yaml"
 SOURCE = "results.csv"
@@ -65,15 +70,11 @@ class BasicTrainingResultsWindow(QMainWindow):
     def __init__(self, experiment_root):
         super(BasicTrainingResultsWindow, self).__init__()
 
-        if experiment_root[-1] != "/":
-            experiment_root = experiment_root + "/"
-        self.experiment_results = glob.glob(
-            experiment_root + "**/{}".format(SOURCE), recursive=True
-        )
-        self.experiment_names = []
-        for path in self.experiment_results:
-            name = path.replace(experiment_root, "").replace("/{}".format(SOURCE), "")
-            self.experiment_names.append(name)
+        self.experiment_root = experiment_root
+        if self.experiment_root[-1] != "/":
+            self.experiment_root = self.experiment_root + "/"
+
+        self.load_experiments()
 
         self.chart = Figure()
         self.axes = self.chart.add_subplot(111)
@@ -89,7 +90,11 @@ class BasicTrainingResultsWindow(QMainWindow):
         )
         self.displayAsDistributionCheckbox.setEnabled(False)
 
+        self.saveFigureButton = QPushButton("&Save Figure")
+        self.saveFigureButton.clicked.connect(self.onSaveFigure)
+
         self.optionsToolBar = QToolBar(self)
+        self.optionsToolBar.addWidget(self.saveFigureButton)
         self.optionsToolBar.addWidget(self.logYAxisCheckbox)
         self.optionsToolBar.addWidget(self.displayAsDistributionCheckbox)
         self.addToolBar(self.optionsToolBar)
@@ -104,6 +109,20 @@ class BasicTrainingResultsWindow(QMainWindow):
         )
         self.resultsWidget.setWidget(self.tableView)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.resultsWidget)
+
+    def load_experiments(self):
+        self.experiment_results = glob.glob(
+            self.experiment_root + "**/{}".format(SOURCE), recursive=True
+        )
+        self.multirun_results = glob.glob(
+            self.experiment_root + "**/{}".format(MULTI_ROOT), recursive=True
+        )
+        self.experiment_names = []
+        for path in self.experiment_results:
+            name = path.replace(self.experiment_root, "").replace(
+                "/{}".format(SOURCE), ""
+            )
+            self.experiment_names.append(name)
 
     def selectedMatchingSequences(self):
         selection = self.tableView.selectionModel()
@@ -130,6 +149,13 @@ class BasicTrainingResultsWindow(QMainWindow):
             return True
 
         return False
+
+    def onSaveFigure(self, checked):
+        fname, _ = QFileDialog.getSaveFileName(
+            self, caption="Save figure", filter="Figures (*.png *.pdf)"
+        )
+        if len(fname) > 0:
+            self.chart.savefig(fname)
 
     def onChangeScale(self, state):
         self.onExperimentsSelectionChanged()
@@ -163,7 +189,11 @@ class BasicTrainingResultsWindow(QMainWindow):
                         series.append(result[XCOL])
                     series.append(result[YCOL])
                 else:
-                    self.axes.plot(result[XCOL], result[YCOL], label=self.experiment_names[rowIndex])
+                    self.axes.plot(
+                        result[XCOL],
+                        result[YCOL],
+                        label=self.experiment_names[rowIndex],
+                    )
 
             if displayAsDistribution:
                 time_series = series[0]
@@ -172,9 +202,17 @@ class BasicTrainingResultsWindow(QMainWindow):
                 df = pd.concat(data_series, axis=1)
                 mean_series = df.mean(axis=1)
                 var_series = df.std(axis=1)
-                
-                mean_line = self.axes.plot(time_series, mean_series, label=self.experiment_results[rowIndex])
-                self.axes.fill_between(time_series, mean_series + var_series, mean_series - var_series, color = mean_line[0].get_color(), alpha = 0.25)
+
+                mean_line = self.axes.plot(
+                    time_series, mean_series, label=self.experiment_results[rowIndex]
+                )
+                self.axes.fill_between(
+                    time_series,
+                    mean_series + var_series,
+                    mean_series - var_series,
+                    color=mean_line[0].get_color(),
+                    alpha=0.25,
+                )
 
             if self.logYAxisCheckbox.checkState():
                 self.axes.semilogy()
