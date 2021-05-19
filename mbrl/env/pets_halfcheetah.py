@@ -84,7 +84,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 torch.cos(state[..., 2:3]),
                 state[..., 3:],
             ],
-            axis=state.ndim - 1,
+            dim=state.ndim - 1,
         )
         if d1:
             # and squeeze it back afterwards
