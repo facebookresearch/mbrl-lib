@@ -137,9 +137,9 @@ class OneDTransitionRewardModel(Model):
             target = target_obs
         return model_in, target
 
-    def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Calls forward method of base model with the given input and args."""
-        return self.model.forward(x, **kwargs)
+        return self.model.forward(x, *args, **kwargs)
 
     def update_normalizer(self, batch: mbrl.types.TransitionBatch):
         """Updates the normalizer statistics using the batch of transition data.

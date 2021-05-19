@@ -69,7 +69,7 @@ class Model(nn.Module, abc.ABC):
             _convert(batch.dones).view(-1, 1),
         )
 
-    def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Computes the output of the dynamics model.
 
         Args:
@@ -280,7 +280,7 @@ class Ensemble(Model, abc.ABC):
         self.deterministic = deterministic
         self.to(device)
 
-    def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Computes the output of the dynamics model.
 
         Args:

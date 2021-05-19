@@ -8,8 +8,8 @@ from .model import Ensemble, Model
 from .model_env import ModelEnv
 from .model_trainer import ModelTrainer
 from .one_dim_tr_model import OneDTransitionRewardModel
+from .planet import PlaNetModel
 from .util import EnsembleLinearLayer, truncated_normal_init
-from .vae import VAE
 
 __all__ = [
     "Model",
@@ -21,5 +21,5 @@ __all__ = [
     "OneDTransitionRewardModel",
     "GaussianMLP",
     "truncated_normal_init",
-    "VAE",
+    "PlaNetModel",
 ]
