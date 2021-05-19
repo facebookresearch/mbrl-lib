@@ -205,8 +205,6 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.graphLabelsWidget.setWidget(self.labelView)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.graphLabelsWidget)
 
-        self.tabifyDockWidget(self.graphLabelsWidget, self.resultsWidget)
-
         self.labelTable.dataChanged.connect(self.onLabelChanged)
         self.displayAsDistributionCheckbox.stateChanged.connect(
             self.onChangeDisplayAsDistribution
