@@ -112,7 +112,7 @@ class OneDTransitionRewardModel(Model):
             obs = self.obs_process_fn(obs)
         obs = model_util.to_tensor(obs).to(self.device)
         action = model_util.to_tensor(action).to(self.device)
-        model_in = torch.cat([obs, action], axis=obs.ndim - 1)
+        model_in = torch.cat([obs, action], dim=obs.ndim - 1)
         if self.input_normalizer:
             model_in = self.input_normalizer.normalize(model_in)
         return model_in, obs, action
@@ -132,7 +132,7 @@ class OneDTransitionRewardModel(Model):
         model_in, *_ = self._get_model_input(obs, action)
         if self.learned_rewards:
             reward = model_util.to_tensor(reward).to(self.device).unsqueeze(reward.ndim)
-            target = torch.cat([target_obs, reward], axis=obs.ndim - 1)
+            target = torch.cat([target_obs, reward], dim=obs.ndim - 1)
         else:
             target = target_obs
         return model_in, target

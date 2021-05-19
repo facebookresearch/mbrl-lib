@@ -308,7 +308,7 @@ class DummyModel(mbrl.models.Model):
         act = x[:, _MOCK_OBS_DIM:]
         new_obs = obs + act.mean(axis=1, keepdim=True)
         # reward is also equal to new_obs
-        return torch.cat([new_obs, new_obs], axis=1)
+        return torch.cat([new_obs, new_obs], dim=1)
 
     def sample(self, x, deterministic=False, rng=None):
         return (self.forward(x),)
