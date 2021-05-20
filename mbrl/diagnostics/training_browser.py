@@ -27,7 +27,7 @@ SOURCE = "results.csv"
 XCOL = "env_step"
 YCOL = "episode_reward"
 
-user_name_dict = {"x_label": "epochs", "y_label": "reward"}
+user_name_dict = {"x_label": "steps", "y_label": "episode reward"}
 
 
 class ExperimentsModel(QAbstractTableModel):
@@ -163,7 +163,7 @@ class BasicTrainingResultsWindow(QMainWindow):
         self.logYAxisCheckbox = QCheckBox("Log Scale (Y Axis)")
         self.logYAxisCheckbox.stateChanged.connect(self.onChangeScale)
 
-        self.displayAsDistributionCheckbox = QCheckBox("Display As Distribution")
+        self.displayAsDistributionCheckbox = QCheckBox("Aggregate Results (Mean/Std)")
         self.displayAsDistributionCheckbox.setChecked(True)
 
         self.saveFigureButton = QPushButton("&Save Figure")
