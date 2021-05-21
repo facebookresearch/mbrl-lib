@@ -102,7 +102,7 @@ def get_cnn_output_size(
 class Conv2dEncoder(nn.Module):
     def __init__(
         self,
-        layers_config: Sequence[Tuple[int, int, int, int]],
+        layers_config: Tuple[Tuple[int, int, int, int]],
         image_shape: Tuple[int, int],
         encoding_size: int,
         activation_func: str = "ReLU",
@@ -141,7 +141,7 @@ class Conv2dDecoder(nn.Module):
         self,
         encoding_size: int,
         deconv_input_shape: Tuple[int, int, int],
-        layers_config: Sequence[Tuple[int, int, int, int]],
+        layers_config: Tuple[Tuple[int, int, int, int]],
         activation_func: str = "ReLU",
     ):
         super().__init__()
