@@ -13,6 +13,7 @@ import torch.nn as nn
 
 import mbrl.models
 import mbrl.util.replay_buffer
+import mbrl.models.util as model_utils
 from mbrl.env.termination_fns import no_termination
 from mbrl.types import TransitionBatch
 
@@ -428,3 +429,57 @@ def test_model_trainer_batch_callback():
         assert set(counter.keys()) == set(range(num_epochs))
         for i in range(num_epochs):
             assert counter[i] == num_batches
+
+
+def test_conv2d_encoder_shapes():
+    in_channels = 3
+    config = ((in_channels, 32, 3, 2), (32, 64, 3, 2))
+    activation_cls = [nn.ReLU, nn.SiLU, nn.Tanh]
+    encoding_size = 200
+    image_shape = (32, 32)
+    for act_idx, activation_func in enumerate(["ReLU", "SiLU", "Tanh"]):
+        encoder = model_utils.Conv2dEncoder(
+            config, image_shape, encoding_size, activation_func
+        )
+        assert len(encoder.convs) == len(config)
+        for i, layer_cfg in enumerate(config):
+            assert isinstance(encoder.convs[i][0], nn.Conv2d)
+            assert encoder.convs[i][0].in_channels == layer_cfg[0]
+            assert encoder.convs[i][0].out_channels == layer_cfg[1]
+            assert encoder.convs[i][0].kernel_size == (layer_cfg[2], layer_cfg[2])
+            assert encoder.convs[i][0].stride == (layer_cfg[3], layer_cfg[3])
+            assert isinstance(encoder.convs[i][1], activation_cls[act_idx])
+
+        assert isinstance(encoder.fc, nn.Linear)
+        assert encoder.fc.out_features == encoding_size
+
+        dummy = torch.ones((8, in_channels) + image_shape)
+        out = encoder.forward(dummy)
+        assert out.shape == (8, encoding_size)
+
+
+def test_conv2d_decoder_shapes():
+    in_channels = 64
+    config = ((in_channels, 32, 3, 2), (32, 16, 3, 2))
+    activation_cls = [nn.ReLU, nn.SiLU, nn.Tanh]
+    encoding_size = 200
+    deconv_input_shape = (in_channels, 3, 3)
+    for act_idx, activation_func in enumerate(["ReLU", "SiLU", "Tanh"]):
+        decoder = model_utils.Conv2dDecoder(
+            encoding_size, deconv_input_shape, config, activation_func=activation_func
+        )
+        assert len(decoder.deconvs) == len(config)
+        for i, layer_cfg in enumerate(config):
+            assert isinstance(decoder.deconvs[i][0], nn.ConvTranspose2d)
+            assert decoder.deconvs[i][0].in_channels == layer_cfg[0]
+            assert decoder.deconvs[i][0].out_channels == layer_cfg[1]
+            assert decoder.deconvs[i][0].kernel_size == (layer_cfg[2], layer_cfg[2])
+            assert decoder.deconvs[i][0].stride == (layer_cfg[3], layer_cfg[3])
+            assert isinstance(decoder.deconvs[i][1], activation_cls[act_idx])
+
+        assert isinstance(decoder.fc, nn.Linear)
+        assert decoder.fc.out_features == np.prod(deconv_input_shape)
+
+        dummy = torch.ones(8, encoding_size)
+        out = decoder.forward(dummy)
+        assert out.shape[0] == 8 and out.shape[1] == config[-1][1]
