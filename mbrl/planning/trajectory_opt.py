@@ -221,6 +221,7 @@ class MPPIOptimizer(Optimizer):
             + (1-self.beta)*action_samples[:, i, :]
 
         # clipping actions
+        # This should still work if the bounds between dimensions are different.
         action_samples = torch.where(action_samples > self.upper_bound,
                                      self.upper_bound,
                                      action_samples)
