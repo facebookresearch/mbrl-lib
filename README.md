@@ -139,8 +139,19 @@ a trajectory optimizer agent on the true environment using Python's
   
   ![Control Half-Cheetah True Dynamics](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/master/docs/resources/halfcheetah-break.gif)
 
-Note that the tools above require Mujoco installation, and are specific to 
-models of type [``OneDimTransitionRewardModel``](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/models/one_dim_tr_model.py).
+* [``TrainingBrowser``](training_browser.py): This script launches a lightweight
+training browser for plotting rewards obtained after training runs 
+  (as long as the runs use our logger). 
+  The browser allows aggregating multiple runs and displaying mean/std, 
+  and also lets the user save the image to hard drive. The legend and axes labels
+  can be edited in the pane at the bottom left. Requires installing `PyQt5`. 
+  Thanks to [a3ahmad](https://github.com/a3ahmad) for the contribution.
+
+  ![Training Browser Example](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/master/docs/resources/training-browser-example.png)
+
+Note that, except for the training browser, all the tools above require Mujoco 
+installation and are specific to models of type 
+[``OneDimTransitionRewardModel``](../models/one_dim_tr_model.py).
 We are planning to extend this in the future; if you have useful suggestions
 don't hesitate to raise an issue or submit a pull request!
 
