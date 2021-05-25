@@ -43,4 +43,35 @@ class TransitionBatch:
         )
 
 
+@dataclass
+class SequenceTransitionBatch:
+    """Represents a  batch of transitions sequences. Item access yields a
+       TransitionBatch."""
+
+    obs: Optional[TensorType]
+    act: Optional[TensorType]
+    next_obs: Optional[TensorType]
+    rewards: Optional[TensorType]
+    dones: Optional[TensorType]
+
+    def __len__(self):
+        # typical shape of states would be (E,S,N,ds) where
+        # E, S, N and ds are the ensemble size, sequence length, batch size and state dimension
+        # respectively.
+        return self.obs.shape[1]  # returns length of sequence
+
+    def astuple(self) -> Transition:
+        return self.obs, self.act, self.next_obs, self.rewards, self.dones
+
+    def __getitem__(self, item):
+        # assumes (E,S,N,_) format
+        return TransitionBatch(
+            self.obs[:, item, :, :],
+            self.act[:, item, :, :],
+            self.next_obs[:, item, :, :],
+            self.rewards[:, item, :, :],
+            self.dones[:, item, :],
+        )
+
+
 ModelInput = Union[torch.Tensor, TransitionBatch]
