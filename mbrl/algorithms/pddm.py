@@ -48,9 +48,9 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # create model ensembles and initiate buffer with random agent
-    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.common.create_multistep_tr_model(cfg, obs_shape, act_shape)
     replay_buffer = mbrl.util.common.create_replay_buffer(
-        cfg, obs_shape, act_shape, rng=rng
+        cfg, obs_shape, act_shape, rng=rng, collect_trajectories=True,
     )
     mbrl.util.common.rollout_agent_trajectories(
         env,
@@ -58,6 +58,7 @@ def train(
         mbrl.planning.RandomAgent(env),
         {},
         replay_buffer=replay_buffer,
+        collect_full_trajectories=True,
     )
 
     # Training Loop

@@ -163,6 +163,80 @@ class BootstrapIterator(TransitionIterator):
         return self._ensemble_size
 
 
+class SequenceTransitionIterator(BootstrapIterator):
+    """
+    TODO
+    """
+
+    def __init__(
+            self,
+            transitions: TransitionBatch,
+            trajectory_indices: List[Tuple[int, int]],
+            batch_size: int,
+            sequence_length: int,
+            ensemble_size: int,
+            shuffle_each_epoch: bool = False,
+            use_last_transition = True,
+            rng: Optional[np.random.Generator] = None,
+    ):
+        self._sequence_length = sequence_length
+        self._trajectory_indices = trajectory_indices
+        self._sequence_length = sequence_length
+        self._bootstrap_iter = True
+        self._use_last_transition = use_last_transition
+        super().__init__(
+            transitions,
+            batch_size * sequence_length,  # this is a hack to stay compatible.
+            ensemble_size,
+            shuffle_each_epoch,
+            False,
+            rng)
+
+    def _sample_member_indices(self) -> np.ndarray:
+        self.member_indices = np.empty((self.ensemble_size, self.batch_size), dtype=int)
+        truncated_trajectory_indices = np.array(self._trajectory_indices)
+        if self._use_last_transition:
+            truncated_trajectory_indices[:, 1] -= self._sequence_length - 1
+        else:
+            truncated_trajectory_indices[:, 1] -= self._sequence_length - 2
+
+        for i in range(self.ensemble_size):
+            traj_idxs = np.random.randint(
+                0, len(truncated_trajectory_indices), size=self.batch_size // self._sequence_length).astype(np.int32)
+            sequence_start_position = np.random.randint(
+                truncated_trajectory_indices[traj_idxs, 0],
+                truncated_trajectory_indices[traj_idxs, 1]).repeat(self._sequence_length)
+            increment_array = np.tile(np.arange(self._sequence_length), self.batch_size // self._sequence_length)
+            self.member_indices[i] = sequence_start_position + increment_array
+
+        return self.member_indices
+
+    def __iter__(self):
+        self._current_batch = 0
+        if self._shuffle_each_epoch:
+            self._member_start_indices = self._sample_member_indices()
+        return self
+
+    def __next__(self):
+        if not self._bootstrap_iter:
+            return super().__next__()
+
+        # similar termination condition
+        start_idx = self._current_batch * self.batch_size
+        if start_idx >= self.num_stored:
+            raise StopIteration
+        self._current_batch += 1
+
+        # simply pick new start samples for each member
+        indices = np.arange(self.batch_size)
+        self._sample_member_indices()
+        batches = []
+        for member_idx in self.member_indices:
+            content_indices = member_idx[indices]
+            batches.append(self.transitions[content_indices])
+        return _consolidate_batches(batches)
+
+
 class ReplayBuffer:
     """A replay buffer with support for training/validation iterators and ensembles.
 
@@ -184,6 +258,11 @@ class ReplayBuffer:
             number of steps. Defaults to ``None`` in which case no trajectory
             information will be kept. The buffer will keep trajectory information
             automatically using the done value when calling :meth:`add`.
+        min_trajectory_length (int, optional): TODO
+        sequence_size (int, optional): TODO
+        use_last_transition_in_sequence (bool, optional): TODO
+
+
 
     .. warning::
         When using ``max_trajectory_length`` it is the user's responsibility to ensure
@@ -198,7 +277,10 @@ class ReplayBuffer:
         obs_type=np.float32,
         action_type=np.float32,
         rng: Optional[np.random.Generator] = None,
-        max_trajectory_length: Optional[int] = None,
+        max_trajectory_length: Optional[int] = 200,
+        min_trajectory_length: Optional[int] = 2,
+        sequence_length: Optional[int] = 2,
+        use_last_transition_in_sequence: Optional[bool] = True,
     ):
         self.cur_idx = 0
         self.capacity = capacity
@@ -208,6 +290,20 @@ class ReplayBuffer:
         if max_trajectory_length:
             self.trajectory_indices = []
             capacity += max_trajectory_length
+
+        # non trivial sequences require trajectory bookkeeping
+        self.sequence_length = sequence_length
+        self.min_trajectory_length = min_trajectory_length
+        self.use_last_transition_in_sequence = use_last_transition_in_sequence
+        if sequence_length > 1:
+            assert self.trajectory_indices is not None
+            if use_last_transition_in_sequence:
+                assert min_trajectory_length >= sequence_length
+            else:
+                assert min_trajectory_length > sequence_length
+        elif sequence_length <= 0:
+            raise RuntimeError("inverted sequences are not supported yet.")
+
         # TODO replace all of these with a transition batch
         self.obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.next_obs = np.empty((capacity, *obs_shape), dtype=obs_type)
@@ -265,6 +361,11 @@ class ReplayBuffer:
         new_trajectory = (self._start_last_trajectory, self.cur_idx)
         self.remove_overlapping_trajectories(new_trajectory)
         self.trajectory_indices.append(new_trajectory)
+        if self.cur_idx - self._start_last_trajectory < self.min_trajectory_length:
+            warnings.warn(
+                "The trajectory is shorted than the specified min_trajectory length. "
+                "Unexpected behavior might occur while sampling sequenced batches."
+            )
         if self.cur_idx >= self.capacity:
             self.cur_idx = 0
         self._start_last_trajectory = self.cur_idx
@@ -343,6 +444,18 @@ class ReplayBuffer:
 
         return TransitionBatch(obs, action, next_obs, reward, done)
 
+    def _create_sequenced_batch_iter(self, batch_size, ensemble_size):
+        return SequenceTransitionIterator(
+            self._batch_from_indices(np.arange(self.num_stored)),
+            self.trajectory_indices,
+            batch_size,
+            self.sequence_length,
+            ensemble_size,
+            shuffle_each_epoch=True,
+            use_last_transition=self.use_last_transition_in_sequence,
+            rng=self._rng,
+        )
+
     def __len__(self):
         return self.num_stored
 
@@ -411,6 +524,10 @@ class ReplayBuffer:
                 it will use sampling with replacement. Defaults to ``False``.
 
         """
+        if self.sequence_length > 1:
+            # for now no validation supported
+            return self._create_sequenced_batch_iter(batch_size, ensemble_size), None
+
         val_size = int(self.num_stored * val_ratio)
         train_size = self.num_stored - val_size
         permutation = self._rng.permutation(self.num_stored)

@@ -1,6 +1,6 @@
 # @package _group_
 name: "pddm"
-
+dynamics_model: gaussian_mmlp_ensemble
 agent:
   _target_: mbrl.planning.TrajectoryOptimizerAgent
   action_lb: ???

@@ -15,7 +15,7 @@ class MultistepTransitionRewardModel(OneDTransitionRewardModel):
 
     def update(
         self,
-        batch: mbrl.types.SequenceTransitionBatch,
+        batch: mbrl.types.TransitionBatch,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
     ) -> float:
@@ -26,23 +26,6 @@ class MultistepTransitionRewardModel(OneDTransitionRewardModel):
             optimizer (torch optimizer): the optimizer to use to update the model.
         """
         assert target is None
-        model_input_and_targets,  = []
-        total_loss = 0
 
-        model_in, target = self._get_model_input_and_target_from_batch(batch[0])
-        model_input_and_targets.append((model_in, target))
-        # simulate sequence in dynamics model
-        with torch.no_grad():
-            for i in range(1, len(batch)):
-                next_obs, _ = self.model.sample(
-                    model_in,
-                    deterministic=False,
-                )
-                batch[i].obs = next_obs  # override observations with predictions
-                model_in, target = self._get_model_input_and_target_from_batch(batch[i])
-                model_input_and_targets.append((model_in, target))
-
-        # perform stepwise update with predicted rollouts
-        for model_in, target in model_input_and_targets:
-            total_loss += self.model.update(model_in, optimizer, target=target)
-        return total_loss
+        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        return self.model.update(model_in, optimizer, target=target)

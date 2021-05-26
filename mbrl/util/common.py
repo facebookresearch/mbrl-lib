@@ -102,6 +102,90 @@ def create_one_dim_tr_model(
     return dynamics_model
 
 
+# TODO remove shameless copy-paste
+def create_multistep_tr_model(
+        cfg: omegaconf.DictConfig,
+        obs_shape: Tuple[int, ...],
+        act_shape: Tuple[int, ...],
+        model_dir: Optional[Union[str, pathlib.Path]] = None,
+):
+    """Creates a 1-D transition reward model from a given configuration.
+
+    This method creates a new model from the given configuration and wraps it into a
+    :class:`mbrl.models.OneDTransitionRewardModel` (see its documentation for explanation of some
+    of the config args under ``cfg.algorithm``).
+    The configuration should be structured as follows::
+
+        -cfg
+          -dynamics_model
+            -model
+              -_target_ (str): model Python class
+              -in_size (int, optional): input size
+              -out_size (int, optional): output size
+              -model_arg_1
+               ...
+              -model_arg_n
+          -algorithm
+            -learned_rewards (bool): whether rewards should be learned or not
+            -target_is_delta (bool): to be passed to the dynamics model wrapper
+            -normalize (bool): to be passed to the dynamics model wrapper
+          -overrides
+            -no_delta_list (list[int], optional): to be passed to the dynamics model wrapper
+            -obs_process_fn (str, optional): a Python function to pre-process observations
+            -num_elites (int, optional): number of elite members for ensembles
+
+    If ``cfg.dynamics_model.model.in_size`` is not provided, it will be automatically set to
+    `obs_shape[0] + act_shape[0]`. If ``cfg.dynamics_model.model.out_size`` is not provided,
+    it will be automatically set to `obs_shape[0] + int(cfg.algorithm.learned_rewards)`.
+
+    The model will be instantiated using :func:`hydra.utils.instantiate` function.
+
+    Args:
+        cfg (omegaconf.DictConfig): the configuration to read.
+        obs_shape (tuple of ints): the shape of the observations (only used if the model
+            input or output sizes are not provided in the configuration).
+        act_shape (tuple of ints): the shape of the actions (only used if the model input
+            is not provided in the configuration).
+        model_dir (str or pathlib.Path): If provided, the model will attempt to load its
+            weights and normalization information from "model_dir / model.pth" and
+            "model_dir / env_stats.pickle", respectively.
+
+    Returns:
+        (:class:`mbrl.models.OneDTransitionRewardModel`): the model created.
+
+    """
+    # This first part takes care of the case where model is BasicEnsemble and in/out sizes
+    # are handled by member_cfg
+    model_cfg = cfg.dynamics_model.model
+    if model_cfg._target_ == "mbrl.models.BasicEnsemble":
+        model_cfg = model_cfg.member_cfg
+    if model_cfg.get("in_size", None) is None:
+        model_cfg.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
+    if model_cfg.get("out_size", None) is None:
+        model_cfg.out_size = obs_shape[0] + int(cfg.algorithm.learned_rewards)
+
+    # Now instantiate the model
+    model = hydra.utils.instantiate(cfg.dynamics_model.model)
+
+    name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
+    if name_obs_process_fn:
+        obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
+    else:
+        obs_process_fn = None
+    dynamics_model = mbrl.models.MultistepTransitionRewardModel(
+        model,
+        target_is_delta=cfg.algorithm.target_is_delta,
+        normalize=cfg.algorithm.normalize,
+        learned_rewards=cfg.algorithm.learned_rewards,
+        obs_process_fn=obs_process_fn,
+        no_delta_list=cfg.overrides.get("no_delta_list", None),
+        num_elites=cfg.overrides.get("num_elites", None),
+    )
+    if model_dir:
+        dynamics_model.load(model_dir)
+
+    return dynamics_model
+
 def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfig:
     """Loads a Hydra configuration from the given directory path.
 
