@@ -179,15 +179,9 @@ def create_replay_buffer(
             )
         maybe_max_trajectory_len = cfg.overrides.trial_length
 
-    min_rollout = (
-        cfg.overrides.min_rollout if "min_rollout" in cfg.overrides else 1
-    )
-    sequence_length = (
-        cfg.overrides.sequence_length if "sequence_length" in cfg.overrides else 1
-    )
-    use_last = (
-        cfg.overrides.use_last_entry if "use_last_entry" in cfg.overrides else True
-    )
+    min_rollout = cfg.overrides.get("min_rollout", 1)
+    sequence_length = cfg.overrides.get("sequence_length", 1)
+    use_last = cfg.overrides.get("use_last_entry", True)
 
     replay_buffer = ReplayBuffer(
         dataset_size,

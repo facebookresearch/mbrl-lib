@@ -1,8 +1,8 @@
 import os
 from typing import Optional
+from omegaconf import open_dict
 
 import gym
-import hydra.utils
 import numpy as np
 import omegaconf
 import torch
@@ -48,7 +48,13 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # create model ensembles and initiate buffer with random agent
-    # add config value if present in override
+    # add config value if present in override else use simple GaussianMLP model
+    if cfg.overrides.get("sequence_length", 1) == 1:
+        cfg.dynamics_model.model._target_ = 'mbrl.models.GaussianMLP'
+    else:
+        with open_dict(cfg):
+            cfg.dynamics_model.model.sequence_length = cfg.overrides.get("sequence_length", 1)
+
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
     replay_buffer = mbrl.util.common.create_replay_buffer(
         cfg, obs_shape, act_shape, rng=rng, collect_trajectories=True,

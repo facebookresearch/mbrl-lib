@@ -195,10 +195,8 @@ class SequenceTransitionIterator(BootstrapIterator):
     def _sample_member_indices(self) -> np.ndarray:
         self.member_indices = np.empty((self.ensemble_size, self.batch_size), dtype=int)
         truncated_trajectory_indices = np.array(self._trajectory_indices)
-        if self._use_last_transition:
-            truncated_trajectory_indices[:, 1] -= self._sequence_length - 1
-        else:
-            truncated_trajectory_indices[:, 1] -= self._sequence_length - 2
+        truncate_by = 1 if self._use_last_transition else 2
+        truncated_trajectory_indices[:, 1] -= self._sequence_length - truncate_by
 
         for i in range(self.ensemble_size):
             traj_idxs = np.random.randint(

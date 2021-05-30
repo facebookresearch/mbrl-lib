@@ -31,7 +31,7 @@ class GaussianMMLP(GaussianMLP):
             deterministic: bool = False,
             propagation_method: Optional[str] = None,
             learn_logvar_bounds: bool = False,
-            sequence_length: bool = 3,
+            sequence_length: bool = 1,
     ):
         super().__init__(in_size, out_size, device, num_layers, ensemble_size, hid_size, use_silu, deterministic,
                          propagation_method, learn_logvar_bounds)

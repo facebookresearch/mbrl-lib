@@ -16,7 +16,6 @@ patience: 25
 num_epochs_train_model: 25
 
 mppi_planning_horizon: 15
-planning_horizon: 15 # need to find an alternative !!!
 mppi_batch_size: 700
 mppi_beta: 0.9 # need to check that .. seems to high
 mppi_rew_weight: 1
