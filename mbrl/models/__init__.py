@@ -9,7 +9,6 @@ from .model import Ensemble, Model
 from .model_env import ModelEnv
 from .model_trainer import ModelTrainer
 from .one_dim_tr_model import OneDTransitionRewardModel
-from .multistep_tr_model import MultistepTransitionRewardModel
 from .util import EnsembleLinearLayer, truncated_normal_init
 
 __all__ = [
@@ -20,7 +19,6 @@ __all__ = [
     "EnsembleLinearLayer",
     "ModelEnv",
     "OneDTransitionRewardModel",
-    "MultistepTransitionRewardModel",
     "GaussianMLP",
     "GaussianMMLP",
     "truncated_normal_init",
