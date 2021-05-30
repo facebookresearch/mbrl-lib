@@ -31,10 +31,11 @@ class GaussianMMLP(GaussianMLP):
             deterministic: bool = False,
             propagation_method: Optional[str] = None,
             learn_logvar_bounds: bool = False,
+            sequence_length: bool = 3,
     ):
         super().__init__(in_size, out_size, device, num_layers, ensemble_size, hid_size, use_silu, deterministic,
                          propagation_method, learn_logvar_bounds)
-        self.seq_length = 2
+        self.seq_length = sequence_length
 
     def loss(
         self,

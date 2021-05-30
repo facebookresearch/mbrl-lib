@@ -259,14 +259,14 @@ class ReplayBuffer:
             information will be kept. The buffer will keep trajectory information
             automatically using the done value when calling :meth:`add`.
         min_trajectory_length (int, optional): TODO
-        sequence_size (int, optional): TODO
+        sequence_length (int, optional): TODO
         use_last_transition_in_sequence (bool, optional): TODO
 
 
 
     .. warning::
-        When using ``max_trajectory_length`` it is the user's responsibility to ensure
-        that trajectories are stored continuously in the replay buffer.
+        When using ``max_trajectory_length and min_trajectory_length`` it is the user's
+        responsibility to ensure that trajectories are stored continuously in the replay buffer.
     """
 
     def __init__(
@@ -278,8 +278,8 @@ class ReplayBuffer:
         action_type=np.float32,
         rng: Optional[np.random.Generator] = None,
         max_trajectory_length: Optional[int] = 200,
-        min_trajectory_length: Optional[int] = 2,
-        sequence_length: Optional[int] = 2,
+        min_trajectory_length: Optional[int] = 1,
+        sequence_length: Optional[int] = 1,
         use_last_transition_in_sequence: Optional[bool] = True,
     ):
         self.cur_idx = 0
