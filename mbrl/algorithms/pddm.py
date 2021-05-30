@@ -31,7 +31,6 @@ def train(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-
     work_dir = work_dir or os.getcwd()
     logger = mbrl.util.Logger(work_dir, enable_back_compatible=True)
     logger.register_group(

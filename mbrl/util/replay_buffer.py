@@ -165,7 +165,10 @@ class BootstrapIterator(TransitionIterator):
 
 class SequenceTransitionIterator(BootstrapIterator):
     """
-    TODO
+    Provides an iterator which is compatible with BootstrapIterator. Batches consist of short
+    sequences from the trajectory which can overlap. The correlation in the batches can be
+    reduced by a smaller sequence length. Note that the true batch size corresponds to the
+    specified one times the sequence length.
     """
 
     def __init__(
@@ -256,10 +259,13 @@ class ReplayBuffer:
             number of steps. Defaults to ``None`` in which case no trajectory
             information will be kept. The buffer will keep trajectory information
             automatically using the done value when calling :meth:`add`.
-        min_trajectory_length (int, optional): TODO
-        sequence_length (int, optional): TODO
-        use_last_transition_in_sequence (bool, optional): TODO
-
+        min_trajectory_length (int, optional): if given, than it is assumed to be the minimal
+            trajectory length of a rollout.
+        sequence_length (int, optional): length of the sequences in batch -> batch size is therefore
+            technically sequence_length * specified batch size.
+        use_last_transition_in_sequence (bool, optional): in some cases the reward of last step is
+            misleading and if this attribute is set to false it will shorten the trajectory length
+            for one step. This needs to be accounted for in th sequence length.
 
 
     .. warning::
@@ -275,7 +281,7 @@ class ReplayBuffer:
         obs_type=np.float32,
         action_type=np.float32,
         rng: Optional[np.random.Generator] = None,
-        max_trajectory_length: Optional[int] = 200,
+        max_trajectory_length: Optional[int] = None,
         min_trajectory_length: Optional[int] = 1,
         sequence_length: Optional[int] = 1,
         use_last_transition_in_sequence: Optional[bool] = True,

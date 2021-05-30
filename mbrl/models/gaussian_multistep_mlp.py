@@ -2,19 +2,10 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import pathlib
-import pickle
-import warnings
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Optional, Union
 
 import torch
-from torch import nn as nn
-from torch.nn import functional as F
-
-import mbrl.util.math
 from . import GaussianMLP
-
-from .util import EnsembleLinearLayer, truncated_normal_init
 
 
 class GaussianMMLP(GaussianMLP):
@@ -43,13 +34,8 @@ class GaussianMMLP(GaussianMLP):
         target: Optional[torch.Tensor] = None,
         batch_size: int = None,
     ) -> torch.Tensor:
-        """ Computes loss for multistep Gaussian NNL
-        Args:
-            model_in:
-            target:
-            batch_size:
-        Returns:
-
+        """
+            Computes loss for multistep Gaussian NNL.
         """
         model_in = model_in.reshape(
             (self.num_members * 256, self.seq_length, model_in.shape[-1]))
@@ -58,14 +44,14 @@ class GaussianMMLP(GaussianMLP):
 
         current_loss = self._nll_loss(model_in[:, 0, :], target[:, 0, :])
         # simulate sequence in dynamics model
-        for i in range(1, self.seq_length):  # get the sequence length here !!!
+        for i in range(1, self.seq_length):
             current_loss.backward(retain_graph=True)
             next_obs = self.sample(
                 model_in[:, i-1, :],
                 deterministic=False,
                 rng=torch.Generator(device='cuda:0')
             )[0]
-            model_in[:, i, 0:4] = next_obs  # need dimensions from model
+            model_in[:, i, 0:self.out_size] = next_obs
             current_loss = self._nll_loss(model_in[:, i, :], target[:, i, :])
 
         return current_loss  # to stay compatible with frameworks procedures
