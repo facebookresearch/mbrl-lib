@@ -7,14 +7,15 @@ from typing import Optional, Tuple, Union, cast
 import gym
 import gym.wrappers
 import numpy as np
+from numpy.lib.function_base import copy
 import omegaconf
 import torch
 
 import mbrl.planning
 import mbrl.types
 
-from pybulletgym.envs.roboschool.robots.robot_bases import XmlBasedRobot as RSXMLBasedRobot
-from pybulletgym.envs.mujoco.robots.robot_bases import BodyPart, XmlBasedRobot as MJXMLBasedRobot
+from pybulletgym.envs.roboschool.robots.locomotors.walker_base import  WalkerBase as RSWalkerBase
+from pybulletgym.envs.mujoco.robots.locomotors.walker_base import WalkerBase as MJWalkerBase
 
 
 def make_env(
@@ -243,21 +244,27 @@ class freeze_mujoco_env:
             self._env.env._env._step_count = self._step_count
 
     def _enter_pybullet(self):
-        robot = self._env.env.robot
-        assert isinstance(robot, (RSXMLBasedRobot, MJXMLBasedRobot))
-        #assert robot.parts is not None
-        #self._init_state = {k: (p.get_position(), p.get_orientation(), *p.get_velocity()) for k, p in robot.parts.items()}
-        self.state_id = self._env.env._p.saveState()
+        env = self._env.env
+        robot = env.robot
+        assert isinstance(robot, (RSWalkerBase, MJWalkerBase))
+        self.state_id = env._p.saveState()
+        self.ground_ids = env.ground_ids
+        self.potential = env.potential
+        self.reward = float(env.reward)
+        robot_keys = [("body_rpy", tuple), ("body_xyz", tuple), ("feet_contact", np.copy), ("initial_z", float), ("joint_speeds", np.copy), ("joints_at_limit", int), ("walk_target_dist", float), ("walk_target_theta", float), ("walk_target_x", float), ("walk_target_y", float)]
+
+        self.robot_data = {}
+        for k, t in robot_keys:
+            self.robot_data[k] = t(getattr(robot, k))
 
     def _exit_pybullet(self):
-        self._env.env._p.restoreState(self.state_id)
-        #parts = self._env.env.robot.parts
-        #self._env.env.reset()
-        #for k, state in self._init_state.items():
-        #    x, theta, xdot, thetadot = state
-        #    part : BodyPart = parts[k]
-        #    part.reset_pose(x, theta)
-        #    part.reset_velocity(xdot, thetadot)
+        env = self._env.env
+        env.ground_ids = self.ground_ids
+        env.potential = self.potential
+        env.reward = self.reward
+        env._p.restoreState(self.state_id)
+        for k, v in self.robot_data.items():
+            setattr(env.robot, k, v)
 
     def __enter__(self):
         return self._enter_method()
