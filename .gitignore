@@ -1,4 +1,6 @@
 *personal*
+.python-version
+.vscode
 .idea
 .mypy_cache
 notebooks/.ipynb_checkpoints
