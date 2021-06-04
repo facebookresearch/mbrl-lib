@@ -13,6 +13,9 @@ import torch
 import mbrl.planning
 import mbrl.types
 
+from pybulletgym.envs.roboschool.robots.robot_bases import XmlBasedRobot as RSXMLBasedRobot
+from pybulletgym.envs.mujoco.robots.robot_bases import BodyPart, XmlBasedRobot as MJXMLBasedRobot
+
 
 def make_env(
     cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
@@ -211,6 +214,9 @@ class freeze_mujoco_env:
         elif "mbrl.third_party.dmc2gym" in self._env.env.__class__.__module__:
             self._enter_method = self._enter_dmcontrol
             self._exit_method = self._exit_dmcontrol
+        elif "pybulletgym" in self._env.env.__class__.__module__:
+            self._enter_method = self._enter_pybullet
+            self._exit_method = self._exit_pybullet
         else:
             raise RuntimeError("Tried to freeze an unsupported environment.")
 
@@ -235,6 +241,23 @@ class freeze_mujoco_env:
             self._env.env._env.physics.set_state(self._init_state)
             self._env._elapsed_steps = self._elapsed_steps
             self._env.env._env._step_count = self._step_count
+
+    def _enter_pybullet(self):
+        robot = self._env.env.robot
+        assert isinstance(robot, (RSXMLBasedRobot, MJXMLBasedRobot))
+        #assert robot.parts is not None
+        #self._init_state = {k: (p.get_position(), p.get_orientation(), *p.get_velocity()) for k, p in robot.parts.items()}
+        self.state_id = self._env.env._p.saveState()
+
+    def _exit_pybullet(self):
+        self._env.env._p.restoreState(self.state_id)
+        #parts = self._env.env.robot.parts
+        #self._env.env.reset()
+        #for k, state in self._init_state.items():
+        #    x, theta, xdot, thetadot = state
+        #    part : BodyPart = parts[k]
+        #    part.reset_pose(x, theta)
+        #    part.reset_velocity(xdot, thetadot)
 
     def __enter__(self):
         return self._enter_method()

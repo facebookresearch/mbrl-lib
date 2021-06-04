@@ -92,6 +92,12 @@ that it works correctly with our library by running
 
     python -m pytest tests/mujoco
 
+PyBullet is an open-source alternative to Mujoco. Install the `pybullet` Python package and manually
+install [`pybullet-gym`](https://github.com/benelot/pybullet-gym). Test it with:
+
+    python -m pytest tests/pybullet
+
+
 ## Visualization tools
 Our library also contains a set of 
 [visualization](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/diagnostics) tools, meant to facilitate diagnostics and 
