@@ -22,7 +22,7 @@ class GaussianMMLP(GaussianMLP):
             deterministic: bool = False,
             propagation_method: Optional[str] = None,
             learn_logvar_bounds: bool = False,
-            sequence_length: bool = 1,
+            sequence_length: int = 1,
     ):
         super().__init__(in_size, out_size, device, num_layers, ensemble_size, hid_size, use_silu, deterministic,
                          propagation_method, learn_logvar_bounds)
@@ -32,26 +32,30 @@ class GaussianMMLP(GaussianMLP):
         self,
         model_in: torch.Tensor,
         target: Optional[torch.Tensor] = None,
-        batch_size: int = None,
     ) -> torch.Tensor:
         """
-            Computes loss for multistep Gaussian NNL.
+            Computes loss for multistage Gaussian NNL.
         """
+        batch_size = model_in.shape[1] // self.seq_length
         model_in = model_in.reshape(
-            (self.num_members * 256, self.seq_length, model_in.shape[-1]))
+            (self.num_members * batch_size, self.seq_length, model_in.shape[-1]))
         target = target.reshape(
-            (self.num_members * 256, self.seq_length, target.shape[-1]))
+            (self.num_members * batch_size, self.seq_length, target.shape[-1]))
 
         current_loss = self._nll_loss(model_in[:, 0, :], target[:, 0, :])
         # simulate sequence in dynamics model
         for i in range(1, self.seq_length):
-            current_loss.backward(retain_graph=True)
+            # the recurrent version is really slow.. benchmarks will show weather this is worth
+            # current_loss.backward(retain_graph=True)
             next_obs = self.sample(
                 model_in[:, i-1, :],
                 deterministic=False,
                 rng=torch.Generator(device='cuda:0')
             )[0]
             model_in[:, i, 0:self.out_size] = next_obs
-            current_loss = self._nll_loss(model_in[:, i, :], target[:, i, :])
+            # line below is the loss for the recurrent version
+            # current_loss = self._nll_loss(model_in[:, i, :], target[:, i, :])
+            current_loss += self._nll_loss(model_in[:, i, :], target[:, i, :])
 
+        current_loss = current_loss / self.seq_length  # mean over sequence length
         return current_loss  # to stay compatible with frameworks procedures

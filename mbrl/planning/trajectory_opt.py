@@ -188,7 +188,7 @@ class MPPIOptimizer(Optimizer):
             callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
             **kwargs,
     ) -> torch.Tensor:
-        """Runs the optimization using MPPI.
+        """Implementation of MPPI planer
 
         Args:
             obj_fun (callable(tensor) -> tensor): objective function to maximize.
