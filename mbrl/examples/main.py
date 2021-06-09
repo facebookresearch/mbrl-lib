@@ -8,8 +8,8 @@ import omegaconf
 import torch
 
 import mbrl.algorithms.mbpo as mbpo
-import mbrl.algorithms.pets as pets
 import mbrl.algorithms.pddm as pddm
+import mbrl.algorithms.pets as pets
 import mbrl.util.mujoco as mujoco_util
 
 
@@ -23,7 +23,7 @@ def run(cfg: omegaconf.DictConfig):
     if cfg.algorithm.name == "mbpo":
         test_env, *_ = mujoco_util.make_env(cfg)
         return mbpo.train(env, test_env, term_fn, cfg)
-    if cfg.algorithm.name == 'pddm':
+    if cfg.algorithm.name == "pddm":
         return pddm.train(env, term_fn, reward_fn, cfg)
 
 

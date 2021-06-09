@@ -6,6 +6,7 @@ learned_rewards: false
 num_steps: 300000
 trial_length: 1000
 
+num_elites: 5
 model_lr: 2e-4
 model_wd: 3e-5
 model_batch_size: 32
@@ -16,7 +17,6 @@ patience: 25
 num_epochs_train_model: 25
 
 mppi_planning_horizon: 20
-planning_horizon: 20 # need to find an alternative !!!
 mppi_batch_size: 700
 mppi_beta: 0.9 # need to check that .. seems to high
 mppi_rew_weight: 1

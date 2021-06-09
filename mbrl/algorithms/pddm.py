@@ -4,12 +4,12 @@
 # LICENSE file in the root directory of this source tree.
 import os
 from typing import Optional
-from omegaconf import open_dict
 
 import gym
 import numpy as np
 import omegaconf
 import torch
+from omegaconf import open_dict
 
 import mbrl.constants
 import mbrl.models
@@ -53,14 +53,20 @@ def train(
     # create model ensembles and initiate buffer with random agent
     # add config value if present in override else use simple GaussianMLP model
     if cfg.overrides.get("sequence_length", 1) == 1:
-        cfg.dynamics_model.model._target_ = 'mbrl.models.GaussianMLP'
+        cfg.dynamics_model.model._target_ = "mbrl.models.GaussianMLP"
     else:
         with open_dict(cfg):
-            cfg.dynamics_model.model.sequence_length = cfg.overrides.get("sequence_length", 1)
+            cfg.dynamics_model.model.sequence_length = cfg.overrides.get(
+                "sequence_length", 1
+            )
 
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
     replay_buffer = mbrl.util.common.create_replay_buffer(
-        cfg, obs_shape, act_shape, rng=rng, collect_trajectories=True,
+        cfg,
+        obs_shape,
+        act_shape,
+        rng=rng,
+        collect_trajectories=True,
     )
     mbrl.util.common.rollout_agent_trajectories(
         env,
@@ -71,8 +77,6 @@ def train(
         collect_full_trajectories=True,
     )
 
-    # Training Loop
-    updates_made = 0
     env_steps = 0
     model_env = mbrl.models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
@@ -87,7 +91,6 @@ def train(
         logger=None if silent else logger,
     )
     max_total_reward = -np.inf
-    epoch = 0
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------

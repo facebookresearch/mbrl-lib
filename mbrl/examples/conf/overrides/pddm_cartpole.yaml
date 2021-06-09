@@ -6,7 +6,7 @@ num_steps: 5000
 min_rollout: 3
 sequence_length: 3
 
-
+num_elites: 5
 model_lr: 7.5e-4
 model_wd: 3e-5
 model_batch_size: 256
@@ -15,8 +15,9 @@ freq_train_model: 50
 patience: 25
 num_epochs_train_model: 25
 
+
 mppi_planning_horizon: 15
 mppi_batch_size: 700
-mppi_beta: 0.9 # need to check that .. seems to high
+mppi_beta: 0.9 # need to check that .. seems too high
 mppi_rew_weight: 1
 mppi_noise_magnifier: 0.9
