@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
 import torch
+import torch.distributions
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -12,7 +13,7 @@ from .util import Conv2dDecoder, Conv2dEncoder
 
 
 @dataclass
-class PlaNetForwardResults:
+class StatesAndBeliefs:
     all_prior_dist_params: List[torch.Tensor]  # mean+std concat
     prior_states: List[torch.Tensor]  # samples taken
     all_posterior_dist_params: List[torch.Tensor]  # mean+std concat
@@ -77,6 +78,18 @@ class BeliefModel(nn.Module):
         return self.rnn(embedding, current_belief)
 
 
+class MeanStdSplit(nn.Module):
+    def __init__(self, latent_state_size: int, min_std: float):
+        super().__init__()
+        self.min_std = min_std
+        self.latent_state_size = latent_state_size
+
+    def forward(self, state_dist_params: torch.Tensor) -> torch.Tensor:
+        mean = state_dist_params[:, : self.latent_state_size]
+        std = F.softplus(state_dist_params[:, self.latent_state_size :]) + self.min_std
+        return torch.cat([mean, std], dim=1)
+
+
 # encoder config is, for each conv layer in_channels, out_channels, kernel_size, stride
 # decoder config's first element is the shape of the input map, second element is as
 # the encoder config but for Conv2dTranspose layers.
@@ -93,12 +106,13 @@ class PlaNetModel(Model):
         hidden_size_fcs: int,
         device: Union[str, torch.device],
         min_std: float = 0.1,
+        free_nats_for_kl: float = 3,
     ):
         super().__init__(device)
         self.obs_shape = obs_shape
         self.latent_state_size = latent_state_size
         self.belief_size = belief_size
-        self.min_std = min_std
+        self.free_nats_for_kl = free_nats_for_kl * torch.ones(1).to(device)
 
         # Computes ht = f(ht-1, st-1, at-1)
         self.belief_model = BeliefModel(latent_state_size, action_size, belief_size)
@@ -110,6 +124,7 @@ class PlaNetModel(Model):
             nn.ReLU(),
             nn.Linear(hidden_size_fcs, 2 * latent_state_size),
             nn.ReLU(),
+            MeanStdSplit(latent_state_size, min_std),
         )
 
         # ---------------- The next two blocks together form q(st | ot, ht) ----------------
@@ -126,6 +141,7 @@ class PlaNetModel(Model):
             nn.ReLU(),
             nn.Linear(hidden_size_fcs, 2 * latent_state_size),
             nn.ReLU(),
+            MeanStdSplit(latent_state_size, min_std),
         )
 
         # ---------- This is p(ot| ht, st) (observation model) ------------
@@ -138,8 +154,8 @@ class PlaNetModel(Model):
 
     def _sample_state_from_params(self, params: torch.Tensor) -> torch.Tensor:
         mean = params[:, : self.latent_state_size]
-        std = F.softplus(params[:, self.latent_state_size :]) + self.min_std
-        return mean + std * torch.randn_like(mean)  # times normal something
+        std = params[:, self.latent_state_size :]
+        return mean + std * torch.randn_like(mean)
 
     # This should be a batch of trajectories (e.g, BS x Time x Obs_DIM)
     def forward(  # type: ignore
@@ -149,18 +165,17 @@ class PlaNetModel(Model):
         current_latent_state = torch.zeros(
             batch_size, self.latent_state_size, device=self.device
         )
-        results = PlaNetForwardResults()  # this collects all the variables
+        states_and_beliefs = StatesAndBeliefs()  # this collects all the variables
         current_belief = torch.zeros(batch_size, self.belief_size, device=self.device)
 
         prior_dist_params = torch.zeros(
             batch_size, 2 * self.latent_state_size, device=self.device
         )
-        posterior_dist_params = torch.zeros_like(prior_dist_params)
 
-        results.append(
+        states_and_beliefs.append(
             prior_dist_params=prior_dist_params,
             prior_state=current_latent_state,
-            posterior_dist_params=posterior_dist_params,
+            posterior_dist_params=torch.zeros_like(prior_dist_params),
             posterior_state=torch.zeros_like(current_latent_state),
             belief=current_belief,
         )
@@ -169,7 +184,6 @@ class PlaNetModel(Model):
                 current_latent_state, act[:, t_step], current_belief
             )
             prior_dist_params = self.prior_transition_model(next_belief)
-
             next_obs_encoding = self.encoder.forward(next_obs[:, t_step])
             posterior_dist_params = self.posterior_transition_model(
                 torch.cat([next_obs_encoding, next_belief], dim=1)
@@ -181,7 +195,7 @@ class PlaNetModel(Model):
             current_belief = next_belief
 
             # Keep track of all seen states/beliefs
-            results.append(
+            states_and_beliefs.append(
                 prior_dist_params=prior_dist_params,
                 prior_state=prior_sample,
                 posterior_dist_params=posterior_dist_params,
@@ -189,7 +203,17 @@ class PlaNetModel(Model):
                 belief=next_belief,
             )
 
-        return results.as_stacked_tuple()
+        states_and_beliefs_tuple = states_and_beliefs.as_stacked_tuple()
+        # this input is the posterior states and the beliefs.
+        # At index 0 it's just the initial posterior/belief, which is all zeros
+        decoder_input = torch.cat(
+            [states_and_beliefs_tuple[3][1:], states_and_beliefs_tuple[4][1:]], dim=2
+        )
+        decoder_input = decoder_input.view(
+            -1, self.latent_state_size + self.belief_size
+        )
+        pred_next_observations = self.decoder(decoder_input).view(next_obs.shape)
+        return states_and_beliefs_tuple + (pred_next_observations,)
 
     def loss(
         self,
@@ -197,8 +221,41 @@ class PlaNetModel(Model):
         target: Optional[torch.Tensor] = None,
         reduce: bool = True,
     ) -> torch.Tensor:
-        obs, act, next_obs, rewards, dones = batch.astuple()
-        raise NotImplementedError
+
+        obs, act, next_obs, rewards, dones = self._process_batch(batch)
+
+        (
+            prior_dist_params,
+            prior_states,
+            posterior_dist_params,
+            posterior_states,
+            beliefs,
+            pred_next_observations,
+        ) = self.forward(next_obs, act)
+
+        reconstruction_loss = F.mse_loss(next_obs, pred_next_observations)
+
+        # ------------------ Computing KL[q || p] ------------------
+        # [1:] indexing because for each batch the first time index has all zero params
+        # also recall that params is mean/std concatenated (half and half)
+        # finally, we sum over the time dimension
+        kl_loss = (
+            torch.distributions.kl_divergence(
+                torch.distributions.Normal(
+                    posterior_dist_params[1:, :, : self.latent_state_size],
+                    posterior_dist_params[1:, :, self.latent_state_size :],
+                ),
+                torch.distributions.Normal(
+                    prior_dist_params[1:, :, : self.latent_state_size],
+                    prior_dist_params[1:, :, self.latent_state_size :],
+                ),
+            )
+            .sum(0)
+            .max(self.free_nats_for_kl)
+            .mean()
+        )
+
+        return reconstruction_loss + kl_loss
 
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
