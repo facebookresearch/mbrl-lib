@@ -172,18 +172,29 @@ class SequenceTransitionIterator(BootstrapIterator):
     """
 
     def __init__(
-            self,
-            transitions: TransitionBatch,
-            trajectory_indices: List[Tuple[int, int]],
-            batch_size: int,
-            sequence_length: int,
-            ensemble_size: int,
-            shuffle_each_epoch: bool = False,
-            use_last_transition = True,
-            rng: Optional[np.random.Generator] = None,
+        self,
+        transitions: TransitionBatch,
+        trajectory_indices: List[Tuple[int, int]],
+        batch_size: int,
+        sequence_length: int,
+        ensemble_size: int,
+        shuffle_each_epoch: bool = False,
+        use_last_transition=True,
+        rng: Optional[np.random.Generator] = None,
     ):
         self._sequence_length = sequence_length
-        self._trajectory_indices = trajectory_indices
+        # filter trajectories of length shorter than sequence_length
+        self._truncate_by = 1 if use_last_transition else 2
+        self._trajectory_indices = list(
+            filter(
+                lambda tr: (tr[1] - tr[0]) >= sequence_length + self._truncate_by - 1,
+                trajectory_indices,
+            )
+        )
+        if len(self._trajectory_indices) < 0.5 * len(trajectory_indices):
+            warnings.warn(
+                "More than 50% of trajectories are smaller than the specified length."
+            )
         self._sequence_length = sequence_length
         self._bootstrap_iter = True
         self._use_last_transition = use_last_transition
@@ -193,21 +204,28 @@ class SequenceTransitionIterator(BootstrapIterator):
             ensemble_size,
             shuffle_each_epoch,
             False,
-            rng)
+            rng,
+        )
 
     def _sample_member_indices(self) -> np.ndarray:
         self.member_indices = np.empty((self.ensemble_size, self.batch_size), dtype=int)
         truncated_trajectory_indices = np.array(self._trajectory_indices)
-        truncate_by = 1 if self._use_last_transition else 2
-        truncated_trajectory_indices[:, 1] -= self._sequence_length - truncate_by
+        truncated_trajectory_indices[:, 1] -= self._sequence_length - self._truncate_by
 
         for i in range(self.ensemble_size):
             traj_idxs = np.random.randint(
-                0, len(truncated_trajectory_indices), size=self.batch_size // self._sequence_length).astype(np.int32)
+                0,
+                len(truncated_trajectory_indices),
+                size=self.batch_size // self._sequence_length,
+            ).astype(np.int32)
             sequence_start_position = np.random.randint(
                 truncated_trajectory_indices[traj_idxs, 0],
-                truncated_trajectory_indices[traj_idxs, 1]).repeat(self._sequence_length)
-            increment_array = np.tile(np.arange(self._sequence_length), self.batch_size // self._sequence_length)
+                truncated_trajectory_indices[traj_idxs, 1],
+            ).repeat(self._sequence_length)
+            increment_array = np.tile(
+                np.arange(self._sequence_length),
+                self.batch_size // self._sequence_length,
+            )
             self.member_indices[i] = sequence_start_position + increment_array
 
         return self.member_indices
