@@ -240,3 +240,19 @@ def test_populate_replay_buffer_collect_trajectories():
     )
     assert buffer.num_stored == num_trials * _MOCK_TRAJ_LEN
     assert len(buffer.trajectory_indices) == num_trials
+
+
+def test_get_basic_buffer_iterators():
+    buffer = mbrl.util.replay_buffer.ReplayBuffer(1000, (1,), (1,))
+    dummy = np.ones(1)
+    for i in range(900):
+        buffer.add(dummy, dummy, dummy, i, False)
+
+    train_iter, val_iter = mbrl.util.common.get_basic_buffer_iterators(buffer, 32, 0.1)
+    assert train_iter.num_stored == 810 and val_iter.num_stored == 90
+    all_rewards = []
+    for it in [train_iter, val_iter]:
+        for batch in it:
+            _, _, _, reward, _ = batch.astuple()
+            all_rewards.extend(reward)
+    assert sorted(all_rewards) == list(range(900))

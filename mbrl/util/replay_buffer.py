@@ -167,8 +167,6 @@ class ReplayBuffer:
     """A replay buffer with support for training/validation iterators and ensembles.
 
     This buffer can be pushed to and sampled from as a typical replay buffer.
-    Additionally, it provides a method called :meth:`get_iterators`, which returns
-    training/validation iterators for the data stored in the buffer.
 
     Args:
         capacity (int): the maximum number of transitions that the buffer can store.
@@ -380,8 +378,16 @@ class ReplayBuffer:
         self.num_stored = num_stored
         self.cur_idx = self.num_stored % self.capacity
 
-    def get_all(self) -> TransitionBatch:
-        """Returns all data stored in the replay buffer."""
+    def get_all(self, shuffle: bool = False) -> TransitionBatch:
+        """Returns all data stored in the replay buffer.
+
+        Args:
+            shuffle (int): set to ``True`` if the data returned should be in random order.
+            Defaults to ``False``.
+        """
+        if shuffle:
+            permutation = self._rng.permutation(self.num_stored)
+            return self._batch_from_indices(permutation)
         return self._batch_from_indices(np.arange(self.num_stored))
 
     def get_iterators(
@@ -411,35 +417,19 @@ class ReplayBuffer:
                 it will use sampling with replacement. Defaults to ``False``.
 
         """
-        val_size = int(self.num_stored * val_ratio)
-        train_size = self.num_stored - val_size
-        permutation = self._rng.permutation(self.num_stored)
-        train_data = self._batch_from_indices(permutation[:train_size])
-        train_iter: TransitionIterator
-        if train_ensemble:
-            if not ensemble_size:
-                raise RuntimeError("Bootstrap iterators require an ensemble_size")
-            train_iter = BootstrapIterator(
-                train_data,
-                batch_size,
-                ensemble_size,
-                shuffle_each_epoch=shuffle_each_epoch,
-                permute_indices=bootstrap_permutes,
-                rng=self._rng,
-            )
-        else:
-            train_iter = TransitionIterator(
-                train_data,
-                batch_size,
-                shuffle_each_epoch=shuffle_each_epoch,
-                rng=self._rng,
-            )
+        warnings.warn(
+            "ReplayBuffer.get_iterators() is deprecated and will be removed "
+            " starting on v0.2.0. Use mbrl.util.common.get_basic_iterators() "
+            " instead."
+        )
+        from mbrl.util.common import get_basic_buffer_iterators
 
-        val_iter = None
-        if val_size > 0:
-            val_data = self._batch_from_indices(permutation[train_size:])
-            val_iter = TransitionIterator(
-                val_data, batch_size, shuffle_each_epoch=False, rng=self._rng
-            )
-
-        return train_iter, val_iter
+        return get_basic_buffer_iterators(
+            self,
+            batch_size,
+            val_ratio,
+            train_ensemble,
+            ensemble_size,
+            shuffle_each_epoch,
+            bootstrap_permutes,
+        )

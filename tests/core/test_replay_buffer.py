@@ -355,22 +355,9 @@ def test_get_all():
         buffer.add(dummy, dummy, dummy, i, False)
         assert np.allclose(buffer.get_all().rewards, np.arange(i + 1))
     buffer.add(dummy, dummy, dummy, -1, False)
-    assert np.allclose(
-        buffer.get_all().rewards, np.array([-1] + list(range(1, capacity)))
-    )
+    expected_rewards = np.array([-1] + list(range(1, capacity)))
+    assert np.allclose(buffer.get_all().rewards, expected_rewards)
 
-
-def test_get_iterators():
-    buffer = replay_buffer.ReplayBuffer(1000, (1,), (1,))
-    dummy = np.ones(1)
-    for i in range(900):
-        buffer.add(dummy, dummy, dummy, i, False)
-
-    train_iter, val_iter = buffer.get_iterators(32, 0.1)
-    assert train_iter.num_stored == 810 and val_iter.num_stored == 90
-    all_rewards = []
-    for it in [train_iter, val_iter]:
-        for batch in it:
-            _, _, _, reward, _ = batch.astuple()
-            all_rewards.extend(reward)
-    assert sorted(all_rewards) == list(range(900))
+    shuffled_rewards = buffer.get_all(shuffle=True).rewards
+    assert not np.allclose(shuffled_rewards, expected_rewards)
+    assert np.allclose(np.sort(shuffled_rewards), expected_rewards)
