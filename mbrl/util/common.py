@@ -264,7 +264,22 @@ def get_sequence_buffer_iterator(
     val_ratio: float,
     sequence_length: int,
     ensemble_size: Optional[int] = None,
+    max_batches_per_loop: Optional[int] = None,
 ) -> SequenceTransitionIterator:
+    """Returns training/validation iterators for the data in the replay buffer.
+
+    Args:
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer from which
+            data will be sampled.
+        batch_size (int): the batch size for the iterators.
+        val_ratio (float): the proportion of data to use for validation. If 0., the
+            validation buffer will be set to ``None``.
+        sequence_length (int): the length of the sequences returned.
+        ensemble_size (int): the number of models in the ensemble.
+        max_batches_per_loop (int, optional): if given, specifies how many batches
+            to return (at most) over a full loop of the iterator.
+
+    """
 
     transitions = replay_buffer.get_all()
     num_trajectories = len(replay_buffer.trajectory_indices)
@@ -279,6 +294,7 @@ def get_sequence_buffer_iterator(
         sequence_length,
         ensemble_size,
         rng=replay_buffer._rng,
+        max_batches_per_loop=max_batches_per_loop,
     )
 
 

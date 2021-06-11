@@ -207,8 +207,9 @@ class SequenceTransitionIterator(BootstrapIterator):
         sequence_length (int): the length of the sequences returned.
         ensemble_size (int): the number of models in the ensemble.
         rng (np.random.Generator, optional): a random number generator when sampling
-            batches. If None (default value), a new default generator will be used.
-
+            batches. If ``None`` (default value), a new default generator will be used.
+        max_batches_per_loop (int, optional): if given, specifies how many batches
+            to return (at most) over a full loop of the iterator.
     """
 
     def __init__(
@@ -219,11 +220,13 @@ class SequenceTransitionIterator(BootstrapIterator):
         sequence_length: int,
         ensemble_size: int,
         rng: Optional[np.random.Generator] = None,
+        max_batches_per_loop: Optional[int] = None,
     ):
         self._sequence_length = sequence_length
         self._valid_starts = self._get_indices_valid_starts(
             trajectory_indices, sequence_length
         )
+        self._max_batches_per_loop = max_batches_per_loop
         if len(self._valid_starts) < 0.5 * len(trajectory_indices):
             warnings.warn(
                 "More than 50% of the trajectories were discarded for being shorter "
@@ -262,6 +265,11 @@ class SequenceTransitionIterator(BootstrapIterator):
         return self
 
     def __next__(self):
+        if (
+            self._max_batches_per_loop is not None
+            and self._current_batch >= self._max_batches_per_loop
+        ):
+            raise StopIteration
         return super().__next__()
 
     def __getitem__(self, item):

@@ -449,3 +449,38 @@ def test_sequence_iterator():
                     batch_size, batch_idx, iterator
                 )
                 _check_non_ensemble_sequence_batch(batch, expected_batch_size)
+
+
+def test_sequence_iterator_max_batches_per_loop():
+    max_len = 20
+    buffer = replay_buffer.ReplayBuffer(
+        1000,
+        (1, 1),
+        (1, 1),
+        max_trajectory_length=20,
+        obs_type=int,
+        action_type=int,
+    )
+    rng = np.random.default_rng(0)
+    num_trajectories = 40
+    dummy = np.ones((1, 1))
+    # Add a bunch of trajectories to the replay buffer
+    for i in range(num_trajectories):
+        traj_length = rng.integers(15, max_len)
+        for j in range(traj_length):
+            buffer.add(dummy, dummy, dummy, j, j == traj_length - 1)
+
+    for max_batches in range(1, 10):
+        iterator = replay_buffer.SequenceTransitionIterator(
+            buffer.get_all(),
+            buffer.trajectory_indices,
+            8,
+            4,
+            ensemble_size=1,
+            max_batches_per_loop=max_batches,
+        )
+
+        cnt = 0
+        for batch in iterator:
+            cnt += 1
+        assert cnt == max_batches
