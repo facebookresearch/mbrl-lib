@@ -132,7 +132,8 @@ def train(
         color="green",
         dump_frequency=1,
     )
-    video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
+    save_video = cfg.get("save_video", False)
+    video_recorder = pytorch_sac.VideoRecorder(work_dir if save_video else None)
 
     rng = np.random.default_rng(seed=cfg.seed)
     torch_generator = torch.Generator(device=cfg.device)
