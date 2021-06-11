@@ -14,7 +14,12 @@ import mbrl.models
 import mbrl.planning
 import mbrl.types
 
-from .replay_buffer import BootstrapIterator, ReplayBuffer, TransitionIterator
+from .replay_buffer import (
+    BootstrapIterator,
+    ReplayBuffer,
+    SequenceTransitionIterator,
+    TransitionIterator,
+)
 
 
 # TODO read model from hydra
@@ -251,6 +256,30 @@ def get_basic_buffer_iterators(
         )
 
     return train_iter, val_iter
+
+
+def get_sequence_buffer_iterator(
+    replay_buffer: ReplayBuffer,
+    batch_size: int,
+    val_ratio: float,
+    sequence_length: int,
+    ensemble_size: Optional[int] = None,
+) -> SequenceTransitionIterator:
+
+    transitions = replay_buffer.get_all()
+    num_trajectories = len(replay_buffer.trajectory_indices)
+    val_size = int(num_trajectories * val_ratio)
+    train_size = num_trajectories - val_size
+    train_trajectories = replay_buffer.trajectory_indices[:train_size]
+
+    return SequenceTransitionIterator(
+        transitions,
+        train_trajectories,
+        batch_size,
+        sequence_length,
+        ensemble_size,
+        rng=replay_buffer._rng,
+    )
 
 
 def train_model_and_save_model_and_data(
