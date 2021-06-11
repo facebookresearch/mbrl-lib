@@ -163,8 +163,7 @@ def create_replay_buffer(
             batches. If None (default value), a new default generator will be used.
 
     Returns:
-        (tuple of :class:`mbrl.replay_buffer.IterableReplayBuffer`): the training and validation
-        buffers, respectively.
+        (:class:`mbrl.replay_buffer.ReplayBuffer): the replay buffer.
     """
     dataset_size = (
         cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
@@ -223,6 +222,9 @@ def get_basic_buffer_iterators(
             the bootstrap data using permutations of the original data. Otherwise
             it will use sampling with replacement. Defaults to ``False``.
 
+    Returns:
+        (tuple of :class:`mbrl.replay_buffer.TransitionIterator`): the training
+        and validation iterators, respectively.
     """
     data = replay_buffer.get_all(shuffle=True)
     val_size = int(replay_buffer.num_stored * val_ratio)
@@ -265,7 +267,7 @@ def get_sequence_buffer_iterator(
     sequence_length: int,
     ensemble_size: Optional[int] = None,
     max_batches_per_loop: Optional[int] = None,
-) -> SequenceTransitionIterator:
+) -> Tuple[SequenceTransitionIterator, Optional[SequenceTransitionIterator]]:
     """Returns training/validation iterators for the data in the replay buffer.
 
     Args:
@@ -274,11 +276,14 @@ def get_sequence_buffer_iterator(
         batch_size (int): the batch size for the iterators.
         val_ratio (float): the proportion of data to use for validation. If 0., the
             validation buffer will be set to ``None``.
-        sequence_length (int): the length of the sequences returned.
+        sequence_length (int): the length of the sequences returned by the iterators.
         ensemble_size (int): the number of models in the ensemble.
         max_batches_per_loop (int, optional): if given, specifies how many batches
             to return (at most) over a full loop of the iterator.
 
+    Returns:
+        (tuple of :class:`mbrl.replay_buffer.SequenceTransitionIterator`): the training
+        and validation iterators, respectively.
     """
 
     transitions = replay_buffer.get_all()
@@ -287,7 +292,7 @@ def get_sequence_buffer_iterator(
     train_size = num_trajectories - val_size
     train_trajectories = replay_buffer.trajectory_indices[:train_size]
 
-    return SequenceTransitionIterator(
+    train_iterator = SequenceTransitionIterator(
         transitions,
         train_trajectories,
         batch_size,
@@ -296,6 +301,22 @@ def get_sequence_buffer_iterator(
         rng=replay_buffer._rng,
         max_batches_per_loop=max_batches_per_loop,
     )
+
+    val_iterator = None
+    if val_size > 0:
+        val_trajectories = replay_buffer.trajectory_indices[train_size:]
+        val_iterator = SequenceTransitionIterator(
+            transitions,
+            val_trajectories,
+            batch_size,
+            sequence_length,
+            1,
+            rng=replay_buffer._rng,
+            max_batches_per_loop=max_batches_per_loop,
+        )
+        val_iterator.toggle_bootstrap()
+
+    return train_iterator, val_iterator
 
 
 def train_model_and_save_model_and_data(
