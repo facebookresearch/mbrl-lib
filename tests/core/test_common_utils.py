@@ -42,7 +42,7 @@ def test_create_one_dim_tr_model():
         },
         "algorithm": {
             "learned_rewards": True,
-            "terget_is_delta": True,
+            "target_is_delta": True,
             "normalize": True,
         },
         "overrides": {},
