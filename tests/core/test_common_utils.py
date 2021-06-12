@@ -42,7 +42,7 @@ def test_create_one_dim_tr_model():
         },
         "algorithm": {
             "learned_rewards": True,
-            "terget_is_delta": True,
+            "target_is_delta": True,
             "normalize": True,
         },
         "overrides": {},
@@ -240,3 +240,59 @@ def test_populate_replay_buffer_collect_trajectories():
     )
     assert buffer.num_stored == num_trials * _MOCK_TRAJ_LEN
     assert len(buffer.trajectory_indices) == num_trials
+
+
+def test_get_basic_buffer_iterators():
+    buffer = mbrl.util.replay_buffer.ReplayBuffer(1000, (1,), (1,))
+    dummy = np.ones(1)
+    for i in range(900):
+        buffer.add(dummy, dummy, dummy, i, False)
+
+    train_iter, val_iter = mbrl.util.common.get_basic_buffer_iterators(buffer, 32, 0.1)
+    assert train_iter.num_stored == 810 and val_iter.num_stored == 90
+    all_rewards = []
+    for it in [train_iter, val_iter]:
+        for batch in it:
+            _, _, _, reward, _ = batch.astuple()
+            all_rewards.extend(reward)
+    assert sorted(all_rewards) == list(range(900))
+
+
+def test_get_sequence_buffer_iterators():
+    buffer = mbrl.util.replay_buffer.ReplayBuffer(
+        1000, (1,), (1,), max_trajectory_length=20
+    )
+    dummy = np.ones(1)
+    num_trajectories_train = 27
+    num_trajectories_val = 3
+    k = 0
+    for i in range(num_trajectories_train):
+        for j in range(20):
+            buffer.add(dummy, dummy, dummy, k, False)
+            k += 1
+        buffer.close_trajectory()
+    val_cutoff = k
+    for i in range(num_trajectories_val):
+        for j in range(20):
+            buffer.add(dummy, dummy, dummy, k, False)
+            k += 1
+        buffer.close_trajectory()
+
+    train_iter, val_iter = mbrl.util.common.get_sequence_buffer_iterator(
+        buffer, 32, 0.1, 10, 3
+    )
+    # For trajectories of length 20 and sequence length 10, there are
+    # 10 possible start states.
+    # There are 30 trajectories in total, so 10% is 3 trajectories
+    assert val_iter.num_stored == 3 * 10
+    assert train_iter.num_stored == 27 * 10
+
+    for batch in train_iter:
+        assert batch.rewards.ndim == 3  # (ensemble, batch_size, sequence)
+        _, _, _, reward, _ = batch.astuple()
+        assert reward.max() < val_cutoff
+
+    for batch in val_iter:
+        assert batch.rewards.ndim == 2  # (batch_size, sequence) since non-bootstrap
+        _, _, _, reward, _ = batch.astuple()
+        assert reward.min() >= val_cutoff

@@ -101,8 +101,8 @@ class DatasetEvaluator:
             # Some models (e.g., GaussianMLP) require the batch size to be
             # a multiple of number of models
             batch_size = len(self.dynamics_model) * 8
-        dataset, _ = self.replay_buffer.get_iterators(
-            batch_size=batch_size, val_ratio=0
+        dataset, _ = mbrl.util.common.get_basic_buffer_iterators(
+            self.replay_buffer, batch_size=batch_size, val_ratio=0
         )
 
         self.plot_dataset_results(dataset)

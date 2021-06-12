@@ -14,7 +14,12 @@ import mbrl.models
 import mbrl.planning
 import mbrl.types
 
-from .replay_buffer import ReplayBuffer
+from .replay_buffer import (
+    BootstrapIterator,
+    ReplayBuffer,
+    SequenceTransitionIterator,
+    TransitionIterator,
+)
 
 
 # TODO read model from hydra
@@ -162,8 +167,7 @@ def create_replay_buffer(
             batches. If None (default value), a new default generator will be used.
 
     Returns:
-        (tuple of :class:`mbrl.replay_buffer.IterableReplayBuffer`): the training and validation
-        buffers, respectively.
+        (:class:`mbrl.replay_buffer.ReplayBuffer): the replay buffer.
     """
     dataset_size = (
         cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
@@ -179,19 +183,12 @@ def create_replay_buffer(
             )
         maybe_max_trajectory_len = cfg.overrides.trial_length
 
-    min_rollout = cfg.overrides.get("min_rollout", 1)
-    sequence_length = cfg.overrides.get("sequence_length", 1)
-    use_last = cfg.overrides.get("use_last_entry", True)
-
     replay_buffer = ReplayBuffer(
         dataset_size,
         obs_shape,
         act_shape,
         rng=rng,
         max_trajectory_length=maybe_max_trajectory_len,
-        min_trajectory_length=min_rollout,
-        sequence_length=sequence_length,
-        use_last_transition_in_sequence=use_last,
     )
 
     if load_dir:
@@ -199,6 +196,131 @@ def create_replay_buffer(
         replay_buffer.load(str(load_dir))
 
     return replay_buffer
+
+
+def get_basic_buffer_iterators(
+    replay_buffer: ReplayBuffer,
+    batch_size: int,
+    val_ratio: float,
+    train_ensemble: bool = False,
+    ensemble_size: Optional[int] = None,
+    shuffle_each_epoch: bool = True,
+    bootstrap_permutes: bool = False,
+) -> Tuple[TransitionIterator, Optional[TransitionIterator]]:
+    """Returns training/validation iterators for the data in the replay buffer.
+
+    Args:
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer from which
+            data will be sampled.
+        batch_size (int): the batch size for the iterators.
+        val_ratio (float): the proportion of data to use for validation. If 0., the
+            validation buffer will be set to ``None``.
+        train_ensemble (bool): if ``True``, the training iterator will be and
+            instance of :class:`BootstrapIterator`. Defaults to ``False``.
+        ensemble_size (int): the size of the ensemble being trained. Must be
+            provided if ``train_ensemble == True``.
+        shuffle_each_epoch (bool): if ``True``, the iterator will shuffle the
+            order each time a loop starts. Otherwise the iteration order will
+            be the same. Defaults to ``True``.
+        bootstrap_permutes (bool): if ``True``, the bootstrap iterator will create
+            the bootstrap data using permutations of the original data. Otherwise
+            it will use sampling with replacement. Defaults to ``False``.
+
+    Returns:
+        (tuple of :class:`mbrl.replay_buffer.TransitionIterator`): the training
+        and validation iterators, respectively.
+    """
+    data = replay_buffer.get_all(shuffle=True)
+    val_size = int(replay_buffer.num_stored * val_ratio)
+    train_size = replay_buffer.num_stored - val_size
+    train_data = data[:train_size]
+    train_iter: TransitionIterator
+    if train_ensemble:
+        if not ensemble_size:
+            raise RuntimeError("Bootstrap iterators require an ensemble_size")
+        train_iter = BootstrapIterator(
+            train_data,
+            batch_size,
+            ensemble_size,
+            shuffle_each_epoch=shuffle_each_epoch,
+            permute_indices=bootstrap_permutes,
+            rng=replay_buffer._rng,
+        )
+    else:
+        train_iter = TransitionIterator(
+            train_data,
+            batch_size,
+            shuffle_each_epoch=shuffle_each_epoch,
+            rng=replay_buffer._rng,
+        )
+
+    val_iter = None
+    if val_size > 0:
+        val_data = data[train_size:]
+        val_iter = TransitionIterator(
+            val_data, batch_size, shuffle_each_epoch=False, rng=replay_buffer._rng
+        )
+
+    return train_iter, val_iter
+
+
+def get_sequence_buffer_iterator(
+    replay_buffer: ReplayBuffer,
+    batch_size: int,
+    val_ratio: float,
+    sequence_length: int,
+    ensemble_size: Optional[int] = None,
+    max_batches_per_loop: Optional[int] = None,
+) -> Tuple[SequenceTransitionIterator, Optional[SequenceTransitionIterator]]:
+    """Returns training/validation iterators for the data in the replay buffer.
+
+    Args:
+        replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer from which
+            data will be sampled.
+        batch_size (int): the batch size for the iterators.
+        val_ratio (float): the proportion of data to use for validation. If 0., the
+            validation buffer will be set to ``None``.
+        sequence_length (int): the length of the sequences returned by the iterators.
+        ensemble_size (int): the number of models in the ensemble.
+        max_batches_per_loop (int, optional): if given, specifies how many batches
+            to return (at most) over a full loop of the iterator.
+
+    Returns:
+        (tuple of :class:`mbrl.replay_buffer.SequenceTransitionIterator`): the training
+        and validation iterators, respectively.
+    """
+
+    transitions = replay_buffer.get_all()
+    num_trajectories = len(replay_buffer.trajectory_indices)
+    val_size = int(num_trajectories * val_ratio)
+    train_size = num_trajectories - val_size
+    train_trajectories = replay_buffer.trajectory_indices[:train_size]
+
+    train_iterator = SequenceTransitionIterator(
+        transitions,
+        train_trajectories,
+        batch_size,
+        sequence_length,
+        ensemble_size,
+        rng=replay_buffer._rng,
+        max_batches_per_loop=max_batches_per_loop,
+    )
+
+    val_iterator = None
+    if val_size > 0:
+        val_trajectories = replay_buffer.trajectory_indices[train_size:]
+        val_iterator = SequenceTransitionIterator(
+            transitions,
+            val_trajectories,
+            batch_size,
+            sequence_length,
+            1,
+            rng=replay_buffer._rng,
+            max_batches_per_loop=max_batches_per_loop,
+        )
+        val_iterator.toggle_bootstrap()
+
+    return train_iterator, val_iterator
 
 
 def train_model_and_save_model_and_data(
@@ -231,7 +353,8 @@ def train_model_and_save_model_and_data(
         callback (callable, optional): if provided, this function will be called after
             every training epoch. See :class:`mbrl.models.ModelTrainer` for signature.
     """
-    dataset_train, dataset_val = replay_buffer.get_iterators(
+    dataset_train, dataset_val = mbrl.util.common.get_basic_buffer_iterators(
+        replay_buffer,
         cfg.model_batch_size,
         cfg.validation_ratio,
         train_ensemble=len(model) is not None,

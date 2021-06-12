@@ -42,5 +42,26 @@ class TransitionBatch:
             self.dones[item],
         )
 
+    @staticmethod
+    def _get_new_shape(old_shape: Tuple[int, ...], batch_size: int):
+        new_shape = list((1,) + old_shape)
+        new_shape[0] = batch_size
+        new_shape[1] = old_shape[0] // batch_size
+        return tuple(new_shape)
+
+    def add_new_batch_dim(self, batch_size: int):
+        if not len(self) % batch_size == 0:
+            raise ValueError(
+                "Current batch of transitions size is not a "
+                "multiple of the new batch size. "
+            )
+        return TransitionBatch(
+            self.obs.reshape(self._get_new_shape(self.obs.shape, batch_size)),
+            self.act.reshape(self._get_new_shape(self.act.shape, batch_size)),
+            self.next_obs.reshape(self._get_new_shape(self.obs.shape, batch_size)),
+            self.rewards.reshape(self._get_new_shape(self.rewards.shape, batch_size)),
+            self.dones.reshape(self._get_new_shape(self.dones.shape, batch_size)),
+        )
+
 
 ModelInput = Union[torch.Tensor, TransitionBatch]
