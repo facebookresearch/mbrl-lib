@@ -25,6 +25,6 @@ optimizer:
 
 normalize: true
 target_is_delta: true
-initial_exploration_steps: 5000
+initial_exploration_steps: ${overrides.initial_exploration_steps}
 freq_train_model: ${overrides.freq_train_model}
 learned_rewards: ${overrides.learned_rewards}

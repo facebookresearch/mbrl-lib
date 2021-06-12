@@ -123,7 +123,7 @@ def train(
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
     # this seems to be different in other algorithms.
-    env_steps = cfg.algorithm.initial_exploration_steps
+    env_steps = replay_buffer.num_stored
     obs, done = env.reset(), False
     best_eval_reward = -np.inf
     trajectory_count = 1

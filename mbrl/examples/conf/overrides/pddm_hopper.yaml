@@ -1,6 +1,6 @@
 # @package _group_
-env: "gym___HalfCheetah-v2"
-term_fn: "no_termination"
+env: "gym___Hopper-v2"
+term_fn: "hopper"
 
 learned_rewards: true
 num_steps: 100000
