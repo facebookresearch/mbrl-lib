@@ -1,6 +1,8 @@
 # @package _group_
 name: "pddm"
 dynamics_model: gaussian_mmlp_ensemble
+num_eval_episodes: 1
+
 agent:
   _target_: mbrl.planning.TrajectoryOptimizerAgent
   action_lb: ???
@@ -23,6 +25,6 @@ optimizer:
 
 normalize: true
 target_is_delta: true
-initial_exploration_steps: ${overrides.trial_length}
+initial_exploration_steps: 5000
 freq_train_model: ${overrides.freq_train_model}
 learned_rewards: ${overrides.learned_rewards}

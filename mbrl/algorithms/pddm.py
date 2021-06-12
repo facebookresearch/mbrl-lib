@@ -18,12 +18,41 @@ import mbrl.types
 import mbrl.util
 import mbrl.util.common
 import mbrl.util.math
+from mbrl.planning import TrajectoryOptimizerAgent
+from mbrl.third_party import pytorch_sac
 
 EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 
 
+# function is just a copy-paste from mbpo
+# TODO move to util?
+def evaluate(
+    env: gym.Env,
+    agent: TrajectoryOptimizerAgent,
+    num_episodes: int,
+    video_recorder: pytorch_sac.VideoRecorder,  # maybe move to util?
+    max_episode_length: int = 1000,
+) -> float:
+    avg_episode_reward = 0
+    for episode in range(num_episodes):
+        obs = env.reset()
+        video_recorder.init(enabled=(episode == 0))
+        done = False
+        episode_reward = 0
+        current_length = 0
+        while not done and current_length < max_episode_length:
+            action = agent.act(obs)
+            obs, reward, done, _ = env.step(action)
+            video_recorder.record(env)
+            episode_reward += reward
+            current_length += 1
+        avg_episode_reward += episode_reward
+    return avg_episode_reward / num_episodes
+
+
 def train(
     env: gym.Env,
+    test_env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
     reward_fn: mbrl.types.RewardFnType,
     cfg: omegaconf.DictConfig,
@@ -43,8 +72,8 @@ def train(
         color="green",
         dump_frequency=1,
     )
+    video_recorder = pytorch_sac.VideoRecorder(work_dir if cfg.save_video else None)
 
-    # no video for now (only proof of concept)
     rng = np.random.default_rng(seed=cfg.seed)
     torch_generator = torch.Generator(device=cfg.device)
     if cfg.seed is not None:
@@ -70,14 +99,14 @@ def train(
     )
     mbrl.util.common.rollout_agent_trajectories(
         env,
-        cfg.algorithm.initial_exploration_steps,
+        cfg.algorithm.initial_exploration_steps // cfg.overrides.trial_length,
         mbrl.planning.RandomAgent(env),
         {},
+        trial_length=cfg.overrides.trial_length,
         replay_buffer=replay_buffer,
         collect_full_trajectories=True,
     )
 
-    env_steps = 0
     model_env = mbrl.models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
     )
@@ -90,44 +119,64 @@ def train(
         weight_decay=cfg.overrides.model_wd,
         logger=None if silent else logger,
     )
-    max_total_reward = -np.inf
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
+    # this seems to be different in other algorithms.
+    env_steps = cfg.algorithm.initial_exploration_steps
+    obs, done = env.reset(), False
+    best_eval_reward = -np.inf
+    trajectory_count = 1
+    current_trajectory_length = 0
+    video_counter = 0
     while env_steps < cfg.overrides.num_steps:
-        obs = env.reset()
-        done = False
-        total_reward = 0.0
-        step_trial = 0
-        while not done:
-            # --------------- Model Training -----------------
-            if env_steps % cfg.algorithm.freq_train_model == 0:
-                mbrl.util.common.train_model_and_save_model_and_data(
-                    dynamics_model,
-                    model_trainer,
-                    cfg.overrides,
-                    replay_buffer,
-                    work_dir=work_dir,
+        if cfg.overrides.trial_length < current_trajectory_length or done:
+            obs, done = env.reset(), False
+            trajectory_count += 1
+            current_trajectory_length = 0
+
+        # --- Doing env step using the agent and adding to model dataset ---
+        next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
+            env, obs, agent, {}, replay_buffer
+        )
+
+        obs = next_obs
+        env_steps += 1
+        current_trajectory_length += current_trajectory_length
+
+        # --------------- Model Training -----------------
+        if env_steps % cfg.algorithm.freq_train_model == 0:
+            mbrl.util.common.train_model_and_save_model_and_data(
+                dynamics_model,
+                model_trainer,
+                cfg.overrides,
+                replay_buffer,
+                work_dir=work_dir,
+            )
+
+        # --------------- Model Testing -----------------
+        if env_steps % cfg.overrides.test_after == 0:
+            avg_reward = evaluate(
+                test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
+            )
+
+            if avg_reward > best_eval_reward:
+                best_eval_reward = avg_reward
+                video_recorder.save(f"{video_counter}.mp4")
+                video_counter += 1
+
+            if logger is not None:
+                logger.log_data(
+                    mbrl.constants.RESULTS_LOG_NAME,
+                    {
+                        "trajectory": trajectory_count,
+                        "env_step": env_steps,
+                        "episode_reward": avg_reward,
+                    },
                 )
 
-            # --- Doing env step using the agent and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
-                env, obs, agent, {}, replay_buffer
-            )
+        if debug_mode:
+            print(f"Step {env_steps}: Reward {reward:.3f}.")
+            print(f"Trajectory {trajectory_count}")
 
-            obs = next_obs
-            total_reward += reward
-            step_trial += 1
-            env_steps += 1
-
-            if debug_mode:
-                print(f"Step {env_steps}: Reward {reward:.3f}.")
-
-        if logger is not None:
-            logger.log_data(
-                mbrl.constants.RESULTS_LOG_NAME,
-                {"env_step": env_steps, "episode_reward": total_reward},
-            )
-        max_total_reward = max(max_total_reward, total_reward)
-
-    return np.float32(max_total_reward)
+    return np.float32(best_eval_reward)

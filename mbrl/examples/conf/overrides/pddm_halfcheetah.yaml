@@ -1,20 +1,24 @@
 # @package _group_
-env: "pets_halfcheetah"
+env: "gym___HalfCheetah-v2"
 term_fn: "no_termination"
-obs_process_fn: mbrl.env.pets_halfcheetah.HalfCheetahEnv.preprocess_fn
+reward_fn: "halfcheetah"
+
 learned_rewards: false
-num_steps: 300000
+num_steps: 50000
 trial_length: 1000
+min_rollout: 1
+sequence_length: 1
+test_after: 10000
 
 num_elites: 5
-model_lr: 2e-4
-model_wd: 3e-5
-model_batch_size: 32
-validation_ratio: 0
-no_delta_list: [ 0 ]
-freq_train_model: 1000
-patience: 25
-num_epochs_train_model: 25
+model_lr: 1.3e-3
+model_wd: 4e-6
+model_batch_size: 256
+validation_ratio: 0.0
+freq_train_model: 5000
+patience: 5
+# num_epochs_train_model: 25
+
 
 mppi_planning_horizon: 20
 mppi_batch_size: 700
