@@ -198,8 +198,7 @@ def get_basic_buffer_iterators(
     replay_buffer: ReplayBuffer,
     batch_size: int,
     val_ratio: float,
-    train_ensemble: bool = False,
-    ensemble_size: Optional[int] = None,
+    ensemble_size: int = 1,
     shuffle_each_epoch: bool = True,
     bootstrap_permutes: bool = False,
 ) -> Tuple[TransitionIterator, Optional[TransitionIterator]]:
@@ -211,10 +210,7 @@ def get_basic_buffer_iterators(
         batch_size (int): the batch size for the iterators.
         val_ratio (float): the proportion of data to use for validation. If 0., the
             validation buffer will be set to ``None``.
-        train_ensemble (bool): if ``True``, the training iterator will be and
-            instance of :class:`BootstrapIterator`. Defaults to ``False``.
-        ensemble_size (int): the size of the ensemble being trained. Must be
-            provided if ``train_ensemble == True``.
+        ensemble_size (int): the size of the ensemble being trained.
         shuffle_each_epoch (bool): if ``True``, the iterator will shuffle the
             order each time a loop starts. Otherwise the iteration order will
             be the same. Defaults to ``True``.
@@ -230,25 +226,14 @@ def get_basic_buffer_iterators(
     val_size = int(replay_buffer.num_stored * val_ratio)
     train_size = replay_buffer.num_stored - val_size
     train_data = data[:train_size]
-    train_iter: TransitionIterator
-    if train_ensemble:
-        if not ensemble_size:
-            raise RuntimeError("Bootstrap iterators require an ensemble_size")
-        train_iter = BootstrapIterator(
-            train_data,
-            batch_size,
-            ensemble_size,
-            shuffle_each_epoch=shuffle_each_epoch,
-            permute_indices=bootstrap_permutes,
-            rng=replay_buffer._rng,
-        )
-    else:
-        train_iter = TransitionIterator(
-            train_data,
-            batch_size,
-            shuffle_each_epoch=shuffle_each_epoch,
-            rng=replay_buffer._rng,
-        )
+    train_iter = BootstrapIterator(
+        train_data,
+        batch_size,
+        ensemble_size,
+        shuffle_each_epoch=shuffle_each_epoch,
+        permute_indices=bootstrap_permutes,
+        rng=replay_buffer._rng,
+    )
 
     val_iter = None
     if val_size > 0:
@@ -353,7 +338,6 @@ def train_model_and_save_model_and_data(
         replay_buffer,
         cfg.model_batch_size,
         cfg.validation_ratio,
-        train_ensemble=len(model) > 1,
         ensemble_size=len(model),
         shuffle_each_epoch=True,
         bootstrap_permutes=cfg.get("bootstrap_permutes", False),

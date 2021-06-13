@@ -79,7 +79,6 @@ class FineTuner:
             self.replay_buffer,
             batch_size,
             val_ratio,
-            train_ensemble=len(self.dynamics_model.model) > 1,
             ensemble_size=len(self.dynamics_model.model),
             shuffle_each_epoch=True,
             bootstrap_permutes=False,
