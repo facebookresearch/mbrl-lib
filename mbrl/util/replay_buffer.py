@@ -491,6 +491,7 @@ class ReplayBuffer:
             action=self.action[: self.num_stored],
             reward=self.reward[: self.num_stored],
             done=self.done[: self.num_stored],
+            trajectory_indices=self.trajectory_indices or [],
         )
 
     def load(self, load_dir: Union[pathlib.Path, str]):
@@ -509,6 +510,8 @@ class ReplayBuffer:
         self.done[:num_stored] = data["done"]
         self.num_stored = num_stored
         self.cur_idx = self.num_stored % self.capacity
+        if "trajectory_indices" in data and len(data["trajectory_indices"]):
+            self.trajectory_indices = data["trajectory_indices"]
 
     def get_all(self, shuffle: bool = False) -> TransitionBatch:
         """Returns all data stored in the replay buffer.
