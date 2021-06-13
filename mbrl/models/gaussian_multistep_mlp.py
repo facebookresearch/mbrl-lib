@@ -43,10 +43,22 @@ class GaussianMMLP(GaussianMLP):
         model_in: torch.Tensor,
         target: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        """Computes loss for multistage Gaussian NNL.
+
+        Args:
+            model_in (tensor): input tensor. The shape must be ``E x B x S x Id``
+                where ``E``, ``B`` ``S`` and ``Id`` represent ensemble size, batch size,
+                sequence length and input dimension, respectively.
+            target (tensor): target tensor. The shape must be ``E x B x S x Id``
+                where ``E``, ``B``, ``S`` and ``Od`` represent ensemble size, batch size,
+                sequence length and output dimension, respectively.
+
+        Returns:
+            (tensor): a loss tensor representing the Gaussian negative log-likelihood of
+            the model over the given input/target. If the model is an ensemble, returns
+            the average over all models.
         """
-        Computes loss for multistage Gaussian NNL.
-        """
-        batch_size = model_in.shape[1] // self.seq_length
+        batch_size = model_in.shape[1]
         model_in = model_in.reshape(
             (self.num_members * batch_size, self.seq_length, model_in.shape[-1])
         )
@@ -57,10 +69,10 @@ class GaussianMMLP(GaussianMLP):
         current_loss = self._nll_loss(model_in[:, 0, :], target[:, 0, :])
         # simulate sequence in dynamics model
         elites = self.elite_models
-        self.elite_models = None
+        self.elite_models = None  # disables elite model
         for i in range(1, self.seq_length):
             # the recurrent version is really slow.. benchmarks will show weather this is worth
-            # current_loss.backward(retain_graph=True)
+            current_loss.backward(retain_graph=True)
             next_obs = self.sample(
                 model_in[:, i - 1, :],
                 deterministic=False,
@@ -68,10 +80,10 @@ class GaussianMMLP(GaussianMLP):
             )[0]
             model_in[:, i, 0 : self.out_size] = next_obs
             # line below is the loss for the recurrent version
-            # current_loss = self._nll_loss(model_in[:, i, :], target[:, i, :])
-            current_loss += self._nll_loss(model_in[:, i, :], target[:, i, :])
+            current_loss = self._nll_loss(model_in[:, i, :], target[:, i, :])
+            # loss for the non recurrent version
+            # current_loss += self._nll_loss(model_in[:, i, :], target[:, i, :])
 
-        current_loss = current_loss / self.seq_length  # mean over sequence length
-        self.elite_models = elites
+        self.elite_models = elites  # enable elite models
 
-        return current_loss  # to stay compatible with frameworks procedures
+        return current_loss

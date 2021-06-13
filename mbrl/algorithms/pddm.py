@@ -9,7 +9,6 @@ import gym
 import numpy as np
 import omegaconf
 import torch
-from omegaconf import open_dict
 
 import mbrl.constants
 import mbrl.models
@@ -18,36 +17,11 @@ import mbrl.types
 import mbrl.util
 import mbrl.util.common
 import mbrl.util.math
-from mbrl.planning import TrajectoryOptimizerAgent
 from mbrl.third_party import pytorch_sac
 
-EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
-
-
-# function is just a copy-paste from mbpo
-# TODO move to util?
-def evaluate(
-    env: gym.Env,
-    agent: TrajectoryOptimizerAgent,
-    num_episodes: int,
-    video_recorder: pytorch_sac.VideoRecorder,  # maybe move to util?
-    max_episode_length: int = 1000,
-) -> float:
-    avg_episode_reward = 0
-    for episode in range(num_episodes):
-        obs = env.reset()
-        video_recorder.init(enabled=(episode == 0))
-        done = False
-        episode_reward = 0
-        current_length = 0
-        while not done and current_length < max_episode_length:
-            action = agent.act(obs)
-            obs, reward, done, _ = env.step(action)
-            video_recorder.record(env)
-            episode_reward += reward
-            current_length += 1
-        avg_episode_reward += episode_reward
-    return avg_episode_reward / num_episodes
+EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT + [
+    ("rollout_length", "RL", "int"),
+]
 
 
 def train(
@@ -59,13 +33,14 @@ def train(
     silent: bool = False,
     work_dir: Optional[str] = None,
 ) -> np.float32:
+    # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
 
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
     work_dir = work_dir or os.getcwd()
-    logger = mbrl.util.Logger(work_dir, enable_back_compatible=True)
+    logger = mbrl.util.Logger(work_dir)
     logger.register_group(
         mbrl.constants.RESULTS_LOG_NAME,
         EVAL_LOG_FORMAT,
@@ -79,16 +54,6 @@ def train(
     if cfg.seed is not None:
         torch_generator.manual_seed(cfg.seed)
 
-    # create model ensembles and initiate buffer with random agent
-    # add config value if present in override else use simple GaussianMLP model
-    if cfg.overrides.get("sequence_length", 1) == 1:
-        cfg.dynamics_model.model._target_ = "mbrl.models.GaussianMLP"
-    else:
-        with open_dict(cfg):
-            cfg.dynamics_model.model.sequence_length = cfg.overrides.get(
-                "sequence_length", 1
-            )
-
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
     replay_buffer = mbrl.util.common.create_replay_buffer(
         cfg,
@@ -99,7 +64,7 @@ def train(
     )
     mbrl.util.common.rollout_agent_trajectories(
         env,
-        cfg.algorithm.initial_exploration_steps // cfg.overrides.trial_length,
+        cfg.overrides.initial_trials,
         mbrl.planning.RandomAgent(env),
         {},
         trial_length=cfg.overrides.trial_length,
@@ -122,7 +87,6 @@ def train(
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    # this seems to be different in other algorithms.
     env_steps = replay_buffer.num_stored
     obs, done = env.reset(), False
     best_eval_reward = -np.inf
@@ -142,7 +106,7 @@ def train(
 
         obs = next_obs
         env_steps += 1
-        current_trajectory_length += current_trajectory_length
+        current_trajectory_length += 1
 
         # --------------- Model Training -----------------
         if env_steps % cfg.algorithm.freq_train_model == 0:
@@ -152,12 +116,17 @@ def train(
                 cfg.overrides,
                 replay_buffer,
                 work_dir=work_dir,
+                sequenced_iterator=cfg.overrides.get("sequence_length", 1) > 1,
             )
 
-        # --------------- Model Testing -----------------
+        # --------------- Model Testing + Logging -----------------
         if env_steps % cfg.overrides.test_after == 0:
-            avg_reward = evaluate(
-                test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
+            avg_reward = mbrl.util.common.evaluate_agent(
+                test_env,
+                agent,
+                cfg.algorithm.num_eval_episodes,
+                video_recorder,
+                max_episode_length=cfg.overrides.trial_length,
             )
 
             if avg_reward > best_eval_reward:
@@ -169,14 +138,13 @@ def train(
                 logger.log_data(
                     mbrl.constants.RESULTS_LOG_NAME,
                     {
-                        "trajectory": trajectory_count,
                         "env_step": env_steps,
                         "episode_reward": avg_reward,
+                        "rollout_length": trajectory_count,
                     },
                 )
 
         if debug_mode:
             print(f"Step {env_steps}: Reward {reward:.3f}.")
-            print(f"Trajectory {trajectory_count}")
 
     return np.float32(best_eval_reward)

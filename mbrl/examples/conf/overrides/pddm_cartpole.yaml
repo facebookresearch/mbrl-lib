@@ -4,21 +4,21 @@ term_fn: "no_termination"
 reward_fn: "cartpole"
 
 learned_rewards: false
-num_steps: 5000
+num_steps: 2000
 trial_length: 200
-min_rollout: 1
-sequence_length: 1
-test_after: 1000
-initial_exploration_steps: 200
+sequence_length: 3
+test_after: 200
+initial_trials: 10
 
 num_elites: 5
 model_lr: 1.3e-3
 model_wd: 4e-6
 model_batch_size: 256
+max_batches_per_loop: 200
 validation_ratio: 0.0
 freq_train_model: 50
-patience: 25
-num_epochs_train_model: 25
+patience: 50
+num_epochs_train_model: 50
 
 
 mppi_planning_horizon: 20

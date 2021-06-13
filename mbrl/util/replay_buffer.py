@@ -232,6 +232,7 @@ class SequenceTransitionIterator(BootstrapIterator):
                 "More than 50% of the trajectories were discarded for being shorter "
                 "than the specified length."
             )
+        self._sequenced_iter = True
         # no need to pass transitions to super(), since it's only used by __getitem__,
         # which this class replaces. Passing the set of possible starts allow us to
         # use all the indexing machinery of the superclasses.
@@ -257,7 +258,7 @@ class SequenceTransitionIterator(BootstrapIterator):
         for (start, end) in trajectory_indices:
             if end - start < sequence_length:
                 continue
-            valid_starts.extend(list(range(start, end - sequence_length)))
+            valid_starts.extend(list(range(start, end - sequence_length + 1)))
         return np.array(valid_starts)
 
     def __iter__(self):
@@ -273,12 +274,18 @@ class SequenceTransitionIterator(BootstrapIterator):
         return super().__next__()
 
     def __getitem__(self, item):
+        if not self._sequenced_iter:
+            return self.transitions[item]
         start_indices = self._valid_starts[item].repeat(self._sequence_length)
         increment_array = np.tile(np.arange(self._sequence_length), len(item))
         full_trajectory_indices = start_indices + increment_array
         return self.transitions[full_trajectory_indices].add_new_batch_dim(
             min(self.batch_size, len(item))
         )
+
+    def toggle_sequenced(self):
+        """Toggles whether the iterator will return sequences."""
+        self._sequenced_iter = not self._sequenced_iter
 
 
 class ReplayBuffer:

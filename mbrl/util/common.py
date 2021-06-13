@@ -14,6 +14,8 @@ import mbrl.models
 import mbrl.planning
 import mbrl.types
 
+# TODO read model from hydra
+from ..third_party import pytorch_sac
 from .replay_buffer import (
     BootstrapIterator,
     ReplayBuffer,
@@ -22,7 +24,6 @@ from .replay_buffer import (
 )
 
 
-# TODO read model from hydra
 def create_one_dim_tr_model(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int, ...],
@@ -328,6 +329,7 @@ def train_model_and_save_model_and_data(
     model_trainer: mbrl.models.ModelTrainer,
     cfg: omegaconf.DictConfig,
     replay_buffer: ReplayBuffer,
+    sequenced_iterator: Optional[bool] = False,
     work_dir: Optional[Union[str, pathlib.Path]] = None,
     callback: Optional[Callable] = None,
 ):
@@ -344,24 +346,38 @@ def train_model_and_save_model_and_data(
             must contain the following fields::
                 -model_batch_size (int)
                 -validation_ratio (float)
+                -sequence_length (int, optional)
+                -max_batches_per_loop=(int, optional)
                 -num_epochs_train_model (int, optional)
                 -patience (int, optional)
                 -bootstrap_permutes (bool, optional)
         replay_buffer (:class:`mbrl.util.ReplayBuffer`): the replay buffer to use.
+        sequenced_iterator (int, optional): if provided, this function will initialize a
+        sequenced iterator. See :class:`mbrl.util.SequenceTransitionIterator`.
         work_dir (str or pathlib.Path, optional): if given, a directory to save
             model and buffer to.
         callback (callable, optional): if provided, this function will be called after
             every training epoch. See :class:`mbrl.models.ModelTrainer` for signature.
     """
-    dataset_train, dataset_val = mbrl.util.common.get_basic_buffer_iterators(
-        replay_buffer,
-        cfg.model_batch_size,
-        cfg.validation_ratio,
-        train_ensemble=len(model) is not None,
-        ensemble_size=len(model),
-        shuffle_each_epoch=True,
-        bootstrap_permutes=cfg.get("bootstrap_permutes", False),
-    )
+    if sequenced_iterator:
+        dataset_train, dataset_val = mbrl.util.common.get_sequence_buffer_iterator(  # type: ignore
+            replay_buffer,
+            cfg.model_batch_size,
+            cfg.validation_ratio,
+            cfg.get("sequence_length", 1),
+            ensemble_size=len(model),
+            max_batches_per_loop=cfg.get("max_batches_per_loop", None),
+        )
+    else:
+        dataset_train, dataset_val = mbrl.util.common.get_basic_buffer_iterators(  # type: ignore
+            replay_buffer,
+            cfg.model_batch_size,
+            cfg.validation_ratio,
+            train_ensemble=len(model) is not None,
+            ensemble_size=len(model),
+            shuffle_each_epoch=True,
+            bootstrap_permutes=cfg.get("bootstrap_permutes", False),
+        )
     if hasattr(model, "update_normalizer"):
         model.update_normalizer(replay_buffer.get_all())
     model_trainer.train(
@@ -535,3 +551,45 @@ def step_env_and_add_to_buffer(
     if callback:
         callback((obs, action, next_obs, reward, done))
     return next_obs, reward, done, info
+
+
+def evaluate_agent(
+    env: gym.Env,
+    agent: mbrl.planning.Agent,
+    num_episodes: int,
+    video_recorder: pytorch_sac.VideoRecorder,
+    max_episode_length: Optional[int] = None,
+) -> float:
+    """Evaluates agent in the given environment.
+
+    Args:
+        env (gym.Env): the testing environment to evaluate in.
+        agent (:class:`mbrl.planning.Agent`): the agent to evaluate.
+        num_episodes (int): number of episodes to average over.
+        video_recorder (:class:`pytorch_sac.VideoRecorder`): records first episode.
+        max_episode_length (int, optional): length of
+
+    Returns:
+        (int): average episode reward over all testing episodes.
+    """
+    avg_episode_reward = 0
+    for episode in range(num_episodes):
+        obs = env.reset()
+        video_recorder.init(enabled=(episode == 0))
+        done = False
+        episode_reward = 0
+        current_length = 0
+        valid_episode_length = True
+        while not done and valid_episode_length:
+            action = agent.act(obs)
+            obs, reward, done, _ = env.step(action)
+            video_recorder.record(env)
+            episode_reward += reward
+            current_length += 1
+            valid_episode_length = (
+                True
+                if max_episode_length is None
+                else current_length < max_episode_length
+            )
+        avg_episode_reward += episode_reward
+    return avg_episode_reward / num_episodes

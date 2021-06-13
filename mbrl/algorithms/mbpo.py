@@ -59,27 +59,6 @@ def rollout_model_and_populate_sac_buffer(
         accum_dones |= pred_dones.squeeze()
 
 
-def evaluate(
-    env: gym.Env,
-    agent: pytorch_sac.Agent,
-    num_episodes: int,
-    video_recorder: pytorch_sac.VideoRecorder,
-) -> float:
-    avg_episode_reward = 0
-    for episode in range(num_episodes):
-        obs = env.reset()
-        video_recorder.init(enabled=(episode == 0))
-        done = False
-        episode_reward = 0
-        while not done:
-            action = agent.act(obs)
-            obs, reward, done, _ = env.step(action)
-            video_recorder.record(env)
-            episode_reward += reward
-        avg_episode_reward += episode_reward
-    return avg_episode_reward / num_episodes
-
-
 def maybe_replace_sac_buffer(
     sac_buffer: Optional[pytorch_sac.ReplayBuffer],
     new_capacity: int,
@@ -244,7 +223,7 @@ def train(
 
             # ------ Epoch ended (evaluate and save model) ------
             if (env_steps + 1) % cfg.overrides.epoch_length == 0:
-                avg_reward = evaluate(
+                avg_reward = mbrl.util.common.evaluate_agent(
                     test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
                 )
                 logger.log_data(

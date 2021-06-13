@@ -11,7 +11,11 @@ import torch
 from torch import optim as optim
 
 from mbrl.util.logger import Logger
-from mbrl.util.replay_buffer import BootstrapIterator, TransitionIterator
+from mbrl.util.replay_buffer import (
+    BootstrapIterator,
+    SequenceTransitionIterator,
+    TransitionIterator,
+)
 
 from .model import Model
 
@@ -182,6 +186,8 @@ class ModelTrainer:
         """
         if isinstance(dataset, BootstrapIterator):
             dataset.toggle_bootstrap()
+        if isinstance(dataset, SequenceTransitionIterator):
+            dataset.toggle_sequenced()
 
         batch_scores_list = []
         for batch in dataset:
@@ -191,6 +197,8 @@ class ModelTrainer:
 
         if isinstance(dataset, BootstrapIterator):
             dataset.toggle_bootstrap()
+        if isinstance(dataset, SequenceTransitionIterator):
+            dataset.toggle_sequenced()
 
         mean_axis = 1 if batch_scores.ndim == 2 else (1, 2)
         batch_scores = batch_scores.mean(axis=mean_axis)

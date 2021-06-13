@@ -10,4 +10,5 @@ model:
   use_silu: true
   deterministic: false
   propagation_method: random_model
-  learn_logvar_bounds: false  # so far this works better
+  learn_logvar_bounds: false
+  sequence_length: ${overrides.sequence_length}
