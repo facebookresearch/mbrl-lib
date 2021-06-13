@@ -166,7 +166,7 @@ class Model(nn.Module, abc.ABC):
         return loss.item()
 
     def __len__(self):
-        return None
+        return 1
 
     def save(self, path: Union[str, pathlib.Path]):
         """Saves the model to the given path."""
