@@ -278,21 +278,22 @@ def test_get_sequence_buffer_iterators():
             k += 1
         buffer.close_trajectory()
 
-    train_iter, val_iter = mbrl.util.common.get_sequence_buffer_iterator(
-        buffer, 32, 0.1, 10, 3
-    )
-    # For trajectories of length 20 and sequence length 10, there are
-    # 10 possible start states.
-    # There are 30 trajectories in total, so 10% is 3 trajectories
-    assert val_iter.num_stored == 3 * 10
-    assert train_iter.num_stored == 27 * 10
+    for sequence_length in range(1, 20):
+        train_iter, val_iter = mbrl.util.common.get_sequence_buffer_iterator(
+            buffer, 32, 0.1, sequence_length, 3
+        )
+        # For trajectories of length 20 and sequence length L, there are
+        # 20 - L  + 1 possible start states.
+        # There are 30 trajectories in total, so 10% is 3 trajectories
+        assert val_iter.num_stored == 3 * (21 - sequence_length)
+        assert train_iter.num_stored == 27 * (21 - sequence_length)
 
-    for batch in train_iter:
-        assert batch.rewards.ndim == 3  # (ensemble, batch_size, sequence)
-        _, _, _, reward, _ = batch.astuple()
-        assert reward.max() < val_cutoff
+        for batch in train_iter:
+            assert batch.rewards.ndim == 3  # (ensemble, batch_size, sequence)
+            _, _, _, reward, _ = batch.astuple()
+            assert reward.max() < val_cutoff
 
-    for batch in val_iter:
-        assert batch.rewards.ndim == 2  # (batch_size, sequence) since non-bootstrap
-        _, _, _, reward, _ = batch.astuple()
-        assert reward.min() >= val_cutoff
+        for batch in val_iter:
+            assert batch.rewards.ndim == 2  # (batch_size, sequence) since non-bootstrap
+            _, _, _, reward, _ = batch.astuple()
+            assert reward.min() >= val_cutoff

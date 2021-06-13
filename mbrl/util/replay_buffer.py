@@ -258,7 +258,7 @@ class SequenceTransitionIterator(BootstrapIterator):
         for (start, end) in trajectory_indices:
             if end - start < sequence_length:
                 continue
-            valid_starts.extend(list(range(start, end - sequence_length)))
+            valid_starts.extend(list(range(start, end - sequence_length + 1)))
         return np.array(valid_starts)
 
     def __iter__(self):
