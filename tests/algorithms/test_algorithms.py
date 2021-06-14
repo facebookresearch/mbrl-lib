@@ -17,10 +17,12 @@ from omegaconf import OmegaConf
 import mbrl.algorithms.mbpo as mbpo
 import mbrl.algorithms.pets as pets
 import mbrl.env as mbrl_env
+from mbrl.algorithms import pddm
 
 _TRIAL_LEN = 30
 _NUM_TRIALS_PETS = 5
 _NUM_TRIALS_MBPO = 10
+_NUM_TRIALS_PDDM = 10
 _REW_C = 0.001
 _INITIAL_EXPLORE = 500
 _CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
@@ -187,6 +189,60 @@ def test_mbpo():
 
     max_reward = mbpo.train(
         env, test_env, term_fn, cfg, silent=_SILENT, work_dir=_DIR.name
+    )
+
+    assert max_reward > _TARGET_REWARD
+
+
+def test_pddm():
+    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pddm.yaml", "r") as f:
+        algorithm_cfg = yaml.safe_load(f)
+
+    with open(
+        _REPO_DIR / _CONF_DIR / "dynamics_model" / "gaussian_mmlp_ensemble.yaml",
+        "r",
+    ) as f:
+        model_cfg = yaml.safe_load(f)
+
+    cfg_dict = {
+        "algorithm": algorithm_cfg,
+        "dynamics_model": model_cfg,
+        "overrides": {
+            "model_lr": 1e-3,
+            "model_wd": 1e-5,
+            "model_batch_size": 256,
+            "validation_ratio": 0.1,
+            "num_epochs_train_model": 50,
+            "patience": 10,
+            "learned_rewards": False,
+            "num_steps": _NUM_TRIALS_PDDM * _TRIAL_LEN,
+            "trial_length": _TRIAL_LEN,
+            "sequence_length": 3,
+            "test_after": _TRIAL_LEN,
+            "initial_trials": 2,
+            "term_fn": "no_termination",
+            "freq_train_model": _TRIAL_LEN // 2,
+            "mppi_planning_horizon": 5,
+            "mppi_batch_size": 700,
+            "mppi_beta": 0.9,
+            "mppi_rew_weight": 1,
+            "mppi_noise_magnifier": 0.9,
+        },
+        "debug_mode": _DEBUG_MODE,
+        "seed": SEED,
+        "device": str(device),
+        "save_video": False,
+    }
+    cfg = OmegaConf.create(cfg_dict)
+    cfg.dynamics_model.model.ensemble_size = 7
+
+    env = MockLineEnv()
+    test_env = MockLineEnv()
+    term_fn = mbrl_env.termination_fns.no_termination
+    reward_fn = mock_reward_fn
+
+    max_reward = pddm.train(
+        env, test_env, term_fn, reward_fn, cfg, silent=_SILENT, work_dir=_DIR.name
     )
 
     assert max_reward > _TARGET_REWARD

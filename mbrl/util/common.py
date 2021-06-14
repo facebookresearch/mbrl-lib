@@ -319,7 +319,7 @@ def get_sequence_buffer_iterator(
             rng=replay_buffer._rng,
             max_batches_per_loop=max_batches_per_loop,
         )
-        val_iterator.toggle_bootstrap()
+        # val_iterator.toggle_bootstrap()
 
     return train_iterator, val_iterator
 

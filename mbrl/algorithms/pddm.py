@@ -116,7 +116,7 @@ def train(
                 cfg.overrides,
                 replay_buffer,
                 work_dir=work_dir,
-                sequenced_iterator=cfg.overrides.get("sequence_length", 1) > 1,
+                sequenced_iterator=True,
             )
 
         # --------------- Model Testing + Logging -----------------
