@@ -18,6 +18,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         frame_skip: int = 1,
         camera_id: int = 0,
         channels_first: bool = True,
+        bits: int = 8,
     ):
         super().__init__(env)
         self._image_width = image_width
@@ -25,6 +26,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._channels_first = channels_first
         self._frame_skip = frame_skip
         self._camera_id = camera_id
+        self._bits = bits
 
         shape = (
             [3, image_height, image_width]
@@ -44,6 +46,9 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         obs = self.render()
         if self._channels_first:
             obs = np.transpose(obs, (2, 0, 1))
+        if self._bits != 8:
+            ratio = 256 // 2 ** self._bits
+            obs = obs // ratio
         return obs
 
     def _convert_action(self, action):
