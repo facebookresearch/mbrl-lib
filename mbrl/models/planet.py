@@ -113,6 +113,7 @@ class PlaNetModel(Model):
         self.latent_state_size = latent_state_size
         self.belief_size = belief_size
         self.free_nats_for_kl = free_nats_for_kl * torch.ones(1).to(device)
+        self.min_std = min_std
 
         # Computes ht = f(ht-1, st-1, at-1)
         self.belief_model = BeliefModel(latent_state_size, action_size, belief_size)
@@ -152,26 +153,70 @@ class PlaNetModel(Model):
 
         self.to(self.device)
 
+        self._current_belief_for_sample_method: torch.Tensor = None
+        self._current_latent_for_sample_method: torch.Tensor = None
+
     def _sample_state_from_params(self, params: torch.Tensor) -> torch.Tensor:
         mean = params[:, : self.latent_state_size]
         std = params[:, self.latent_state_size :]
         return mean + std * torch.randn_like(mean)
 
-    # This should be a batch of trajectories (e.g, BS x Time x Obs_DIM)
+    # Forwards the encoder and the prior and posterior transition models
+    def _forward_transition_models(
+        self,
+        obs: torch.Tensor,
+        act: torch.Tensor,
+        current_latent_state: torch.Tensor,
+        current_belief: torch.Tensor,
+        only_posterior: bool = False,
+    ) -> Tuple[
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+    ]:
+        next_belief = self.belief_model(current_latent_state, act, current_belief)
+        obs_encoding = self.encoder.forward(obs)
+        posterior_dist_params = self.posterior_transition_model(
+            torch.cat([obs_encoding, next_belief], dim=1)
+        )
+        posterior_sample = self._sample_state_from_params(posterior_dist_params)
+
+        if only_posterior:
+            prior_dist_params, prior_sample = None, None
+        else:
+            prior_dist_params = self.prior_transition_model(next_belief)
+            prior_sample = self._sample_state_from_params(prior_dist_params)
+
+        return (
+            prior_dist_params,
+            prior_sample,
+            posterior_dist_params,
+            posterior_sample,
+            next_belief,
+        )
+
+    def _forward_decoder(self, posterior_sample: torch.Tensor, belief: torch.Tensor):
+        decoder_input = torch.cat([posterior_sample, belief], dim=-1)
+        decoder_input = decoder_input.view(
+            -1, self.latent_state_size + self.belief_size
+        )
+        return self.decoder(decoder_input)
+
+    # This should be a batch of trajectories (e.g, obs shape == BS x Time x Obs_DIM)
     def forward(  # type: ignore
-        self, next_obs: torch.Tensor, act: torch.Tensor, *args, **kwargs
+        self, obs: torch.Tensor, act: torch.Tensor, *args, **kwargs
     ) -> Tuple[torch.Tensor, ...]:
-        batch_size, trajectory_length, *_ = next_obs.shape
+        batch_size, trajectory_length, *_ = obs.shape
+        states_and_beliefs = StatesAndBeliefs()  # this will collect all the variables
         current_latent_state = torch.zeros(
             batch_size, self.latent_state_size, device=self.device
         )
-        states_and_beliefs = StatesAndBeliefs()  # this collects all the variables
         current_belief = torch.zeros(batch_size, self.belief_size, device=self.device)
-
         prior_dist_params = torch.zeros(
             batch_size, 2 * self.latent_state_size, device=self.device
         )
-
         states_and_beliefs.append(
             prior_dist_params=prior_dist_params,
             prior_state=current_latent_state,
@@ -180,17 +225,17 @@ class PlaNetModel(Model):
             belief=current_belief,
         )
         for t_step in range(trajectory_length):
-            next_belief = self.belief_model(
-                current_latent_state, act[:, t_step], current_belief
+            (
+                prior_dist_params,
+                prior_sample,
+                posterior_dist_params,
+                posterior_sample,
+                next_belief,
+            ) = self._forward_transition_models(
+                obs[:, t_step], act[:, t_step], current_latent_state, current_belief
             )
-            prior_dist_params = self.prior_transition_model(next_belief)
-            next_obs_encoding = self.encoder.forward(next_obs[:, t_step])
-            posterior_dist_params = self.posterior_transition_model(
-                torch.cat([next_obs_encoding, next_belief], dim=1)
-            )
-            prior_sample = self._sample_state_from_params(prior_dist_params)
-            posterior_sample = self._sample_state_from_params(posterior_dist_params)
 
+            # Update current state for next time step
             current_latent_state = prior_sample
             current_belief = next_belief
 
@@ -203,17 +248,15 @@ class PlaNetModel(Model):
                 belief=next_belief,
             )
 
+        # Get predicted observations
         states_and_beliefs_tuple = states_and_beliefs.as_stacked_tuple()
-        # this input is the posterior states and the beliefs.
+        # this input is the sampled posterior states and the beliefs.
         # At index 0 it's just the initial posterior/belief, which is all zeros
-        decoder_input = torch.cat(
-            [states_and_beliefs_tuple[3][1:], states_and_beliefs_tuple[4][1:]], dim=2
-        )
-        decoder_input = decoder_input.view(
-            -1, self.latent_state_size + self.belief_size
-        )
-        pred_next_observations = self.decoder(decoder_input).view(next_obs.shape)
-        return states_and_beliefs_tuple + (pred_next_observations,)
+        # hence, the [1:]
+        pred_next_obs = self._forward_decoder(
+            states_and_beliefs_tuple[3][1:], states_and_beliefs_tuple[4][1:]
+        ).view(obs.shape)
+        return states_and_beliefs_tuple + (pred_next_obs,)
 
     def loss(
         self,
@@ -230,10 +273,10 @@ class PlaNetModel(Model):
             posterior_dist_params,
             posterior_states,
             beliefs,
-            pred_next_observations,
-        ) = self.forward(next_obs, act)
+            pred_next_obs,
+        ) = self.forward(obs, act)
 
-        reconstruction_loss = F.mse_loss(next_obs, pred_next_observations)
+        reconstruction_loss = F.mse_loss(next_obs, pred_next_obs)
 
         # ------------------ Computing KL[q || p] ------------------
         # [1:] indexing because for each batch the first time index has all zero params
@@ -254,14 +297,12 @@ class PlaNetModel(Model):
             .max(self.free_nats_for_kl)
             .mean()
         )
-
         return reconstruction_loss + kl_loss
 
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
-        with torch.no_grad():
-            return self.loss(batch, reduce=False)
+        return torch.zeros(len(batch), 1)
 
     def sample(  # type: ignore
         self,
@@ -269,5 +310,36 @@ class PlaNetModel(Model):
         deterministic: bool = False,
         rng: Optional[torch.Generator] = None,
     ) -> Tuple[torch.Tensor]:
-        obs, *_ = self._process_batch(batch)
-        return (self._get_hidden(obs),)
+        with torch.no_grad():
+            obs, act, *_ = self._process_batch(batch)
+
+            # Forward the transition model
+            (
+                _,
+                _,
+                posterior_dist_params,
+                posterior_sample,
+                next_belief,
+            ) = self._forward_transition_models(
+                obs,
+                act,
+                self._current_latent_for_sample_method,
+                self._current_belief_for_sample_method,
+            )
+
+            pred_next_obs = self._forward_decoder(posterior_sample, next_belief)
+
+            self._current_latent_for_sample_method = posterior_sample
+            self._current_belief_for_sample_method = next_belief
+
+        return pred_next_obs
+
+    def reset(self, batch: TransitionBatch, **kwargs) -> torch.Tensor:  # type: ignore
+        # Initialize latent and belief
+        self._current_belief_for_sample_method = torch.zeros(
+            len(batch), self.belief_size, device=self.device
+        )
+        self._current_latent_for_sample_method = torch.zeros(
+            len(batch), self.latent_state_size, device=self.device
+        )
+        return self._current_latent_for_sample_method
