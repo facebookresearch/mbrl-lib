@@ -150,15 +150,15 @@ class Conv2dDecoder(nn.Module):
         activation_cls = getattr(torch.nn, activation_func)
         self.fc = nn.Linear(encoding_size, np.prod(self.deconv_input_shape))
         deconv_modules = []
-        for layer_cfg in layers_config:
-            deconv_modules.append(
-                nn.Sequential(
-                    nn.ConvTranspose2d(
-                        layer_cfg[0], layer_cfg[1], layer_cfg[2], stride=layer_cfg[3]
-                    ),
-                    activation_cls(),
-                )
+        for i, layer_cfg in enumerate(layers_config):
+            layer = nn.ConvTranspose2d(
+                layer_cfg[0], layer_cfg[1], layer_cfg[2], stride=layer_cfg[3]
             )
+            if i == len(layers_config) - 1:
+                # no activation after the last layer
+                deconv_modules.append(layer)
+            else:
+                deconv_modules.append(nn.Sequential(layer, activation_cls()))
         self.deconvs = nn.ModuleList(deconv_modules)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
