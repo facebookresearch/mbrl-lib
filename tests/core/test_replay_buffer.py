@@ -228,6 +228,29 @@ def test_trajectory_contents():
         _check_buffer_trajectories_coherence()
 
 
+def test_partial_trajectory_overlaps():
+    buffer = replay_buffer.ReplayBuffer(4, (1,), (1,), max_trajectory_length=2)
+    dummy = np.zeros(1)
+
+    buffer.add(dummy, dummy, dummy, 0, False)
+    buffer.add(dummy, dummy, dummy, 0, True)
+    assert buffer.trajectory_indices == [(0, 2)]
+    buffer.add(dummy, dummy, dummy, 0, False)
+    buffer.add(dummy, dummy, dummy, 0, True)
+    assert buffer.trajectory_indices == [(0, 2), (2, 4)]
+    buffer.add(dummy, dummy, dummy, 0, False)
+    assert buffer.trajectory_indices == [(2, 4)]
+    buffer.add(dummy, dummy, dummy, 0, True)
+    assert buffer.trajectory_indices == [(2, 4), (0, 2)]
+    buffer.add(dummy, dummy, dummy, 0, False)
+    assert buffer.trajectory_indices == [(0, 2)]
+    buffer.add(dummy, dummy, dummy, 0, True)
+    assert buffer.trajectory_indices == [(0, 2), (2, 4)]
+    for i in range(3):
+        buffer.add(dummy, dummy, dummy, 0, False)
+    assert not buffer.trajectory_indices
+
+
 def test_sample_trajectories():
     buffer = replay_buffer.ReplayBuffer(15, (1,), (1,), max_trajectory_length=10)
     dummy = np.zeros(1)

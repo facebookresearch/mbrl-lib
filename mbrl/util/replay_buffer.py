@@ -367,6 +367,9 @@ class ReplayBuffer:
             self.num_stored = max(self.num_stored, self.cur_idx)
         if done:
             self.close_trajectory()
+        else:
+            partial_trajectory = (self._start_last_trajectory, self.cur_idx + 1)
+            self.remove_overlapping_trajectories(partial_trajectory)
         if self.cur_idx >= len(self.obs):
             warnings.warn(
                 "The replay buffer was filled before current trajectory finished. "
