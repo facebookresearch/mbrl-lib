@@ -57,16 +57,23 @@ class Model(nn.Module, abc.ABC):
         super().__init__()
         self.device = device
 
-    def _process_batch(self, batch: TransitionBatch) -> Tuple[torch.Tensor, ...]:
+    def _process_batch(
+        self, batch: TransitionBatch, as_float: bool = True
+    ) -> Tuple[torch.Tensor, ...]:
         def _convert(x):
-            return to_tensor(x).to(self.device)
+            if x is None:
+                return None
+            res = to_tensor(x).to(self.device)
+            if as_float:
+                return res.float()
+            return res
 
         return (
             _convert(batch.obs),
             _convert(batch.act),
             _convert(batch.next_obs),
-            _convert(batch.rewards).view(-1, 1),
-            _convert(batch.dones).view(-1, 1),
+            None if batch.rewards is None else _convert(batch.rewards).view(-1, 1),
+            None if batch.dones is None else _convert(batch.dones).view(-1, 1),
         )
 
     def forward(self, x: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, ...]:
