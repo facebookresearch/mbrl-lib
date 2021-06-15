@@ -8,6 +8,6 @@ model:
   ensemble_size: 7
   hid_size: 200
   use_silu: true
-  deterministic: false
+  deterministic: true
   propagation_method: random_model
   learn_logvar_bounds: false

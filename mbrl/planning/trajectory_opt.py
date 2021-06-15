@@ -160,6 +160,7 @@ class MPPIOptimizer(Optimizer):
         batch_size: int,
         rew_weight: float,
         noise_magnifier: float,
+        refinements: int,
         lower_bound: Sequence[Sequence[float]],
         upper_bound: Sequence[Sequence[float]],
         beta: float,
@@ -177,9 +178,10 @@ class MPPIOptimizer(Optimizer):
 
         self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
-        self.sigma = noise_magnifier * torch.ones_like(self.lower_bound)
+        self.var = noise_magnifier * torch.ones_like(self.lower_bound) ** 2
         self.beta = beta
         self.rew_weight = rew_weight
+        self.refinements = refinements
         self.device = device
 
     def optimize(
@@ -189,7 +191,7 @@ class MPPIOptimizer(Optimizer):
         callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
         **kwargs,
     ) -> torch.Tensor:
-        """Implementation of MPPI planer
+        """Implementation of MPPI planner.
 
         Args:
             obj_fun (callable(tensor) -> tensor): objective function to maximize.
@@ -203,49 +205,64 @@ class MPPIOptimizer(Optimizer):
         Returns:
             (torch.Tensor): the best solution found.
         """
+
         past_action = self.mean[0].clone()
+
+        lb_dist = self.mean - self.lower_bound
+        ub_dist = self.upper_bound - self.mean
+        mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
+        constrained_var = torch.min(mv, self.var)
+
         self.mean[:-1] = self.mean[1:].clone()  # shift by one and double last action
 
-        # sample noise
-        noise = torch.normal(
-            mean=0.0,
-            std=1.0,
-            size=(self.batch_size, self.planning_horizon, self.action_dimension),
-            device=self.device,
-        )
+        for i in range(self.refinements):
+            # sample noise and update constrained variances
+            noise = torch.normal(
+                mean=0.0,
+                std=1.0,
+                size=(self.batch_size, self.planning_horizon, self.action_dimension),
+                device=self.device,
+            )
+            lb_dist = self.mean - self.lower_bound
+            ub_dist = self.upper_bound - self.mean
+            mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
+            constrained_var[1:] = torch.min(mv, self.var)[:-1]
 
-        # smoothed actions with noise
-        action_samples = noise.clone()
+            # smoothed actions with noise
+            action_samples = noise.clone()
 
-        action_samples[:, 0, :] = (
-            self.beta * (self.mean[0, :] + noise[:, 0, :])
-            + (1 - self.beta) * past_action
-        )
-        for i in range(max(self.planning_horizon - 1, 0)):
-            action_samples[:, i + 1, :] = (
-                self.beta * (self.mean[i + 1] + noise[:, 0, :])
-                + (1 - self.beta) * action_samples[:, i, :]
+            action_samples[:, 0, :] = (
+                self.beta
+                * (self.mean[0, :] + noise[:, 0, :] * constrained_var[0].sqrt())
+                + (1 - self.beta) * past_action
             )
 
-        # clipping actions
-        # This should still work if the bounds between dimensions are different.
-        action_samples = torch.where(
-            action_samples > self.upper_bound, self.upper_bound, action_samples
-        )
-        action_samples = torch.where(
-            action_samples < self.lower_bound, self.lower_bound, action_samples
-        )
+            for i in range(max(self.planning_horizon - 1, 0)):
+                action_samples[:, i + 1, :] = (
+                    self.beta
+                    * (self.mean[i + 1] + noise[:, 0, :] * constrained_var[i].sqrt())
+                    + (1 - self.beta) * action_samples[:, i, :]
+                )
 
-        values = obj_fun(action_samples)
+            # clipping actions
+            # This should still work if the bounds between dimensions are different.
+            action_samples = torch.where(
+                action_samples > self.upper_bound, self.upper_bound, action_samples
+            )
+            action_samples = torch.where(
+                action_samples < self.lower_bound, self.lower_bound, action_samples
+            )
 
-        # weight actions
-        weights = torch.reshape(
-            torch.exp(self.rew_weight * (values - values.max())),
-            (self.batch_size, 1, 1),
-        )
-        norm = torch.sum(weights) + 1e-10
-        weighted_actions = action_samples * weights
-        self.mean = torch.sum(weighted_actions, dim=0) / norm
+            values = obj_fun(action_samples)
+
+            # weight actions
+            weights = torch.reshape(
+                torch.exp(self.rew_weight * (values - values.max())),
+                (self.batch_size, 1, 1),
+            )
+            norm = torch.sum(weights) + 1e-10
+            weighted_actions = action_samples * weights
+            self.mean = torch.sum(weighted_actions, dim=0) / norm
 
         return self.mean.clone()
 

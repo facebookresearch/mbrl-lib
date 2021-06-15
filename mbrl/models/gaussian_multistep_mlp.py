@@ -44,7 +44,7 @@ class GaussianMMLP(GaussianMLP):
             (self.num_members * batch_size, sequence_length, target.shape[-1])
         )
 
-        current_loss = self._nll_loss(model_in[:, 0, :], target[:, 0, :])
+        current_loss = super().loss(model_in[:, 0, :], target[:, 0, :])
         # simulate sequence in dynamics model
         elites = self.elite_models
         self.elite_models = None  # disables elite model
@@ -57,7 +57,7 @@ class GaussianMMLP(GaussianMLP):
             )[0]
             model_in[:, i, 0 : self.out_size] = next_obs
             # line below is the loss for the recurrent version
-            current_loss = self._nll_loss(model_in[:, i, :], target[:, i, :])
+            current_loss = super().loss(model_in[:, i, :], target[:, i, :])
             # loss for the non recurrent version
             # current_loss += self._nll_loss(model_in[:, i, :], target[:, i, :])
 

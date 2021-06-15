@@ -7,7 +7,7 @@ learned_rewards: false
 num_steps: 2000
 trial_length: 200
 sequence_length: 3
-test_after: 200
+test_after: 100
 initial_trials: 10
 
 num_elites: 5
@@ -17,12 +17,13 @@ model_batch_size: 256
 max_batches_per_loop: 200
 validation_ratio: 0.0
 freq_train_model: 50
-patience: 50
-num_epochs_train_model: 50
+patience: 40
+num_epochs_train_model: 40
 
 
-mppi_planning_horizon: 20
+mppi_planning_horizon: 10
 mppi_batch_size: 700
 mppi_beta: 0.9
-mppi_rew_weight: 1
-mppi_noise_magnifier: 0.9
+mppi_rew_weight: 3
+mppi_noise_magnifier: 2.0
+mppi_refinements: 3

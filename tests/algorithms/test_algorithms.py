@@ -22,7 +22,7 @@ from mbrl.algorithms import pddm
 _TRIAL_LEN = 30
 _NUM_TRIALS_PETS = 5
 _NUM_TRIALS_MBPO = 10
-_NUM_TRIALS_PDDM = 10
+_NUM_TRIALS_PDDM = 5
 _REW_C = 0.001
 _INITIAL_EXPLORE = 500
 _CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
@@ -204,6 +204,7 @@ def test_pddm():
     ) as f:
         model_cfg = yaml.safe_load(f)
 
+    model_cfg["model"]["deterministic"] = False
     cfg_dict = {
         "algorithm": algorithm_cfg,
         "dynamics_model": model_cfg,
@@ -217,16 +218,17 @@ def test_pddm():
             "learned_rewards": False,
             "num_steps": _NUM_TRIALS_PDDM * _TRIAL_LEN,
             "trial_length": _TRIAL_LEN,
-            "sequence_length": 3,
+            "sequence_length": 2,
             "test_after": _TRIAL_LEN,
             "initial_trials": 2,
             "term_fn": "no_termination",
-            "freq_train_model": _TRIAL_LEN // 2,
-            "mppi_planning_horizon": 5,
+            "freq_train_model": _TRIAL_LEN,
+            "mppi_planning_horizon": 7,
             "mppi_batch_size": 700,
-            "mppi_beta": 0.9,
-            "mppi_rew_weight": 1,
-            "mppi_noise_magnifier": 0.9,
+            "mppi_beta": 0.99,  # really greedy settings
+            "mppi_rew_weight": 5,
+            "mppi_noise_magnifier": 2.0,
+            "mppi_refinements": 3,
         },
         "debug_mode": _DEBUG_MODE,
         "seed": SEED,

@@ -19,6 +19,7 @@ optimizer:
   planning_horizon: ${overrides.mppi_planning_horizon}
   rew_weight: ${overrides.mppi_rew_weight}
   noise_magnifier: ${overrides.mppi_noise_magnifier}
+  refinements: ${overrides.mppi_refinements}
   lower_bound: ???
   upper_bound: ???
   device: ${device}
