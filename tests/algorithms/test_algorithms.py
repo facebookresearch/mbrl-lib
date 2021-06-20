@@ -228,7 +228,7 @@ def test_pddm():
             "mppi_beta": 0.99,  # really greedy settings
             "mppi_rew_weight": 5,
             "mppi_noise_magnifier": 2.0,
-            "mppi_refinements": 3,
+            "mppi_refinements": 5,
         },
         "debug_mode": _DEBUG_MODE,
         "seed": SEED,

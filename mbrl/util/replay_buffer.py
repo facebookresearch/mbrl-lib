@@ -137,7 +137,7 @@ class BootstrapIterator(TransitionIterator):
         )
         self._ensemble_size = ensemble_size
         self._permute_indices = permute_indices
-        self._bootstrap_iter = True
+        self._bootstrap_iter = ensemble_size > 1
         self.member_indices = self._sample_member_indices()
 
     def _sample_member_indices(self) -> np.ndarray:
@@ -169,7 +169,8 @@ class BootstrapIterator(TransitionIterator):
 
     def toggle_bootstrap(self):
         """Toggles whether the iterator returns a batch per model or a single batch."""
-        self._bootstrap_iter = not self._bootstrap_iter
+        if self.ensemble_size > 1:
+            self._bootstrap_iter = not self._bootstrap_iter
 
     @property
     def ensemble_size(self):
@@ -373,6 +374,9 @@ class ReplayBuffer:
             self.num_stored = max(self.num_stored, self.cur_idx)
         if done:
             self.close_trajectory()
+        else:
+            partial_trajectory = (self._start_last_trajectory, self.cur_idx + 1)
+            self.remove_overlapping_trajectories(partial_trajectory)
         if self.cur_idx >= len(self.obs):
             warnings.warn(
                 "The replay buffer was filled before current trajectory finished. "
@@ -519,7 +523,7 @@ class ReplayBuffer:
         self,
         batch_size: int,
         val_ratio: float,
-        train_ensemble: bool = False,
+        train_ensemble: bool = False,  # noqa
         ensemble_size: Optional[int] = None,
         shuffle_each_epoch: bool = True,
         bootstrap_permutes: bool = False,
@@ -553,7 +557,6 @@ class ReplayBuffer:
             self,
             batch_size,
             val_ratio,
-            train_ensemble,
             ensemble_size,
             shuffle_each_epoch,
             bootstrap_permutes,

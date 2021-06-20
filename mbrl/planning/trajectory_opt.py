@@ -205,42 +205,35 @@ class MPPIOptimizer(Optimizer):
         Returns:
             (torch.Tensor): the best solution found.
         """
-
-        past_action = self.mean[0].clone()
-
-        lb_dist = self.mean - self.lower_bound
-        ub_dist = self.upper_bound - self.mean
-        mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
-        constrained_var = torch.min(mv, self.var)
-
-        self.mean[:-1] = self.mean[1:].clone()  # shift by one and double last action
+        past_action = x0[-1]
+        self.mean = x0
+        self.mean[-1] = self.mean[
+            -2
+        ]  # x0 performs a roll and the last action needs to be doubled
 
         for i in range(self.refinements):
             # sample noise and update constrained variances
-            noise = torch.normal(
-                mean=0.0,
-                std=1.0,
+            noise = torch.empty(
                 size=(self.batch_size, self.planning_horizon, self.action_dimension),
                 device=self.device,
             )
+            noise = mbrl.util.math.truncated_normal_(noise)
+
             lb_dist = self.mean - self.lower_bound
             ub_dist = self.upper_bound - self.mean
             mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
-            constrained_var[1:] = torch.min(mv, self.var)[:-1]
+            constrained_var = torch.minimum(mv, self.var)
 
             # smoothed actions with noise
-            action_samples = noise.clone()
-
+            action_samples = noise.clone() * torch.sqrt(constrained_var)
             action_samples[:, 0, :] = (
-                self.beta
-                * (self.mean[0, :] + noise[:, 0, :] * constrained_var[0].sqrt())
+                self.beta * (self.mean[0, :] + noise[:, 0, :])
                 + (1 - self.beta) * past_action
             )
 
             for i in range(max(self.planning_horizon - 1, 0)):
                 action_samples[:, i + 1, :] = (
-                    self.beta
-                    * (self.mean[i + 1] + noise[:, 0, :] * constrained_var[i].sqrt())
+                    self.beta * (self.mean[i + 1] + noise[:, i + 1, :])
                     + (1 - self.beta) * action_samples[:, i, :]
                 )
 
@@ -252,7 +245,6 @@ class MPPIOptimizer(Optimizer):
             action_samples = torch.where(
                 action_samples < self.lower_bound, self.lower_bound, action_samples
             )
-
             values = obj_fun(action_samples)
 
             # weight actions
