@@ -358,7 +358,6 @@ def train_model_and_save_model_and_data(
             replay_buffer,
             cfg.model_batch_size,
             cfg.validation_ratio,
-            train_ensemble=len(model) is not None,
             ensemble_size=len(model),
             shuffle_each_epoch=True,
             bootstrap_permutes=cfg.get("bootstrap_permutes", False),
