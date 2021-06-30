@@ -257,7 +257,7 @@ class ReplayBuffer:
             warnings.warn(
                 "The replay buffer was filled before current trajectory finished. "
                 "The history of the current partial trajectory will be discarded. "
-                "Make sure you set `max_trajectory_length` to the appropriate value"
+                "Make sure you set `max_trajectory_length` to the appropriate value "
                 "for your problem."
             )
             self._start_last_trajectory = 0
