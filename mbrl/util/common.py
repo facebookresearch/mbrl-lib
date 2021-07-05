@@ -232,14 +232,14 @@ def get_basic_buffer_iterators(
         ensemble_size,
         shuffle_each_epoch=shuffle_each_epoch,
         permute_indices=bootstrap_permutes,
-        rng=replay_buffer._rng,
+        rng=replay_buffer.rng,
     )
 
     val_iter = None
     if val_size > 0:
         val_data = data[train_size:]
         val_iter = TransitionIterator(
-            val_data, batch_size, shuffle_each_epoch=False, rng=replay_buffer._rng
+            val_data, batch_size, shuffle_each_epoch=False, rng=replay_buffer.rng
         )
 
     return train_iter, val_iter
@@ -279,7 +279,8 @@ def get_sequence_buffer_iterator(
     num_trajectories = len(replay_buffer.trajectory_indices)
     val_size = int(num_trajectories * val_ratio)
     train_size = num_trajectories - val_size
-    train_trajectories = replay_buffer.trajectory_indices[:train_size]
+    all_trajectories = replay_buffer.rng.permutation(replay_buffer.trajectory_indices)
+    train_trajectories = all_trajectories[:train_size]
 
     train_iterator = SequenceTransitionIterator(
         transitions,
@@ -288,13 +289,13 @@ def get_sequence_buffer_iterator(
         sequence_length,
         ensemble_size,
         shuffle_each_epoch=shuffle_each_epoch,
-        rng=replay_buffer._rng,
+        rng=replay_buffer.rng,
         max_batches_per_loop=max_batches_per_loop,
     )
 
     val_iterator = None
     if val_size > 0:
-        val_trajectories = replay_buffer.trajectory_indices[train_size:]
+        val_trajectories = all_trajectories[train_size:]
         val_iterator = SequenceTransitionIterator(
             transitions,
             val_trajectories,
@@ -302,7 +303,7 @@ def get_sequence_buffer_iterator(
             sequence_length,
             1,
             shuffle_each_epoch=shuffle_each_epoch,
-            rng=replay_buffer._rng,
+            rng=replay_buffer.rng,
             max_batches_per_loop=max_batches_per_loop,
         )
         val_iterator.toggle_bootstrap()

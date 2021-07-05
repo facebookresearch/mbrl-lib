@@ -557,3 +557,7 @@ class ReplayBuffer:
             shuffle_each_epoch,
             bootstrap_permutes,
         )
+
+    @property
+    def rng(self) -> np.random.Generator:
+        return self._rng

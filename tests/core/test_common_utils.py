@@ -271,7 +271,6 @@ def test_get_sequence_buffer_iterators():
             buffer.add(dummy, dummy, dummy, k, False)
             k += 1
         buffer.close_trajectory()
-    val_cutoff = k
     for i in range(num_trajectories_val):
         for j in range(20):
             buffer.add(dummy, dummy, dummy, k, False)
@@ -291,12 +290,17 @@ def test_get_sequence_buffer_iterators():
         assert val_iter.num_stored == 3 * (21 - sequence_length)
         assert train_iter.num_stored == 27 * (21 - sequence_length)
 
+        train_rewards = []
         for batch in train_iter:
             assert batch.rewards.ndim == 3  # (ensemble, batch_size, sequence)
             _, _, _, reward, _ = batch.astuple()
-            assert reward.max() < val_cutoff
-
+            train_rewards.append(reward)  # only need start of sequence
+        train_rewards = np.unique(np.concatenate(train_rewards, axis=1))
+        val_rewards = []
         for batch in val_iter:
             assert batch.rewards.ndim == 2  # (batch_size, sequence) since non-bootstrap
             _, _, _, reward, _ = batch.astuple()
-            assert reward.min() >= val_cutoff
+            val_rewards.append(reward)  # only need start of sequence
+        val_rewards = np.unique(np.concatenate(val_rewards, axis=0))
+        # Check that validation and training were separate splits
+        assert np.intersect1d(train_rewards, val_rewards).size == 0
