@@ -518,6 +518,6 @@ def test_sequence_iterator_max_batches_per_loop():
         )
 
         cnt = 0
-        for batch in iterator:
+        for _ in iterator:
             cnt += 1
         assert cnt == max_batches
