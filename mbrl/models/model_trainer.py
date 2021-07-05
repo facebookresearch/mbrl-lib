@@ -225,7 +225,7 @@ class ModelTrainer:
         self, best_weights: Optional[Dict], best_val_score: torch.Tensor
     ):
         if best_weights is not None:
-            self.model.state_dict(best_weights)
+            self.model.load_state_dict(best_weights)
         if len(best_val_score) > 1 and hasattr(self.model, "num_elites"):
             sorted_indices = np.argsort(best_val_score.tolist())
             elite_models = sorted_indices[: self.model.num_elites]
