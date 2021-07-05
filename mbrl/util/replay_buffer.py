@@ -207,6 +207,8 @@ class SequenceTransitionIterator(BootstrapIterator):
         batch_size (int): the batch size to use when iterating over the stored data.
         sequence_length (int): the length of the sequences returned.
         ensemble_size (int): the number of models in the ensemble.
+        shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
+            loop over the data is completed. Defaults to ``False``.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If ``None`` (default value), a new default generator will be used.
         max_batches_per_loop (int, optional): if given, specifies how many batches
@@ -220,6 +222,7 @@ class SequenceTransitionIterator(BootstrapIterator):
         batch_size: int,
         sequence_length: int,
         ensemble_size: int,
+        shuffle_each_epoch: bool = False,
         rng: Optional[np.random.Generator] = None,
         max_batches_per_loop: Optional[int] = None,
     ):
@@ -240,7 +243,7 @@ class SequenceTransitionIterator(BootstrapIterator):
             self._valid_starts,  # type: ignore
             batch_size,
             ensemble_size,
-            shuffle_each_epoch=False,
+            shuffle_each_epoch=shuffle_each_epoch,
             permute_indices=False,
             rng=rng,
         )

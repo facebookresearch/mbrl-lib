@@ -279,9 +279,12 @@ def test_get_sequence_buffer_iterators():
         buffer.close_trajectory()
 
     for sequence_length in range(1, 20):
+        shuffle_each_epoch = np.random.random() > 0.5
         train_iter, val_iter = mbrl.util.common.get_sequence_buffer_iterator(
-            buffer, 32, 0.1, sequence_length, 3
+            buffer, 32, 0.1, sequence_length, 3, shuffle_each_epoch=shuffle_each_epoch
         )
+        assert train_iter._shuffle_each_epoch == shuffle_each_epoch
+        assert val_iter._shuffle_each_epoch == shuffle_each_epoch
         # For trajectories of length 20 and sequence length L, there are
         # 20 - L  + 1 possible start states.
         # There are 30 trajectories in total, so 10% is 3 trajectories

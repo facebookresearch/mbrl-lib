@@ -251,6 +251,7 @@ def get_sequence_buffer_iterator(
     val_ratio: float,
     sequence_length: int,
     ensemble_size: Optional[int] = None,
+    shuffle_each_epoch: bool = True,
     max_batches_per_loop: Optional[int] = None,
 ) -> Tuple[SequenceTransitionIterator, Optional[SequenceTransitionIterator]]:
     """Returns training/validation iterators for the data in the replay buffer.
@@ -263,6 +264,9 @@ def get_sequence_buffer_iterator(
             validation buffer will be set to ``None``.
         sequence_length (int): the length of the sequences returned by the iterators.
         ensemble_size (int): the number of models in the ensemble.
+        shuffle_each_epoch (bool): if ``True``, the iterator will shuffle the
+            order each time a loop starts. Otherwise the iteration order will
+            be the same. Defaults to ``True``.
         max_batches_per_loop (int, optional): if given, specifies how many batches
             to return (at most) over a full loop of the iterator.
 
@@ -283,6 +287,7 @@ def get_sequence_buffer_iterator(
         batch_size,
         sequence_length,
         ensemble_size,
+        shuffle_each_epoch=shuffle_each_epoch,
         rng=replay_buffer._rng,
         max_batches_per_loop=max_batches_per_loop,
     )
@@ -296,6 +301,7 @@ def get_sequence_buffer_iterator(
             batch_size,
             sequence_length,
             1,
+            shuffle_each_epoch=shuffle_each_epoch,
             rng=replay_buffer._rng,
             max_batches_per_loop=max_batches_per_loop,
         )
