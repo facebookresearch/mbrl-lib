@@ -377,7 +377,7 @@ class ReplayBuffer:
             warnings.warn(
                 "The replay buffer was filled before current trajectory finished. "
                 "The history of the current partial trajectory will be discarded. "
-                "Make sure you set `max_trajectory_length` to the appropriate value"
+                "Make sure you set `max_trajectory_length` to the appropriate value "
                 "for your problem."
             )
             self._start_last_trajectory = 0
@@ -388,15 +388,16 @@ class ReplayBuffer:
         new_trajectory = (self._start_last_trajectory, self.cur_idx)
         self.remove_overlapping_trajectories(new_trajectory)
         self.trajectory_indices.append(new_trajectory)
-        if self.cur_idx >= self.capacity:
-            self.cur_idx = 0
-        self._start_last_trajectory = self.cur_idx
 
         if self.cur_idx - self._start_last_trajectory > (len(self.obs) - self.capacity):
             warnings.warn(
                 "A trajectory was saved with length longer than expected. "
                 "Unexpected behavior might occur."
             )
+
+        if self.cur_idx >= self.capacity:
+            self.cur_idx = 0
+        self._start_last_trajectory = self.cur_idx
 
     def add(
         self,
