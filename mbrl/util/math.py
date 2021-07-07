@@ -103,8 +103,8 @@ class Normalizer:
     _STATS_FNAME = "env_stats.pickle"
 
     def __init__(self, in_size: int, device: torch.device):
-        self.mean = torch.zeros((1, in_size), device=device)
-        self.std = torch.ones((1, in_size), device=device)
+        self.mean = torch.zeros((1, in_size), device=device, dtype=torch.double)
+        self.std = torch.ones((1, in_size), device=device, dtype=torch.double)
         self.device = device
 
     def update_stats(self, data: mbrl.types.TensorType):

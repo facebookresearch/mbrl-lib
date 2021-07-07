@@ -109,7 +109,7 @@ class OneDTransitionRewardModel(Model):
         model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
         if self.input_normalizer:
             # Normalizer lives on device
-            return self.input_normalizer.normalize(model_in_np)
+            return self.input_normalizer.normalize(model_in_np).float().to(device)
         return torch.from_numpy(model_in_np).to(device)
 
     def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
@@ -117,7 +117,7 @@ class OneDTransitionRewardModel(Model):
             obs = self.obs_process_fn(obs)
         model_in = torch.cat([obs, action], axis=obs.ndim - 1)
         if self.input_normalizer:
-            model_in = self.input_normalizer.normalize(model_in)
+            model_in = self.input_normalizer.normalize(model_in).float()
         return model_in
 
     def _get_model_input_and_target_from_batch(
@@ -133,14 +133,18 @@ class OneDTransitionRewardModel(Model):
 
         model_in = self._get_model_input_from_np(obs, action, self.device)
         if self.learned_rewards:
-            target = torch.from_numpy(
-                np.concatenate(
-                    [target_obs, np.expand_dims(reward, axis=reward.ndim)],
-                    axis=obs.ndim - 1,
+            target = (
+                torch.from_numpy(
+                    np.concatenate(
+                        [target_obs, np.expand_dims(reward, axis=reward.ndim)],
+                        axis=obs.ndim - 1,
+                    )
                 )
-            ).to(self.device)
+                .float()
+                .to(self.device)
+            )
         else:
-            target = torch.from_numpy(target_obs).to(self.device)
+            target = torch.from_numpy(target_obs).float().to(self.device)
         return model_in, target
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
