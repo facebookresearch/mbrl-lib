@@ -5,6 +5,7 @@
 import numpy as np
 import omegaconf
 import pytest
+import torch
 
 import mbrl.models as models
 import mbrl.util
@@ -19,6 +20,7 @@ class MockModel(models.Model):
         self.x = x
         self.y = y
         self.device = "cpu"
+        self.net = torch.nn.Linear(in_size, out_size)
 
     def loss(self, model_in, target):
         pass
@@ -240,3 +242,13 @@ def test_populate_replay_buffer_collect_trajectories():
     )
     assert buffer.num_stored == num_trials * _MOCK_TRAJ_LEN
     assert len(buffer.trajectory_indices) == num_trials
+
+
+def test_model_trainer_maybe_get_best_weights_negative_score():
+    model = MockModel(1, 1, 1, 1)
+    model_trainer = models.ModelTrainer(model)
+    previous_eval_value = torch.tensor(-10.0)
+    eval_value_larger = torch.tensor(-1.0)
+    eval_value_smaller = torch.tensor(-100.0)
+    assert model_trainer.maybe_get_best_weights(previous_eval_value, eval_value_larger) is None
+    assert model_trainer.maybe_get_best_weights(previous_eval_value, eval_value_smaller) is not None
