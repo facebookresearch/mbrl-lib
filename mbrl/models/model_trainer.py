@@ -217,7 +217,7 @@ class ModelTrainer:
             best validation score is higher than the threshold, returns the state dictionary
             of the stored model, otherwise returns ``None``.
         """
-        improvement = (best_val_score - val_score) / best_val_score
+        improvement = (best_val_score - val_score) / torch.abs(best_val_score)
         improved = (improvement > threshold).any().item()
         return copy.deepcopy(self.model.state_dict()) if improved else None
 
