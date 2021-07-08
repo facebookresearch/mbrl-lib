@@ -69,6 +69,7 @@ class ModelTrainer:
         dataset_val: Optional[TransitionIterator] = None,
         num_epochs: Optional[int] = None,
         patience: Optional[int] = None,
+        improvement_threshold: float = 0.01,
         callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
@@ -91,6 +92,8 @@ class ModelTrainer:
                 Default is ``None``, which indicates there is no limit.
             patience (int, optional): if provided, the patience to use for training. That is,
                 training will stop after ``patience`` number of epochs without improvement.
+            improvement_threshold (float): The threshold in relative decrease of the evaluation
+                score at which the model is seen as having improved.
             callback (callable, optional): if provided, this function will be called after
                 every training epoch with the following positional arguments::
 
@@ -124,7 +127,9 @@ class ModelTrainer:
             eval_score = self.evaluate(eval_dataset)
             val_scores.append(eval_score.mean().item())
 
-            maybe_best_weights = self.maybe_get_best_weights(best_val_score, eval_score)
+            maybe_best_weights = self.maybe_get_best_weights(
+                best_val_score, eval_score, improvement_threshold
+            )
             if maybe_best_weights:
                 best_val_score = torch.minimum(best_val_score, eval_score)
                 best_weights = maybe_best_weights
@@ -217,7 +222,7 @@ class ModelTrainer:
             best validation score is higher than the threshold, returns the state dictionary
             of the stored model, otherwise returns ``None``.
         """
-        improvement = (best_val_score - val_score) / best_val_score
+        improvement = (best_val_score - val_score) / torch.abs(best_val_score)
         improved = (improvement > threshold).any().item()
         return copy.deepcopy(self.model.state_dict()) if improved else None
 

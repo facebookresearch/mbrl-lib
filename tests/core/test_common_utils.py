@@ -5,6 +5,7 @@
 import numpy as np
 import omegaconf
 import pytest
+import torch
 
 import mbrl.models as models
 import mbrl.util
@@ -19,6 +20,7 @@ class MockModel(models.Model):
         self.x = x
         self.y = y
         self.device = "cpu"
+        self.net = torch.nn.Linear(in_size, out_size)
 
     def loss(self, model_in, target):
         pass
@@ -304,3 +306,19 @@ def test_get_sequence_buffer_iterators():
         val_rewards = np.unique(np.concatenate(val_rewards, axis=0))
         # Check that validation and training were separate splits
         assert np.intersect1d(train_rewards, val_rewards).size == 0
+
+
+def test_model_trainer_maybe_get_best_weights_negative_score():
+    model = MockModel(1, 1, 1, 1)
+    model_trainer = models.ModelTrainer(model)
+    previous_eval_value = torch.tensor(-10.0)
+    eval_value_larger = torch.tensor(-1.0)
+    eval_value_smaller = torch.tensor(-100.0)
+    assert (
+        model_trainer.maybe_get_best_weights(previous_eval_value, eval_value_larger)
+        is None
+    )
+    assert (
+        model_trainer.maybe_get_best_weights(previous_eval_value, eval_value_smaller)
+        is not None
+    )
