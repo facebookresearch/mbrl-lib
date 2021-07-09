@@ -276,6 +276,12 @@ class SequenceTransitionIterator(BootstrapIterator):
             raise StopIteration
         return super().__next__()
 
+    def __len__(self):
+        if self._max_batches_per_loop is not None:
+            return min(super().__len__(), self._max_batches_per_loop)
+        else:
+            return super().__len__()
+
     def __getitem__(self, item):
         start_indices = self._valid_starts[item].repeat(self._sequence_length)
         increment_array = np.tile(np.arange(self._sequence_length), len(item))
