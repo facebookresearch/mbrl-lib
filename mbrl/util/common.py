@@ -149,8 +149,6 @@ def create_replay_buffer(
                 ``collect_trajectories == True``.
             -min_rollout (int, optional): the minimum length of a trajectory
             -sequence_length (int, optional): sequence length that will be sampled from buffer
-            -use_last_entry (bool, optional): if set to False will shorten the effective
-                trajectories by last step.
 
     The size of the replay buffer can be determined by either providing
     ``cfg.algorithm.dataset_size``, or providing ``cfg.overrides.num_steps``.

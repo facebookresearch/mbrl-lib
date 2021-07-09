@@ -178,7 +178,7 @@ class MPPIOptimizer(Optimizer):
 
         self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
-        self.var = noise_magnifier * torch.ones_like(self.lower_bound) ** 2
+        self.var = noise_magnifier ** 2 * torch.ones_like(self.lower_bound)
         self.beta = beta
         self.rew_weight = rew_weight
         self.refinements = refinements
@@ -205,13 +205,10 @@ class MPPIOptimizer(Optimizer):
         Returns:
             (torch.Tensor): the best solution found.
         """
-        past_action = x0[-1]
-        self.mean = x0
-        self.mean[-1] = self.mean[
-            -2
-        ]  # x0 performs a roll and the last action needs to be doubled
+        past_action = self.mean[0]
+        self.mean[:-1] = self.mean[1:].clone()
 
-        for i in range(self.refinements):
+        for k in range(self.refinements):
             # sample noise and update constrained variances
             noise = torch.empty(
                 size=(self.batch_size, self.planning_horizon, self.action_dimension),
@@ -221,22 +218,20 @@ class MPPIOptimizer(Optimizer):
 
             lb_dist = self.mean - self.lower_bound
             ub_dist = self.upper_bound - self.mean
-            mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
+            mv = torch.minimum(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
             constrained_var = torch.minimum(mv, self.var)
+            action_samples = noise.clone() * torch.sqrt(constrained_var)
 
             # smoothed actions with noise
-            action_samples = noise.clone() * torch.sqrt(constrained_var)
             action_samples[:, 0, :] = (
                 self.beta * (self.mean[0, :] + noise[:, 0, :])
                 + (1 - self.beta) * past_action
             )
-
             for i in range(max(self.planning_horizon - 1, 0)):
                 action_samples[:, i + 1, :] = (
                     self.beta * (self.mean[i + 1] + noise[:, i + 1, :])
                     + (1 - self.beta) * action_samples[:, i, :]
                 )
-
             # clipping actions
             # This should still work if the bounds between dimensions are different.
             action_samples = torch.where(
