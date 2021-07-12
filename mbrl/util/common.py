@@ -278,6 +278,12 @@ def get_sequence_buffer_iterator(
         and validation iterators, respectively.
     """
 
+    assert replay_buffer.stores_trajectories, (
+        "The passed replay buffer does not store trajectory information. "
+        "Make sure that the replay buffer is created with the max_trajectory_length "
+        "parameter set."
+    )
+
     transitions = replay_buffer.get_all()
     num_trajectories = len(replay_buffer.trajectory_indices)
     val_size = int(num_trajectories * val_ratio)
