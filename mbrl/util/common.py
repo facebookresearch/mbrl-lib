@@ -250,7 +250,7 @@ def get_sequence_buffer_iterator(
     batch_size: int,
     val_ratio: float,
     sequence_length: int,
-    ensemble_size: Optional[int] = None,
+    ensemble_size: int = 1,
     shuffle_each_epoch: bool = True,
     max_batches_per_loop_train: Optional[int] = None,
     max_batches_per_loop_val: Optional[int] = None,
