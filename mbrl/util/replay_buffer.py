@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import pathlib
 import warnings
-from typing import List, Optional, Sequence, Sized, Tuple, Union, Iterable
+from typing import List, Optional, Sequence, Sized, Tuple, Union
 
 import numpy as np
 
@@ -173,8 +173,8 @@ class ReplayBuffer:
     Args:
         capacity (int): the maximum number of transitions that the buffer can store.
             When the capacity is reached, the contents are overwritten in FIFO fashion.
-        obs_shape (Iterable of ints): the shape of the observations to store.
-        action_shape (Iterable of ints): the shape of the actions to store.
+        obs_shape (Sequence of ints): the shape of the observations to store.
+        action_shape (Sequence of ints): the shape of the actions to store.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         rng (np.random.Generator, optional): a random number generator when sampling
@@ -193,8 +193,8 @@ class ReplayBuffer:
     def __init__(
         self,
         capacity: int,
-        obs_shape: Iterable[int],
-        action_shape: Iterable[int],
+        obs_shape: Sequence[int],
+        action_shape: Sequence[int],
         obs_type=np.float32,
         action_type=np.float32,
         rng: Optional[np.random.Generator] = None,
