@@ -235,14 +235,14 @@ def get_basic_buffer_iterators(
         ensemble_size,
         shuffle_each_epoch=shuffle_each_epoch,
         permute_indices=bootstrap_permutes,
-        rng=replay_buffer._rng,
+        rng=replay_buffer.rng,
     )
 
     val_iter = None
     if val_size > 0:
         val_data = data[train_size:]
         val_iter = TransitionIterator(
-            val_data, batch_size, shuffle_each_epoch=False, rng=replay_buffer._rng
+            val_data, batch_size, shuffle_each_epoch=False, rng=replay_buffer.rng
         )
 
     return train_iter, val_iter
@@ -254,7 +254,9 @@ def get_sequence_buffer_iterator(
     val_ratio: float,
     sequence_length: int,
     ensemble_size: Optional[int] = None,
-    max_batches_per_loop: Optional[int] = None,
+    shuffle_each_epoch: bool = True,
+    max_batches_per_loop_train: Optional[int] = None,
+    max_batches_per_loop_val: Optional[int] = None,
 ) -> Tuple[SequenceTransitionIterator, Optional[SequenceTransitionIterator]]:
     """Returns training/validation iterators for the data in the replay buffer.
 
@@ -266,8 +268,13 @@ def get_sequence_buffer_iterator(
             validation buffer will be set to ``None``.
         sequence_length (int): the length of the sequences returned by the iterators.
         ensemble_size (int): the number of models in the ensemble.
-        max_batches_per_loop (int, optional): if given, specifies how many batches
-            to return (at most) over a full loop of the iterator.
+        shuffle_each_epoch (bool): if ``True``, the iterator will shuffle the
+            order each time a loop starts. Otherwise the iteration order will
+            be the same. Defaults to ``True``.
+        max_batches_per_loop_train (int, optional): if given, specifies how many batches
+            to return (at most) over a full loop of the training iterator.
+        max_batches_per_loop_val (int, optional): if given, specifies how many batches
+            to return (at most) over a full loop of the validation iterator.
 
     Returns:
         (tuple of :class:`mbrl.replay_buffer.SequenceTransitionIterator`): the training
@@ -278,7 +285,8 @@ def get_sequence_buffer_iterator(
     num_trajectories = len(replay_buffer.trajectory_indices)
     val_size = int(num_trajectories * val_ratio)
     train_size = num_trajectories - val_size
-    train_trajectories = replay_buffer.trajectory_indices[:train_size]
+    all_trajectories = replay_buffer.rng.permutation(replay_buffer.trajectory_indices)
+    train_trajectories = all_trajectories[:train_size]
 
     train_iterator = SequenceTransitionIterator(
         transitions,
@@ -286,21 +294,23 @@ def get_sequence_buffer_iterator(
         batch_size,
         sequence_length,
         ensemble_size,
-        rng=replay_buffer._rng,
-        max_batches_per_loop=max_batches_per_loop,
+        shuffle_each_epoch=shuffle_each_epoch,
+        rng=replay_buffer.rng,
+        max_batches_per_loop=max_batches_per_loop_train,
     )
 
     val_iterator = None
     if val_size > 0:
-        val_trajectories = replay_buffer.trajectory_indices[train_size:]
+        val_trajectories = all_trajectories[train_size:]
         val_iterator = SequenceTransitionIterator(
             transitions,
             val_trajectories,
             batch_size,
             sequence_length,
             1,
-            rng=replay_buffer._rng,
-            max_batches_per_loop=max_batches_per_loop,
+            shuffle_each_epoch=shuffle_each_epoch,
+            rng=replay_buffer.rng,
+            max_batches_per_loop=max_batches_per_loop_val,
         )
         val_iterator.toggle_bootstrap()
 
@@ -367,6 +377,7 @@ def train_model_and_save_model_and_data(
         dataset_val=dataset_val,
         num_epochs=cfg.get("num_epochs_train_model", None),
         patience=cfg.get("patience", 1),
+        improvement_threshold=cfg.get("improvement_threshold", 0.01),
         callback=callback,
     )
     if work_dir is not None:

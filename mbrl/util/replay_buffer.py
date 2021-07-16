@@ -207,6 +207,8 @@ class SequenceTransitionIterator(BootstrapIterator):
         batch_size (int): the batch size to use when iterating over the stored data.
         sequence_length (int): the length of the sequences returned.
         ensemble_size (int): the number of models in the ensemble.
+        shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
+            loop over the data is completed. Defaults to ``False``.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If ``None`` (default value), a new default generator will be used.
         max_batches_per_loop (int, optional): if given, specifies how many batches
@@ -220,6 +222,7 @@ class SequenceTransitionIterator(BootstrapIterator):
         batch_size: int,
         sequence_length: int,
         ensemble_size: int,
+        shuffle_each_epoch: bool = False,
         rng: Optional[np.random.Generator] = None,
         max_batches_per_loop: Optional[int] = None,
     ):
@@ -241,7 +244,7 @@ class SequenceTransitionIterator(BootstrapIterator):
             self._valid_starts,  # type: ignore
             batch_size,
             ensemble_size,
-            shuffle_each_epoch=False,
+            shuffle_each_epoch=shuffle_each_epoch,
             permute_indices=False,
             rng=rng,
         )
@@ -273,6 +276,12 @@ class SequenceTransitionIterator(BootstrapIterator):
         ):
             raise StopIteration
         return super().__next__()
+
+    def __len__(self):
+        if self._max_batches_per_loop is not None:
+            return min(super().__len__(), self._max_batches_per_loop)
+        else:
+            return super().__len__()
 
     def __getitem__(self, item):
         if not self._sequenced_iter:
@@ -381,7 +390,7 @@ class ReplayBuffer:
             warnings.warn(
                 "The replay buffer was filled before current trajectory finished. "
                 "The history of the current partial trajectory will be discarded. "
-                "Make sure you set `max_trajectory_length` to the appropriate value"
+                "Make sure you set `max_trajectory_length` to the appropriate value "
                 "for your problem."
             )
             self._start_last_trajectory = 0
@@ -392,15 +401,16 @@ class ReplayBuffer:
         new_trajectory = (self._start_last_trajectory, self.cur_idx)
         self.remove_overlapping_trajectories(new_trajectory)
         self.trajectory_indices.append(new_trajectory)
-        if self.cur_idx >= self.capacity:
-            self.cur_idx = 0
-        self._start_last_trajectory = self.cur_idx
 
         if self.cur_idx - self._start_last_trajectory > (len(self.obs) - self.capacity):
             warnings.warn(
                 "A trajectory was saved with length longer than expected. "
                 "Unexpected behavior might occur."
             )
+
+        if self.cur_idx >= self.capacity:
+            self.cur_idx = 0
+        self._start_last_trajectory = self.cur_idx
 
     def add(
         self,
@@ -561,3 +571,7 @@ class ReplayBuffer:
             shuffle_each_epoch,
             bootstrap_permutes,
         )
+
+    @property
+    def rng(self) -> np.random.Generator:
+        return self._rng
