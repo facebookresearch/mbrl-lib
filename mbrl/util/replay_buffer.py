@@ -299,8 +299,8 @@ class ReplayBuffer:
     Args:
         capacity (int): the maximum number of transitions that the buffer can store.
             When the capacity is reached, the contents are overwritten in FIFO fashion.
-        obs_shape (tuple of ints): the shape of the observations to store.
-        action_shape (tuple of ints): the shape of the actions to store.
+        obs_shape (Sequence of ints): the shape of the observations to store.
+        action_shape (Sequence of ints): the shape of the actions to store.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
         rng (np.random.Generator, optional): a random number generator when sampling
@@ -319,8 +319,8 @@ class ReplayBuffer:
     def __init__(
         self,
         capacity: int,
-        obs_shape: Tuple[int],
-        action_shape: Tuple[int],
+        obs_shape: Sequence[int],
+        action_shape: Sequence[int],
         obs_type=np.float32,
         action_type=np.float32,
         rng: Optional[np.random.Generator] = None,
@@ -349,7 +349,7 @@ class ReplayBuffer:
         self._start_last_trajectory = 0
 
     @property
-    def stores_trajectories(self):
+    def stores_trajectories(self) -> bool:
         return self.trajectory_indices is not None
 
     @staticmethod
@@ -434,7 +434,7 @@ class ReplayBuffer:
             self.cur_idx = (self.cur_idx + 1) % self.capacity
             self.num_stored = min(self.num_stored + 1, self.capacity)
 
-    def sample(self, batch_size: int) -> Sized:
+    def sample(self, batch_size: int) -> TransitionBatch:
         """Samples a batch of transitions from the replay buffer.
 
         Args:

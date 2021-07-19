@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import gym.wrappers
 import hydra
@@ -129,8 +129,8 @@ def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfi
 
 def create_replay_buffer(
     cfg: omegaconf.DictConfig,
-    obs_shape: Tuple[int],
-    act_shape: Tuple[int],
+    obs_shape: Sequence[int],
+    act_shape: Sequence[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
     collect_trajectories: bool = False,
     rng: Optional[np.random.Generator] = None,
@@ -153,8 +153,8 @@ def create_replay_buffer(
 
     Args:
         cfg (omegaconf.DictConfig): the configuration to use.
-        obs_shape (tuple of ints): the shape of observation arrays.
-        act_shape (tuple of ints): the shape of action arrays.
+        obs_shape (Sequence of ints): the shape of observation arrays.
+        act_shape (Sequence of ints): the shape of action arrays.
         load_dir (optional str or pathlib.Path): if provided, the function will attempt to
             populate the buffers from "load_dir/replay_buffer.npz".
         collect_trajectories (bool, optional): if ``True`` sets the replay buffers to collect
