@@ -163,7 +163,7 @@ def create_replay_buffer(
             batches. If None (default value), a new default generator will be used.
 
     Returns:
-        (:class:`mbrl.replay_buffer.ReplayBuffer): the replay buffer.
+        (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer.
     """
     dataset_size = (
         cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
@@ -339,6 +339,7 @@ def train_model_and_save_model_and_data(
         model_trainer (:class:`mbrl.models.ModelTrainer`): the model trainer.
         cfg (:class:`omegaconf.DictConfig`): configuration to use for training. It
             must contain the following fields::
+
                 -model_batch_size (int)
                 -validation_ratio (float)
                 -num_epochs_train_model (int, optional)
