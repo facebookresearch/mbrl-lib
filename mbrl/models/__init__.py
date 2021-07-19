@@ -5,6 +5,7 @@
 from .basic_ensemble import BasicEnsemble
 from .gaussian_mlp import GaussianMLP
 from .gaussian_multistep_mlp import GaussianMMLP
+from .ground_truth_tr_model import GroundTruthTransitionRewardModel
 from .model import Ensemble, Model
 from .model_env import ModelEnv
 from .model_trainer import ModelTrainer
@@ -22,4 +23,5 @@ __all__ = [
     "GaussianMLP",
     "GaussianMMLP",
     "truncated_normal_init",
+    "GroundTruthTransitionRewardModel",
 ]

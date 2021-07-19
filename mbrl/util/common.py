@@ -13,6 +13,7 @@ import omegaconf
 import mbrl.models
 import mbrl.planning
 import mbrl.types
+import mbrl.util.mujoco as mujoco_util
 
 # TODO read model from hydra
 from ..third_party import pytorch_sac
@@ -22,6 +23,19 @@ from .replay_buffer import (
     SequenceTransitionIterator,
     TransitionIterator,
 )
+
+
+def create_ground_truth_tr_model(cfg):
+    env, _, _ = mujoco_util.make_env(cfg)
+    env.reset()
+    device = cfg.get("device", None)
+    name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
+    if name_obs_process_fn:
+        obs_process_fn = hydra.utils.get_method(cfg.overrides.obs_process_fn)
+    else:
+        obs_process_fn = None
+
+    return mbrl.models.GroundTruthTransitionRewardModel(env, device, obs_process_fn)
 
 
 def create_one_dim_tr_model(

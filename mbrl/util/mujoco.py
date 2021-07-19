@@ -107,6 +107,18 @@ def make_env(
             env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
             term_fn = mbrl.env.termination_fns.ant
             reward_fn = None
+        elif cfg.overrides.env == "benchmark.full_obs_halfcheetah":
+            env = mbrl.env.mujoco_envs.HalfCheetahFOEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
+        elif cfg.overrides.env == "benchmark.full_obs_hopper":
+            env = mbrl.env.mujoco_envs.HopperFOEnv()
+            term_fn = mbrl.env.termination_fns.hopper_fo
+            reward_fn = getattr(mbrl.env.reward_fns, "hopper_fo", None)
+        elif cfg.overrides.env == "benchmark.full_obs_ant":
+            env = mbrl.env.mujoco_envs.AntFOEnv()
+            term_fn = mbrl.env.termination_fns.ant_fo
+            reward_fn = getattr(mbrl.env.reward_fns, "ant_fo", None)
         else:
             raise ValueError("Invalid environment string.")
         env = gym.wrappers.TimeLimit(

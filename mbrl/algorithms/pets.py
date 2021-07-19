@@ -52,7 +52,15 @@ def train(
         )
 
     # -------- Create and populate initial env dataset --------
-    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+    use_ground_truth = False
+    if cfg.dynamics_model.get("name", None) == "ground_truth":
+        dynamics_model = mbrl.util.common.create_ground_truth_tr_model(cfg)
+        use_ground_truth = True
+    else:
+        dynamics_model = mbrl.util.common.create_one_dim_tr_model(
+            cfg, obs_shape, act_shape
+        )
+
     replay_buffer = mbrl.util.common.create_replay_buffer(
         cfg, obs_shape, act_shape, rng=rng
     )
@@ -70,12 +78,14 @@ def train(
     model_env = mbrl.models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
     )
-    model_trainer = mbrl.models.ModelTrainer(
-        dynamics_model,
-        optim_lr=cfg.overrides.model_lr,
-        weight_decay=cfg.overrides.model_wd,
-        logger=logger,
-    )
+
+    if not use_ground_truth:
+        model_trainer = mbrl.models.ModelTrainer(
+            dynamics_model,
+            optim_lr=cfg.overrides.model_lr,
+            weight_decay=cfg.overrides.model_wd,
+            logger=logger,
+        )
 
     agent = mbrl.planning.create_trajectory_optim_agent_for_model(
         model_env, cfg.algorithm.agent, num_particles=cfg.algorithm.num_particles
@@ -94,7 +104,7 @@ def train(
         steps_trial = 0
         while not done:
             # --------------- Model Training -----------------
-            if env_steps % cfg.algorithm.freq_train_model == 0:
+            if env_steps % cfg.algorithm.freq_train_model == 0 and not use_ground_truth:
                 mbrl.util.common.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
@@ -115,6 +125,7 @@ def train(
 
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")
+                print(f"Step {env_steps}: Total reward {total_reward:.3f}.")
 
         if logger is not None:
             logger.log_data(

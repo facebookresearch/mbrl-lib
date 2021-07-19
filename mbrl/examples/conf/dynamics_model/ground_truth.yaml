@@ -1,0 +1,5 @@
+# @package _group_
+
+name: "ground_truth"
+model:
+  device: ${device}

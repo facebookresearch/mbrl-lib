@@ -241,6 +241,7 @@ class MPPIOptimizer(Optimizer):
                 action_samples < self.lower_bound, self.lower_bound, action_samples
             )
             values = obj_fun(action_samples)
+            values[values.isnan()] = -1e-10
 
             # weight actions
             weights = torch.reshape(

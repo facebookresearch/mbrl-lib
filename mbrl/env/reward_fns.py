@@ -27,6 +27,27 @@ def halfcheetah(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     return (reward_run + reward_ctrl).view(-1, 1)
 
 
+def hopper_fo(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    reward = next_obs[:, 0]
+    reward += 1.0  # alive bonus
+    reward -= 1e-3 * act.square().sum(dim=1)
+    return reward.view(-1, 1)
+
+
+def ant_fo(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    reward = next_obs[:, 0]
+    reward -= 0.5 * act.square().sum(dim=1)
+
+    offset_contact_forces = 29  # look up
+    reward -= 0.5 * 1e-3 * next_obs[:, offset_contact_forces:].sum(dim=1)
+    reward += 1
+    return reward.view(-1, 1)
+
+
 def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     goal_pos = torch.tensor([0.45, -0.05, -0.323]).to(next_obs.device)
 

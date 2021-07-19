@@ -83,3 +83,11 @@ def to_tensor(x: mbrl.types.TensorType):
     if isinstance(x, np.ndarray):
         return torch.from_numpy(x)
     raise ValueError("Input must be torch.Tensor or np.ndarray.")
+
+
+def to_numpy(x: mbrl.types.TensorType):
+    if isinstance(x, np.ndarray):
+        return x
+    if isinstance(x, torch.Tensor):
+        return x.cpu().detach().numpy()
+    raise ValueError("Input must be torch.Tensor or np.ndarray.")

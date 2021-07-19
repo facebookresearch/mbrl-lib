@@ -26,6 +26,23 @@ def hopper(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     return done
 
 
+def hopper_fo(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == 2
+
+    height = next_obs[:, 1]
+    angle = next_obs[:, 2]
+    not_done = (
+        torch.isfinite(next_obs).all(-1)
+        * (next_obs[:, 2:] < 100).abs().all(-1)
+        * (height > 0.7)
+        * (angle.abs() < 0.2)
+    )
+
+    done = ~not_done
+    done = done[:, None]
+    return done
+
+
 def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == 2
 
@@ -78,6 +95,17 @@ def ant(act: torch.Tensor, next_obs: torch.Tensor):
     assert len(next_obs.shape) == 2
 
     x = next_obs[:, 0]
+    not_done = torch.isfinite(next_obs).all(-1) * (x >= 0.2) * (x <= 1.0)
+
+    done = ~not_done
+    done = done[:, None]
+    return done
+
+
+def ant_fo(act: torch.Tensor, next_obs: torch.Tensor):
+    assert len(next_obs.shape) == 2
+
+    x = next_obs[:, 2]
     not_done = torch.isfinite(next_obs).all(-1) * (x >= 0.2) * (x <= 1.0)
 
     done = ~not_done
