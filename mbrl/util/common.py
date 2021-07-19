@@ -250,7 +250,7 @@ def get_sequence_buffer_iterator(
     batch_size: int,
     val_ratio: float,
     sequence_length: int,
-    ensemble_size: Optional[int] = None,
+    ensemble_size: int = 1,
     shuffle_each_epoch: bool = True,
     max_batches_per_loop_train: Optional[int] = None,
     max_batches_per_loop_val: Optional[int] = None,
@@ -277,6 +277,12 @@ def get_sequence_buffer_iterator(
         (tuple of :class:`mbrl.replay_buffer.SequenceTransitionIterator`): the training
         and validation iterators, respectively.
     """
+
+    assert replay_buffer.stores_trajectories, (
+        "The passed replay buffer does not store trajectory information. "
+        "Make sure that the replay buffer is created with the max_trajectory_length "
+        "parameter set."
+    )
 
     transitions = replay_buffer.get_all()
     num_trajectories = len(replay_buffer.trajectory_indices)
