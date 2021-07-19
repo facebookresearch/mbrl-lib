@@ -42,7 +42,8 @@ class TransitionIterator:
     is for the user to obtain them from :class:`ReplayBuffer`.
 
     Args:
-
+        transitions (:class:`TransitionBatch`): the transition data used to built
+            the iterator.
         batch_size (int): the batch size to use when iterating over the stored data.
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
             loop over the data is completed. Defaults to ``False``.
@@ -82,7 +83,7 @@ class TransitionIterator:
         return self
 
     def __next__(self):
-        return self.transitions[self._get_indices_next_batch()]
+        return self[self._get_indices_next_batch()]
 
     def ensemble_size(self):
         return 0
@@ -90,15 +91,20 @@ class TransitionIterator:
     def __len__(self):
         return (self.num_stored - 1) // self.batch_size + 1
 
+    def __getitem__(self, item):
+        return self.transitions[item]
+
 
 class BootstrapIterator(TransitionIterator):
     """A transition iterator that can be used to train ensemble of bootstrapped models.
 
     When iterating, this iterator samples from a different set of indices for each model in the
     ensemble, essentially assigning a different dataset to each model. Each batch is of
-    shape (ensemble_size x batch_size x obs_size).
+    shape (ensemble_size x batch_size x obs_size) -- likewise for actions, rewards, dones.
 
     Args:
+        transitions (:class:`TransitionBatch`): the transition data used to built
+            the iterator.
         batch_size (int): the batch size to use when iterating over the stored data.
         ensemble_size (int): the number of models in the ensemble.
         shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
@@ -108,6 +114,13 @@ class BootstrapIterator(TransitionIterator):
             replacement. Defaults to ``True``.
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
+
+    Note:
+        If you want to make other custom types of iterators compatible with ensembles
+        of bootstrapped models, the easiest way is to subclass :class:`BootstrapIterator`
+        and overwrite ``__getitem()__`` method. The sampling methods of this class
+        will then batch the result of of ``self[item]`` along a model dimension, where each
+        batch is sampled independently.
     """
 
     def __init__(
@@ -124,7 +137,7 @@ class BootstrapIterator(TransitionIterator):
         )
         self._ensemble_size = ensemble_size
         self._permute_indices = permute_indices
-        self._bootstrap_iter = True
+        self._bootstrap_iter = ensemble_size > 1
         self.member_indices = self._sample_member_indices()
 
     def _sample_member_indices(self) -> np.ndarray:
@@ -151,24 +164,137 @@ class BootstrapIterator(TransitionIterator):
         batches = []
         for member_idx in self.member_indices:
             content_indices = member_idx[indices]
-            batches.append(self.transitions[content_indices])
+            batches.append(self[content_indices])
         return _consolidate_batches(batches)
 
     def toggle_bootstrap(self):
         """Toggles whether the iterator returns a batch per model or a single batch."""
-        self._bootstrap_iter = not self._bootstrap_iter
+        if self.ensemble_size > 1:
+            self._bootstrap_iter = not self._bootstrap_iter
 
     @property
     def ensemble_size(self):
         return self._ensemble_size
 
 
+class SequenceTransitionIterator(BootstrapIterator):
+    """
+    A transition iterator that provides sequences of transitions.
+
+    Returns batches of short sequences of transitions in the buffer, corresponding
+    to fixed-length segments of the trajectories indicated by the given trajectory indices.
+    The start states of all trajectories are sampled uniformly at random from the set of
+    states from which a sequence of the desired length can be started.
+
+    When iterating over this object, batches might contain overlapping trajectories. By default,
+    a full loop over this iterator will return as many samples as valid start states
+    there are (but start states could be repeated, they are sampled with replacement). Since
+    this is unlikely necessary, you can use input argument ``batches_per_epoch`` to
+    only return a smaller number of batches.
+
+    Note that this is a bootstrap iterator, so it can return an extra model dimension,
+    where each batch is sampled independently. By default, each observation batch is of
+    shape (ensemble_size x batch_size x sequence_length x obs_size)  -- likewise for
+    actions, rewards, dones. If not in bootstrap mode, then the ensemble_size dimension
+    is removed.
+
+
+    Args:
+        transitions (:class:`TransitionBatch`): the transition data used to built
+            the iterator.
+        trajectory_indices (list(tuple(int, int)): a list of [start, end) indices for
+            trajectories.
+        batch_size (int): the batch size to use when iterating over the stored data.
+        sequence_length (int): the length of the sequences returned.
+        ensemble_size (int): the number of models in the ensemble.
+        shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
+            loop over the data is completed. Defaults to ``False``.
+        rng (np.random.Generator, optional): a random number generator when sampling
+            batches. If ``None`` (default value), a new default generator will be used.
+        max_batches_per_loop (int, optional): if given, specifies how many batches
+            to return (at most) over a full loop of the iterator.
+    """
+
+    def __init__(
+        self,
+        transitions: TransitionBatch,
+        trajectory_indices: List[Tuple[int, int]],
+        batch_size: int,
+        sequence_length: int,
+        ensemble_size: int,
+        shuffle_each_epoch: bool = False,
+        rng: Optional[np.random.Generator] = None,
+        max_batches_per_loop: Optional[int] = None,
+    ):
+        self._sequence_length = sequence_length
+        self._valid_starts = self._get_indices_valid_starts(
+            trajectory_indices, sequence_length
+        )
+        self._max_batches_per_loop = max_batches_per_loop
+        if len(self._valid_starts) < 0.5 * len(trajectory_indices):
+            warnings.warn(
+                "More than 50% of the trajectories were discarded for being shorter "
+                "than the specified length."
+            )
+        # no need to pass transitions to super(), since it's only used by __getitem__,
+        # which this class replaces. Passing the set of possible starts allow us to
+        # use all the indexing machinery of the superclasses.
+        super().__init__(
+            self._valid_starts,  # type: ignore
+            batch_size,
+            ensemble_size,
+            shuffle_each_epoch=shuffle_each_epoch,
+            permute_indices=False,
+            rng=rng,
+        )
+        self.transitions = transitions
+
+    @staticmethod
+    def _get_indices_valid_starts(
+        trajectory_indices: List[Tuple[int, int]],
+        sequence_length: int,
+    ) -> np.ndarray:
+        # This is memory and time inefficient but it's only done once when creating the
+        # iterator. It's a good price to pay for now, since it simplifies things
+        # enormously and it's less error prone
+        valid_starts = []
+        for (start, end) in trajectory_indices:
+            if end - start < sequence_length:
+                continue
+            valid_starts.extend(list(range(start, end - sequence_length + 1)))
+        return np.array(valid_starts)
+
+    def __iter__(self):
+        super().__iter__()
+        return self
+
+    def __next__(self):
+        if (
+            self._max_batches_per_loop is not None
+            and self._current_batch >= self._max_batches_per_loop
+        ):
+            raise StopIteration
+        return super().__next__()
+
+    def __len__(self):
+        if self._max_batches_per_loop is not None:
+            return min(super().__len__(), self._max_batches_per_loop)
+        else:
+            return super().__len__()
+
+    def __getitem__(self, item):
+        start_indices = self._valid_starts[item].repeat(self._sequence_length)
+        increment_array = np.tile(np.arange(self._sequence_length), len(item))
+        full_trajectory_indices = start_indices + increment_array
+        return self.transitions[full_trajectory_indices].add_new_batch_dim(
+            min(self.batch_size, len(item))
+        )
+
+
 class ReplayBuffer:
     """A replay buffer with support for training/validation iterators and ensembles.
 
     This buffer can be pushed to and sampled from as a typical replay buffer.
-    Additionally, it provides a method called :meth:`get_iterators`, which returns
-    training/validation iterators for the data stored in the buffer.
 
     Args:
         capacity (int): the maximum number of transitions that the buffer can store.
@@ -384,15 +510,23 @@ class ReplayBuffer:
         self.num_stored = num_stored
         self.cur_idx = self.num_stored % self.capacity
 
-    def get_all(self) -> TransitionBatch:
-        """Returns all data stored in the replay buffer."""
+    def get_all(self, shuffle: bool = False) -> TransitionBatch:
+        """Returns all data stored in the replay buffer.
+
+        Args:
+            shuffle (int): set to ``True`` if the data returned should be in random order.
+            Defaults to ``False``.
+        """
+        if shuffle:
+            permutation = self._rng.permutation(self.num_stored)
+            return self._batch_from_indices(permutation)
         return self._batch_from_indices(np.arange(self.num_stored))
 
     def get_iterators(
         self,
         batch_size: int,
         val_ratio: float,
-        train_ensemble: bool = False,
+        train_ensemble: bool = False,  # noqa
         ensemble_size: Optional[int] = None,
         shuffle_each_epoch: bool = True,
         bootstrap_permutes: bool = False,
@@ -415,35 +549,22 @@ class ReplayBuffer:
                 it will use sampling with replacement. Defaults to ``False``.
 
         """
-        val_size = int(self.num_stored * val_ratio)
-        train_size = self.num_stored - val_size
-        permutation = self._rng.permutation(self.num_stored)
-        train_data = self._batch_from_indices(permutation[:train_size])
-        train_iter: TransitionIterator
-        if train_ensemble:
-            if not ensemble_size:
-                raise RuntimeError("Bootstrap iterators require an ensemble_size")
-            train_iter = BootstrapIterator(
-                train_data,
-                batch_size,
-                ensemble_size,
-                shuffle_each_epoch=shuffle_each_epoch,
-                permute_indices=bootstrap_permutes,
-                rng=self._rng,
-            )
-        else:
-            train_iter = TransitionIterator(
-                train_data,
-                batch_size,
-                shuffle_each_epoch=shuffle_each_epoch,
-                rng=self._rng,
-            )
+        warnings.warn(
+            "ReplayBuffer.get_iterators() is deprecated and will be removed "
+            " starting on v0.2.0. Use mbrl.util.common.get_basic_iterators() "
+            " instead."
+        )
+        from mbrl.util.common import get_basic_buffer_iterators
 
-        val_iter = None
-        if val_size > 0:
-            val_data = self._batch_from_indices(permutation[train_size:])
-            val_iter = TransitionIterator(
-                val_data, batch_size, shuffle_each_epoch=False, rng=self._rng
-            )
+        return get_basic_buffer_iterators(
+            self,
+            batch_size,
+            val_ratio,
+            ensemble_size,
+            shuffle_each_epoch,
+            bootstrap_permutes,
+        )
 
-        return train_iter, val_iter
+    @property
+    def rng(self) -> np.random.Generator:
+        return self._rng

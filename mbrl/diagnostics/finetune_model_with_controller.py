@@ -75,10 +75,10 @@ class FineTuner:
             logger=logger,
         )
 
-        dataset_train, dataset_val = self.replay_buffer.get_iterators(
+        dataset_train, dataset_val = mbrl.util.common.get_basic_buffer_iterators(
+            self.replay_buffer,
             batch_size,
             val_ratio,
-            train_ensemble=len(self.dynamics_model.model) > 1,
             ensemble_size=len(self.dynamics_model.model),
             shuffle_each_epoch=True,
             bootstrap_permutes=False,
