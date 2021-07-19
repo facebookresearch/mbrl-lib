@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>General utilities module &mdash; MBRL-Lib  documentation</title>
   
@@ -16,10 +16,7 @@
 
   
   
-
   
-  
-
   
 
   
@@ -54,7 +51,7 @@
           
 
           
-            <a href="index.html" class="icon icon-home"> MBRL-Lib
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MBRL-Lib
           
 
           
@@ -133,8 +130,6 @@
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -146,7 +141,7 @@
     
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="_sources/util.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -188,7 +183,7 @@
 <span id="general-utilities-module"></span><h1>General utilities module<a class="headerlink" href="#module-mbrl.util.common" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="mbrl.util.common.create_one_dim_tr_model">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.common.</span></code><code class="sig-name descname"><span class="pre">create_one_dim_tr_model</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">omegaconf.dictconfig.DictConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_shape</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">act_shape</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span> </span><span class="p"><span class="pre">…</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_dir</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.create_one_dim_tr_model" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">create_one_dim_tr_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">obs_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">act_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">model_dir</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.create_one_dim_tr_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a 1-D transition reward model from a given configuration.</p>
 <p>This method creates a new model from the given configuration and wraps it into a
 <a class="reference internal" href="models.html#mbrl.models.OneDTransitionRewardModel" title="mbrl.models.OneDTransitionRewardModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.OneDTransitionRewardModel</span></code></a> (see its documentation for explanation of some
@@ -241,7 +236,7 @@ weights and normalization information from “model_dir / model.pth” and
 
 <dl class="py function">
 <dt id="mbrl.util.common.create_replay_buffer">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.common.</span></code><code class="sig-name descname"><span class="pre">create_replay_buffer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">omegaconf.dictconfig.DictConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_shape</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">act_shape</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_dir</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collect_trajectories</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rng</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.random._generator.Generator</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer"><span class="pre">mbrl.util.replay_buffer.ReplayBuffer</span></a><a class="headerlink" href="#mbrl.util.common.create_replay_buffer" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">create_replay_buffer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">obs_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">act_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">load_dir</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">collect_trajectories</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a><a class="headerlink" href="#mbrl.util.common.create_replay_buffer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a replay buffer from a given configuration.</p>
 <p>The configuration should be structured as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>-cfg
@@ -271,18 +266,81 @@ batches. If None (default value), a new default generator will be used.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the training and validation
-buffers, respectively.</p>
+<dd class="field-even"><p>the replay buffer.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tuple of <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.IterableReplayBuffer</span></code>)</p>
+<dd class="field-odd"><p>(<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.ReplayBuffer</span></code>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.util.common.get_basic_buffer_iterators">
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">get_basic_buffer_iterators</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">replay_buffer</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a></span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">val_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">bootstrap_permutes</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a><span class="p">, </span>Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.common.get_basic_buffer_iterators" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns training/validation iterators for the data in the replay buffer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>replay_buffer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.ReplayBuffer</span></code>) – the replay buffer from which
+data will be sampled.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – the batch size for the iterators.</p></li>
+<li><p><strong>val_ratio</strong> (<em>float</em>) – the proportion of data to use for validation. If 0., the
+validation buffer will be set to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>ensemble_size</strong> (<em>int</em>) – the size of the ensemble being trained.</p></li>
+<li><p><strong>shuffle_each_epoch</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the iterator will shuffle the
+order each time a loop starts. Otherwise the iteration order will
+be the same. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>bootstrap_permutes</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the bootstrap iterator will create
+the bootstrap data using permutations of the original data. Otherwise
+it will use sampling with replacement. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the training
+and validation iterators, respectively.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.TransitionIterator</span></code>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mbrl.util.common.get_sequence_buffer_iterator">
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">get_sequence_buffer_iterator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">replay_buffer</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a></span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">val_ratio</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">sequence_length</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">ensemble_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">max_batches_per_loop_train</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">max_batches_per_loop_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.SequenceTransitionIterator" title="mbrl.util.replay_buffer.SequenceTransitionIterator">mbrl.util.replay_buffer.SequenceTransitionIterator</a><span class="p">, </span>Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.SequenceTransitionIterator" title="mbrl.util.replay_buffer.SequenceTransitionIterator">mbrl.util.replay_buffer.SequenceTransitionIterator</a><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.common.get_sequence_buffer_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns training/validation iterators for the data in the replay buffer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>replay_buffer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.ReplayBuffer</span></code>) – the replay buffer from which
+data will be sampled.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – the batch size for the iterators.</p></li>
+<li><p><strong>val_ratio</strong> (<em>float</em>) – the proportion of data to use for validation. If 0., the
+validation buffer will be set to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>sequence_length</strong> (<em>int</em>) – the length of the sequences returned by the iterators.</p></li>
+<li><p><strong>ensemble_size</strong> (<em>int</em>) – the number of models in the ensemble.</p></li>
+<li><p><strong>shuffle_each_epoch</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the iterator will shuffle the
+order each time a loop starts. Otherwise the iteration order will
+be the same. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>max_batches_per_loop_train</strong> (<em>int</em><em>, </em><em>optional</em>) – if given, specifies how many batches
+to return (at most) over a full loop of the training iterator.</p></li>
+<li><p><strong>max_batches_per_loop_val</strong> (<em>int</em><em>, </em><em>optional</em>) – if given, specifies how many batches
+to return (at most) over a full loop of the validation iterator.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the training
+and validation iterators, respectively.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.replay_buffer.SequenceTransitionIterator</span></code>)</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="mbrl.util.common.load_hydra_cfg">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.common.</span></code><code class="sig-name descname"><span class="pre">load_hydra_cfg</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results_dir</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">omegaconf.dictconfig.DictConfig</span><a class="headerlink" href="#mbrl.util.common.load_hydra_cfg" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">load_hydra_cfg</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results_dir</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; omegaconf.dictconfig.DictConfig<a class="headerlink" href="#mbrl.util.common.load_hydra_cfg" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads a Hydra configuration from the given directory path.</p>
 <p>Tries to load the configuration from “results_dir/.hydra/config.yaml”.</p>
 <dl class="field-list simple">
@@ -300,7 +358,7 @@ buffers, respectively.</p>
 
 <dl class="py function">
 <dt id="mbrl.util.common.rollout_agent_trajectories">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.common.</span></code><code class="sig-name descname"><span class="pre">rollout_agent_trajectories</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.core.Env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_or_trials_to_collect</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mbrl.planning.core.Agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent_kwargs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trial_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replay_buffer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer"><span class="pre">mbrl.util.replay_buffer.ReplayBuffer</span></a><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collect_full_trajectories</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.common.rollout_agent_trajectories" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">rollout_agent_trajectories</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">steps_or_trials_to_collect</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">agent</span><span class="p">:</span> <span class="n">mbrl.planning.core.Agent</span></em>, <em class="sig-param"><span class="n">agent_kwargs</span><span class="p">:</span> <span class="n">Dict</span></em>, <em class="sig-param"><span class="n">trial_length</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">replay_buffer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">collect_full_trajectories</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span> &#x2192; List<span class="p">[</span>float<span class="p">]</span><a class="headerlink" href="#mbrl.util.common.rollout_agent_trajectories" title="Permalink to this definition">¶</a></dt>
 <dd><p>Rollout agent trajectories in the given environment.</p>
 <p>Rollouts trajectories in the environment using actions produced by the given agent.
 Optionally, it stores the saved data into a replay buffer.</p>
@@ -335,7 +393,7 @@ trials (full trials in each dataset); otherwise, it’s done across steps.</p></
 
 <dl class="py function">
 <dt id="mbrl.util.common.rollout_model_env">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.common.</span></code><code class="sig-name descname"><span class="pre">rollout_model_env</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mbrl.models.model_env.ModelEnv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_obs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plan</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">mbrl.planning.core.Agent</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_samples</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.common.rollout_model_env" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">rollout_model_env</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_env</span><span class="p">:</span> <span class="n">mbrl.models.model_env.ModelEnv</span></em>, <em class="sig-param"><span class="n">initial_obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">plan</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.ndarray<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">agent</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>mbrl.planning.core.Agent<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span><a class="headerlink" href="#mbrl.util.common.rollout_model_env" title="Permalink to this definition">¶</a></dt>
 <dd><p>Rolls out an environment model.</p>
 <p>Executes a plan on a dynamics model.</p>
 <dl class="field-list simple">
@@ -360,7 +418,7 @@ over <code class="docutils literal notranslate"><span class="pre">plan</span></c
 
 <dl class="py function">
 <dt id="mbrl.util.common.step_env_and_add_to_buffer">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.common.</span></code><code class="sig-name descname"><span class="pre">step_env_and_add_to_buffer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.core.Env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mbrl.planning.core.Agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent_kwargs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replay_buffer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer"><span class="pre">mbrl.util.replay_buffer.ReplayBuffer</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span> </span><span class="pre">float</span><span class="p"><span class="pre">,</span> </span><span class="pre">bool</span><span class="p"><span class="pre">,</span> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.common.step_env_and_add_to_buffer" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">step_env_and_add_to_buffer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.core.Env</span></em>, <em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">agent</span><span class="p">:</span> <span class="n">mbrl.planning.core.Agent</span></em>, <em class="sig-param"><span class="n">agent_kwargs</span><span class="p">:</span> <span class="n">Dict</span></em>, <em class="sig-param"><span class="n">replay_buffer</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a></span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>float<span class="p">, </span>bool<span class="p">, </span>Dict<span class="p">]</span><a class="headerlink" href="#mbrl.util.common.step_env_and_add_to_buffer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Steps the environment with an agent’s action and populates the replay buffer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -388,7 +446,7 @@ transition data <cite>(obs, action. next_obs, reward, done)</cite>.</p></li>
 
 <dl class="py function">
 <dt id="mbrl.util.common.train_model_and_save_model_and_data">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.common.</span></code><code class="sig-name descname"><span class="pre">train_model_and_save_model_and_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mbrl.models.model.Model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_trainer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mbrl.models.model_trainer.ModelTrainer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">omegaconf.dictconfig.DictConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replay_buffer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer"><span class="pre">mbrl.util.replay_buffer.ReplayBuffer</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.train_model_and_save_model_and_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">train_model_and_save_model_and_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">model_trainer</span><span class="p">:</span> <span class="n">mbrl.models.model_trainer.ModelTrainer</span></em>, <em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">replay_buffer</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a></span></em>, <em class="sig-param"><span class="n">work_dir</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.train_model_and_save_model_and_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convenience function for training a model and saving results.</p>
 <p>Runs <cite>model_trainer.train()</cite>, then saves the resulting model and the data used.
 If the model has an “update_normalizer” method it will be called before training,
@@ -420,7 +478,7 @@ every training epoch. See <a class="reference internal" href="models.html#mbrl.m
 
 <span class="target" id="module-mbrl.util.mujoco"></span><dl class="py class">
 <dt id="mbrl.util.mujoco.freeze_mujoco_env">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mbrl.util.mujoco.</span></code><code class="sig-name descname"><span class="pre">freeze_mujoco_env</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.wrappers.time_limit.TimeLimit</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.mujoco.freeze_mujoco_env" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.mujoco.</code><code class="sig-name descname">freeze_mujoco_env</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.wrappers.time_limit.TimeLimit</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.mujoco.freeze_mujoco_env" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Provides a context to freeze a Mujoco environment.</p>
 <p>This context allows the user to manipulate the state of a Mujoco environment and return it
@@ -446,7 +504,7 @@ to its original state upon exiting the context.</p>
 
 <dl class="py function">
 <dt id="mbrl.util.mujoco.get_current_state">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.mujoco.</span></code><code class="sig-name descname"><span class="pre">get_current_state</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.wrappers.time_limit.TimeLimit</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><a class="headerlink" href="#mbrl.util.mujoco.get_current_state" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.mujoco.</code><code class="sig-name descname">get_current_state</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.wrappers.time_limit.TimeLimit</span></em><span class="sig-paren">)</span> &#x2192; Tuple<a class="headerlink" href="#mbrl.util.mujoco.get_current_state" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the internal state of the environment.</p>
 <p>Returns a tuple with information that can be passed to :func:set_env_state` to manually
 set the environment (or a copy of it) to the same state it had when this function was called.</p>
@@ -469,7 +527,7 @@ environments it returns <cite>physics.get_state().copy()</cite>, elapsed steps a
 
 <dl class="py function">
 <dt id="mbrl.util.mujoco.make_env">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.mujoco.</span></code><code class="sig-name descname"><span class="pre">make_env</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">omegaconf.listconfig.ListConfig</span><span class="p"><span class="pre">,</span> </span><span class="pre">omegaconf.dictconfig.DictConfig</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">gym.core.Env</span><span class="p"><span class="pre">,</span> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.mujoco.make_env" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.mujoco.</code><code class="sig-name descname">make_env</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>omegaconf.listconfig.ListConfig<span class="p">, </span>omegaconf.dictconfig.DictConfig<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>gym.core.Env<span class="p">, </span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>torch.Tensor<span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">, </span>torch.Tensor<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.mujoco.make_env" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates an environment from a given OmegaConf configuration object.</p>
 <p>This method expects the configuration, <code class="docutils literal notranslate"><span class="pre">cfg</span></code>,
 to have the following attributes (some are optional):</p>
@@ -524,7 +582,7 @@ the termination function to use, and the reward function to use (or <code class=
 
 <dl class="py function">
 <dt id="mbrl.util.mujoco.make_env_from_str">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.mujoco.</span></code><code class="sig-name descname"><span class="pre">make_env_from_str</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">gym.core.Env</span><a class="headerlink" href="#mbrl.util.mujoco.make_env_from_str" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.mujoco.</code><code class="sig-name descname">make_env_from_str</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env_name</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; gym.core.Env<a class="headerlink" href="#mbrl.util.mujoco.make_env_from_str" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a new environment from its string description.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -554,7 +612,7 @@ Janner et al., MBPO paper.</p></li>
 
 <dl class="py function">
 <dt id="mbrl.util.mujoco.rollout_mujoco_env">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.mujoco.</span></code><code class="sig-name descname"><span class="pre">rollout_mujoco_env</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.wrappers.time_limit.TimeLimit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_obs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lookahead</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">mbrl.planning.core.Agent</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plan</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#mbrl.util.mujoco.rollout_mujoco_env" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.mujoco.</code><code class="sig-name descname">rollout_mujoco_env</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.wrappers.time_limit.TimeLimit</span></em>, <em class="sig-param"><span class="n">initial_obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">lookahead</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">agent</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>mbrl.planning.core.Agent<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">plan</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.ndarray<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">, </span>numpy.ndarray<span class="p">]</span><a class="headerlink" href="#mbrl.util.mujoco.rollout_mujoco_env" title="Permalink to this definition">¶</a></dt>
 <dd><p>Runs the environment for some number of steps then returns it to its original state.</p>
 <p>Works with mujoco gym and dm_control environments
 (with <a class="reference external" href="https://github.com/denisyarats/dmc2gym">dmc2gym</a>).</p>
@@ -582,7 +640,7 @@ Takes precedence over <code class="docutils literal notranslate"><span class="pr
 
 <dl class="py function">
 <dt id="mbrl.util.mujoco.set_env_state">
-<code class="sig-prename descclassname"><span class="pre">mbrl.util.mujoco.</span></code><code class="sig-name descname"><span class="pre">set_env_state</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">gym.wrappers.time_limit.TimeLimit</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.mujoco.set_env_state" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.mujoco.</code><code class="sig-name descname">set_env_state</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">state</span><span class="p">:</span> <span class="n">Tuple</span></em>, <em class="sig-param"><span class="n">env</span><span class="p">:</span> <span class="n">gym.wrappers.time_limit.TimeLimit</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.mujoco.set_env_state" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sets the state of the environment.</p>
 <p>Assumes <code class="docutils literal notranslate"><span class="pre">state</span></code> was generated using <a class="reference internal" href="#mbrl.util.mujoco.get_current_state" title="mbrl.util.mujoco.get_current_state"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_current_state()</span></code></a>.</p>
 <p>Works with mujoco gym and dm_control environments
@@ -604,29 +662,37 @@ Takes precedence over <code class="docutils literal notranslate"><span class="pr
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="replay_buffer.html" class="btn btn-neutral float-right" title="Replay buffer module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="math.html" class="btn btn-neutral float-left" title="Math utilities module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+        <a href="replay_buffer.html" class="btn btn-neutral float-right" title="Replay buffer module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="math.html" class="btn btn-neutral float-left" title="Math utilities module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; Copyright 2021, Facebook AI Research.
+        
+        &copy; Copyright 2021, Facebook AI Research
 
     </p>
   </div>
     
     
     
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 
