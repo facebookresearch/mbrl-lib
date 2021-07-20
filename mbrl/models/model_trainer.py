@@ -72,6 +72,7 @@ class ModelTrainer:
         patience: Optional[int] = None,
         improvement_threshold: float = 0.01,
         callback: Optional[Callable] = None,
+        meta_includes_grad_norm: bool = False,
         batch_callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
@@ -106,6 +107,8 @@ class ModelTrainer:
                     - validation score (for ensembles, factored per member)
                     - best validation score so far
 
+            meta_includes_grad_norm (bool): passed as keyword arg to ``model.update()``,
+                which indicates if ``batch_callback`` will also receive gradient norms.
             batch_callback (callable, optional): if provided, this function will be called
                 for every batch with the output of ``model.update()``.
 
@@ -123,7 +126,11 @@ class ModelTrainer:
         for epoch in epoch_iter:
             batch_losses: List[float] = []
             for batch in dataset_train:
-                loss_and_maybe_meta = self.model.update(batch, self.optimizer)
+                loss_and_maybe_meta = self.model.update(
+                    batch,
+                    self.optimizer,
+                    meta_includes_grad_norm=meta_includes_grad_norm,
+                )
                 if isinstance(loss_and_maybe_meta, tuple):
                     loss = cast(float, loss_and_maybe_meta[0])
                 else:
