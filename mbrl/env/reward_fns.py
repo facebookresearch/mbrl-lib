@@ -23,7 +23,7 @@ def halfcheetah(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
 
     reward_ctrl = -0.1 * act.square().sum(dim=1)
-    reward_run = next_obs[:, 0] - 0.0 * next_obs[:, 2].square()
+    reward_run = next_obs[:, 0]
     return (reward_run + reward_ctrl).view(-1, 1)
 
 

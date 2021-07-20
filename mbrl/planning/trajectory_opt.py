@@ -10,6 +10,7 @@ import numpy as np
 import omegaconf
 import torch
 import torch.distributions
+import wandb.sdk
 
 import mbrl.models
 import mbrl.types
@@ -150,6 +151,12 @@ class CEMOptimizer(Optimizer):
                 best_value = best_values[0]
                 best_solution = population[elite_idx[0]].clone()
 
+        wandb.log(
+            {
+                "values": wandb.Histogram(values.cpu().numpy()),
+                "first-mean": wandb.Histogram(mu.cpu().numpy()[0, 0]),
+            }
+        )
         return mu if self.return_mean_elites else best_solution
 
 
@@ -252,6 +259,12 @@ class MPPIOptimizer(Optimizer):
             weighted_actions = action_samples * weights
             self.mean = torch.sum(weighted_actions, dim=0) / norm
 
+        wandb.log(
+            {
+                "values": wandb.Histogram(values.cpu().numpy()),
+                "first-mean": wandb.Histogram(self.mean.cpu().numpy()[0, 0]),
+            }
+        )
         return self.mean.clone()
 
 

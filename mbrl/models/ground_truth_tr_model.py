@@ -5,6 +5,7 @@
 import pathlib
 from typing import Optional, Sequence, Tuple, Union
 
+import mujoco_py
 import numpy as np
 import torch
 
@@ -131,15 +132,17 @@ class GroundTruthTransitionRewardModel(OneDTransitionRewardModel):
         rewards = np.empty((batch_size, 1))
 
         for i in range(batch_size):
-            self.env.set_state(
-                obs[i, :pos_length], obs[i, pos_length : pos_length + vel_length]
-            )
+            qpos = obs[i, :pos_length]
+            qvel = obs[i, pos_length : pos_length + vel_length]
+            new_state = mujoco_py.MjSimState(0.0, qpos, qvel, None, {})
+
+            self.env.unwrapped.sim.set_state(new_state)
 
             next_ob, rew, _, _ = self.env.step(acts[i, :])
             next_obs[i, :] = next_ob
             rewards[i, :] = rew
 
-        self.env.unwrapped.sim.set_state(prev_state)  # restore environments state
+        self.env.unwrapped.sim.set_state(prev_state)
         return (
             model_util.to_tensor(next_obs).to(self.device),
             model_util.to_tensor(rewards).to(self.device),
