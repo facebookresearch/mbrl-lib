@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import gym.wrappers
 import hydra
@@ -144,8 +144,8 @@ def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfi
 
 def create_replay_buffer(
     cfg: omegaconf.DictConfig,
-    obs_shape: Tuple[int],
-    act_shape: Tuple[int],
+    obs_shape: Sequence[int],
+    act_shape: Sequence[int],
     load_dir: Optional[Union[str, pathlib.Path]] = None,
     collect_trajectories: bool = False,
     rng: Optional[np.random.Generator] = None,
@@ -170,8 +170,8 @@ def create_replay_buffer(
 
     Args:
         cfg (omegaconf.DictConfig): the configuration to use.
-        obs_shape (tuple of ints): the shape of observation arrays.
-        act_shape (tuple of ints): the shape of action arrays.
+        obs_shape (Sequence of ints): the shape of observation arrays.
+        act_shape (Sequence of ints): the shape of action arrays.
         load_dir (optional str or pathlib.Path): if provided, the function will attempt to
             populate the buffers from "load_dir/replay_buffer.npz".
         collect_trajectories (bool, optional): if ``True`` sets the replay buffers to collect
@@ -180,7 +180,7 @@ def create_replay_buffer(
             batches. If None (default value), a new default generator will be used.
 
     Returns:
-        (:class:`mbrl.replay_buffer.ReplayBuffer): the replay buffer.
+        (:class:`mbrl.replay_buffer.ReplayBuffer`): the replay buffer.
     """
     dataset_size = (
         cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
@@ -267,7 +267,7 @@ def get_sequence_buffer_iterator(
     batch_size: int,
     val_ratio: float,
     sequence_length: int,
-    ensemble_size: Optional[int] = None,
+    ensemble_size: int = 1,
     shuffle_each_epoch: bool = True,
     max_batches_per_loop_train: Optional[int] = None,
     max_batches_per_loop_val: Optional[int] = None,
@@ -294,6 +294,12 @@ def get_sequence_buffer_iterator(
         (tuple of :class:`mbrl.replay_buffer.SequenceTransitionIterator`): the training
         and validation iterators, respectively.
     """
+
+    assert replay_buffer.stores_trajectories, (
+        "The passed replay buffer does not store trajectory information. "
+        "Make sure that the replay buffer is created with the max_trajectory_length "
+        "parameter set."
+    )
 
     transitions = replay_buffer.get_all()
     num_trajectories = len(replay_buffer.trajectory_indices)
@@ -351,6 +357,7 @@ def train_model_and_save_model_and_data(
         model_trainer (:class:`mbrl.models.ModelTrainer`): the model trainer.
         cfg (:class:`omegaconf.DictConfig`): configuration to use for training. It
             must contain the following fields::
+
                 -model_batch_size (int)
                 -validation_ratio (float)
                 -sequence_length (int, optional)
