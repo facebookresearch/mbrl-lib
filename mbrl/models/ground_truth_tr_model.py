@@ -151,7 +151,7 @@ class GroundTruthTransitionRewardModel(OneDTransitionRewardModel):
     def reset(  # type: ignore
         self, x: mbrl.types.TransitionBatch, rng: Optional[torch.Generator] = None
     ) -> torch.Tensor:
-        return torch.from_numpy(self.env.get_obs_no_delta()).to(self.device)
+        return x.obs
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         pass
