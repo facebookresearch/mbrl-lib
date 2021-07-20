@@ -14,7 +14,7 @@ import mbrl.models.util as model_util
 import mbrl.types
 import mbrl.util.math
 
-from .model import Ensemble, Model
+from .model import Ensemble, LossOutput, Model, UpdateOutput
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -173,17 +173,18 @@ class OneDTransitionRewardModel(Model):
         self,
         batch: mbrl.types.TransitionBatch,
         target: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        """Evaluates the model score over a batch of transitions.
+    ) -> LossOutput:
+        """Computes the model loss over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
-        then calls `self.model.eval_score()` on them and returns the value.
+        then calls `self.model.loss()` on them and returns the value and the metadata
+        as returned by the model.
 
         Args:
             batch (transition batch): a batch of transition to train the model.
 
         Returns:
-            (tensor): as returned by `model.eval_score().`
+            (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
         model_in, target = self._get_model_input_and_target_from_batch(batch)
@@ -194,12 +195,15 @@ class OneDTransitionRewardModel(Model):
         batch: mbrl.types.TransitionBatch,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
-    ) -> float:
+    ) -> UpdateOutput:
         """Updates the model given a batch of transitions and an optimizer.
 
         Args:
             batch (transition batch): a batch of transition to train the model.
             optimizer (torch optimizer): the optimizer to use to update the model.
+
+        Returns:
+            (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
         model_in, target = self._get_model_input_and_target_from_batch(batch)
@@ -209,7 +213,7 @@ class OneDTransitionRewardModel(Model):
         self,
         batch: mbrl.types.TransitionBatch,
         target: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> LossOutput:
         """Evaluates the model score over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
