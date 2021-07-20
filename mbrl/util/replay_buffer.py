@@ -533,6 +533,10 @@ class ReplayBuffer:
     ) -> Tuple[TransitionIterator, Optional[TransitionIterator]]:
         """Returns training/validation iterators for the data in the replay buffer.
 
+        .. deprecated:: v0.1.2
+           Use :func:`mbrl.util.common.get_basic_buffer_iterators`.
+
+
         Args:
             batch_size (int): the batch size for the iterators.
             val_ratio (float): the proportion of data to use for validation. If 0., the
@@ -560,7 +564,7 @@ class ReplayBuffer:
             self,
             batch_size,
             val_ratio,
-            ensemble_size,
+            1 if ensemble_size is None else ensemble_size,
             shuffle_each_epoch,
             bootstrap_permutes,
         )
