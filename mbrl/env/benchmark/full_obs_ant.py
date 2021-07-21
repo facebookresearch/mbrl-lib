@@ -13,7 +13,7 @@ class AntFOEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def step(self, action):
-        self.prev_qpos = np.copy(self.get_body_com("torso"))
+        self.prev_x_torso = np.copy(self.get_body_com("torso")[0])
         self.do_simulation(action, self.frame_skip)
 
         ob = self._get_obs()
@@ -27,13 +27,10 @@ class AntFOEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_obs(self):
         return np.concatenate(
             [
-                (self.get_body_com("torso")[:1] - self.prev_qpos[:1])
-                / self.dt,  # delta x
-                (self.get_body_com("torso")[1:2] - self.prev_qpos[1:2])
-                / self.dt,  # delta y
-                self.sim.data.qpos.flat[2:],
+                self.sim.data.qpos.flat,
                 self.sim.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
+                (self.get_body_com("torso")[:1] - self.prev_x_torso)
+                / self.dt,  # delta x
             ]
         )
 
@@ -42,7 +39,6 @@ class AntFOEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             [
                 self.sim.data.qpos,
                 self.sim.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
             ]
         )
 
@@ -68,17 +64,13 @@ class AntFOEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             next_ob = np.expand_dims(next_ob, 0)
             action = np.expand_dims(action, 0)
 
-        forward_reward = next_ob[..., 0]
+        forward_reward = next_ob[..., 29]
         ctrl_cost = 0.5 * np.square(action).sum(axis=action.ndim - 1)
 
-        offset_contact_forces = 29
-        contact_cost = (
-            0.5
-            * 1e-3
-            * np.sum(next_ob[..., offset_contact_forces:], axis=next_ob.ndim - 1)
-        )
+        # for some reason all contact forces are zero -> will be omitted.
+        # This seems to be a known problem in gym environments.
         survive_reward = 1.0
-        reward = forward_reward - ctrl_cost - contact_cost + survive_reward
+        reward = forward_reward - ctrl_cost + survive_reward
 
         if was1d:
             reward = reward.squeeze()

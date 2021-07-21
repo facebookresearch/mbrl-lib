@@ -39,11 +39,9 @@ def hopper_fo(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 def ant_fo(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
 
-    reward = next_obs[:, 0]
+    reward = next_obs[:, -1]
     reward -= 0.5 * act.square().sum(dim=1)
-
-    offset_contact_forces = 29  # look up
-    reward -= 0.5 * 1e-3 * next_obs[:, offset_contact_forces:].sum(dim=1)
+    # omitted contact forces -> see gym environment for reason
     reward += 1
     return reward.view(-1, 1)
 
