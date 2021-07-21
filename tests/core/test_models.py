@@ -470,12 +470,16 @@ def test_conv2d_decoder_shapes():
         )
         assert len(decoder.deconvs) == len(config)
         for i, layer_cfg in enumerate(config):
-            assert isinstance(decoder.deconvs[i][0], nn.ConvTranspose2d)
-            assert decoder.deconvs[i][0].in_channels == layer_cfg[0]
-            assert decoder.deconvs[i][0].out_channels == layer_cfg[1]
-            assert decoder.deconvs[i][0].kernel_size == (layer_cfg[2], layer_cfg[2])
-            assert decoder.deconvs[i][0].stride == (layer_cfg[3], layer_cfg[3])
-            assert isinstance(decoder.deconvs[i][1], activation_cls[act_idx])
+            if i < len(config) - 1:
+                deconv = decoder.deconvs[i][0]
+                assert isinstance(decoder.deconvs[i][1], activation_cls[act_idx])
+            else:
+                deconv = decoder.deconvs[i]
+            assert isinstance(deconv, nn.ConvTranspose2d)
+            assert deconv.in_channels == layer_cfg[0]
+            assert deconv.out_channels == layer_cfg[1]
+            assert deconv.kernel_size == (layer_cfg[2], layer_cfg[2])
+            assert deconv.stride == (layer_cfg[3], layer_cfg[3])
 
         assert isinstance(decoder.fc, nn.Linear)
         assert decoder.fc.out_features == np.prod(deconv_input_shape)
