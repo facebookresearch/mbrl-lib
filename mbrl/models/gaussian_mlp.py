@@ -64,6 +64,8 @@ class GaussianMLP(Ensemble):
             above). Defaults to ``None``.
         learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
             they will be constant. Defaults to ``False``.
+        weight_decays (sequence of floats, optional): if given, represents a weight decay to
+            use per layer.
     """
 
     # TODO integrate this with the checkpoint in the next version
@@ -81,6 +83,7 @@ class GaussianMLP(Ensemble):
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
         learn_logvar_bounds: bool = False,
+        weight_decays: Optional[Sequence[float]] = None,
     ):
         super().__init__(
             ensemble_size, device, propagation_method, deterministic=deterministic
@@ -91,25 +94,42 @@ class GaussianMLP(Ensemble):
 
         activation_cls = nn.SiLU if use_silu else nn.ReLU
 
-        def create_linear_layer(l_in, l_out):
-            return EnsembleLinearLayer(ensemble_size, l_in, l_out)
+        def create_linear_layer(l_in, l_out, wd):
+            return EnsembleLinearLayer(ensemble_size, l_in, l_out, weight_decay=wd)
+
+        self.weight_decays = weight_decays
+        if weight_decays is not None:
+            if len(weight_decays) != num_layers + 1:
+                raise RuntimeError(
+                    "Length of weight_decays must be equal to num_layers +  1."
+                )
+        else:
+            # just so that we can do weight_decay=weight_decays[i] in all cases
+            weight_decays = [0.0] * (num_layers + 1)
 
         hidden_layers = [
-            nn.Sequential(create_linear_layer(in_size, hid_size), activation_cls())
+            nn.Sequential(
+                create_linear_layer(in_size, hid_size, weight_decays[0]),
+                activation_cls(),
+            )
         ]
         for i in range(num_layers - 1):
             hidden_layers.append(
                 nn.Sequential(
-                    create_linear_layer(hid_size, hid_size),
+                    create_linear_layer(hid_size, hid_size, weight_decays[i + 1]),
                     activation_cls(),
                 )
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
 
         if deterministic:
-            self.mean_and_logvar = create_linear_layer(hid_size, out_size)
+            self.mean_and_logvar = create_linear_layer(
+                hid_size, out_size, weight_decays[-1]
+            )
         else:
-            self.mean_and_logvar = create_linear_layer(hid_size, 2 * out_size)
+            self.mean_and_logvar = create_linear_layer(
+                hid_size, 2 * out_size, weight_decays[-1]
+            )
             self.min_logvar = nn.Parameter(
                 -10 * torch.ones(1, out_size), requires_grad=learn_logvar_bounds
             )
@@ -291,6 +311,13 @@ class GaussianMLP(Ensemble):
         nll += 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
         return nll
 
+    def _decay_loss(self) -> torch.Tensor:
+        decay_loss: torch.Tensor = 0.0  # type: ignore
+        for m in self.children():
+            if isinstance(m, EnsembleLinearLayer):
+                decay_loss += m.weight_decay * torch.sum(torch.square(m.weight)) / 2.0
+        return decay_loss
+
     def loss(
         self,
         model_in: torch.Tensor,
@@ -317,9 +344,13 @@ class GaussianMLP(Ensemble):
             the average over all models.
         """
         if self.deterministic:
-            return self._mse_loss(model_in, target), {}
+            loss = self._mse_loss(model_in, target)
         else:
-            return self._nll_loss(model_in, target), {}
+            loss = self._nll_loss(model_in, target)
+
+        if self.weight_decays is not None:
+            loss += self._decay_loss()
+        return loss, {}
 
     def eval_score(  # type: ignore
         self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
