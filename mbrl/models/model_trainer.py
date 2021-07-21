@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import copy
+import functools
 import itertools
 import warnings
 from typing import Callable, Dict, List, Optional, Tuple, cast
@@ -110,7 +111,9 @@ class ModelTrainer:
             meta_includes_grad_norm (bool): passed as keyword arg to ``model.update()``,
                 which indicates if ``batch_callback`` will also receive gradient norms.
             batch_callback (callable, optional): if provided, this function will be called
-                for every batch with the output of ``model.update()``.
+                for every batch with the output of ``model.update()`` (during training),
+                and ``model.eval_score()`` (during evaluation). It will be called
+                with three arguments ``(epoch_index, loss/score, meta)``.
 
         Returns:
             (tuple of two list(float)): the history of training losses and validation losses.
@@ -124,6 +127,10 @@ class ModelTrainer:
         epochs_since_update = 0
         best_val_score = self.evaluate(eval_dataset)
         for epoch in epoch_iter:
+            if batch_callback:
+                batch_callback_epoch = functools.partial(batch_callback, epoch)
+            else:
+                batch_callback_epoch = None
             batch_losses: List[float] = []
             for batch in dataset_train:
                 loss_and_maybe_meta = self.model.update(
@@ -133,17 +140,21 @@ class ModelTrainer:
                 )
                 if isinstance(loss_and_maybe_meta, tuple):
                     loss = cast(float, loss_and_maybe_meta[0])
+                    meta = cast(Dict, loss_and_maybe_meta[1])
                 else:
                     # TODO remove this if in v0.2.0
                     warnings.warn(_NO_META_WARNING_MSG)
                     loss = cast(float, loss_and_maybe_meta)
+                    meta = None
                 batch_losses.append(loss)
-                if batch_callback:
-                    batch_callback(loss_and_maybe_meta)
+                if batch_callback_epoch:
+                    batch_callback_epoch(loss, meta)
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
-            eval_score = self.evaluate(eval_dataset, batch_callback=batch_callback)
+            eval_score = self.evaluate(
+                eval_dataset, batch_callback=batch_callback_epoch
+            )
             val_scores.append(eval_score.mean().item())
 
             maybe_best_weights = self.maybe_get_best_weights(
@@ -217,13 +228,15 @@ class ModelTrainer:
             batch_score_and_maybe_meta = self.model.eval_score(batch)
             if isinstance(batch_score_and_maybe_meta, tuple):
                 batch_score = cast(torch.Tensor, batch_score_and_maybe_meta[0])
+                meta = cast(Dict, batch_score_and_maybe_meta[1])
             else:
-                # TODO remove this if in v0.2.0
+                # TODO remove this "else" in v0.2.0
                 warnings.warn(_NO_META_WARNING_MSG)
                 batch_score = cast(torch.Tensor, batch_score_and_maybe_meta)
+                meta = None
             batch_scores_list.append(batch_score)
             if batch_callback:
-                batch_callback()
+                batch_callback(batch_score.mean(), meta)
         batch_scores = torch.cat(batch_scores_list, dim=batch_scores_list[0].ndim - 2)
 
         if isinstance(dataset, BootstrapIterator):
