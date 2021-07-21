@@ -152,7 +152,6 @@ class Model(nn.Module, abc.ABC):
         model_in: ModelInput,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
-        meta_includes_grad_norm: bool = False,
     ) -> UpdateOutput:
         """Updates the model using backpropagation with given input and target tensors.
 
@@ -170,9 +169,6 @@ class Model(nn.Module, abc.ABC):
             optimizer (torch.optimizer): the optimizer to use for the model.
             target (tensor or sequence of tensors): the expected output for the given inputs, if it
                 cannot be computed from ``model_in``.
-            meta_includes_grad_norm (bool): if ``True`` and metadata returned by ``model.loss()``
-                is not ``None``, the norm of the gradients (summed over all parameters)
-                will be included in the metadata dictionary.
 
         Returns:
              (float): the numeric value of the computed loss.
@@ -187,7 +183,8 @@ class Model(nn.Module, abc.ABC):
             loss = cast(torch.Tensor, loss_and_maybe_meta[0])
             meta = cast(Optional[Dict[str, Any]], loss_and_maybe_meta[1])
             loss.backward()
-            if meta_includes_grad_norm:
+
+            if meta is not None:
                 with torch.no_grad():
                     grad_norm: torch.Tensor = 0  # type: ignore
                     for p in list(

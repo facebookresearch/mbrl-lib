@@ -195,28 +195,19 @@ class OneDTransitionRewardModel(Model):
         batch: mbrl.types.TransitionBatch,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
-        meta_includes_grad_norm: bool = False,
     ) -> UpdateOutput:
         """Updates the model given a batch of transitions and an optimizer.
 
         Args:
             batch (transition batch): a batch of transition to train the model.
             optimizer (torch optimizer): the optimizer to use to update the model.
-            meta_includes_grad_norm (bool): if ``True`` and metadata returned by ``model.loss()``
-                is not ``None``, the norm of the gradients (summed over all parameters)
-                will be included in the metadata dictionary.
 
         Returns:
             (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
         model_in, target = self._get_model_input_and_target_from_batch(batch)
-        return self.model.update(
-            model_in,
-            optimizer,
-            target=target,
-            meta_includes_grad_norm=meta_includes_grad_norm,
-        )
+        return self.model.update(model_in, optimizer, target=target)
 
     def eval_score(
         self,
