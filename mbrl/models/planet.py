@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from mbrl.types import TransitionBatch
 
-from .model import Model
+from .model import LossOutput, Model
 from .util import Conv2dDecoder, Conv2dEncoder
 
 
@@ -263,7 +263,7 @@ class PlaNetModel(Model):
         batch: TransitionBatch,
         target: Optional[torch.Tensor] = None,
         reduce: bool = True,
-    ) -> torch.Tensor:
+    ) -> LossOutput:
 
         obs, act, next_obs, rewards, dones = self._process_batch(batch)
 
@@ -297,12 +297,19 @@ class PlaNetModel(Model):
             .max(self.free_nats_for_kl)
             .mean()
         )
-        return reconstruction_loss + kl_loss
+
+        meta = {
+            "reconstruction": pred_next_obs.detach(),
+            "reconstruction_loss": reconstruction_loss.item(),
+            "kl_loss": kl_loss.item(),
+        }
+
+        return reconstruction_loss + kl_loss, meta
 
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
-        return torch.zeros(len(batch), 1)
+    ) -> LossOutput:
+        return torch.zeros(len(batch), 1), {}
 
     def sample(  # type: ignore
         self,
