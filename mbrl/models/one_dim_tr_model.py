@@ -200,7 +200,7 @@ class OneDTransitionRewardModel(Model):
             (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
-        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        model_in, target = self._process_batch(batch)
         return self.model.update(model_in, optimizer, target=target)
 
     def eval_score(
