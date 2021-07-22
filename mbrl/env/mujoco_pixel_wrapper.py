@@ -21,6 +21,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         camera_id: int = 0,
         channels_first: bool = True,
         bit_depth: int = 8,
+        use_true_actions: bool = False,
     ):
         super().__init__(env)
         self._image_width = image_width
@@ -39,10 +40,18 @@ class MujocoGymPixelWrapper(gym.Wrapper):
             low=0, high=255, shape=shape, dtype=np.uint8
         )
 
+        self._use_true_actions = use_true_actions
         self._true_action_space = env.action_space
-        self.action_space = gym.spaces.Box(
-            low=-1.0, high=1.0, shape=self._true_action_space.shape, dtype=np.float32
-        )
+        if use_true_actions:
+            self.action_space = self._true_action_space
+        else:
+            self.action_space = gym.spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=self._true_action_space.shape,
+                dtype=np.float32,
+            )
+        self._last_low_dim_obs: np.ndarray = None
 
     def _get_obs(self):
         obs = self.render()
@@ -64,15 +73,17 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         return action
 
     def reset(self):
-        self.env.reset()
+        self._last_low_dim_obs = self.env.reset()
         return self._get_obs()
 
     def step(self, action):
-        action = self._convert_action(action)
+        if not self._use_true_actions:
+            action = self._convert_action(action)
         total_reward = 0.0
         done = False
         for _ in range(self._frame_skip):
-            _, reward, done, _ = self.env.step(action)
+            orig_obs, reward, done, _ = self.env.step(action)
+            self._last_low_dim_obs = orig_obs
             total_reward += reward
             if done:
                 break
@@ -94,3 +105,6 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._true_action_space.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
+
+    def get_last_low_dim_obs(self):
+        return self._last_low_dim_obs
