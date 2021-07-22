@@ -295,7 +295,7 @@ class GaussianMLP(Ensemble):
         self,
         model_in: torch.Tensor,
         target: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Optional[Dict[str, Any]]]:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes Gaussian NLL loss.
 
         It also includes terms for ``max_logvar`` and ``min_logvar`` with small weights,
@@ -323,7 +323,7 @@ class GaussianMLP(Ensemble):
 
     def eval_score(  # type: ignore
         self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, Optional[Dict[str, Any]]]:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the squared error for the model over the given input/target.
 
         When model is not an ensemble, this is equivalent to

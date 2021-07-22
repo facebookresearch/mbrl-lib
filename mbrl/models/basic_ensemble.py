@@ -193,7 +193,7 @@ class BasicEnsemble(Ensemble):
         self,
         model_ins: Sequence[torch.Tensor],
         targets: Optional[Sequence[torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, Optional[Dict[str, Any]]]:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes average loss over the losses of all members of the ensemble.
 
         Returns a dictionary with metadata for all models, indexed as
@@ -226,7 +226,7 @@ class BasicEnsemble(Ensemble):
 
     def eval_score(  # type: ignore
         self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the average score over all members given input/target.
 
         The input and target tensors are replicated once for each model in the ensemble.
@@ -262,7 +262,7 @@ class BasicEnsemble(Ensemble):
                     assert score.shape[0] == 1
                     score = score[0]
                 scores.append(score)
-            return torch.stack(scores)
+            return torch.stack(scores), ensemble_meta
 
     def reset(  # type: ignore
         self, x: torch.Tensor, rng: Optional[torch.Generator] = None

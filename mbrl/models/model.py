@@ -181,12 +181,12 @@ class Model(nn.Module, abc.ABC):
         if isinstance(loss_and_maybe_meta, tuple):
             # TODO - v0.2.0 remove this back-compatibility logic
             loss = cast(torch.Tensor, loss_and_maybe_meta[0])
-            meta = cast(Optional[Dict[str, Any]], loss_and_maybe_meta[1])
+            meta = cast(Dict[str, Any], loss_and_maybe_meta[1])
             loss.backward()
 
             if meta is not None:
                 with torch.no_grad():
-                    grad_norm: torch.Tensor = 0  # type: ignore
+                    grad_norm = 0.0
                     for p in list(
                         filter(lambda p: p.grad is not None, self.parameters())
                     ):
@@ -275,6 +275,7 @@ class Ensemble(Model, abc.ABC):
         """
         pass
 
+    # TODO this and eval_score are no longer necessary
     @abc.abstractmethod
     def loss(
         self,
