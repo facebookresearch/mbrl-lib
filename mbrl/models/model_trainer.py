@@ -110,7 +110,9 @@ class ModelTrainer:
             batch_callback (callable, optional): if provided, this function will be called
                 for every batch with the output of ``model.update()`` (during training),
                 and ``model.eval_score()`` (during evaluation). It will be called
-                with three arguments ``(epoch_index, loss/score, meta)``.
+                with four arguments ``(epoch_index, loss/score, meta, mode)``, where
+                ``mode`` is one of ``"train"`` or ``"eval"``, indicating if the callback
+                was called during training or evaluation.
 
         Returns:
             (tuple of two list(float)): the history of training losses and validation losses.
@@ -141,7 +143,7 @@ class ModelTrainer:
                     meta = None
                 batch_losses.append(loss)
                 if batch_callback_epoch:
-                    batch_callback_epoch(loss, meta)
+                    batch_callback_epoch(loss, meta, "train")
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
@@ -207,7 +209,9 @@ class ModelTrainer:
             dataset (bool): the transition iterator to use.
             batch_callback (callable, optional): if provided, this function will be called
                 for every batch with the output of ``model.eval_score()`` (the score will
-                be passed as a float, reduced using mean()).
+                be passed as a float, reduced using mean()). It will be called
+                with four arguments ``(epoch_index, loss/score, meta, mode)``, where
+                ``mode`` is the string ``"eval"``.
 
         Returns:
             (tensor): The average score of the model over the dataset (and for ensembles, per
@@ -229,7 +233,7 @@ class ModelTrainer:
                 meta = None
             batch_scores_list.append(batch_score)
             if batch_callback:
-                batch_callback(batch_score.mean(), meta)
+                batch_callback(batch_score.mean(), meta, "eval")
         batch_scores = torch.cat(batch_scores_list, dim=batch_scores_list[0].ndim - 2)
 
         if isinstance(dataset, BootstrapIterator):
