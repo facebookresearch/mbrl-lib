@@ -52,6 +52,8 @@ class OneDTransitionRewardModel(Model):
             which will be used every time the model is called using the methods in this
             class. To update the normalizer statistics, the user needs to call
             :meth:`update_normalizer` before using the model. Defaults to ``False``.
+        normalize_double_precision (bool): if ``True``, the normalizer will work with
+            double precision.
         learned_rewards (bool): if ``True``, the wrapper considers the last output of the model
             to correspond to rewards predictions, and will use it to construct training
             targets for the model and when returning model predictions. Defaults to ``True``.
@@ -74,6 +76,7 @@ class OneDTransitionRewardModel(Model):
         model: Model,
         target_is_delta: bool = True,
         normalize: bool = False,
+        normalize_double_precision: bool = False,
         learned_rewards: bool = True,
         obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
         no_delta_list: Optional[List[int]] = None,
@@ -84,7 +87,9 @@ class OneDTransitionRewardModel(Model):
         self.input_normalizer: Optional[mbrl.util.math.Normalizer] = None
         if normalize:
             self.input_normalizer = mbrl.util.math.Normalizer(
-                self.model.in_size, self.model.device
+                self.model.in_size,
+                self.model.device,
+                dtype=torch.double if normalize_double_precision else torch.float,
             )
         self.device = self.model.device
         self.learned_rewards = learned_rewards
