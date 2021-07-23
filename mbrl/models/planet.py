@@ -107,6 +107,7 @@ class PlaNetModel(Model):
         device: Union[str, torch.device],
         min_std: float = 0.1,
         free_nats_for_kl: float = 3,
+        kl_scale: float = 1.0,
     ):
         super().__init__(device)
         self.obs_shape = obs_shape
@@ -114,6 +115,7 @@ class PlaNetModel(Model):
         self.belief_size = belief_size
         self.free_nats_for_kl = free_nats_for_kl * torch.ones(1).to(device)
         self.min_std = min_std
+        self.kl_scale = kl_scale
 
         # Computes ht = f(ht-1, st-1, at-1)
         self.belief_model = BeliefModel(latent_state_size, action_size, belief_size)
@@ -304,7 +306,7 @@ class PlaNetModel(Model):
             "kl_loss": kl_loss.item(),
         }
 
-        return reconstruction_loss + kl_loss, meta
+        return reconstruction_loss + self.kl_scale * kl_loss, meta
 
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
