@@ -236,7 +236,7 @@ weights and normalization information from “model_dir / model.pth” and
 
 <dl class="py function">
 <dt id="mbrl.util.common.create_replay_buffer">
-<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">create_replay_buffer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">obs_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">act_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">load_dir</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">collect_trajectories</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a><a class="headerlink" href="#mbrl.util.common.create_replay_buffer" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">create_replay_buffer</code><span class="sig-paren">(</span><em class="sig-param">cfg: omegaconf.dictconfig.DictConfig, obs_shape: Sequence[int], act_shape: Sequence[int], obs_type: Type = &lt;class 'numpy.float32'&gt;, action_type: Type = &lt;class 'numpy.float32'&gt;, reward_type: Type = &lt;class 'numpy.float32'&gt;, load_dir: Optional[Union[str, pathlib.Path]] = None, collect_trajectories: bool = False, rng: Optional[numpy.random._generator.Generator] = None</em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.ReplayBuffer" title="mbrl.util.replay_buffer.ReplayBuffer">mbrl.util.replay_buffer.ReplayBuffer</a><a class="headerlink" href="#mbrl.util.common.create_replay_buffer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a replay buffer from a given configuration.</p>
 <p>The configuration should be structured as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>-cfg
@@ -255,8 +255,11 @@ Specifying dataset set size directly takes precedence over number of steps.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>cfg</strong> (<em>omegaconf.DictConfig</em>) – the configuration to use.</p></li>
-<li><p><strong>obs_shape</strong> (<em>tuple of ints</em>) – the shape of observation arrays.</p></li>
-<li><p><strong>act_shape</strong> (<em>tuple of ints</em>) – the shape of action arrays.</p></li>
+<li><p><strong>obs_shape</strong> (<em>Sequence of ints</em>) – the shape of observation arrays.</p></li>
+<li><p><strong>act_shape</strong> (<em>Sequence of ints</em>) – the shape of action arrays.</p></li>
+<li><p><strong>obs_type</strong> (<em>type</em>) – the data type of the observations (defaults to np.float32).</p></li>
+<li><p><strong>action_type</strong> (<em>type</em>) – the data type of the actions (defaults to np.float32).</p></li>
+<li><p><strong>reward_type</strong> (<em>type</em>) – the data type of the rewards (defaults to np.float32).</p></li>
 <li><p><strong>load_dir</strong> (<em>optional str</em><em> or </em><em>pathlib.Path</em>) – if provided, the function will attempt to
 populate the buffers from “load_dir/replay_buffer.npz”.</p></li>
 <li><p><strong>collect_trajectories</strong> (<em>bool</em><em>, </em><em>optional</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code> sets the replay buffers to collect

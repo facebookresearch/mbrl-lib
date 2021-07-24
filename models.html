@@ -238,7 +238,7 @@ above). Defaults to <code class="docutils literal notranslate"><span class="pre"
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.BasicEnsemble.eval_score">
-<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.BasicEnsemble.eval_score" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.eval_score" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes the average score over all members given input/target.</p>
 <p>The input and target tensors are replicated once for each model in the ensemble.</p>
 <dl class="field-list simple">
@@ -292,8 +292,12 @@ log variance prediction (or <code class="docutils literal notranslate"><span cla
 
 <dl class="py method">
 <dt id="mbrl.models.BasicEnsemble.loss">
-<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_ins</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Sequence<span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.BasicEnsemble.loss" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_ins</span><span class="p">:</span> <span class="n">Sequence<span class="p">[</span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Sequence<span class="p">[</span>torch.Tensor<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.BasicEnsemble.loss" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes average loss over the losses of all members of the ensemble.</p>
+<dl class="simple">
+<dt>Returns a dictionary with metadata for all models, indexed as</dt><dd><p>meta[“model_i”] = meta_for_model_i</p>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -558,11 +562,12 @@ they will be constant. Defaults to <code class="docutils literal notranslate"><s
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.GaussianMLP.eval_score">
-<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.GaussianMLP.eval_score" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.GaussianMLP.eval_score" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes the squared error for the model over the given input/target.</p>
 <p>When model is not an ensemble, this is equivalent to
 <cite>F.mse_loss(model(model_in, target), reduction=”none”)</cite>. If the model is ensemble,
 then return is batched over the model dimension.</p>
+<p>This function returns no metadata, so the second output is set to an empty dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -650,10 +655,11 @@ the output to <a class="reference internal" href="math.html#mbrl.util.math.propa
 
 <dl class="py method">
 <dt id="mbrl.models.GaussianMLP.loss">
-<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.GaussianMLP.loss" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">torch.Tensor</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.GaussianMLP.loss" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes Gaussian NLL loss.</p>
 <p>It also includes terms for <code class="docutils literal notranslate"><span class="pre">max_logvar</span></code> and <code class="docutils literal notranslate"><span class="pre">min_logvar</span></code> with small weights,
 with positive and negative signs, respectively.</p>
+<p>This function returns no metadata, so the second output is set to an empty dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -737,7 +743,7 @@ for the model on the input data (e.g., squared error per element).</p></li>
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.Model.eval_score">
-<em class="property">abstract </em><code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.Model.eval_score" title="Permalink to this definition">¶</a></dt>
+<em class="property">abstract </em><code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>torch.Tensor<span class="p">, </span>Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.Model.eval_score" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes an evaluation score for the model over the given input/target.</p>
 <p>This method should compute a non-reduced score for the model, intended mostly for
 logging/debugging purposes (so, it should not keep gradient information).
@@ -756,10 +762,15 @@ cannot be computed from <code class="docutils literal notranslate"><span class="
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>a non-reduced tensor score.</p>
+<dd class="field-even"><p><dl class="simple">
+<dt>a non-reduced tensor score, and a dictionary</dt><dd><p>from strings to objects with metadata computed by the model
+(e.g., reconstructions, entropy, etc.) that will be used for logging.</p>
+</dd>
+</dl>
+</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tensor)</p>
+<dd class="field-odd"><p>(tuple of tensor and optional dict)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -789,7 +800,7 @@ cannot be computed from <code class="docutils literal notranslate"><span class="
 
 <dl class="py method">
 <dt id="mbrl.models.Model.loss">
-<em class="property">abstract </em><code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.Model.loss" title="Permalink to this definition">¶</a></dt>
+<em class="property">abstract </em><code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>torch.Tensor<span class="p">, </span>Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.Model.loss" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes a loss that can be used to update the model using backpropagation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -800,10 +811,18 @@ cannot be computed from <code class="docutils literal notranslate"><span class="
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>a loss tensor.</p>
+<dd class="field-even"><p><dl class="simple">
+<dt>the loss tensor and, optionally,</dt><dd><dl class="simple">
+<dt>any additional metadata computed by the model,</dt><dd><p>as a dictionary from strings to objects with metadata computed by
+the model (e.g., reconstruction, entropy) that will be used for logging.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tensor)</p>
+<dd class="field-odd"><p>(tuple of tensor and optional dict)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -865,7 +884,7 @@ This method will be used by <a class="reference internal" href="#mbrl.models.Mod
 
 <dl class="py method">
 <dt id="mbrl.models.Model.update">
-<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">torch.optim.optimizer.Optimizer</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.Model.update" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model_in</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>torch.Tensor<span class="p">, </span>mbrl.types.TransitionBatch<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">torch.optim.optimizer.Optimizer</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>float<span class="p">, </span>Tuple<span class="p">[</span>float<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.Model.update" title="Permalink to this definition">¶</a></dt>
 <dd><p>Updates the model using backpropagation with given input and target tensors.</p>
 <p>Provides a basic update function, following the steps below:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
@@ -884,7 +903,8 @@ cannot be computed from <code class="docutils literal notranslate"><span class="
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the numeric value of the computed loss.</p>
+<dd class="field-even"><p>the numeric value of the computed loss.
+(dict): any additional metadata dictionary computed by <a class="reference internal" href="#mbrl.models.Model.loss" title="mbrl.models.Model.loss"><code class="xref py py-meth docutils literal notranslate"><span class="pre">loss()</span></code></a>.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>(float)</p>
@@ -1013,14 +1033,21 @@ The done flag is computed using the termination_fn passed in the constructor.</p
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.ModelTrainer.evaluate">
-<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a></span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a></span></em>, <em class="sig-param"><span class="n">batch_callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.ModelTrainer.evaluate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates the model on the validation dataset.</p>
 <p>Iterates over the dataset, one batch at a time, and calls
 <a class="reference internal" href="#mbrl.models.Model.eval_score" title="mbrl.models.Model.eval_score"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbrl.models.Model.eval_score()</span></code></a> to compute the model score
 over the batch. The method returns the average score over the whole dataset.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>dataset</strong> (<em>bool</em>) – the transition iterator to use.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<em>bool</em>) – the transition iterator to use.</p></li>
+<li><p><strong>batch_callback</strong> (<em>callable</em><em>, </em><em>optional</em>) – if provided, this function will be called
+for every batch with the output of <code class="docutils literal notranslate"><span class="pre">model.eval_score()</span></code> (the score will
+be passed as a float, reduced using mean()). It will be called
+with four arguments <code class="docutils literal notranslate"><span class="pre">(epoch_index,</span> <span class="pre">loss/score,</span> <span class="pre">meta,</span> <span class="pre">mode)</span></code>, where
+<code class="docutils literal notranslate"><span class="pre">mode</span></code> is the string <code class="docutils literal notranslate"><span class="pre">&quot;eval&quot;</span></code>.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><dl class="simple">
@@ -1061,7 +1088,7 @@ of the stored model, otherwise returns <code class="docutils literal notranslate
 
 <dl class="py method">
 <dt id="mbrl.models.ModelTrainer.train">
-<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset_train</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a></span></em>, <em class="sig-param"><span class="n">dataset_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_epochs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">patience</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">improvement_threshold</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.01</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>List<span class="p">[</span>float<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>float<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelTrainer.train" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataset_train</span><span class="p">:</span> <span class="n"><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a></span></em>, <em class="sig-param"><span class="n">dataset_val</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="replay_buffer.html#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator">mbrl.util.replay_buffer.TransitionIterator</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_epochs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">patience</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">improvement_threshold</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.01</span></em>, <em class="sig-param"><span class="n">callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">batch_callback</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>List<span class="p">[</span>float<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>float<span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.ModelTrainer.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Trains the model for some number of epochs.</p>
 <p>This method iterates over the stored train dataset, one batch of transitions at a time,
 updates the model.</p>
@@ -1093,6 +1120,12 @@ every training epoch with the following positional arguments:</p>
 </pre></div>
 </div>
 </p></li>
+<li><p><strong>batch_callback</strong> (<em>callable</em><em>, </em><em>optional</em>) – if provided, this function will be called
+for every batch with the output of <code class="docutils literal notranslate"><span class="pre">model.update()</span></code> (during training),
+and <code class="docutils literal notranslate"><span class="pre">model.eval_score()</span></code> (during evaluation). It will be called
+with four arguments <code class="docutils literal notranslate"><span class="pre">(epoch_index,</span> <span class="pre">loss/score,</span> <span class="pre">meta,</span> <span class="pre">mode)</span></code>, where
+<code class="docutils literal notranslate"><span class="pre">mode</span></code> is one of <code class="docutils literal notranslate"><span class="pre">&quot;train&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;eval&quot;</span></code>, indicating if the callback
+was called during training or evaluation.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1108,7 +1141,7 @@ every training epoch with the following positional arguments:</p>
 
 <dl class="py class">
 <dt id="mbrl.models.OneDTransitionRewardModel">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">OneDTransitionRewardModel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">target_is_delta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">learned_rewards</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">obs_process_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">no_delta_list</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_elites</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.models.</code><code class="sig-name descname">OneDTransitionRewardModel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">mbrl.models.model.Model</span></em>, <em class="sig-param"><span class="n">target_is_delta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">normalize_double_precision</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">learned_rewards</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">obs_process_fn</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Callable<span class="p">[</span><span class="p">[</span>numpy.ndarray<span class="p">]</span><span class="p">, </span>numpy.ndarray<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">no_delta_list</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_elites</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.model.Model</span></code></p>
 <p>Wrapper class for 1-D dynamics models.</p>
 <p>This model functions as a wrapper for another model to convert transition
@@ -1133,6 +1166,8 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">True</s
 which will be used every time the model is called using the methods in this
 class. To update the normalizer statistics, the user needs to call
 <a class="reference internal" href="#mbrl.models.OneDTransitionRewardModel.update_normalizer" title="mbrl.models.OneDTransitionRewardModel.update_normalizer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_normalizer()</span></code></a> before using the model. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<li><p><strong>normalize_double_precision</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the normalizer will work with
+double precision.</p></li>
 <li><p><strong>learned_rewards</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, the wrapper considers the last output of the model
 to correspond to rewards predictions, and will use it to construct training
 targets for the model and when returning model predictions. Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
@@ -1150,7 +1185,7 @@ to validation score are used when calling <code class="xref py py-meth docutils 
 </dl>
 <dl class="py method">
 <dt id="mbrl.models.OneDTransitionRewardModel.eval_score">
-<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.eval_score" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">eval_score</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>torch.Tensor<span class="p">, </span>Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.eval_score" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates the model score over a batch of transitions.</p>
 <p>This method constructs input and targets from the information in the batch,
 then calls <cite>self.model.eval_score()</cite> on them and returns the value.</p>
@@ -1201,19 +1236,20 @@ No gradient information will be kept.</p>
 
 <dl class="py method">
 <dt id="mbrl.models.OneDTransitionRewardModel.loss">
-<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.loss" title="Permalink to this definition">¶</a></dt>
-<dd><p>Evaluates the model score over a batch of transitions.</p>
+<code class="sig-name descname">loss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>torch.Tensor<span class="p">, </span>Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.loss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the model loss over a batch of transitions.</p>
 <p>This method constructs input and targets from the information in the batch,
-then calls <cite>self.model.eval_score()</cite> on them and returns the value.</p>
+then calls <cite>self.model.loss()</cite> on them and returns the value and the metadata
+as returned by the model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>batch</strong> (<em>transition batch</em>) – a batch of transition to train the model.</p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>as returned by <cite>model.eval_score().</cite></p>
+<dd class="field-even"><p>as returned by <cite>model.loss().</cite></p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(tensor)</p>
+<dd class="field-odd"><p>(tensor and optional dict)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1271,7 +1307,7 @@ with just one tensor, which concatenates next_observation and reward.</p>
 
 <dl class="py method">
 <dt id="mbrl.models.OneDTransitionRewardModel.update">
-<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">torch.optim.optimizer.Optimizer</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.update" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">batch</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="p">:</span> <span class="n">torch.optim.optimizer.Optimizer</span></em>, <em class="sig-param"><span class="n">target</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>float<span class="p">, </span>Tuple<span class="p">[</span>float<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#mbrl.models.OneDTransitionRewardModel.update" title="Permalink to this definition">¶</a></dt>
 <dd><p>Updates the model given a batch of transitions and an optimizer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1279,6 +1315,12 @@ with just one tensor, which concatenates next_observation and reward.</p>
 <li><p><strong>batch</strong> (<em>transition batch</em>) – a batch of transition to train the model.</p></li>
 <li><p><strong>optimizer</strong> (<em>torch optimizer</em>) – the optimizer to use to update the model.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>as returned by <cite>model.loss().</cite></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tensor and optional dict)</p>
 </dd>
 </dl>
 </dd></dl>

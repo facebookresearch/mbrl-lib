@@ -183,7 +183,7 @@
 <span id="math-utilities-module"></span><h1>Math utilities module<a class="headerlink" href="#module-mbrl.util.math" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
 <dt id="mbrl.util.math.Normalizer">
-<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">Normalizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">Normalizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">in_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em>, <em class="sig-param"><span class="n">dtype</span><span class="o">=</span><span class="default_value">torch.float32</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.Normalizer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class that keeps a running mean and variance and normalizes data accordingly.</p>
 <p>The statistics kept are stored in torch tensors.</p>
@@ -192,6 +192,7 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>in_size</strong> (<em>int</em>) – the size of the data that will be normalized.</p></li>
 <li><p><strong>device</strong> (<em>torch.device</em>) – the device in which the data will reside.</p></li>
+<li><p><strong>dtype</strong> (<em>torch.dtype</em>) – the data type to use for the normalizer.</p></li>
 </ul>
 </dd>
 </dl>
