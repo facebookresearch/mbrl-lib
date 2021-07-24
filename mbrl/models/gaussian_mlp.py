@@ -5,7 +5,7 @@
 import pathlib
 import pickle
 import warnings
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import nn as nn
@@ -295,11 +295,13 @@ class GaussianMLP(Ensemble):
         self,
         model_in: torch.Tensor,
         target: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes Gaussian NLL loss.
 
         It also includes terms for ``max_logvar`` and ``min_logvar`` with small weights,
         with positive and negative signs, respectively.
+
+        This function returns no metadata, so the second output is set to an empty dict.
 
         Args:
             model_in (tensor): input tensor. The shape must be ``E x B x Id``, or ``B x Id``
@@ -315,18 +317,20 @@ class GaussianMLP(Ensemble):
             the average over all models.
         """
         if self.deterministic:
-            return self._mse_loss(model_in, target)
+            return self._mse_loss(model_in, target), {}
         else:
-            return self._nll_loss(model_in, target)
+            return self._nll_loss(model_in, target), {}
 
     def eval_score(  # type: ignore
         self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the squared error for the model over the given input/target.
 
         When model is not an ensemble, this is equivalent to
         `F.mse_loss(model(model_in, target), reduction="none")`. If the model is ensemble,
         then return is batched over the model dimension.
+
+        This function returns no metadata, so the second output is set to an empty dict.
 
         Args:
             model_in (tensor): input tensor. The shape must be ``B x Id``, where `B`` and ``Id``
@@ -341,7 +345,7 @@ class GaussianMLP(Ensemble):
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in, use_propagation=False)
             target = target.repeat((self.num_members, 1, 1))
-            return F.mse_loss(pred_mean, target, reduction="none")
+            return F.mse_loss(pred_mean, target, reduction="none"), {}
 
     def reset(  # type: ignore
         self, x: torch.Tensor, rng: Optional[torch.Generator] = None

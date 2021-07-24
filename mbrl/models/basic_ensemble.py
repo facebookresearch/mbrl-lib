@@ -3,14 +3,14 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import warnings
-from typing import Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union, cast
 
 import hydra
 import omegaconf
 import torch
 import torch.nn as nn
 
-from .model import Ensemble
+from .model import _NO_META_WARNING_MSG, Ensemble
 
 
 class BasicEnsemble(Ensemble):
@@ -193,8 +193,11 @@ class BasicEnsemble(Ensemble):
         self,
         model_ins: Sequence[torch.Tensor],
         targets: Optional[Sequence[torch.Tensor]] = None,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes average loss over the losses of all members of the ensemble.
+
+        Returns a dictionary with metadata for all models, indexed as
+            meta["model_i"] = meta_for_model_i
 
         Args:
             model_ins (sequence of tensors): one input for each model in the ensemble.
@@ -205,15 +208,25 @@ class BasicEnsemble(Ensemble):
         """
         assert targets is not None
         avg_ensemble_loss: torch.Tensor = 0.0
+        ensemble_meta = {}
         for i, model in enumerate(self.members):
             model.train()
-            loss = model.loss(model_ins[i], targets[i])
+            loss_and_maybe_meta = model.loss(model_ins[i], targets[i])
+            if isinstance(loss_and_maybe_meta, tuple):
+                loss = cast(torch.Tensor, loss_and_maybe_meta[0])
+                meta = cast(Dict[str, Any], loss_and_maybe_meta[1])
+            else:
+                # TODO remove in v0.2.0
+                warnings.warn(_NO_META_WARNING_MSG)
+                loss = cast(torch.Tensor, loss_and_maybe_meta)
+                meta = None
+            ensemble_meta[f"model_{i}"] = meta
             avg_ensemble_loss += loss
-        return avg_ensemble_loss / len(self.members)
+        return avg_ensemble_loss / len(self.members), ensemble_meta
 
     def eval_score(  # type: ignore
         self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the average score over all members given input/target.
 
         The input and target tensors are replicated once for each model in the ensemble.
@@ -231,14 +244,25 @@ class BasicEnsemble(Ensemble):
 
         with torch.no_grad():
             scores = []
+            ensemble_meta = {}
             for i, model in enumerate(self.members):
                 model.eval()
-                score = model.eval_score(inputs[i], targets[i])
+                score_and_maybe_meta = model.eval_score(inputs[i], targets[i])
+                if isinstance(score_and_maybe_meta, tuple):
+                    score = cast(torch.Tensor, score_and_maybe_meta[0])
+                    meta = cast(Dict[str, Any], score_and_maybe_meta[1])
+                else:
+                    # TODO remove in v0.2.0
+                    warnings.warn(_NO_META_WARNING_MSG)
+                    score = cast(torch.Tensor, score_and_maybe_meta)
+                    meta = None
+                ensemble_meta[f"model_{i}"] = meta
+
                 if score.ndim == 3:
                     assert score.shape[0] == 1
                     score = score[0]
                 scores.append(score)
-            return torch.stack(scores)
+            return torch.stack(scores), ensemble_meta
 
     def reset(  # type: ignore
         self, x: torch.Tensor, rng: Optional[torch.Generator] = None

@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import collections
 import functools
 
 import numpy as np
@@ -11,7 +12,9 @@ import torch
 import torch.nn as nn
 
 import mbrl.models
+import mbrl.util.replay_buffer
 from mbrl.env.termination_fns import no_termination
+from mbrl.types import TransitionBatch
 
 _DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -298,6 +301,7 @@ def test_model_env_expectation_fixed():
 class DummyModel(mbrl.models.Model):
     def __init__(self):
         super().__init__()
+        self.param = nn.Parameter(torch.ones(1))
         self.device = torch.device(_DEVICE)
         self.to(self.device)
 
@@ -312,9 +316,12 @@ class DummyModel(mbrl.models.Model):
         return (self.forward(x),)
 
     def loss(self, _input, target=None):
-        pass
+        return 0.0 * self.param, {"loss": 0}
 
     def eval_score(self, _input, target=None):
+        return torch.zeros_like(_input), {"score": 0}
+
+    def set_elite(self, _indices):
         pass
 
 
@@ -339,3 +346,41 @@ def test_model_env_evaluate_action_sequences():
                 num_particles=num_particles,
             )
             assert torch.allclose(expected_returns, returns)
+
+
+def test_model_trainer_batch_callback():
+    model = DummyModel()
+    wrapper = mbrl.models.OneDTransitionRewardModel(model, target_is_delta=False)
+    trainer = mbrl.models.ModelTrainer(wrapper)
+    num_batches = 10
+    dummy_data = torch.zeros(num_batches, 1)
+    mock_dataset = mbrl.util.replay_buffer.TransitionIterator(
+        TransitionBatch(
+            dummy_data,
+            dummy_data,
+            dummy_data,
+            dummy_data.squeeze(1),
+            dummy_data.squeeze(1),
+        ),
+        1,
+    )
+
+    train_counter = collections.Counter()
+    val_counter = collections.Counter()
+
+    def batch_callback(epoch, val, meta, mode):
+        assert mode in ["train", "eval"]
+        if mode == "train":
+            assert "loss" in meta
+            train_counter[epoch] += 1
+        else:
+            assert "score" in meta
+            val_counter[epoch] += 1
+
+    num_epochs = 20
+    trainer.train(mock_dataset, num_epochs=num_epochs, batch_callback=batch_callback)
+
+    for counter in [train_counter, val_counter]:
+        assert set(counter.keys()) == set(range(num_epochs))
+        for i in range(num_epochs):
+            assert counter[i] == num_batches

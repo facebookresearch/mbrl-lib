@@ -3,8 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import copy
+import functools
 import itertools
-from typing import Callable, Dict, List, Optional, Tuple
+import warnings
+from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
@@ -13,7 +15,7 @@ from torch import optim as optim
 from mbrl.util.logger import Logger
 from mbrl.util.replay_buffer import BootstrapIterator, TransitionIterator
 
-from .model import Model
+from .model import _NO_META_WARNING_MSG, Model
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -71,6 +73,7 @@ class ModelTrainer:
         patience: Optional[int] = None,
         improvement_threshold: float = 0.01,
         callback: Optional[Callable] = None,
+        batch_callback: Optional[Callable] = None,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
 
@@ -104,6 +107,12 @@ class ModelTrainer:
                     - validation score (for ensembles, factored per member)
                     - best validation score so far
 
+            batch_callback (callable, optional): if provided, this function will be called
+                for every batch with the output of ``model.update()`` (during training),
+                and ``model.eval_score()`` (during evaluation). It will be called
+                with four arguments ``(epoch_index, loss/score, meta, mode)``, where
+                ``mode`` is one of ``"train"`` or ``"eval"``, indicating if the callback
+                was called during training or evaluation.
 
         Returns:
             (tuple of two list(float)): the history of training losses and validation losses.
@@ -117,14 +126,30 @@ class ModelTrainer:
         epochs_since_update = 0
         best_val_score = self.evaluate(eval_dataset)
         for epoch in epoch_iter:
+            if batch_callback:
+                batch_callback_epoch = functools.partial(batch_callback, epoch)
+            else:
+                batch_callback_epoch = None
             batch_losses: List[float] = []
             for batch in dataset_train:
-                loss = self.model.update(batch, self.optimizer)
+                loss_and_maybe_meta = self.model.update(batch, self.optimizer)
+                if isinstance(loss_and_maybe_meta, tuple):
+                    loss = cast(float, loss_and_maybe_meta[0])
+                    meta = cast(Dict, loss_and_maybe_meta[1])
+                else:
+                    # TODO remove this if in v0.2.0
+                    warnings.warn(_NO_META_WARNING_MSG)
+                    loss = cast(float, loss_and_maybe_meta)
+                    meta = None
                 batch_losses.append(loss)
+                if batch_callback_epoch:
+                    batch_callback_epoch(loss, meta, "train")
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
-            eval_score = self.evaluate(eval_dataset)
+            eval_score = self.evaluate(
+                eval_dataset, batch_callback=batch_callback_epoch
+            )
             val_scores.append(eval_score.mean().item())
 
             maybe_best_weights = self.maybe_get_best_weights(
@@ -171,7 +196,9 @@ class ModelTrainer:
         self._train_iteration += 1
         return training_losses, val_scores
 
-    def evaluate(self, dataset: TransitionIterator) -> torch.Tensor:
+    def evaluate(
+        self, dataset: TransitionIterator, batch_callback: Optional[Callable] = None
+    ) -> torch.Tensor:
         """Evaluates the model on the validation dataset.
 
         Iterates over the dataset, one batch at a time, and calls
@@ -180,6 +207,11 @@ class ModelTrainer:
 
         Args:
             dataset (bool): the transition iterator to use.
+            batch_callback (callable, optional): if provided, this function will be called
+                for every batch with the output of ``model.eval_score()`` (the score will
+                be passed as a float, reduced using mean()). It will be called
+                with four arguments ``(epoch_index, loss/score, meta, mode)``, where
+                ``mode`` is the string ``"eval"``.
 
         Returns:
             (tensor): The average score of the model over the dataset (and for ensembles, per
@@ -190,15 +222,25 @@ class ModelTrainer:
 
         batch_scores_list = []
         for batch in dataset:
-            avg_batch_score = self.model.eval_score(batch)
-            batch_scores_list.append(avg_batch_score)
-        batch_scores = torch.cat(batch_scores_list, axis=batch_scores_list[0].ndim - 2)
+            batch_score_and_maybe_meta = self.model.eval_score(batch)
+            if isinstance(batch_score_and_maybe_meta, tuple):
+                batch_score = cast(torch.Tensor, batch_score_and_maybe_meta[0])
+                meta = cast(Dict, batch_score_and_maybe_meta[1])
+            else:
+                # TODO remove this "else" in v0.2.0
+                warnings.warn(_NO_META_WARNING_MSG)
+                batch_score = cast(torch.Tensor, batch_score_and_maybe_meta)
+                meta = None
+            batch_scores_list.append(batch_score)
+            if batch_callback:
+                batch_callback(batch_score.mean(), meta, "eval")
+        batch_scores = torch.cat(batch_scores_list, dim=batch_scores_list[0].ndim - 2)
 
         if isinstance(dataset, BootstrapIterator):
             dataset.toggle_bootstrap()
 
         mean_axis = 1 if batch_scores.ndim == 2 else (1, 2)
-        batch_scores = batch_scores.mean(axis=mean_axis)
+        batch_scores = batch_scores.mean(dim=mean_axis)
 
         return batch_scores
 
