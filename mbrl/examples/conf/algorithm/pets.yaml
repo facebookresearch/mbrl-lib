@@ -22,6 +22,7 @@ optimizer:
   device: ${device}
 
 normalize: true
+normalize_double_precision: true
 target_is_delta: true
 initial_exploration_steps: ${overrides.trial_length}
 freq_train_model: ${overrides.freq_train_model}

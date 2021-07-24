@@ -98,13 +98,15 @@ class Normalizer:
     Args:
         in_size (int): the size of the data that will be normalized.
         device (torch.device): the device in which the data will reside.
+        dtype (torch.dtype): the data type to use for the normalizer.
     """
 
     _STATS_FNAME = "env_stats.pickle"
 
-    def __init__(self, in_size: int, device: torch.device):
-        self.mean = torch.zeros((1, in_size), device=device)
-        self.std = torch.ones((1, in_size), device=device)
+    def __init__(self, in_size: int, device: torch.device, dtype=torch.float32):
+        self.mean = torch.zeros((1, in_size), device=device, dtype=dtype)
+        self.std = torch.ones((1, in_size), device=device, dtype=dtype)
+        self.eps = 1e-12 if dtype == torch.double else 1e-5
         self.device = device
 
     def update_stats(self, data: mbrl.types.TensorType):
@@ -120,6 +122,7 @@ class Normalizer:
             data = torch.from_numpy(data).to(self.device)
         self.mean = data.mean(0, keepdim=True)
         self.std = data.std(0, keepdim=True)
+        self.std[self.std < self.eps] = 1.0
 
     def normalize(self, val: Union[float, mbrl.types.TensorType]) -> torch.Tensor:
         """Normalizes the value according to the stored statistics.

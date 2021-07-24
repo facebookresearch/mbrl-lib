@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import gym.wrappers
 import hydra
@@ -96,6 +96,9 @@ def create_one_dim_tr_model(
         model,
         target_is_delta=cfg.algorithm.target_is_delta,
         normalize=cfg.algorithm.normalize,
+        normalize_double_precision=cfg.algorithm.get(
+            "normalize_double_precision", False
+        ),
         learned_rewards=cfg.algorithm.learned_rewards,
         obs_process_fn=obs_process_fn,
         no_delta_list=cfg.overrides.get("no_delta_list", None),
@@ -131,6 +134,9 @@ def create_replay_buffer(
     cfg: omegaconf.DictConfig,
     obs_shape: Sequence[int],
     act_shape: Sequence[int],
+    obs_type: Type = np.float32,
+    action_type: Type = np.float32,
+    reward_type: Type = np.float32,
     load_dir: Optional[Union[str, pathlib.Path]] = None,
     collect_trajectories: bool = False,
     rng: Optional[np.random.Generator] = None,
@@ -155,6 +161,9 @@ def create_replay_buffer(
         cfg (omegaconf.DictConfig): the configuration to use.
         obs_shape (Sequence of ints): the shape of observation arrays.
         act_shape (Sequence of ints): the shape of action arrays.
+        obs_type (type): the data type of the observations (defaults to np.float32).
+        action_type (type): the data type of the actions (defaults to np.float32).
+        reward_type (type): the data type of the rewards (defaults to np.float32).
         load_dir (optional str or pathlib.Path): if provided, the function will attempt to
             populate the buffers from "load_dir/replay_buffer.npz".
         collect_trajectories (bool, optional): if ``True`` sets the replay buffers to collect
@@ -183,6 +192,9 @@ def create_replay_buffer(
         dataset_size,
         obs_shape,
         act_shape,
+        obs_type=obs_type,
+        action_type=action_type,
+        reward_type=reward_type,
         rng=rng,
         max_trajectory_length=maybe_max_trajectory_len,
     )
