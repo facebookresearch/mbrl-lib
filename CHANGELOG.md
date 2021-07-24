@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.3
+- Methods `loss`, `eval_score` and `update` of `Model` class now return a 
+  tuple of loss/score and metadata. Currently, supports the old version as well,
+  but this will be deprecated in v0.2.0.
+- `ModelTrainer` now accepts a callback that will be called after every batch 
+  both during training and evaluation.
+- `Normalizer` in `util.math` can now operate using double precision. Utilities 
+  now allow specifying if replay buffer and normalizer should use double or float 
+  via Hydra config.
+
 ## v0.1.2
 - Multiple bug fixes
 - Added a training browser to compare results of multiple runs
