@@ -43,7 +43,7 @@ class FineTuner:
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
-            None if new_model else model_dir,
+            load_dir=None if new_model else model_dir,
         )
         self.rng = np.random.default_rng(seed)
 
