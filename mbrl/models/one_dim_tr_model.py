@@ -14,7 +14,7 @@ import mbrl.models.util as model_util
 import mbrl.types
 import mbrl.util.math
 
-from .model import Ensemble, Model
+from .model import Ensemble, LossOutput, Model, UpdateOutput
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -52,6 +52,8 @@ class OneDTransitionRewardModel(Model):
             which will be used every time the model is called using the methods in this
             class. To update the normalizer statistics, the user needs to call
             :meth:`update_normalizer` before using the model. Defaults to ``False``.
+        normalize_double_precision (bool): if ``True``, the normalizer will work with
+            double precision.
         learned_rewards (bool): if ``True``, the wrapper considers the last output of the model
             to correspond to rewards predictions, and will use it to construct training
             targets for the model and when returning model predictions. Defaults to ``True``.
@@ -74,6 +76,7 @@ class OneDTransitionRewardModel(Model):
         model: Model,
         target_is_delta: bool = True,
         normalize: bool = False,
+        normalize_double_precision: bool = False,
         learned_rewards: bool = True,
         obs_process_fn: Optional[mbrl.types.ObsProcessFnType] = None,
         no_delta_list: Optional[List[int]] = None,
@@ -84,7 +87,9 @@ class OneDTransitionRewardModel(Model):
         self.input_normalizer: Optional[mbrl.util.math.Normalizer] = None
         if normalize:
             self.input_normalizer = mbrl.util.math.Normalizer(
-                self.model.in_size, self.model.device
+                self.model.in_size,
+                self.model.device,
+                dtype=torch.double if normalize_double_precision else torch.float,
             )
         self.device = self.model.device
         self.learned_rewards = learned_rewards
@@ -109,7 +114,7 @@ class OneDTransitionRewardModel(Model):
         model_in_np = np.concatenate([obs, action], axis=obs.ndim - 1)
         if self.input_normalizer:
             # Normalizer lives on device
-            return self.input_normalizer.normalize(model_in_np)
+            return self.input_normalizer.normalize(model_in_np).float().to(device)
         return torch.from_numpy(model_in_np).to(device)
 
     def _get_model_input_from_tensors(self, obs: torch.Tensor, action: torch.Tensor):
@@ -117,7 +122,7 @@ class OneDTransitionRewardModel(Model):
             obs = self.obs_process_fn(obs)
         model_in = torch.cat([obs, action], axis=obs.ndim - 1)
         if self.input_normalizer:
-            model_in = self.input_normalizer.normalize(model_in)
+            model_in = self.input_normalizer.normalize(model_in).float()
         return model_in
 
     def _get_model_input_and_target_from_batch(
@@ -133,14 +138,18 @@ class OneDTransitionRewardModel(Model):
 
         model_in = self._get_model_input_from_np(obs, action, self.device)
         if self.learned_rewards:
-            target = torch.from_numpy(
-                np.concatenate(
-                    [target_obs, np.expand_dims(reward, axis=reward.ndim)],
-                    axis=obs.ndim - 1,
+            target = (
+                torch.from_numpy(
+                    np.concatenate(
+                        [target_obs, np.expand_dims(reward, axis=reward.ndim)],
+                        axis=obs.ndim - 1,
+                    )
                 )
-            ).to(self.device)
+                .float()
+                .to(self.device)
+            )
         else:
-            target = torch.from_numpy(target_obs).to(self.device)
+            target = torch.from_numpy(target_obs).float().to(self.device)
         return model_in, target
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
@@ -173,17 +182,18 @@ class OneDTransitionRewardModel(Model):
         self,
         batch: mbrl.types.TransitionBatch,
         target: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        """Evaluates the model score over a batch of transitions.
+    ) -> LossOutput:
+        """Computes the model loss over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
-        then calls `self.model.eval_score()` on them and returns the value.
+        then calls `self.model.loss()` on them and returns the value and the metadata
+        as returned by the model.
 
         Args:
             batch (transition batch): a batch of transition to train the model.
 
         Returns:
-            (tensor): as returned by `model.eval_score().`
+            (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
         model_in, target = self._get_model_input_and_target_from_batch(batch)
@@ -194,12 +204,15 @@ class OneDTransitionRewardModel(Model):
         batch: mbrl.types.TransitionBatch,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
-    ) -> float:
+    ) -> UpdateOutput:
         """Updates the model given a batch of transitions and an optimizer.
 
         Args:
             batch (transition batch): a batch of transition to train the model.
             optimizer (torch optimizer): the optimizer to use to update the model.
+
+        Returns:
+            (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
         model_in, target = self._get_model_input_and_target_from_batch(batch)
@@ -209,7 +222,7 @@ class OneDTransitionRewardModel(Model):
         self,
         batch: mbrl.types.TransitionBatch,
         target: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> LossOutput:
         """Evaluates the model score over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,

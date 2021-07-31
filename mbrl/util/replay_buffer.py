@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import pathlib
 import warnings
-from typing import List, Optional, Sequence, Sized, Tuple, Union
+from typing import List, Optional, Sequence, Sized, Tuple, Type, Union
 
 import numpy as np
 
@@ -310,6 +310,7 @@ class ReplayBuffer:
         action_shape (Sequence of ints): the shape of the actions to store.
         obs_type (type): the data type of the observations (defaults to np.float32).
         action_type (type): the data type of the actions (defaults to np.float32).
+        reward_type (type): the data type of the rewards (defaults to np.float32).
         rng (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
         max_trajectory_length (int, optional): if given, indicates that trajectory
@@ -328,8 +329,9 @@ class ReplayBuffer:
         capacity: int,
         obs_shape: Sequence[int],
         action_shape: Sequence[int],
-        obs_type=np.float32,
-        action_type=np.float32,
+        obs_type: Type = np.float32,
+        action_type: Type = np.float32,
+        reward_type: Type = np.float32,
         rng: Optional[np.random.Generator] = None,
         max_trajectory_length: Optional[int] = None,
     ):
@@ -345,7 +347,7 @@ class ReplayBuffer:
         self.obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.next_obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.action = np.empty((capacity, *action_shape), dtype=action_type)
-        self.reward = np.empty(capacity, dtype=np.float32)
+        self.reward = np.empty(capacity, dtype=reward_type)
         self.done = np.empty(capacity, dtype=bool)
 
         if rng is None:
@@ -540,6 +542,10 @@ class ReplayBuffer:
     ) -> Tuple[TransitionIterator, Optional[TransitionIterator]]:
         """Returns training/validation iterators for the data in the replay buffer.
 
+        .. deprecated:: v0.1.2
+           Use :func:`mbrl.util.common.get_basic_buffer_iterators`.
+
+
         Args:
             batch_size (int): the batch size for the iterators.
             val_ratio (float): the proportion of data to use for validation. If 0., the
@@ -567,7 +573,7 @@ class ReplayBuffer:
             self,
             batch_size,
             val_ratio,
-            ensemble_size,
+            1 if ensemble_size is None else ensemble_size,
             shuffle_each_epoch,
             bootstrap_permutes,
         )

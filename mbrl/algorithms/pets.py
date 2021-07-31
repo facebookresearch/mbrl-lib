@@ -61,8 +61,16 @@ def train(
             cfg, obs_shape, act_shape
         )
 
+    use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
+    dtype = np.double if use_double_dtype else np.float32
     replay_buffer = mbrl.util.common.create_replay_buffer(
-        cfg, obs_shape, act_shape, rng=rng
+        cfg,
+        obs_shape,
+        act_shape,
+        rng=rng,
+        obs_type=dtype,
+        action_type=dtype,
+        reward_type=dtype,
     )
     mbrl.util.common.rollout_agent_trajectories(
         env,

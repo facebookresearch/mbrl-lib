@@ -61,6 +61,8 @@ def test_create_one_dim_tr_model():
     assert dynamics_model.model.x == 1 and dynamics_model.model.y == 2
     assert dynamics_model.num_elites is None
     assert dynamics_model.no_delta_list == []
+    # default when no normalization type is given is float
+    assert dynamics_model.input_normalizer.mean.dtype == torch.float32
 
     # Check given input/output sizes, overrides active, and no learned rewards option
     cfg.dynamics_model.model.in_size = 11
@@ -76,6 +78,14 @@ def test_create_one_dim_tr_model():
     assert dynamics_model.num_elites == 8
     assert dynamics_model.no_delta_list == [0]
     assert dynamics_model.obs_process_fn == mock_obs_func
+
+    # Test normalization option
+    for double_norm in [True, False]:
+        cfg_dict["algorithm"]["normalize_double_precision"] = double_norm
+        cfg = omegaconf.OmegaConf.create(cfg_dict)
+        dynamics_model = utils.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+        dtype = torch.double if double_norm else torch.float32
+        assert dynamics_model.input_normalizer.mean.dtype == dtype
 
 
 def test_create_replay_buffer():
@@ -104,10 +114,20 @@ def test_create_replay_buffer():
     _check_shapes(num_trials * trial_length)
 
     # Now add a training bootstrap and override the dataset size
-    cfg_dict["algorithm"]["dataset_size"] = 1500
-    cfg = omegaconf.OmegaConf.create(cfg_dict)
-    buffer = utils.create_replay_buffer(cfg, obs_shape, act_shape)
-    _check_shapes(1500)
+    for dtype in [np.float32, np.double]:
+        cfg_dict["algorithm"]["dataset_size"] = 1500
+        cfg = omegaconf.OmegaConf.create(cfg_dict)
+        buffer = utils.create_replay_buffer(
+            cfg,
+            obs_shape,
+            act_shape,
+            obs_type=dtype,
+            action_type=dtype,
+            reward_type=dtype,
+        )
+        for array in [buffer.obs, buffer.action, buffer.reward]:
+            assert array.dtype == dtype
+        _check_shapes(1500)
 
 
 class MockModelEnv:

@@ -4,12 +4,24 @@
 # LICENSE file in the root directory of this source tree.
 import abc
 import pathlib
-from typing import Optional, Sequence, Tuple, Union, cast
+import warnings
+from typing import Any, Dict, Optional, Sequence, Tuple, Union, cast
 
 import torch
 from torch import nn as nn
 
 from mbrl.types import ModelInput
+
+# TODO: these are temporary, eventually it will be tuple(tensor, dict), keeping this
+#  for back-compatibility with v0.1.x, and will be removed in v0.2.0
+LossOutput = Union[torch.Tensor, Tuple[torch.Tensor, Dict[str, Any]]]
+UpdateOutput = Union[float, Tuple[float, Dict[str, Any]]]
+
+
+_NO_META_WARNING_MSG = (
+    "Starting in version v0.2.0, `model.loss()`, model.update(), and model.eval_score() "
+    "must all return a tuple with (loss, metadata)."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +104,7 @@ class Model(nn.Module, abc.ABC):
         self,
         model_in: ModelInput,
         target: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> LossOutput:
         """Computes a loss that can be used to update the model using backpropagation.
 
         Args:
@@ -101,13 +113,16 @@ class Model(nn.Module, abc.ABC):
                 cannot be computed from ``model_in``.
 
         Returns:
-            (tensor): a loss tensor.
+            (tuple of tensor and optional dict): the loss tensor and, optionally,
+                any additional metadata computed by the model,
+                 as a dictionary from strings to objects with metadata computed by
+                 the model (e.g., reconstruction, entropy) that will be used for logging.
         """
 
     @abc.abstractmethod
     def eval_score(
         self, model_in: ModelInput, target: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> LossOutput:
         """Computes an evaluation score for the model over the given input/target.
 
         This method should compute a non-reduced score for the model, intended mostly for
@@ -127,7 +142,9 @@ class Model(nn.Module, abc.ABC):
                 cannot be computed from ``model_in``.
 
         Returns:
-            (tensor): a non-reduced tensor score.
+            (tuple of tensor and optional dict): a non-reduced tensor score, and a dictionary
+                from strings to objects with metadata computed by the model
+                (e.g., reconstructions, entropy, etc.) that will be used for logging.
         """
 
     def update(
@@ -135,7 +152,7 @@ class Model(nn.Module, abc.ABC):
         model_in: ModelInput,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
-    ) -> float:
+    ) -> UpdateOutput:
         """Updates the model using backpropagation with given input and target tensors.
 
         Provides a basic update function, following the steps below:
@@ -155,15 +172,34 @@ class Model(nn.Module, abc.ABC):
 
         Returns:
              (float): the numeric value of the computed loss.
-
+             (dict): any additional metadata dictionary computed by :meth:`loss`.
         """
         optimizer = cast(torch.optim.Optimizer, optimizer)
         self.train()
         optimizer.zero_grad()
-        loss = self.loss(model_in, target)
-        loss.backward()
-        optimizer.step()
-        return loss.item()
+        loss_and_maybe_meta = self.loss(model_in, target)
+        if isinstance(loss_and_maybe_meta, tuple):
+            # TODO - v0.2.0 remove this back-compatibility logic
+            loss = cast(torch.Tensor, loss_and_maybe_meta[0])
+            meta = cast(Dict[str, Any], loss_and_maybe_meta[1])
+            loss.backward()
+
+            if meta is not None:
+                with torch.no_grad():
+                    grad_norm = 0.0
+                    for p in list(
+                        filter(lambda p: p.grad is not None, self.parameters())
+                    ):
+                        grad_norm += p.grad.data.norm(2).item() ** 2
+                    meta["grad_norm"] = grad_norm
+            optimizer.step()
+            return loss.item(), meta
+
+        else:
+            warnings.warn(_NO_META_WARNING_MSG)
+            loss_and_maybe_meta.backward()
+            optimizer.step()
+            return loss_and_maybe_meta.item()
 
     def __len__(self):
         return 1
@@ -239,6 +275,7 @@ class Ensemble(Model, abc.ABC):
         """
         pass
 
+    # TODO this and eval_score are no longer necessary
     @abc.abstractmethod
     def loss(
         self,

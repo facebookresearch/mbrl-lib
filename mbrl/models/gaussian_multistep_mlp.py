@@ -44,7 +44,7 @@ class GaussianMMLP(GaussianMLP):
             (self.num_members * batch_size, sequence_length, target.shape[-1])
         )
 
-        current_loss = super().loss(model_in[:, 0, :], target[:, 0, :])
+        current_loss, _ = super().loss(model_in[:, 0, :], target[:, 0, :])
         # simulate sequence in dynamics model
         elites = self.elite_models
         self.elite_models = None  # disables elite model
