@@ -1,15 +1,11 @@
 # @package _group_
+# env: "pets_halfcheetah"
 # env: "benchmark.full_obs_halfcheetah"
+# term_fn: "no_termination"
 env: "pets_halfcheetah"
 term_fn: "no_termination"
-#env: "benchmark.full_obs_hopper"
-#term_fn: "hopper_fo"
-
-###env: "benchmark.full_obs_ant"
-###term_fn: "ant_fo"
-
 learned_rewards: false
-num_steps: 300000
+num_steps: 10000
 trial_length: 1000
 
 num_elites: 5
@@ -23,14 +19,8 @@ patience: 25
 num_epochs_train_model: 25
 
 planning_horizon: 30
-cem_num_iters: 5
-cem_elite_ratio: 0.1
-cem_population_size: 700
-cem_alpha: 0.1
-
-mppi_planning_horizon: 30
-mppi_batch_size: 700
+mppi_num_iters: 5
+mppi_population_size: 350
+mppi_gamma: 0.9
+mppi_sigma: 1.0
 mppi_beta: 0.9
-mppi_rew_weight: 1.0
-mppi_noise_magnifier: 0.9
-mppi_refinements: 5

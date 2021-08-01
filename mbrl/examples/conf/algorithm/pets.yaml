@@ -10,28 +10,28 @@ agent:
   replan_freq: 1
   verbose: ${debug_mode}
 
-optimizer:
-  _target_: mbrl.planning.CEMOptimizer
-  num_iterations: ${overrides.cem_num_iters}
-  elite_ratio: ${overrides.cem_elite_ratio}
-  population_size: ${overrides.cem_population_size}
-  alpha: ${overrides.cem_alpha}
-  lower_bound: ???
-  upper_bound: ???
-  return_mean_elites: true
-  device: ${device}
-
 #optimizer:
-#  _target_: mbrl.planning.MPPIOptimizer
-#  batch_size: ${overrides.mppi_batch_size}
-#  beta: ${overrides.mppi_beta}
-#  planning_horizon: ${overrides.mppi_planning_horizon}
-#  rew_weight: ${overrides.mppi_rew_weight}
-#  noise_magnifier: ${overrides.mppi_noise_magnifier}
-#  refinements: ${overrides.mppi_refinements}
+#  _target_: mbrl.planning.CEMOptimizer
+#  num_iterations: ${overrides.cem_num_iters}
+#  elite_ratio: ${overrides.cem_elite_ratio}
+#  population_size: ${overrides.cem_population_size}
+#  alpha: ${overrides.cem_alpha}
 #  lower_bound: ???
 #  upper_bound: ???
+#  return_mean_elites: true
 #  device: ${device}
+
+optimizer:
+  _target_: mbrl.planning.MPPIOptimizer
+  batch_size: ${overrides.mppi_batch_size}
+  beta: ${overrides.mppi_beta}
+  planning_horizon: ${overrides.mppi_planning_horizon}
+  rew_weight: ${overrides.mppi_rew_weight}
+  noise_magnifier: ${overrides.mppi_noise_magnifier}
+  refinements: ${overrides.mppi_refinements}
+  lower_bound: ???
+  upper_bound: ???
+  device: ${device}
 
 normalize: true
 normalize_double_precision: true

@@ -1,0 +1,31 @@
+# @package _group_
+name: "pets"
+
+agent:
+  _target_: mbrl.planning.TrajectoryOptimizerAgent
+  action_lb: ???
+  action_ub: ???
+  planning_horizon: ${overrides.planning_horizon}
+  optimizer_cfg: ${algorithm.optimizer}
+  replan_freq: 1
+  verbose: ${debug_mode}
+
+optimizer:
+  _target_: mbrl.planning.PaperMPPIOptimizer
+  num_iterations: ${overrides.mppi_num_iters}
+  gamma: ${overrides.mppi_gamma}
+  population_size: ${overrides.mppi_population_size}
+  sigma: ${overrides.mppi_sigma}
+  beta: ${overrides.mppi_beta}
+  lower_bound: ???
+  upper_bound: ???
+  return_mean_elites: true
+  device: ${device}
+
+normalize: true
+target_is_delta: true
+initial_exploration_steps: ${overrides.trial_length}
+freq_train_model: ${overrides.freq_train_model}
+learned_rewards: ${overrides.learned_rewards}
+
+num_particles: 20

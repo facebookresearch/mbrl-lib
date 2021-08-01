@@ -268,6 +268,123 @@ class MPPIOptimizer(Optimizer):
         return self.mean.clone()
 
 
+class PaperMPPIOptimizer(Optimizer):
+    """Implements the Model Predictive Path Integral Method optimization algorithm.
+    Args:
+    num_iterations (int): the number of iterations (generations) to perform.
+    population_size (int): the size of the population.
+    gamma (float): reward-weighting term.
+    sigma (float): noise variance.
+    beta (float): filtering coefficient.
+    lower_bound (sequence of floats): the lower bound for the optimization variables.
+    upper_bound (sequence of floats): the upper bound for the optimization variables.
+    device (torch.device): device where computations will be performed.
+    return_mean_elites (bool): if ``True`` returns the mean of the elites of the last
+        iteration. Otherwise, it returns the max solution found over all iterations.
+    """
+
+    def __init__(
+        self,
+        num_iterations: int,
+        population_size: int,
+        gamma: float,
+        sigma: float,
+        beta: float,
+        lower_bound: Sequence[float],
+        upper_bound: Sequence[float],
+        device: torch.device,
+        return_mean_elites: bool = False,
+    ):
+        super().__init__()
+        self.num_iterations = num_iterations
+        self.population_size = population_size
+        self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
+        self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
+        self.initial_var = ((self.upper_bound - self.lower_bound) ** 2) / 16
+        self.sigma = sigma * torch.ones_like(self.lower_bound)
+        self.beta = beta
+        self.gamma = gamma
+        self.return_mean_elites = return_mean_elites
+        self.device = device
+
+    def optimize(
+        self,
+        obj_fun: Callable[[torch.Tensor], torch.Tensor],
+        x0: Optional[torch.Tensor] = None,
+        callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Runs the optimization using MPPI.
+        Args:
+            obj_fun (callable(tensor) -> tensor): objective function to maximize.
+            x0 (tensor, optional): initial mean for the population. Must
+                be consistent with lower/upper bounds.
+            callback (callable(tensor, tensor, int) -> any, optional): if given, this
+                function will be called after every iteration, passing it as input the full
+                population tensor, its corresponding objective function values, and
+                the index of the current iteration. This can be used for logging and plotting
+                purposes.
+        Returns:
+            (torch.Tensor): the best solution found.
+        """
+        mu = x0.clone()  # [H, dim]
+        var = self.initial_var.clone()  # [dim,]
+        best_solution = torch.empty_like(mu)
+        best_value = -np.inf
+        population = torch.zeros((self.population_size,) + x0.shape).to(
+            device=self.device
+        )  # [N, H, dim]
+        for i in range(self.num_iterations):
+            lb_dist = mu - self.lower_bound
+            ub_dist = self.upper_bound - mu
+            mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
+            constrained_var = torch.min(torch.min(mv, var), self.sigma)[
+                None, ...  # noqa: W504
+            ]  # [1, H, dim]
+            # sample noise from normal dist, scaled by constrained_var
+            population = mbrl.util.math.truncated_normal_(population) * torch.sqrt(
+                constrained_var
+            )  # [N, H, dim]
+            eps_population = population.clone()
+            H = population.shape[1]
+            # creating correlated noise
+            for t in range(H):
+                if t == 0:
+                    population[:, t] = self.beta * (mu[t] + eps_population[:, t])
+                else:
+                    population[:, t] = (
+                        self.beta * (mu[t] + eps_population[:, t])
+                        + (1 - self.beta) * population[:, t - 1]
+                    )
+            population = torch.where(
+                population > self.upper_bound, self.upper_bound, population
+            )
+            population = torch.where(
+                population < self.lower_bound, self.lower_bound, population
+            )
+            values = obj_fun(population)
+            if callback is not None:
+                callback(population, values, i)
+            # filter out NaN values
+            values[values.isnan()] = -1e-10
+            best_values, elite_idx = values.topk(1)
+            # updating
+            S = torch.exp(self.gamma * (values - torch.max(values)))  # [N,]
+            denom = torch.sum(S) + 1e-10
+            weighted_population = S[..., None, None] * population
+            mu = torch.sum(weighted_population, dim=0) / denom  # [H, dim]
+            if best_values[0] > best_value:
+                best_value = best_values[0]
+                best_solution = population[elite_idx[0]].clone()
+        wandb.log(
+            {
+                "values": wandb.Histogram(values.cpu().numpy()),
+                "first-mean": wandb.Histogram(mu.cpu().numpy()[0, 0]),
+            }
+        )
+        return mu if self.return_mean_elites else best_solution
+
+
 class TrajectoryOptimizer:
     """Class for using generic optimizers on trajectory optimization problems.
 
