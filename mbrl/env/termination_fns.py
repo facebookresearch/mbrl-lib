@@ -16,7 +16,7 @@ def hopper(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     angle = next_obs[:, 1]
     not_done = (
         torch.isfinite(next_obs).all(-1)
-        * (next_obs[:, 1:] < 100).abs().all(-1)
+        * (next_obs[:, 1:].abs() < 100).all(-1)
         * (height > 0.7)
         * (angle.abs() < 0.2)
     )
