@@ -5,6 +5,7 @@
 import time
 from typing import Callable, List, Optional, Sequence, cast
 
+import colorednoise
 import hydra
 import numpy as np
 import omegaconf
@@ -276,6 +277,192 @@ class MPPIOptimizer(Optimizer):
         return self.mean.clone()
 
 
+class ICEMOptimizer(Optimizer):
+    """Implements the Improved Cross-Entropy Method (iCEM) optimization algorithm.
+
+    iCEM improves the sample efficiency over standard CEM and was introduced by
+    [2] for real-time planning.
+
+    Args:
+        num_iterations (int): the number of iterations (generations) to perform.
+        elite_ratio (float): the proportion of the population that will be kept as
+            elite (rounds up).
+        population_size (int): the size of the population.
+        population_decay_factor (float): fixed factor for exponential decrease in population size
+        colored_noise_exponent (float): colored-noise scaling exponent for
+            generating correlated action sequences.
+        lower_bound (sequence of floats): the lower bound for the optimization variables.
+        upper_bound (sequence of floats): the upper bound for the optimization variables.
+        keep_elite_frac (float): the fraction of elites to keep (or shift) during CEM iterations
+        alpha (float): momentum term.
+        device (torch.device): device where computations will be performed.
+        return_mean_elites (bool): if ``True`` returns the mean of the elites of the last
+            iteration. Otherwise, it returns the max solution found over all iterations.
+        round_population (bool): if "True" round population size for  to a multiple of ensemble size
+            (must be True for Gaussian MLP ensemble)
+        ensemble_size (int): dynamics model ensemble size
+
+    [2] C. Pinneri, S. Sawant, S. Blaes, J. Achterhold,
+    J. Stueckler, M. Rolinek and G, Martius, Georg.
+    "Sample-efficient Cross-Entropy Method for Real-time Planning".
+    Conference on Robot Learning, 2020.
+    """
+
+    def __init__(
+        self,
+        num_iterations: int,
+        elite_ratio: float,
+        population_size: int,
+        population_decay_factor: float,
+        colored_noise_exponent: float,
+        lower_bound: Sequence[float],
+        upper_bound: Sequence[float],
+        keep_elite_frac: float,
+        alpha: float,
+        device: torch.device,
+        return_mean_elites: bool = False,
+        round_population: bool = False,
+        ensemble_size: int = None,
+    ):
+        super().__init__()
+        self.num_iterations = num_iterations
+        self.elite_ratio = elite_ratio
+        self.population_size = population_size
+        self.population_decay_factor = population_decay_factor
+        self.elite_num = np.ceil(self.population_size * self.elite_ratio).astype(
+            np.int32
+        )
+        self.colored_noise_exponent = colored_noise_exponent
+        self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
+        self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
+        self.initial_var = ((self.upper_bound - self.lower_bound) ** 2) / 16
+        self.keep_elite_frac = keep_elite_frac
+        self.keep_elite_size = np.ceil(keep_elite_frac * self.elite_num).astype(
+            np.int32
+        )
+        self.elite = None
+        self.alpha = alpha
+        self.return_mean_elites = return_mean_elites
+        self.round_population = round_population
+        self.ensemble_size = ensemble_size
+        self.device = device
+
+    def optimize(
+        self,
+        obj_fun: Callable[[torch.Tensor], torch.Tensor],
+        x0: Optional[torch.Tensor] = None,
+        callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Runs the optimization using iCEM.
+
+        Args:
+            obj_fun (callable(tensor) -> tensor): objective function to maximize.
+            x0 (tensor, optional): initial mean for the population. Must
+                be consistent with lower/upper bounds.
+            callback (callable(tensor, tensor, int) -> any, optional): if given, this
+                function will be called after every iteration, passing it as input the full
+                population tensor, its corresponding objective function values, and
+                the index of the current iteration. This can be used for logging and plotting
+                purposes.
+        Returns:
+            (torch.Tensor): the best solution found.
+        """
+        mu = x0.clone()
+        var = self.initial_var.clone()
+
+        best_solution = torch.empty_like(mu)
+        best_value = -np.inf
+
+        for i in range(self.num_iterations):
+            decay_population_size = np.ceil(
+                np.max(
+                    (
+                        self.population_size * self.population_decay_factor ** -i,
+                        2 * self.elite_num,
+                    )
+                )
+            ).astype(np.int32)
+
+            # to ensure population size is a multiple of the number of models in the ensemble
+            if self.round_population is True:
+                if (
+                    self.elite is None
+                    and decay_population_size % self.ensemble_size != 0
+                ):
+                    decay_population_size += (
+                        self.ensemble_size - decay_population_size % self.ensemble_size
+                    )
+                elif (
+                    i == self.num_iterations - 1
+                    and (decay_population_size + 1) % self.ensemble_size != 0
+                ):
+                    decay_population_size += (
+                        self.ensemble_size
+                        - (decay_population_size + 1) % self.ensemble_size
+                    )
+                elif (
+                    decay_population_size + self.keep_elite_size
+                ) % self.ensemble_size:
+                    decay_population_size += (
+                        self.ensemble_size
+                        - (decay_population_size + self.keep_elite_size)
+                        % self.ensemble_size
+                    )
+
+            # the last dimension is used for temporal correlations
+            population = colorednoise.powerlaw_psd_gaussian(
+                self.colored_noise_exponent,
+                size=(decay_population_size, x0.shape[1], x0.shape[0]),
+            ).transpose([0, 2, 1])
+            population = torch.Tensor(population).to(device=self.device)
+            population = torch.clamp(
+                population * torch.sqrt(var) + mu, self.lower_bound, self.upper_bound
+            )
+
+            if self.elite is not None:
+                keep_elites = torch.index_select(
+                    self.elite,
+                    dim=0,
+                    index=torch.randperm(self.elite_num)[: self.keep_elite_size],
+                )
+                if i == 0:
+                    end_action = torch.normal(
+                        mu[-1].item(),
+                        torch.sqrt(var[-1]).item(),
+                        size=(keep_elites.shape[0], 1, keep_elites.shape[2]),
+                    )
+                    keep_elites_shift = torch.cat(
+                        (keep_elites[:, 1:, :], end_action), dim=1
+                    )
+                    population = torch.cat((population, keep_elites_shift), dim=0)
+                elif i == self.num_iterations - 1:
+                    population = torch.cat((population, mu.unsqueeze(dim=0)), dim=0)
+                else:
+                    population = torch.cat((population, keep_elites), dim=0)
+
+            values = obj_fun(population)
+
+            if callback is not None:
+                callback(population, values, i)
+
+            # filter out NaN values
+            values[values.isnan()] = -1e-10
+            best_values, elite_idx = values.topk(self.elite_num)
+            self.elite = population[elite_idx]
+
+            new_mu = torch.mean(self.elite, dim=0)
+            new_var = torch.var(self.elite, unbiased=False, dim=0)
+            mu = self.alpha * mu + (1 - self.alpha) * new_mu
+            var = self.alpha * var + (1 - self.alpha) * new_var
+
+            if best_values[0] > best_value:
+                best_value = best_values[0]
+                best_solution = population[elite_idx[0]].clone()
+
+        return mu if self.return_mean_elites else best_solution
+
+
 class TrajectoryOptimizer:
     """Class for using generic optimizers on trajectory optimization problems.
 
@@ -298,7 +485,7 @@ class TrajectoryOptimizer:
         solution for the next time step, when ``keep_last_solution == True``. Defaults to 1.
         keep_last_solution (bool): if ``True``, the last solution found by a call to
             :meth:`optimize` is kept as the initial solution for the next step. This solution is
-            shifted ``replan_freq`` time steps, and the new entries are filled using th3 initial
+            shifted ``replan_freq`` time steps, and the new entries are filled using the initial
             solution. Defaults to ``True``.
     """
 

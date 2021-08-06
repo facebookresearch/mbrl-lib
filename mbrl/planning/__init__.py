@@ -6,6 +6,7 @@ from .core import Agent, RandomAgent, complete_agent_cfg, load_agent
 from .trajectory_opt import (
     CEMOptimizer,
     MPPIOptimizer,
+    ICEMOptimizer,
     TrajectoryOptimizer,
     TrajectoryOptimizerAgent,
     create_trajectory_optim_agent_for_model,
