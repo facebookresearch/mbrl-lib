@@ -11,7 +11,7 @@ agent:
   verbose: ${debug_mode}
 
 optimizer:
-  _target_: mbrl.planning.MPPIOptimizer
+  _target_: mbrl.planning.PaperMPPIOptimizer
   num_iterations: ${overrides.mppi_num_iters}
   gamma: ${overrides.mppi_gamma}
   population_size: ${overrides.mppi_population_size}

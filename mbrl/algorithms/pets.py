@@ -114,6 +114,7 @@ def train(
             done = False
             total_reward = 0.0
             steps_trial = 0
+            print("=" * 100, ": ", "new run")
             while not done:
                 # --------------- Model Training -----------------
                 if (
@@ -137,6 +138,7 @@ def train(
                 total_reward += reward
                 steps_trial += 1
                 env_steps += 1
+                wandb.log({"episode_reward": total_reward, "one_step_reward": reward})
 
                 if debug_mode:
                     print(f"Step {env_steps}: Reward {reward:.3f}.")

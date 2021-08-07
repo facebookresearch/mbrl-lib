@@ -163,32 +163,32 @@ class CEMOptimizer(Optimizer):
 class MPPIOptimizer(Optimizer):
     def __init__(
         self,
-        planning_horizon: int,
-        batch_size: int,
-        rew_weight: float,
-        noise_magnifier: float,
-        refinements: int,
+        num_iterations: int,
+        population_size: int,
+        gamma: float,
+        sigma: float,
+        beta: float,
         lower_bound: Sequence[Sequence[float]],
         upper_bound: Sequence[Sequence[float]],
-        beta: float,
         device: torch.device,
+        return_mean_elites: bool = False,
     ):
         super().__init__()
-        self.planning_horizon = planning_horizon
-        self.batch_size = batch_size
+        self.planning_horizon = len(lower_bound)
+        self.batch_size = population_size
         self.action_dimension = len(lower_bound[0])
         self.mean = torch.zeros(
-            (planning_horizon, self.action_dimension),
+            (self.planning_horizon, self.action_dimension),
             device=device,
             dtype=torch.float32,
         )
 
         self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
-        self.var = noise_magnifier ** 2 * torch.ones_like(self.lower_bound)
+        self.var = sigma ** 2 * torch.ones_like(self.lower_bound)
         self.beta = beta
-        self.rew_weight = rew_weight
-        self.refinements = refinements
+        self.rew_weight = gamma
+        self.refinements = num_iterations
         self.device = device
 
     def optimize(
