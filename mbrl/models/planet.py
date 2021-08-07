@@ -198,11 +198,8 @@ class PlaNetModel(Model):
             next_belief,
         )
 
-    def _forward_decoder(self, posterior_sample: torch.Tensor, belief: torch.Tensor):
-        decoder_input = torch.cat([posterior_sample, belief], dim=-1)
-        decoder_input = decoder_input.view(
-            -1, self.latent_state_size + self.belief_size
-        )
+    def _forward_decoder(self, state_sample: torch.Tensor, belief: torch.Tensor):
+        decoder_input = torch.cat([state_sample, belief], dim=-1)
         return self.decoder(decoder_input)
 
     # This should be a batch of trajectories (e.g, obs shape == BS x Time x Obs_DIM)
@@ -226,6 +223,7 @@ class PlaNetModel(Model):
             posterior_state=torch.zeros_like(current_latent_state),
             belief=current_belief,
         )
+        pred_obs = torch.empty_like(obs)
         for t_step in range(trajectory_length):
             (
                 prior_dist_params,
@@ -236,13 +234,14 @@ class PlaNetModel(Model):
             ) = self._forward_transition_models(
                 obs[:, t_step], current_action, current_latent_state, current_belief
             )
+            pred_obs[:, t_step] = self._forward_decoder(posterior_sample, next_belief)
 
             # Update current state for next time step
             current_latent_state = prior_sample
             current_belief = next_belief
             current_action = act[:, t_step]
 
-            # Keep track of all seen states/beliefs
+            # Keep track of all seen states/beliefs and predicted observation
             states_and_beliefs.append(
                 prior_dist_params=prior_dist_params,
                 prior_state=prior_sample,
@@ -251,15 +250,7 @@ class PlaNetModel(Model):
                 belief=next_belief,
             )
 
-        # Get predicted observations
-        states_and_beliefs_tuple = states_and_beliefs.as_stacked_tuple()
-        # this input is the sampled posterior states and the beliefs.
-        # At index 0 it's just the initial posterior/belief, which is all zeros
-        # hence, the [1:]
-        pred_next_obs = self._forward_decoder(
-            states_and_beliefs_tuple[3][1:], states_and_beliefs_tuple[4][1:]
-        ).view(obs.shape)
-        return states_and_beliefs_tuple + (pred_next_obs,)
+        return states_and_beliefs.as_stacked_tuple() + (pred_obs,)
 
     def loss(
         self,
