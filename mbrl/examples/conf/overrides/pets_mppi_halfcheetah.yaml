@@ -1,0 +1,24 @@
+# @package _group_
+env: "pets_halfcheetah"
+term_fn: "no_termination"
+obs_process_fn: mbrl.env.pets_halfcheetah.HalfCheetahEnv.preprocess_fn
+learned_rewards: true
+num_steps: 300000
+trial_length: 1000
+
+num_elites: 5
+model_lr: 2e-4
+model_wd: 3e-5
+model_batch_size: 32
+validation_ratio: 0
+no_delta_list: [ 0 ]
+freq_train_model: 1000
+patience: 25
+num_epochs_train_model: 25
+
+planning_horizon: 30
+mppi_num_iters: 5
+mppi_population_size: 350
+mppi_gamma: 0.9
+mppi_sigma: 1.0
+mppi_beta: 0.9
