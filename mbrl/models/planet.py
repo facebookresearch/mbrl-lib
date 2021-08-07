@@ -302,6 +302,26 @@ class PlaNetModel(Model):
 
         return reconstruction_loss + self.kl_scale * kl_loss, meta
 
+    def update(
+        self,
+        model_in,
+        optimizer: torch.optim.Optimizer,
+        target: Optional[torch.Tensor] = None,
+    ):
+        self.train()
+        optimizer.zero_grad()
+        loss, meta = self.loss(model_in, target)
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.parameters(), 1000, norm_type=2)
+
+        with torch.no_grad():
+            grad_norm = 0.0
+            for p in list(filter(lambda p: p.grad is not None, self.parameters())):
+                grad_norm += p.grad.data.norm(2).item()
+            meta["grad_norm"] = grad_norm
+        optimizer.step()
+        return loss.item(), meta
+
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
     ) -> LossOutput:
