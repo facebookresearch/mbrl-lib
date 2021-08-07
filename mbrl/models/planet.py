@@ -126,7 +126,6 @@ class PlaNetModel(Model):
             nn.Linear(belief_size, hidden_size_fcs),
             nn.ReLU(),
             nn.Linear(hidden_size_fcs, 2 * latent_state_size),
-            nn.ReLU(),
             MeanStdSplit(latent_state_size, min_std),
         )
 
@@ -143,14 +142,12 @@ class PlaNetModel(Model):
             nn.Linear(obs_encoding_size + belief_size, hidden_size_fcs),
             nn.ReLU(),
             nn.Linear(hidden_size_fcs, 2 * latent_state_size),
-            nn.ReLU(),
             MeanStdSplit(latent_state_size, min_std),
         )
 
         # ---------- This is p(ot| ht, st) (observation model) ------------
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_state_size + belief_size, obs_encoding_size),
-            Conv2dDecoder(obs_encoding_size, decoder_config[0], decoder_config[1]),
+        self.decoder = Conv2dDecoder(
+            latent_state_size + belief_size, decoder_config[0], decoder_config[1]
         )
 
         self.to(self.device)
