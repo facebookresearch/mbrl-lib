@@ -164,7 +164,7 @@ class PlaNetModel(Model):
     def _forward_transition_models(
         self,
         obs: torch.Tensor,
-        act: torch.Tensor,
+        current_action: torch.Tensor,
         current_latent_state: torch.Tensor,
         current_belief: torch.Tensor,
         only_posterior: bool = False,
@@ -175,7 +175,9 @@ class PlaNetModel(Model):
         torch.Tensor,
         torch.Tensor,
     ]:
-        next_belief = self.belief_model(current_latent_state, act, current_belief)
+        next_belief = self.belief_model(
+            current_latent_state, current_action, current_belief
+        )
         obs_encoding = self.encoder.forward(obs)
         posterior_dist_params = self.posterior_transition_model(
             torch.cat([obs_encoding, next_belief], dim=1)
@@ -213,6 +215,7 @@ class PlaNetModel(Model):
             batch_size, self.latent_state_size, device=self.device
         )
         current_belief = torch.zeros(batch_size, self.belief_size, device=self.device)
+        current_action = torch.zeros(batch_size, act.shape[-1], device=self.device)
         prior_dist_params = torch.zeros(
             batch_size, 2 * self.latent_state_size, device=self.device
         )
@@ -231,12 +234,13 @@ class PlaNetModel(Model):
                 posterior_sample,
                 next_belief,
             ) = self._forward_transition_models(
-                obs[:, t_step], act[:, t_step], current_latent_state, current_belief
+                obs[:, t_step], current_action, current_latent_state, current_belief
             )
 
             # Update current state for next time step
             current_latent_state = prior_sample
             current_belief = next_belief
+            current_action = act[:, t_step]
 
             # Keep track of all seen states/beliefs
             states_and_beliefs.append(
@@ -264,7 +268,7 @@ class PlaNetModel(Model):
         reduce: bool = True,
     ) -> LossOutput:
 
-        obs, act, next_obs, rewards, dones = self._process_batch(batch)
+        obs, act, *_ = self._process_batch(batch)
 
         (
             prior_dist_params,
@@ -272,10 +276,12 @@ class PlaNetModel(Model):
             posterior_dist_params,
             posterior_states,
             beliefs,
-            pred_next_obs,
+            pred_obs,
         ) = self.forward(obs, act)
 
-        reconstruction_loss = F.mse_loss(next_obs, pred_next_obs)
+        reconstruction_loss = (
+            F.mse_loss(obs, pred_obs, reduction="none").sum((-1, -2, -3)).mean()
+        )
 
         # ------------------ Computing KL[q || p] ------------------
         # [1:] indexing because for each batch the first time index has all zero params
@@ -298,7 +304,7 @@ class PlaNetModel(Model):
         )
 
         meta = {
-            "reconstruction": pred_next_obs.detach(),
+            "reconstruction": pred_obs.detach(),
             "reconstruction_loss": reconstruction_loss.item(),
             "kl_loss": kl_loss.item(),
         }
