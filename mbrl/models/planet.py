@@ -9,8 +9,18 @@ import torch.nn.functional as F
 from mbrl.types import TransitionBatch
 
 from .model import LossOutput, Model
-from .util import Conv2dDecoder, Conv2dEncoder
+from .util import Conv2dDecoder, Conv2dEncoder, tf_glorot_uniform_init
 
+def dreamer_init(m: nn.Module):
+    """Initializes with the standard Keras initializations."""
+    if isinstance(m, nn.GRUCell):
+        torch.nn.init.orthogonal_(m.weight_hh.data, gain=1.0)
+        torch.nn.init.xavier_uniform_(m.weight_ih.data, gain=1.0)
+        torch.nn.init.zeros_(m.bias_ih.data)
+        torch.nn.init.zeros_(m.bias_hh.data)
+    elif isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+        torch.nn.init.xavier_uniform_(m.weight.data, gain=1.0)
+        torch.nn.init.zeros_(m.bias.data)
 
 @dataclass
 class StatesAndBeliefs:
@@ -65,6 +75,7 @@ class BeliefModel(nn.Module):
             nn.Linear(latent_state_size + action_size, belief_size), nn.ReLU()
         )
         self.rnn = torch.nn.GRUCell(belief_size, belief_size)
+        self.apply(dreamer_init)
 
     def forward(
         self,
@@ -83,6 +94,8 @@ class MeanStdSplit(nn.Module):
         super().__init__()
         self.min_std = min_std
         self.latent_state_size = latent_state_size
+        # technically unnecessary to initialize this since it has no learnt params
+        self.apply(dreamer_init)
 
     def forward(self, state_dist_params: torch.Tensor) -> torch.Tensor:
         mean = state_dist_params[:, : self.latent_state_size]
@@ -150,6 +163,7 @@ class PlaNetModel(Model):
             latent_state_size + belief_size, decoder_config[0], decoder_config[1]
         )
 
+        self.apply(dreamer_init)
         self.to(self.device)
 
         self._current_belief_for_sample_method: torch.Tensor = None
