@@ -284,6 +284,7 @@ class PlaNetModel(Model):
             pred_obs,
         ) = self.forward(obs, act)
 
+        obs = obs / 255.0 - 0.5
         reconstruction_loss = (
             F.mse_loss(obs, pred_obs, reduction="none").sum((-1, -2, -3)).mean()
         )
@@ -326,7 +327,7 @@ class PlaNetModel(Model):
         optimizer.zero_grad()
         loss, meta = self.loss(model_in, target)
         loss.backward()
-        nn.utils.clip_grad_norm_(self.parameters(), 1000, norm_type=2)
+        nn.utils.clip_grad_norm_(self.parameters(), 100, norm_type=2)
 
         with torch.no_grad():
             grad_norm = 0.0
