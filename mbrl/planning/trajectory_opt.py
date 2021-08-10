@@ -419,11 +419,11 @@ class ICEMOptimizer(Optimizer):
                     )
 
             # the last dimension is used for temporal correlations
-            population = colorednoise.powerlaw_psd_gaussian(
+            population = mbrl.util.math.powerlaw_psd_gaussian(
                 self.colored_noise_exponent,
                 size=(decay_population_size, x0.shape[1], x0.shape[0]),
-            ).transpose([0, 2, 1])
-            population = torch.Tensor(population).to(device=self.device)
+                device=self.device,
+            ).transpose(1, 2)
             population = torch.clamp(
                 population * torch.sqrt(var) + mu, self.lower_bound, self.upper_bound
             )

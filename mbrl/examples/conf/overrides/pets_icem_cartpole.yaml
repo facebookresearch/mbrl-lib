@@ -1,0 +1,23 @@
+# @package _group_
+env: "cartpole_continuous"
+learned_rewards: false
+trial_length: 200
+num_steps: 1000
+
+num_elites: 5
+model_lr: 7.5e-4
+model_wd: 3e-5
+model_batch_size: 256
+validation_ratio: 0
+freq_train_model: 50
+patience: 25
+num_epochs_train_model: 10
+
+planning_horizon: 10
+cem_num_iters: 5
+cem_elite_ratio: 0.1
+cem_population_size: 200
+cem_population_decay_factor: 1.3
+cem_colored_noise_exponent: 2
+cem_keep_elite_frac: 0.3
+cem_alpha: 0.1
