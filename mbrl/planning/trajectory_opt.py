@@ -394,6 +394,11 @@ class ICEMOptimizer(Optimizer):
                         self.ensemble_size - decay_population_size % self.ensemble_size
                     )
                 elif (
+                    self.elite is None
+                    and decay_population_size % self.ensemble_size == 0
+                ):
+                    pass
+                elif (
                     i == self.num_iterations - 1
                     and (decay_population_size + 1) % self.ensemble_size != 0
                 ):
@@ -402,8 +407,11 @@ class ICEMOptimizer(Optimizer):
                         - (decay_population_size + 1) % self.ensemble_size
                     )
                 elif (
-                    decay_population_size + self.keep_elite_size
-                ) % self.ensemble_size:
+                    i < self.num_iterations - 1
+                    and (decay_population_size + self.keep_elite_size)
+                    % self.ensemble_size
+                    != 0
+                ):
                     decay_population_size += (
                         self.ensemble_size
                         - (decay_population_size + self.keep_elite_size)
