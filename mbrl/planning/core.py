@@ -109,8 +109,10 @@ def complete_agent_cfg(
         agent_cfg.action_ub = env.action_space.high.tolist()
 
     if agent_cfg.optimizer_cfg._target_ == "mbrl.planning.ICEMOptimizer":
-        if env.dynamics_model.model.__module__ == "mbrl.models.gaussian_mlp" and \
-                env.dynamics_model.model.num_members > 1:
+        if (
+            env.dynamics_model.model.__module__ == "mbrl.models.gaussian_mlp"
+            and env.dynamics_model.model.num_members > 1
+        ):
             agent_cfg.optimizer_cfg.round_population = True
             agent_cfg.optimizer_cfg.ensemble_size = env.dynamics_model.model.num_members
         else:
