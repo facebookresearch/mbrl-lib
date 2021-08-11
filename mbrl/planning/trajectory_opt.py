@@ -72,8 +72,8 @@ class CEMOptimizer(Optimizer):
         num_iterations: int,
         elite_ratio: float,
         population_size: int,
-        lower_bound: Sequence[float],
-        upper_bound: Sequence[float],
+        lower_bound: Sequence[Sequence[float]],
+        upper_bound: Sequence[Sequence[float]],
         alpha: float,
         device: torch.device,
         return_mean_elites: bool = False,
@@ -262,7 +262,7 @@ class MPPIOptimizer(Optimizer):
             values[values.isnan()] = -1e-10
 
             if callback is not None:
-                callback(population, values, i)
+                callback(population, values, k)
 
             # weight actions
             weights = torch.reshape(
