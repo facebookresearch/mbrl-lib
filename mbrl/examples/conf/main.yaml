@@ -2,6 +2,7 @@ defaults:
   - algorithm: pets
   - dynamics_model: gaussian_mlp_ensemble
   - overrides: pets_cartpole
+  - action_optimizer: cem
 
 seed: 0
 device: "cuda:0"

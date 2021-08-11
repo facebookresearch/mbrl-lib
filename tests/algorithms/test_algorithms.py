@@ -20,7 +20,7 @@ import mbrl.env as mbrl_env
 
 _TRIAL_LEN = 30
 _NUM_TRIALS_PETS = 5
-_NUM_TRIALS_MBPO = 10
+_NUM_TRIALS_MBPO = 12
 _REW_C = 0.001
 _INITIAL_EXPLORE = 500
 _CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
@@ -84,9 +84,13 @@ def _check_pets(model_type):
     ) as f:
         model_cfg = yaml.safe_load(f)
 
+    with open(_REPO_DIR / _CONF_DIR / "action_optimizer" / "cem.yaml", "r") as f:
+        action_optimizer_cfg = yaml.safe_load(f)
+
     cfg_dict = {
         "algorithm": algorithm_cfg,
         "dynamics_model": model_cfg,
+        "action_optimizer": action_optimizer_cfg,
         "overrides": {
             "learned_rewards": False,
             "num_steps": _NUM_TRIALS_PETS * _TRIAL_LEN,
@@ -126,7 +130,7 @@ def _check_pets(model_type):
 
 
 def _check_pets_mppi(model_type):
-    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets_mppi.yaml", "r") as f:
+    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets.yaml", "r") as f:
         algorithm_cfg = yaml.safe_load(f)
 
     with open(
@@ -134,9 +138,13 @@ def _check_pets_mppi(model_type):
     ) as f:
         model_cfg = yaml.safe_load(f)
 
+    with open(_REPO_DIR / _CONF_DIR / "action_optimizer" / "mppi.yaml", "r") as f:
+        action_optimizer_cfg = yaml.safe_load(f)
+
     cfg_dict = {
         "algorithm": algorithm_cfg,
         "dynamics_model": model_cfg,
+        "action_optimizer": action_optimizer_cfg,
         "overrides": {
             "learned_rewards": False,
             "num_steps": _NUM_TRIALS_PETS * _TRIAL_LEN,
