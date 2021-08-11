@@ -9,8 +9,8 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.fft import irfft, rfftfreq
 from torch.distributions import Normal
+from torch.fft import irfft, rfftfreq
 
 import mbrl.types
 
@@ -302,6 +302,7 @@ def propagate(
         return propagate_expectation(predictions)
     raise ValueError(f"Invalid propagation method {propagation_method}.")
 
+
 # ------------------------------------------------------------------------ #
 # Colored noise generator for iCEM
 # ------------------------------------------------------------------------ #
@@ -316,8 +317,10 @@ def powerlaw_psd_gaussian(exponent, size, device, fmin=0):
     Normalised to unit variance
 
     Args:
-        exponent (float): the power-spectrum of the generated noise is proportional to S(f) = (1 / f)**exponent.
-        size (int or iterable): the output shape and the desired power spectrum is in the last coordinate.
+        exponent (float): the power-spectrum of the generated noise is proportional to
+            S(f) = (1 / f)**exponent.
+        size (int or iterable): the output shape and the desired power spectrum is in the last
+            coordinate.
         device (torch.device): device where computations will be performed.
         fmin (float): low-frequency cutoff. Default: 0 corresponds to original paper.
 
@@ -340,15 +343,15 @@ def powerlaw_psd_gaussian(exponent, size, device, fmin=0):
 
     # Build scaling factors for all frequencies
     s_scale = f
-    fmin = max(fmin, 1. / samples)  # Low frequency cutoff
+    fmin = max(fmin, 1.0 / samples)  # Low frequency cutoff
     ix = torch.sum(s_scale < fmin)  # Index of the cutoff
     if ix and ix < len(s_scale):
         s_scale[:ix] = s_scale[ix]
-    s_scale = s_scale ** (-exponent / 2.)
+    s_scale = s_scale ** (-exponent / 2.0)
 
     # Calculate theoretical output standard deviation from scaling
     w = s_scale[1:].detach().clone()
-    w[-1] *= (1 + (samples % 2)) / 2.  # correct f = +-0.5
+    w[-1] *= (1 + (samples % 2)) / 2.0  # correct f = +-0.5
     sigma = 2 * torch.sqrt(torch.sum(w ** 2)) / samples
 
     # Adjust size to generate one Fourier component per frequency
@@ -366,13 +369,14 @@ def powerlaw_psd_gaussian(exponent, size, device, fmin=0):
 
     # If the signal length is even, frequencies +/- 0.5 are equal
     # so the coefficient must be real.
-    if not (samples % 2): si[..., -1] = 0
+    if not (samples % 2):
+        si[..., -1] = 0
 
     # Regardless of signal length, the DC component must be real
     si[..., 0] = 0
 
     # Combine power + corrected phase to Fourier components
-    s = sr + 1J * si
+    s = sr + 1j * si
 
     # Transform to real time series & scale to unit variance
     y = irfft(s, n=samples, axis=-1) / sigma

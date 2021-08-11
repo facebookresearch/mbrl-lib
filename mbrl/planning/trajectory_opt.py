@@ -289,8 +289,8 @@ class ICEMOptimizer(Optimizer):
             elite (rounds up).
         population_size (int): the size of the population.
         population_decay_factor (float): fixed factor for exponential decrease in population size
-        colored_noise_exponent (float): colored-noise scaling exponent for
-            generating correlated action sequences.
+        colored_noise_exponent (float): colored-noise scaling exponent for generating correlated
+            action sequences.
         lower_bound (sequence of floats): the lower bound for the optimization variables.
         upper_bound (sequence of floats): the upper bound for the optimization variables.
         keep_elite_frac (float): the fraction of elites to keep (or shift) during CEM iterations
@@ -302,9 +302,8 @@ class ICEMOptimizer(Optimizer):
             (must be True for Gaussian MLP ensemble)
         ensemble_size (int): dynamics model ensemble size
 
-    [2] C. Pinneri, S. Sawant, S. Blaes, J. Achterhold,
-    J. Stueckler, M. Rolinek and G, Martius, Georg.
-    "Sample-efficient Cross-Entropy Method for Real-time Planning".
+    [2] C. Pinneri, S. Sawant, S. Blaes, J. Achterhold, J. Stueckler, M. Rolinek and
+    G, Martius, Georg. "Sample-efficient Cross-Entropy Method for Real-time Planning".
     Conference on Robot Learning, 2020.
     """
 

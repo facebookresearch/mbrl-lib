@@ -195,6 +195,7 @@ def test_pets_mppi_gaussian_mlp_ensemble():
 def test_pets_basic_ensemble_deterministic_mlp():
     _check_pets("basic_ensemble")
 
+
 def _check_pets_icem(model_type):
     with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets_icem.yaml", "r") as f:
         algorithm_cfg = yaml.safe_load(f)
