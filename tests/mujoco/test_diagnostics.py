@@ -79,9 +79,12 @@ _MBPO_CFG_DICT["overrides"].update(
 # Extend default config file with information for a trajectory optimizer agent
 with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets.yaml", "r") as f:
     _PETS_ALGO_CFG = yaml.safe_load(f)
+with open(_REPO_DIR / _CONF_DIR / "action_optimizer" / "cem.yaml", "r") as f:
+    _CEM_CFG = yaml.safe_load(f)
 _CFG_DICT["algorithm"].update(_PETS_ALGO_CFG)
 _CFG_DICT["algorithm"]["learned_rewards"] = True
 _CFG_DICT["algorithm"]["agent"]["verbose"] = False
+_CFG_DICT["action_optimizer"] = _CEM_CFG
 _CFG = OmegaConf.create(_CFG_DICT)
 _MBPO_CFG = OmegaConf.create(_MBPO_CFG_DICT)
 
