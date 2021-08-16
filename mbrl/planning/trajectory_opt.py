@@ -72,8 +72,8 @@ class CEMOptimizer(Optimizer):
         num_iterations: int,
         elite_ratio: float,
         population_size: int,
-        lower_bound: Sequence[float],
-        upper_bound: Sequence[float],
+        lower_bound: Sequence[Sequence[float]],
+        upper_bound: Sequence[Sequence[float]],
         alpha: float,
         device: torch.device,
         return_mean_elites: bool = False,
@@ -151,6 +151,129 @@ class CEMOptimizer(Optimizer):
                 best_solution = population[elite_idx[0]].clone()
 
         return mu if self.return_mean_elites else best_solution
+
+
+class MPPIOptimizer(Optimizer):
+    """Implements the Model Predictive Path Integral optimization algorithm.
+
+    A derivation of MPPI can be found at https://arxiv.org/abs/2102.09027
+    This version is closely related to the original TF implementation used in PDDM with
+    some noise sampling modifications and the addition of refinement steps.
+
+    Args:
+        num_iterations (int): the number of iterations (generations) to perform.
+        population_size (int): the size of the population.
+        gamma (float): reward scaling term.
+        sigma (float): noise scaling term used in action sampling.
+        beta (float): correlation term between time steps.
+        lower_bound (sequence of floats): the lower bound for the optimization variables.
+        upper_bound (sequence of floats): the upper bound for the optimization variables.
+        device (torch.device): device where computations will be performed.
+    """
+
+    def __init__(
+        self,
+        num_iterations: int,
+        population_size: int,
+        gamma: float,
+        sigma: float,
+        beta: float,
+        lower_bound: Sequence[Sequence[float]],
+        upper_bound: Sequence[Sequence[float]],
+        device: torch.device,
+    ):
+        super().__init__()
+        self.planning_horizon = len(lower_bound)
+        self.population_size = population_size
+        self.action_dimension = len(lower_bound[0])
+        self.mean = torch.zeros(
+            (self.planning_horizon, self.action_dimension),
+            device=device,
+            dtype=torch.float32,
+        )
+
+        self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
+        self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
+        self.var = sigma ** 2 * torch.ones_like(self.lower_bound)
+        self.beta = beta
+        self.gamma = gamma
+        self.refinements = num_iterations
+        self.device = device
+
+    def optimize(
+        self,
+        obj_fun: Callable[[torch.Tensor], torch.Tensor],
+        x0: Optional[torch.Tensor] = None,
+        callback: Optional[Callable[[torch.Tensor, torch.Tensor, int], None]] = None,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Implementation of MPPI planner.
+        Args:
+            obj_fun (callable(tensor) -> tensor): objective function to maximize.
+            x0 (tensor, optional): Not required
+            callback (callable(tensor, tensor, int) -> any, optional): if given, this
+                function will be called after every iteration, passing it as input the full
+                population tensor, its corresponding objective function values, and
+                the index of the current iteration. This can be used for logging and plotting
+                purposes.
+        Returns:
+            (torch.Tensor): the best solution found.
+        """
+        past_action = self.mean[0]
+        self.mean[:-1] = self.mean[1:].clone()
+
+        for k in range(self.refinements):
+            # sample noise and update constrained variances
+            noise = torch.empty(
+                size=(
+                    self.population_size,
+                    self.planning_horizon,
+                    self.action_dimension,
+                ),
+                device=self.device,
+            )
+            noise = mbrl.util.math.truncated_normal_(noise)
+
+            lb_dist = self.mean - self.lower_bound
+            ub_dist = self.upper_bound - self.mean
+            mv = torch.minimum(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
+            constrained_var = torch.minimum(mv, self.var)
+            population = noise.clone() * torch.sqrt(constrained_var)
+
+            # smoothed actions with noise
+            population[:, 0, :] = (
+                self.beta * (self.mean[0, :] + noise[:, 0, :])
+                + (1 - self.beta) * past_action
+            )
+            for i in range(max(self.planning_horizon - 1, 0)):
+                population[:, i + 1, :] = (
+                    self.beta * (self.mean[i + 1] + noise[:, i + 1, :])
+                    + (1 - self.beta) * population[:, i, :]
+                )
+            # clipping actions
+            # This should still work if the bounds between dimensions are different.
+            population = torch.where(
+                population > self.upper_bound, self.upper_bound, population
+            )
+            population = torch.where(
+                population < self.lower_bound, self.lower_bound, population
+            )
+            values = obj_fun(population)
+            values[values.isnan()] = -1e-10
+
+            if callback is not None:
+                callback(population, values, k)
+
+            # weight actions
+            weights = torch.reshape(
+                torch.exp(self.gamma * (values - values.max())),
+                (self.population_size, 1, 1),
+            )
+            norm = torch.sum(weights) + 1e-10
+            weighted_actions = population * weights
+            self.mean = torch.sum(weighted_actions, dim=0) / norm
+
+        return self.mean.clone()
 
 
 class TrajectoryOptimizer:

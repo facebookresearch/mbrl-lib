@@ -71,6 +71,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_steps", type=int, default=1000)
     parser.add_argument("--samples_per_process", type=int, default=512)
     parser.add_argument("--render", action="store_true")
+    parser.add_argument("--optimizer_type", choices=["cem", "mppi"], default="cem")
     parser.add_argument("--output_dir", type=str, default=None)
     args = parser.parse_args()
 
@@ -81,18 +82,35 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     current_obs = eval_env.reset()
 
-    optimizer_cfg = omegaconf.OmegaConf.create(
-        {
-            "_target_": "mbrl.planning.CEMOptimizer",
-            "device": "cpu",
-            "num_iterations": 5,
-            "elite_ratio": 0.1,
-            "population_size": args.num_processes * args.samples_per_process,
-            "alpha": 0.1,
-            "lower_bound": "???",
-            "upper_bound": "???",
-        }
-    )
+    if args.optimizer_type == "cem":
+        optimizer_cfg = omegaconf.OmegaConf.create(
+            {
+                "_target_": "mbrl.planning.CEMOptimizer",
+                "device": "cpu",
+                "num_iterations": 5,
+                "elite_ratio": 0.1,
+                "population_size": args.num_processes * args.samples_per_process,
+                "alpha": 0.1,
+                "lower_bound": "???",
+                "upper_bound": "???",
+            }
+        )
+    elif args.optimizer_type == "mppi":
+        optimizer_cfg = omegaconf.OmegaConf.create(
+            {
+                "_target_": "mbrl.planning.MPPIOptimizer",
+                "num_iterations": 5,
+                "gamma": 1.0,
+                "population_size": args.num_processes * args.samples_per_process,
+                "sigma": 0.95,
+                "beta": 0.1,
+                "lower_bound": "???",
+                "upper_bound": "???",
+                "device": "cpu",
+            }
+        )
+    else:
+        raise ValueError
 
     controller = mbrl.planning.TrajectoryOptimizer(
         optimizer_cfg,

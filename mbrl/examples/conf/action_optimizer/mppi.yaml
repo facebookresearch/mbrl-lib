@@ -1,0 +1,11 @@
+# @package _group_
+
+_target_: mbrl.planning.MPPIOptimizer
+num_iterations: ${overrides.mppi_num_iters}
+gamma: ${overrides.mppi_gamma}
+population_size: ${overrides.mppi_population_size}
+sigma: ${overrides.mppi_sigma}
+beta: ${overrides.mppi_beta}
+lower_bound: ???
+upper_bound: ???
+device: ${device}

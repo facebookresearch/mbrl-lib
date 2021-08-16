@@ -20,7 +20,7 @@ import mbrl.env as mbrl_env
 
 _TRIAL_LEN = 30
 _NUM_TRIALS_PETS = 5
-_NUM_TRIALS_MBPO = 10
+_NUM_TRIALS_MBPO = 12
 _REW_C = 0.001
 _INITIAL_EXPLORE = 500
 _CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
@@ -84,9 +84,13 @@ def _check_pets(model_type):
     ) as f:
         model_cfg = yaml.safe_load(f)
 
+    with open(_REPO_DIR / _CONF_DIR / "action_optimizer" / "cem.yaml", "r") as f:
+        action_optimizer_cfg = yaml.safe_load(f)
+
     cfg_dict = {
         "algorithm": algorithm_cfg,
         "dynamics_model": model_cfg,
+        "action_optimizer": action_optimizer_cfg,
         "overrides": {
             "learned_rewards": False,
             "num_steps": _NUM_TRIALS_PETS * _TRIAL_LEN,
@@ -125,8 +129,67 @@ def _check_pets(model_type):
     assert max_reward > _TARGET_REWARD
 
 
+def _check_pets_mppi(model_type):
+    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets.yaml", "r") as f:
+        algorithm_cfg = yaml.safe_load(f)
+
+    with open(
+        _REPO_DIR / _CONF_DIR / "dynamics_model" / f"{model_type}.yaml", "r"
+    ) as f:
+        model_cfg = yaml.safe_load(f)
+
+    with open(_REPO_DIR / _CONF_DIR / "action_optimizer" / "mppi.yaml", "r") as f:
+        action_optimizer_cfg = yaml.safe_load(f)
+
+    cfg_dict = {
+        "algorithm": algorithm_cfg,
+        "dynamics_model": model_cfg,
+        "action_optimizer": action_optimizer_cfg,
+        "overrides": {
+            "learned_rewards": False,
+            "num_steps": _NUM_TRIALS_PETS * _TRIAL_LEN,
+            "model_lr": 1e-3,
+            "model_wd": 1e-5,
+            "model_batch_size": 256,
+            "validation_ratio": 0.1,
+            "num_epochs_train_model": 50,
+            "patience": 10,
+            "mppi_population_size": 500,
+            "mppi_num_iters": 5,
+            "mppi_gamma": 1.0,
+            "mppi_sigma": 0.9,
+            "mppi_beta": 0.9,
+            "planning_horizon": 15,
+            "num_elites": 5,
+        },
+        "debug_mode": _DEBUG_MODE,
+        "seed": SEED,
+        "device": device,
+    }
+    cfg = OmegaConf.create(cfg_dict)
+    cfg.algorithm.dataset_size = _TRIAL_LEN * _NUM_TRIALS_PETS + _INITIAL_EXPLORE
+    cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
+    cfg.algorithm.freq_train_model = _TRIAL_LEN
+    if model_type == "basic_ensemble":
+        cfg.dynamics_model.model.member_cfg.deterministic = True
+
+    env = MockLineEnv()
+    term_fn = mbrl_env.termination_fns.no_termination
+    reward_fn = mock_reward_fn
+
+    max_reward = pets.train(
+        env, term_fn, reward_fn, cfg, silent=_SILENT, work_dir=_DIR.name
+    )
+
+    assert max_reward > _TARGET_REWARD
+
+
 def test_pets_gaussian_mlp_ensemble():
     _check_pets("gaussian_mlp_ensemble")
+
+
+def test_pets_mppi_gaussian_mlp_ensemble():
+    _check_pets_mppi("gaussian_mlp_ensemble")
 
 
 def test_pets_basic_ensemble_deterministic_mlp():
