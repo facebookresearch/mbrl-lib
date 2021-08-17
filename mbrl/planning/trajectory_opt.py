@@ -5,7 +5,6 @@
 import time
 from typing import Callable, List, Optional, Sequence, cast
 
-import colorednoise
 import hydra
 import numpy as np
 import omegaconf
@@ -298,7 +297,7 @@ class ICEMOptimizer(Optimizer):
         device (torch.device): device where computations will be performed.
         return_mean_elites (bool): if ``True`` returns the mean of the elites of the last
             iteration. Otherwise, it returns the max solution found over all iterations.
-        round_population (bool): if "True" round population size for  to a multiple of ensemble size
+        round_population (bool): if "True" round population size to be a multiple of ensemble size
             (must be True for Gaussian MLP ensemble)
         ensemble_size (int): dynamics model ensemble size
 
@@ -314,8 +313,8 @@ class ICEMOptimizer(Optimizer):
         population_size: int,
         population_decay_factor: float,
         colored_noise_exponent: float,
-        lower_bound: Sequence[float],
-        upper_bound: Sequence[float],
+        lower_bound: Sequence[Sequence[float]],
+        upper_bound: Sequence[Sequence[float]],
         keep_elite_frac: float,
         alpha: float,
         device: torch.device,
@@ -431,13 +430,18 @@ class ICEMOptimizer(Optimizer):
                 keep_elites = torch.index_select(
                     self.elite,
                     dim=0,
-                    index=torch.randperm(self.elite_num)[: self.keep_elite_size],
+                    index=torch.randperm(self.elite_num, device=self.device)[
+                        : self.keep_elite_size
+                    ],
                 )
                 if i == 0:
-                    end_action = torch.normal(
-                        mu[-1].item(),
-                        torch.sqrt(var[-1]).item(),
-                        size=(keep_elites.shape[0], 1, keep_elites.shape[2]),
+                    end_action = (
+                        torch.normal(
+                            mu[-1, :].repeat(keep_elites.shape[0], 1),
+                            torch.sqrt(var[-1, :]).repeat(keep_elites.shape[0], 1),
+                        )
+                        .unsqueeze(1)
+                        .to(self.device)
                     )
                     keep_elites_shift = torch.cat(
                         (keep_elites[:, 1:, :], end_action), dim=1
