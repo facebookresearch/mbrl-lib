@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from mbrl.types import TransitionBatch
 
 from .model import LossOutput, Model
-from .util import Conv2dDecoder, Conv2dEncoder, tf_glorot_uniform_init
+from .util import Conv2dDecoder, Conv2dEncoder
 
 def dreamer_init(m: nn.Module):
     """Initializes with the standard Keras initializations."""
@@ -327,6 +327,9 @@ class PlaNetModel(Model):
         optimizer.zero_grad()
         loss, meta = self.loss(model_in, target)
         loss.backward()
+        # TODO(eugenevinitsky) this clips by concatenating all params, TF clips
+        # by taking the norm of each element of the params and using the sum of those
+        # norms https://www.tensorflow.org/api_docs/python/tf/clip_by_global_norm
         nn.utils.clip_grad_norm_(self.parameters(), 100, norm_type=2)
 
         with torch.no_grad():
