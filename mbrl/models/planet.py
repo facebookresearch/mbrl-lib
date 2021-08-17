@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torch.distributions
 import torch.nn as nn
@@ -9,7 +10,8 @@ import torch.nn.functional as F
 from mbrl.types import TransitionBatch
 
 from .model import LossOutput, Model
-from .util import Conv2dDecoder, Conv2dEncoder
+from .util import Conv2dDecoder, Conv2dEncoder, to_tensor
+
 
 def dreamer_init(m: nn.Module):
     """Initializes with the standard Keras initializations."""
@@ -385,37 +387,61 @@ class PlaNetModel(Model):
         batch: TransitionBatch,
         deterministic: bool = False,
         rng: Optional[torch.Generator] = None,
-    ) -> Tuple[torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
-            obs, act, *_ = self._process_batch(batch)
+            # Note that, if this is ot, at, then
+            # current_belief should be h_t
+            latent_state, act, *_ = self._process_batch(batch)
 
-            # Forward the transition model
-            (
-                _,
-                _,
-                posterior_dist_params,
-                posterior_sample,
-                next_belief,
-            ) = self._forward_transition_models(
-                obs,
-                act,
-                self._current_latent_for_sample_method,
-                self._current_belief_for_sample_method,
+            next_belief = self.belief_model(
+                latent_state, act, self._current_belief_for_sampling
             )
+            state_dist_params = self.prior_transition_model(next_belief)
+            next_latent = self._sample_state_from_params(
+                state_dist_params, self.rng if rng is None else rng
+            )
+            self._current_belief_for_sampling = next_belief
 
-            pred_next_obs = self._forward_decoder(posterior_sample, next_belief)
+            reward = self.reward_model(torch.cat([next_latent, next_belief], dim=1))
+            return next_latent, reward
 
-            self._current_latent_for_sample_method = posterior_sample
-            self._current_belief_for_sample_method = next_belief
+    def reset(  # type: ignore
+        self, batch: TransitionBatch, rng: Optional[torch.Generator] = None
+    ) -> torch.Tensor:
+        with torch.no_grad():
+            # Initialize latent and belief
+            h0 = torch.zeros(len(batch), self.belief_size, device=self.device)
+            s0 = torch.zeros(len(batch), self.latent_state_size, device=self.device)
+            a0 = torch.zeros(len(batch), self.action_size, device=self.device)
 
-        return pred_next_obs
+            # Compute h1 = belief_model(h0, s0, a0) and s1 ~ q(s1 | h1, o1)
+            _, _, _, posterior_sample, h1 = self._forward_transition_models(
+                to_tensor(batch.obs).to(self.device),
+                s0,
+                a0,
+                h0,
+                only_posterior=True,
+                rng=rng,
+            )
+            self._current_belief_for_sampling = h1
 
-    def reset(self, batch: TransitionBatch, **kwargs) -> torch.Tensor:  # type: ignore
-        # Initialize latent and belief
-        self._current_belief_for_sample_method = torch.zeros(
-            len(batch), self.belief_size, device=self.device
-        )
-        self._current_latent_for_sample_method = torch.zeros(
-            len(batch), self.latent_state_size, device=self.device
-        )
-        return self._current_latent_for_sample_method
+        return posterior_sample
+
+    def render(self, latent_state: torch.Tensor) -> np.ndarray:
+        """Renders an observation from the decoder given a latent state.
+
+        This method assumes the corresponding hidden state of the RNN is stored
+        in ``self._current_belief_for_sampling``.
+
+        Args:
+            latent_state (tensor): the latent state to decode.
+
+        Returns:
+            (np.ndarray): the decoded observation.
+        """
+        with torch.no_grad():
+            pred_obs = self._forward_decoder(
+                latent_state, self._current_belief_for_sampling
+            )
+            img = 255.0 * (pred_obs + 0.5).clamp(0, 255).cpu().numpy()
+            return img.transpose(0, 2, 3, 1).astype(np.uint8)
