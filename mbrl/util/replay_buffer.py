@@ -458,7 +458,7 @@ class ReplayBuffer:
             and done indicators, as numpy arrays, respectively; these will correspond
             to a full trajectory. The i-th transition corresponds
             to (obs[i], act[i], next_obs[i], rewards[i], dones[i])."""
-        if not self.trajectory_indices:
+        if self.trajectory_indices is None or len(self.trajectory_indices) == 0:
             return None
         idx = self._rng.choice(len(self.trajectory_indices))
         indices = np.arange(
