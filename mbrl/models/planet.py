@@ -114,8 +114,10 @@ class PlaNetModel(Model):
         self,
         obs_shape: Tuple[int, int, int],
         obs_encoding_size: int,
-        encoder_config: Tuple[Tuple[int, int, int, int]],
-        decoder_config: Tuple[Tuple[int, int, int], Tuple[Tuple[int, int, int, int]]],
+        encoder_config: Tuple[Tuple[int, int, int, int], ...],
+        decoder_config: Tuple[
+            Tuple[int, int, int], Tuple[Tuple[int, int, int, int], ...]
+        ],
         latent_state_size: int,
         action_size: int,
         belief_size: int,
