@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import pathlib
 import pickle
-from typing import List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -308,7 +308,12 @@ def propagate(
 # ------------------------------------------------------------------------ #
 # Generate colored noise (Gaussian distributed noise with a power law spectrum)
 # Adapted from colorednoise package, credit: https://github.com/felixpatzelt/colorednoise
-def powerlaw_psd_gaussian(exponent, size, device, fmin=0):
+def powerlaw_psd_gaussian(
+    exponent: float,
+    size: Union[int, Iterable[int]],
+    device: torch.device,
+    fmin: float = 0,
+):
     """Gaussian (1/f)**beta noise.
 
     Based on the algorithm in: Timmer, J. and Koenig, M.:On generating power law noise.
@@ -329,10 +334,10 @@ def powerlaw_psd_gaussian(exponent, size, device, fmin=0):
     """
 
     # Make sure size is a list so we can iterate it and assign to it.
-    try:
-        size = list(size)
-    except TypeError:
+    if isinstance(size, int):
         size = [size]
+    else:
+        size = list(size)
 
     # The number of samples in each time series
     samples = size[-1]

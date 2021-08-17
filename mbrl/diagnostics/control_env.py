@@ -71,7 +71,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_steps", type=int, default=1000)
     parser.add_argument("--samples_per_process", type=int, default=512)
     parser.add_argument("--render", action="store_true")
-    parser.add_argument("--optimizer_type", choices=["cem", "mppi"], default="cem")
+    parser.add_argument(
+        "--optimizer_type", choices=["cem", "icem", "mppi"], default="cem"
+    )
     parser.add_argument("--output_dir", type=str, default=None)
     args = parser.parse_args()
 
@@ -109,6 +111,25 @@ if __name__ == "__main__":
                 "device": "cpu",
             }
         )
+    elif args.optimizer_type == "icem":
+        optimizer_cfg = omegaconf.OmegaConf.create(
+            {
+                "_target_": "mbrl.planning.ICEMOptimizer",
+                "num_iterations": 5,
+                "elite_ratio": 0.1,
+                "population_size": args.num_processes * args.samples_per_process,
+                "population_decay_factor": 1.1,
+                "colored_noise_exponent": 2,
+                "keep_elite_frac": 0.1,
+                "alpha": 0.1,
+                "lower_bound": "???",
+                "upper_bound": "???",
+                "return_mean_elites": "true",
+                "round_population": "false",
+                "ensemble_size": "1",
+                "device": "cpu",
+            }
+        )
     else:
         raise ValueError
 
@@ -125,13 +146,13 @@ if __name__ == "__main__":
 
         total_reward__ = 0
         frames = []
+        max_population_size = optimizer_cfg.population_size
+        if isinstance(controller.optimizer, mbrl.planning.ICEMOptimizer):
+            max_population_size += controller.optimizer.keep_elite_size
         value_history = np.zeros(
-            (
-                args.num_steps,
-                optimizer_cfg.population_size,
-                optimizer_cfg.num_iterations,
-            )
+            (args.num_steps, max_population_size, optimizer_cfg.num_iterations)
         )
+        values_sizes = []  # for icem
         for t in range(args.num_steps):
             if args.render:
                 frames.append(eval_env.render(mode="rgb_array"))
@@ -151,7 +172,8 @@ if __name__ == "__main__":
             best_value = [0]  # this is hacky, sorry
 
             def compute_population_stats(_population, values, opt_step):
-                value_history[t, :, opt_step] = values.numpy()
+                value_history[t, : len(values), opt_step] = values.numpy()
+                values_sizes.append(len(values))
                 best_value[0] = max(best_value[0], values.max().item())
 
             plan = controller.optimize(
@@ -164,11 +186,13 @@ if __name__ == "__main__":
 
             print(
                 f"step: {t}, time: {time.time() - start: .3f}, "
-                f"reward: {reward__: .3f}, pred_value: {best_value[0]: .3f}"
+                f"reward: {reward__: .3f}, pred_value: {best_value[0]: .3f}, "
+                f"total_reward: {total_reward__: .3f}"
             )
 
         output_dir = pathlib.Path(args.output_dir)
-        pathlib.Path.mkdir(output_dir, exist_ok=True)
+        output_dir = output_dir / args.env / args.optimizer_type
+        pathlib.Path.mkdir(output_dir, exist_ok=True, parents=True)
 
         if args.render:
             frames_np = np.stack(frames)
