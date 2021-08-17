@@ -22,6 +22,7 @@ def dreamer_init(m: nn.Module):
         torch.nn.init.xavier_uniform_(m.weight.data, gain=1.0)
         torch.nn.init.zeros_(m.bias.data)
 
+
 @dataclass
 class StatesAndBeliefs:
     all_prior_dist_params: List[torch.Tensor]  # mean+std concat
@@ -124,6 +125,7 @@ class PlaNetModel(Model):
     ):
         super().__init__(device)
         self.obs_shape = obs_shape
+        self.action_size = action_size
         self.latent_state_size = latent_state_size
         self.belief_size = belief_size
         self.free_nats_for_kl = free_nats_for_kl * torch.ones(1).to(device)
@@ -163,11 +165,18 @@ class PlaNetModel(Model):
             latent_state_size + belief_size, decoder_config[0], decoder_config[1]
         )
 
+        self.reward_model = nn.Sequential(
+            nn.Linear(belief_size + latent_state_size, hidden_size_fcs),
+            nn.ReLU(),
+            nn.Linear(hidden_size_fcs, hidden_size_fcs),
+            nn.ReLU(),
+            nn.Linear(hidden_size_fcs, 1),
+        )
+
         self.apply(dreamer_init)
         self.to(self.device)
 
-        self._current_belief_for_sample_method: torch.Tensor = None
-        self._current_latent_for_sample_method: torch.Tensor = None
+        self._current_belief_for_sampling: torch.Tensor = None
 
     def _sample_state_from_params(self, params: torch.Tensor) -> torch.Tensor:
         mean = params[:, : self.latent_state_size]
@@ -218,7 +227,12 @@ class PlaNetModel(Model):
 
     # This should be a batch of trajectories (e.g, obs shape == BS x Time x Obs_DIM)
     def forward(  # type: ignore
-        self, obs: torch.Tensor, act: torch.Tensor, *args, **kwargs
+        self,
+        obs: torch.Tensor,
+        act: torch.Tensor,
+        rewards: torch.Tensor,
+        *args,
+        **kwargs
     ) -> Tuple[torch.Tensor, ...]:
         batch_size, trajectory_length, *_ = obs.shape
         states_and_beliefs = StatesAndBeliefs()  # this will collect all the variables
@@ -226,7 +240,7 @@ class PlaNetModel(Model):
             batch_size, self.latent_state_size, device=self.device
         )
         current_belief = torch.zeros(batch_size, self.belief_size, device=self.device)
-        current_action = torch.zeros(batch_size, act.shape[-1], device=self.device)
+        current_action = torch.zeros(batch_size, self.action_size, device=self.device)
         prior_dist_params = torch.zeros(
             batch_size, 2 * self.latent_state_size, device=self.device
         )
@@ -238,6 +252,7 @@ class PlaNetModel(Model):
             belief=current_belief,
         )
         pred_obs = torch.empty_like(obs)
+        pred_rewards = torch.empty_like(rewards)
         for t_step in range(trajectory_length):
             (
                 prior_dist_params,
@@ -249,6 +264,9 @@ class PlaNetModel(Model):
                 obs[:, t_step], current_action, current_latent_state, current_belief
             )
             pred_obs[:, t_step] = self._forward_decoder(posterior_sample, next_belief)
+            pred_rewards[:, t_step] = self.reward_model(
+                torch.cat([posterior_sample, next_belief], dim=1)
+            ).squeeze()
 
             # Update current state for next time step
             current_latent_state = prior_sample
@@ -264,7 +282,7 @@ class PlaNetModel(Model):
                 belief=next_belief,
             )
 
-        return states_and_beliefs.as_stacked_tuple() + (pred_obs,)
+        return states_and_beliefs.as_stacked_tuple() + (pred_obs, pred_rewards)
 
     def loss(
         self,
@@ -273,7 +291,7 @@ class PlaNetModel(Model):
         reduce: bool = True,
     ) -> LossOutput:
 
-        obs, act, *_ = self._process_batch(batch)
+        obs, act, _, rewards, _ = self._process_batch(batch)
 
         (
             prior_dist_params,
@@ -282,12 +300,14 @@ class PlaNetModel(Model):
             posterior_states,
             beliefs,
             pred_obs,
-        ) = self.forward(obs, act)
+            pred_rewards,
+        ) = self.forward(obs, act, rewards)
 
         obs = obs / 255.0 - 0.5
         reconstruction_loss = (
-            F.mse_loss(obs, pred_obs, reduction="none").sum((-1, -2, -3)).mean()
+            F.mse_loss(pred_obs, obs, reduction="none").sum((-1, -2, -3)).mean()
         )
+        reward_loss = F.mse_loss(pred_rewards, rewards)
 
         # ------------------ Computing KL[q || p] ------------------
         # [1:] indexing because for each batch the first time index has all zero params
@@ -312,10 +332,11 @@ class PlaNetModel(Model):
         meta = {
             "reconstruction": pred_obs.detach(),
             "reconstruction_loss": reconstruction_loss.item(),
+            "reward_loss": reward_loss.item(),
             "kl_loss": kl_loss.item(),
         }
 
-        return reconstruction_loss + self.kl_scale * kl_loss, meta
+        return reconstruction_loss + reward_loss + self.kl_scale * kl_loss, meta
 
     def update(
         self,
