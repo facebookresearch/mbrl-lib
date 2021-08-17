@@ -12,8 +12,8 @@ import torch
 import torch.nn as nn
 
 import mbrl.models
-import mbrl.util.replay_buffer
 import mbrl.models.util as model_utils
+import mbrl.util.replay_buffer
 from mbrl.env.termination_fns import no_termination
 from mbrl.types import TransitionBatch
 
@@ -387,7 +387,7 @@ def test_model_env_evaluate_action_sequences():
             expected_returns = horizon * (horizon + 1) * action_sequences[..., 0, 0] / 2
             returns = model_env.evaluate_action_sequences(
                 action_sequences,
-                np.zeros((1, _MOCK_OBS_DIM)),
+                np.zeros(_MOCK_OBS_DIM),
                 num_particles=num_particles,
             )
             assert torch.allclose(expected_returns, returns)

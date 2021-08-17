@@ -10,7 +10,7 @@ import torch
 
 import mbrl.types
 
-from . import one_dim_tr_model
+from . import Model
 
 
 class ModelEnv:
@@ -37,7 +37,7 @@ class ModelEnv:
     def __init__(
         self,
         env: gym.Env,
-        model: one_dim_tr_model.OneDTransitionRewardModel,
+        model: Model,
         termination_fn: mbrl.types.TermFnType,
         reward_fn: Optional[mbrl.types.RewardFnType] = None,
         generator: Optional[torch.Generator] = None,
@@ -75,7 +75,8 @@ class ModelEnv:
         Returns:
             (dict(str, tensor)): the model state returned by `self.dynamics_model.reset()`.
         """
-        assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
+        if isinstance(self.dynamics_model, mbrl.models.OneDTransitionRewardModel):
+            assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         model_state = self.dynamics_model.reset(
             initial_obs_batch.astype(np.float32), rng=self._rng
         )
@@ -160,13 +161,13 @@ class ModelEnv:
             (torch.Tensor): the accumulated reward for each action sequence, averaged over its
             particles.
         """
-        assert (
-            len(action_sequences.shape) == 3
-        )  # population_size, horizon, action_shape
+        assert len(action_sequences.shape) == 3
         population_size, horizon, action_dim = action_sequences.shape
-        initial_obs_batch = np.tile(
-            initial_state, (num_particles * population_size, 1)
-        ).astype(np.float32)
+        assert initial_state.ndim in (1, 3)
+        tiling_shape = (num_particles * population_size,) + tuple(
+            [1] * initial_state.ndim
+        )
+        initial_obs_batch = np.tile(initial_state, tiling_shape).astype(np.float32)
         model_state = self.reset(initial_obs_batch, return_as_np=False)
         batch_size = initial_obs_batch.shape[0]
         total_rewards = torch.zeros(batch_size, 1).to(self.device)
