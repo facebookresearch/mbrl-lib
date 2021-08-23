@@ -121,8 +121,9 @@ class OneDTransitionRewardModel(Model):
         action = model_util.to_tensor(action).to(self.device)
         model_in = torch.cat([obs, action], dim=obs.ndim - 1)
         if self.input_normalizer:
-            model_in = self.input_normalizer.normalize(model_in).float()
-        return model_in, obs, action
+            # Normalizer lives on device
+            model_in = self.input_normalizer.normalize(model_in).float().to(self.device)
+        return model_in, obs.float(), action.float()
 
     def _process_batch(
         self, batch: mbrl.types.TransitionBatch, _as_float: bool = False
@@ -142,7 +143,7 @@ class OneDTransitionRewardModel(Model):
             target = torch.cat([target_obs, reward], dim=obs.ndim - 1)
         else:
             target = target_obs
-        return model_in, target
+        return model_in.float(), target.float()
 
     def forward(self, x: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Calls forward method of base model with the given input and args."""
