@@ -17,12 +17,12 @@ from mbrl.third_party.dmc2gym.wrappers import DMCWrapper
 from mbrl.util import Logger, ReplayBuffer
 from mbrl.util.common import get_sequence_buffer_iterator, rollout_agent_trajectories
 
-LOG_FORMAT = [
+META_LOG_FORMAT = [
     ("reconstruction_loss", "OL", "float"),
     ("reward_loss", "RL", "float"),
     ("gradient_norm", "GN", "float"),
     ("kl_loss", "KL", "float"),
-] + mbrl.constants.EVAL_LOG_FORMAT
+]
 
 device = "cuda:0"
 
@@ -50,6 +50,7 @@ num_initial_trajectories = 5
 agent_noise = 0.3
 free_nats = 3
 kl_scale = 1.0
+test_frequency = 25
 agent_cfg = omegaconf.OmegaConf.create(
     {
         "_target_": "mbrl.planning.TrajectoryOptimizerAgent",
@@ -133,22 +134,44 @@ def batch_callback(_epoch, _loss, meta, _mode):
         grad_norms.append(meta["grad_norm"])
 
 
-exp_name = f"free_nats_{free_nats}__kl_scale_{kl_scale}"
+exp_name = f"third_try___ngu{num_grad_updates}"
 save_dir = (
     pathlib.Path("/checkpoint/lep/mbrl/planet/dm_cheetah_run/full_model") / exp_name
 )
+
 save_dir.mkdir(exist_ok=True, parents=True)
 
 logger = Logger(save_dir)
 trainer = ModelTrainer(planet, logger=logger, optim_lr=1e-3, optim_eps=1e-4)
-logger.register_group(mbrl.constants.RESULTS_LOG_NAME, LOG_FORMAT, color="green")
+logger.register_group("meta", META_LOG_FORMAT, color="yellow")
+logger.register_group(
+    mbrl.constants.RESULTS_LOG_NAME, mbrl.constants.EVAL_LOG_FORMAT, color="green"
+)
 
 next_obs = None
 episode_reward = None
 random_agent = RandomAgent(env)
 done = True
+# start of loop will train, then increase this to 0
+current_episode = -1
+
+
+def is_test_episode(episode_):
+    return episode_ >= 0 and (episode_ % test_frequency == 0)
+
+
 for step in range(num_steps):
     if done:
+        # this refers to the episode that just finished
+        if is_test_episode(current_episode):
+            logger.log_data(
+                mbrl.constants.RESULTS_LOG_NAME,
+                {
+                    "episode_reward": episode_reward or 0.0,
+                    "env_step": step,
+                },
+            )
+
         obs = env.reset()
         agent.reset()
 
@@ -168,26 +191,28 @@ for step in range(num_steps):
         replay_buffer.save(save_dir)
 
         logger.log_data(
-            mbrl.constants.RESULTS_LOG_NAME,
+            "meta",
             {
                 "reconstruction_loss": np.mean(rec_losses),
                 "reward_loss": np.mean(reward_losses),
                 "gradient_norm": np.mean(grad_norms),
                 "kl_loss": np.mean(kl_losses),
-                "episode_reward": episode_reward or 0.0,
-                "env_step": step,
             },
         )
         print(f"num_batches: {len(rec_losses)}")
         clear_log_containers()
 
         episode_reward = 0
+        current_episode += 1
     else:
         obs = next_obs
 
-    action = agent.act(obs) + agent_noise * np_rng.standard_normal(
-        env.action_space.shape[0]
+    action_noise = (
+        0
+        if is_test_episode(current_episode)
+        else agent_noise * np_rng.standard_normal(env.action_space.shape[0])
     )
+    action = agent.act(obs) + agent_noise
     action = np.clip(action, -1.0, 1.0)
     next_obs, reward, done, info = env.step(action)
     replay_buffer.add(obs, action, next_obs, reward, done)
