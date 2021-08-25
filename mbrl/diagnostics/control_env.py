@@ -64,7 +64,7 @@ def get_random_trajectory(horizon):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="dmcontrol___cheetah--run")
+    parser.add_argument("--env", type=str, default="robo___HandManipulateBlock-v0")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--control_horizon", type=int, default=30)
     parser.add_argument("--num_processes", type=int, default=1)
@@ -96,14 +96,18 @@ if __name__ == "__main__":
             }
         )
     elif args.optimizer_type == "mppi":
+        # some suggestions for the configuration
+        # good values for gym___HalfCheetah-v2: gamma 4.0, sigma 0.5, beta 0.9
+        # values for gym___Humanoid-v2: gamma 2.0, sigma 0.5, beta 0.9
+        # values for robo___HandManipulateBlock-v0: gamma 10.0, sigma 0.3, beta 0.1
         optimizer_cfg = omegaconf.OmegaConf.create(
             {
                 "_target_": "mbrl.planning.MPPIOptimizer",
                 "num_iterations": 5,
-                "gamma": 1.0,
+                "gamma": 4.0,
                 "population_size": args.num_processes * args.samples_per_process,
-                "sigma": 0.95,
-                "beta": 0.1,
+                "sigma": 0.5,
+                "beta": 0.9,
                 "lower_bound": "???",
                 "upper_bound": "???",
                 "device": "cpu",
@@ -148,7 +152,7 @@ if __name__ == "__main__":
                     current_state__,
                 )
 
-            best_value = [0]  # this is hacky, sorry
+            best_value = [-1000]  # this is hacky, sorry
 
             def compute_population_stats(_population, values, opt_step):
                 value_history[t, :, opt_step] = values.numpy()

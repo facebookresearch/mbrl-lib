@@ -152,6 +152,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
         env = dmc2gym.make(domain_name=domain, task_name=task)
     elif "gym___" in env_name:
         env = gym.make(env_name.split("___")[1])
+    elif "robo___" in env_name:
+        env = gym.make(env_name.split("___")[1], reward_type="dense")
     else:
         import mbrl.env.mujoco_envs
 
@@ -211,8 +213,19 @@ class freeze_mujoco_env:
         elif "mbrl.third_party.dmc2gym" in self._env.env.__class__.__module__:
             self._enter_method = self._enter_dmcontrol
             self._exit_method = self._exit_dmcontrol
+        elif "gym.envs.robotics" in self._env.env.__class__.__module__:
+            self._enter_method = self._enter_mujoco_gym_robo
+            self._exit_method = self._exit_mujoco_gym_robo
         else:
             raise RuntimeError("Tried to freeze an unsupported environment.")
+
+    def _enter_mujoco_gym_robo(self):
+        self._init_state = self._env.unwrapped.sim.get_state()
+        self._elapsed_steps = self._env._elapsed_steps
+
+    def _exit_mujoco_gym_robo(self):
+        self._env.unwrapped.sim.set_state(self._init_state)
+        self._env._elapsed_steps = self._elapsed_steps
 
     def _enter_mujoco_gym(self):
         self._init_state = (
@@ -273,6 +286,9 @@ def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
         elapsed_steps = env._elapsed_steps
         step_count = env.env._env._step_count
         return state, elapsed_steps, step_count
+    elif "gym.envs.robotics" in env.env.__class__.__module__:
+        elapsed_steps = env._elapsed_steps
+        return env.unwrapped.sim.get_state(), elapsed_steps
     else:
         raise NotImplementedError(
             "Only gym mujoco and dm_control environments supported."
@@ -299,6 +315,9 @@ def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
             env.env._env.physics.set_state(state[0])
             env._elapsed_steps = state[1]
             env.env._env._step_count = state[2]
+    elif "gym.envs.robotics" in env.env.__class__.__module__:
+        env.unwrapped.sim.set_state(state[0])
+        env._elapsed_steps = state[1]
     else:
         raise NotImplementedError(
             "Only gym mujoco and dm_control environments supported."

@@ -19,6 +19,6 @@ num_epochs_train_model: 25
 planning_horizon: 30
 mppi_num_iters: 5
 mppi_population_size: 350
-mppi_gamma: 0.9
-mppi_sigma: 1.0
+mppi_gamma: 4.0
+mppi_sigma: 0.5
 mppi_beta: 0.9

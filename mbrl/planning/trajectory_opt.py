@@ -194,7 +194,7 @@ class MPPIOptimizer(Optimizer):
 
         self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
-        self.var = sigma ** 2 * torch.ones_like(self.lower_bound)
+        self.sigma = sigma * torch.ones_like(self.lower_bound)
         self.beta = beta
         self.gamma = gamma
         self.refinements = num_iterations
@@ -233,12 +233,8 @@ class MPPIOptimizer(Optimizer):
                 device=self.device,
             )
             noise = mbrl.util.math.truncated_normal_(noise)
-
-            lb_dist = self.mean - self.lower_bound
-            ub_dist = self.upper_bound - self.mean
-            mv = torch.minimum(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
-            constrained_var = torch.minimum(mv, self.var)
-            population = noise.clone() * torch.sqrt(constrained_var)
+            population = noise.clone()
+            noise = noise.clone() * self.sigma
 
             # smoothed actions with noise
             population[:, 0, :] = (
