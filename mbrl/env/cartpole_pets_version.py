@@ -1,12 +1,11 @@
-from __future__ import absolute_import, division, print_function
-
 import os
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+import torch
 
 
-class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class CartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
 
     def __init__(self):
@@ -18,9 +17,9 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
 
-        cost_lscale = CartpoleEnv.PENDULUM_LENGTH
+        cost_lscale = CartPoleEnv.PENDULUM_LENGTH
         reward = np.exp(
-            -np.sum(np.square(self._get_ee_pos(ob) - np.array([0.0, CartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
+            -np.sum(np.square(self._get_ee_pos(ob) - np.array([0.0, CartPoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
         )
         reward -= 0.01 * np.sum(np.square(a))
 
@@ -40,9 +39,17 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_ee_pos(x):
         x0, theta = x[0], x[1]
         return np.array([
-            x0 - CartpoleEnv.PENDULUM_LENGTH * np.sin(theta),
-            -CartpoleEnv.PENDULUM_LENGTH * np.cos(theta)
+            x0 - CartPoleEnv.PENDULUM_LENGTH * np.sin(theta),
+            -CartPoleEnv.PENDULUM_LENGTH * np.cos(theta)
         ])
+    
+    @staticmethod
+    def preprocess_fn(state):
+        if isinstance(state, np.ndarray):
+            return np.concatenate([np.sin(state[:, 1:2]), np.cos(state[:, 1:2]), state[:, :1], state[:, 2:]], axis=1)
+        if isinstance(state, torch.Tensor):
+            return torch.concat([torch.sin(state[:, 1:2]), torch.cos(state[:, 1:2]), state[:, :1], state[:, 2:]], axis=1)
+        raise ValueError("Invalid state type (must be np.ndarray or torch.Tensor).")
 
     def viewer_setup(self):
         v = self.viewer
