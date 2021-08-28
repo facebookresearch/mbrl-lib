@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import torch
+import numpy as np
 
 from . import termination_fns
 
@@ -16,7 +17,12 @@ def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 def cartpole_pets(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
 
-    return (~termination_fns.cartpole_pets(act, next_obs)).float().view(-1, 1)
+    obs_cost = -torch.exp(
+        -torch.sum(torch.square(next_obs[:, 0]) - torch.tensor([0.0, 0.6])), axis=1
+        ) / (0.6 ** 2)
+    act_cost = 0.01 * torch.sum(torch.square(act), axis=1)
+
+    return (obs_cost + act_cost).view(-1, 1)
 
 
 def inverted_pendulum(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
