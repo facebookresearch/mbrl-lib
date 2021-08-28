@@ -56,7 +56,7 @@ class GaussianMLP(Ensemble):
                           input -h1-> -h2-> -l3-> output).
         ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
-        use_silu (bool): if ``True``, hidden layers will use SiLU activations, otherwise
+        use_silu (bool) (depricated, use activation_cls instead): if ``True``, hidden layers will use SiLU activations, otherwise
                          ReLU activations will be used. Defaults to ``False``.
         deterministic (bool): if ``True``, the model will be trained using MSE loss and no
             logvar prediction will be done. Defaults to ``False``.
@@ -64,6 +64,8 @@ class GaussianMLP(Ensemble):
             above). Defaults to ``None``.
         learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
             they will be constant. Defaults to ``False``.
+        activation_name (str, optional): name of the activation function to use from torch.nn. Defaults to ``ReLU``.
+        activation_params (list, optinal): list of parameteres, if required, for the chosen activation as per the definition in torch.nn. Defaults to None. (e.g., activation_name = ``Threshold``, activation_params = [0.5,10] (threshold, value))
     """
 
     # TODO integrate this with the checkpoint in the next version
@@ -81,6 +83,8 @@ class GaussianMLP(Ensemble):
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
         learn_logvar_bounds: bool = False,
+        activation_name: str = "ReLU",
+        activation_params: list = None,
     ):
         super().__init__(
             ensemble_size, device, propagation_method, deterministic=deterministic
@@ -89,19 +93,27 @@ class GaussianMLP(Ensemble):
         self.in_size = in_size
         self.out_size = out_size
 
-        activation_cls = nn.SiLU if use_silu else nn.ReLU
+        if use_silu:
+            warnings.warn("use_silu is deprecated and will be removed.
+                          Use activation_name = 'SiLU' instead.")
+            activation_func = nn.SiLU()
+
+        if activation_name == "ReLU" and not use_silu:
+            activation_func = nn.ReLU()
+        else:
+            activation_func = self._get_activation_func(activation_name,activation_params)
 
         def create_linear_layer(l_in, l_out):
             return EnsembleLinearLayer(ensemble_size, l_in, l_out)
 
         hidden_layers = [
-            nn.Sequential(create_linear_layer(in_size, hid_size), activation_cls())
+            nn.Sequential(create_linear_layer(in_size, hid_size), activation_func)
         ]
         for i in range(num_layers - 1):
             hidden_layers.append(
                 nn.Sequential(
                     create_linear_layer(hid_size, hid_size),
-                    activation_cls(),
+                    activation_func,
                 )
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
@@ -124,6 +136,12 @@ class GaussianMLP(Ensemble):
 
         self._propagation_indices: torch.Tensor = None
 
+    def _get_activation_func(self,activation_name, activation_params):
+        activation_func = getattr(nn,activation_name)
+        if activation_params is None:
+            return activation_func()
+        return activation_func(*activation_params)
+    
     def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
         if self.elite_models is None:
             return
