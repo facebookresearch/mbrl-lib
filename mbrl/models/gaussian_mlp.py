@@ -7,6 +7,8 @@ import pickle
 import warnings
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import hydra
+import omegaconf
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -56,16 +58,16 @@ class GaussianMLP(Ensemble):
                           input -h1-> -h2-> -l3-> output).
         ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
-        use_silu (bool) (depricated, use activation_name instead): if ``True``, hidden layers will use SiLU activations, otherwise
-                         ReLU activations will be used. Defaults to ``False``.
+        use_silu (bool) (depricated, use activation_fn_cfg instead): if ``True``, hidden layers will
+            use SiLU activations, otherwise ReLU activations will be used. Defaults to ``False``.
         deterministic (bool): if ``True``, the model will be trained using MSE loss and no
             logvar prediction will be done. Defaults to ``False``.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
         learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
             they will be constant. Defaults to ``False``.
-        activation_name (str, optional): name of the activation function to use from torch.nn. Defaults to ``ReLU``.
-        activation_params (list, optinal): list of parameteres, if required, for the chosen activation as per the definition in torch.nn. Defaults to None. (e.g., activation_name = ``Threshold``, activation_params = [0.5,10] (threshold, value))
+        activation_fn_cfg (omegaconf.DictConfig, optional): config function needed to instantiate
+            desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
 
     # TODO integrate this with the checkpoint in the next version
@@ -83,8 +85,7 @@ class GaussianMLP(Ensemble):
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
         learn_logvar_bounds: bool = False,
-        activation_name: str = "ReLU",
-        activation_params: list = None,
+        activation_fn_cfg: omegaconf.DictConfig = None,
     ):
         super().__init__(
             ensemble_size, device, propagation_method, deterministic=deterministic
@@ -94,14 +95,14 @@ class GaussianMLP(Ensemble):
         self.out_size = out_size
 
         if use_silu:
-            warnings.warn("use_silu is deprecated and will be removed.
-                          Use activation_name = 'SiLU' instead.")
-            activation_func = nn.SiLU()
+            warnings.warn(
+                "use_silu is deprecated and will be removed. Use activation_name = 'SiLU' instead."
+            )
 
-        if activation_name == "ReLU" and not use_silu:
+        if activation_fn_cfg is None:
             activation_func = nn.ReLU()
         else:
-            activation_func = self._get_activation_func(activation_name,activation_params)
+            activation_func = hydra.utils.instantiate(activation_fn_cfg)
 
         def create_linear_layer(l_in, l_out):
             return EnsembleLinearLayer(ensemble_size, l_in, l_out)
@@ -136,12 +137,6 @@ class GaussianMLP(Ensemble):
 
         self._propagation_indices: torch.Tensor = None
 
-    def _get_activation_func(self,activation_name, activation_params):
-        activation_func = getattr(nn,activation_name)
-        if activation_params is None:
-            return activation_func()
-        return activation_func(*activation_params)
-    
     def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
         if self.elite_models is None:
             return
