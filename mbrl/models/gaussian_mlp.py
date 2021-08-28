@@ -56,7 +56,7 @@ class GaussianMLP(Ensemble):
                           input -h1-> -h2-> -l3-> output).
         ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
-        use_silu (bool) (depricated, use activation_cls instead): if ``True``, hidden layers will use SiLU activations, otherwise
+        use_silu (bool) (depricated, use activation_name instead): if ``True``, hidden layers will use SiLU activations, otherwise
                          ReLU activations will be used. Defaults to ``False``.
         deterministic (bool): if ``True``, the model will be trained using MSE loss and no
             logvar prediction will be done. Defaults to ``False``.
