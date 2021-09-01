@@ -87,6 +87,10 @@ def make_env(
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
             term_fn = mbrl.env.termination_fns.cartpole
             reward_fn = mbrl.env.reward_fns.cartpole
+        elif cfg.overrides.env == "cartpole_pets_version":
+            env = mbrl.env.mujoco_envs.CartPoleEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = mbrl.env.reward_fns.cartpole_pets
         elif cfg.overrides.env == "pets_halfcheetah":
             env = mbrl.env.mujoco_envs.HalfCheetahEnv()
             term_fn = mbrl.env.termination_fns.no_termination
@@ -157,6 +161,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
 
         if env_name == "cartpole_continuous":
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
+        elif env_name == "pets_cartpole":
+            env = mbrl.env.mujoco_envs.CartPoleEnv()
         elif env_name == "pets_halfcheetah":
             env = mbrl.env.mujoco_envs.HalfCheetahEnv()
         elif env_name == "pets_reacher":
