@@ -7,7 +7,8 @@ model:
   out_size: ???
   ensemble_size: 7
   hid_size: 200
-  use_silu: true
   deterministic: false
   propagation_method: random_model
   learn_logvar_bounds: false  # so far this works better
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU

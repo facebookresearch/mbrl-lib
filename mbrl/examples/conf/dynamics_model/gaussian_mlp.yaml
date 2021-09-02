@@ -7,5 +7,5 @@ model:
   out_size: ???
   ensemble_size: 1
   hid_size: 200
-  use_silu: true
+  use_silu: False 
   deterministic: false
