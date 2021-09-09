@@ -284,6 +284,31 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">True</s
 </dd></dl>
 
 <dl class="py function">
+<dt id="mbrl.util.math.powerlaw_psd_gaussian">
+<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">powerlaw_psd_gaussian</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">exponent</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">size</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>Iterable<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">device</span><span class="p">:</span> <span class="n">torch.device</span></em>, <em class="sig-param"><span class="n">fmin</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.powerlaw_psd_gaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gaussian (1/f)**beta noise.</p>
+<p>Based on the algorithm in: Timmer, J. and Koenig, M.:On generating power law noise.
+Astron. Astrophys. 300, 707-710 (1995)</p>
+<p>Normalised to unit variance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>exponent</strong> (<em>float</em>) – the power-spectrum of the generated noise is proportional to
+S(f) = (1 / f)**exponent.</p></li>
+<li><p><strong>size</strong> (<em>int</em><em> or </em><em>iterable</em>) – the output shape and the desired power spectrum is in the last
+coordinate.</p></li>
+<li><p><strong>device</strong> (<em>torch.device</em>) – device where computations will be performed.</p></li>
+<li><p><strong>fmin</strong> (<em>float</em>) – low-frequency cutoff. Default: 0 corresponds to original paper.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Returns</dt><dd><p>(torch.Tensor): The samples.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt id="mbrl.util.math.propagate">
 <code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">propagate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">predictions</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">propagation_method</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'expectation'</span></em>, <em class="sig-param"><span class="n">propagation_indices</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>torch.Tensor<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>torch.Tensor<span class="p">, </span><span class="p">…</span><span class="p">]</span><a class="headerlink" href="#mbrl.util.math.propagate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Propagates ensemble outputs according to desired method.</p>

@@ -186,7 +186,7 @@
 <code class="sig-prename descclassname">mbrl.util.common.</code><code class="sig-name descname">create_one_dim_tr_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">omegaconf.dictconfig.DictConfig</span></em>, <em class="sig-param"><span class="n">obs_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">act_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">model_dir</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Union<span class="p">[</span>str<span class="p">, </span>pathlib.Path<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.common.create_one_dim_tr_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a 1-D transition reward model from a given configuration.</p>
 <p>This method creates a new model from the given configuration and wraps it into a
-<a class="reference internal" href="models.html#mbrl.models.OneDTransitionRewardModel" title="mbrl.models.OneDTransitionRewardModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.OneDTransitionRewardModel</span></code></a> (see its documentation for explanation of some
+<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.OneDTransitionRewardModel</span></code> (see its documentation for explanation of some
 of the config args under <code class="docutils literal notranslate"><span class="pre">cfg.algorithm</span></code>).
 The configuration should be structured as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>-cfg
@@ -229,7 +229,7 @@ weights and normalization information from “model_dir / model.pth” and
 <dd class="field-even"><p>the model created.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(<a class="reference internal" href="models.html#mbrl.models.OneDTransitionRewardModel" title="mbrl.models.OneDTransitionRewardModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.OneDTransitionRewardModel</span></code></a>)</p>
+<dd class="field-odd"><p>(<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.OneDTransitionRewardModel</span></code>)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -371,7 +371,7 @@ Optionally, it stores the saved data into a replay buffer.</p>
 <li><p><strong>env</strong> (<em>gym.Env</em>) – the environment to step.</p></li>
 <li><p><strong>steps_or_trials_to_collect</strong> (<em>int</em>) – how many steps of the environment to collect. If
 <code class="docutils literal notranslate"><span class="pre">collect_trajectories=True</span></code>, it indicates the number of trials instead.</p></li>
-<li><p><strong>agent</strong> (<a class="reference internal" href="planning.html#mbrl.planning.Agent" title="mbrl.planning.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.Agent</span></code></a>) – the agent used to generate an action.</p></li>
+<li><p><strong>agent</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.Agent</span></code>) – the agent used to generate an action.</p></li>
 <li><p><strong>agent_kwargs</strong> (<em>dict</em>) – any keyword arguments to pass to <cite>agent.act()</cite> method.</p></li>
 <li><p><strong>trial_length</strong> (<em>int</em><em>, </em><em>optional</em>) – a maximum length for trials (env will be reset regularly
 after this many number of steps). Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>, in which case trials
@@ -402,7 +402,7 @@ trials (full trials in each dataset); otherwise, it’s done across steps.</p></
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model_env</strong> (<a class="reference internal" href="models.html#mbrl.models.ModelEnv" title="mbrl.models.ModelEnv"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.ModelEnv</span></code></a>) – the dynamics model environment to simulate.</p></li>
+<li><p><strong>model_env</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.ModelEnv</span></code>) – the dynamics model environment to simulate.</p></li>
 <li><p><strong>initial_obs</strong> (<em>np.ndarray</em>) – initial observation to start the episodes.</p></li>
 <li><p><strong>plan</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – sequence of actions to execute.</p></li>
 <li><p><strong>agent</strong> – an agent to generate a plan before
@@ -429,7 +429,7 @@ over <code class="docutils literal notranslate"><span class="pre">plan</span></c
 <li><p><strong>env</strong> (<em>gym.Env</em>) – the environment to step.</p></li>
 <li><p><strong>obs</strong> (<em>np.ndarray</em>) – the latest observation returned by the environment (used to obtain
 an action from the agent).</p></li>
-<li><p><strong>agent</strong> (<a class="reference internal" href="planning.html#mbrl.planning.Agent" title="mbrl.planning.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.Agent</span></code></a>) – the agent used to generate an action.</p></li>
+<li><p><strong>agent</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.Agent</span></code>) – the agent used to generate an action.</p></li>
 <li><p><strong>agent_kwargs</strong> (<em>dict</em>) – any keyword arguments to pass to <cite>agent.act()</cite> method.</p></li>
 <li><p><strong>replay_buffer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.ReplayBuffer</span></code>) – the replay buffer
 containing stored data.</p></li>
@@ -457,8 +457,8 @@ passing <cite>replay_buffer.get_all()</cite> as input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> (<a class="reference internal" href="models.html#mbrl.models.Model" title="mbrl.models.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code></a>) – the model to train.</p></li>
-<li><p><strong>model_trainer</strong> (<a class="reference internal" href="models.html#mbrl.models.ModelTrainer" title="mbrl.models.ModelTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.ModelTrainer</span></code></a>) – the model trainer.</p></li>
+<li><p><strong>model</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.Model</span></code>) – the model to train.</p></li>
+<li><p><strong>model_trainer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.ModelTrainer</span></code>) – the model trainer.</p></li>
 <li><p><strong>cfg</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">omegaconf.DictConfig</span></code>) – <p>configuration to use for training. It
 must contain the following fields:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">model_batch_size</span> <span class="p">(</span><span class="nb">int</span><span class="p">)</span>
@@ -473,7 +473,7 @@ must contain the following fields:</p>
 <li><p><strong>work_dir</strong> (<em>str</em><em> or </em><em>pathlib.Path</em><em>, </em><em>optional</em>) – if given, a directory to save
 model and buffer to.</p></li>
 <li><p><strong>callback</strong> (<em>callable</em><em>, </em><em>optional</em>) – if provided, this function will be called after
-every training epoch. See <a class="reference internal" href="models.html#mbrl.models.ModelTrainer" title="mbrl.models.ModelTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.ModelTrainer</span></code></a> for signature.</p></li>
+every training epoch. See <code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.models.ModelTrainer</span></code> for signature.</p></li>
 </ul>
 </dd>
 </dl>
@@ -627,7 +627,7 @@ Janner et al., MBPO paper.</p></li>
 needed when <code class="docutils literal notranslate"><span class="pre">agent</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">None</span></code>, to get the first action).</p></li>
 <li><p><strong>lookahead</strong> (<em>int</em>) – the number of steps to run. If <code class="docutils literal notranslate"><span class="pre">plan</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">None</span></code>,
 it is overridden by <cite>len(plan)</cite>.</p></li>
-<li><p><strong>agent</strong> (<a class="reference internal" href="planning.html#mbrl.planning.Agent" title="mbrl.planning.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.Agent</span></code></a>, optional) – if given, an agent to obtain actions.</p></li>
+<li><p><strong>agent</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.planning.Agent</span></code>, optional) – if given, an agent to obtain actions.</p></li>
 <li><p><strong>plan</strong> (<em>sequence of np.ndarray</em><em>, </em><em>optional</em>) – if given, a sequence of actions to execute.
 Takes precedence over <code class="docutils literal notranslate"><span class="pre">agent</span></code> when both are given.</p></li>
 </ul>
