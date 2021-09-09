@@ -4,6 +4,7 @@ from typing import List
 import numpy as np
 import omegaconf
 import torch
+from gym.wrappers import TimeLimit
 
 import mbrl.constants
 from mbrl.env.termination_fns import no_termination
@@ -16,6 +17,7 @@ from mbrl.planning import (
 from mbrl.third_party.dmc2gym.wrappers import DMCWrapper
 from mbrl.util import Logger, ReplayBuffer
 from mbrl.util.common import get_sequence_buffer_iterator, rollout_agent_trajectories
+from mbrl.util.mujoco import rollout_mujoco_env
 
 META_LOG_FORMAT = [
     ("reconstruction_loss", "OL", "float"),
@@ -27,22 +29,25 @@ META_LOG_FORMAT = [
 device = "cuda:0"
 
 
-env = DMCWrapper(
-    "cheetah",
-    "run",
-    task_kwargs={"random": 0},
-    visualize_reward=False,
-    height=64,
-    width=64,
-    from_pixels=True,
-    frame_skip=4,
+env = TimeLimit(
+    DMCWrapper(
+        "cheetah",
+        "run",
+        task_kwargs={"random": 0},
+        visualize_reward=False,
+        height=64,
+        width=64,
+        from_pixels=True,
+        frame_skip=4,
+    ),
+    max_episode_steps=1000,
 )
 
 
 # This is the stuff to be replaced with a config file
 action_repeat = 4
 num_steps = 1000000 // action_repeat
-num_grad_updates = 100
+num_grad_updates = 1000
 sequence_length = 50
 trajectory_length = 1000
 batch_size = 50
@@ -51,6 +56,7 @@ agent_noise = 0.3
 free_nats = 3
 kl_scale = 1.0
 test_frequency = 25
+use_agent_callback = False
 agent_cfg = omegaconf.OmegaConf.create(
     {
         "_target_": "mbrl.planning.TrajectoryOptimizerAgent",
@@ -134,7 +140,7 @@ def batch_callback(_epoch, _loss, meta, _mode):
         grad_norms.append(meta["grad_norm"])
 
 
-exp_name = f"third_try___ngu{num_grad_updates}"
+exp_name = f"fourth_try___ngu{num_grad_updates}"
 save_dir = (
     pathlib.Path("/checkpoint/lep/mbrl/planet/dm_cheetah_run/full_model") / exp_name
 )
@@ -158,6 +164,28 @@ current_episode = -1
 
 def is_test_episode(episode_):
     return episode_ >= 0 and (episode_ % test_frequency == 0)
+
+
+def agent_callback(population, values, i):
+    if not use_agent_callback:
+        return
+
+    init_obs = obs
+    how_many = 100
+    lookahead = population.shape[-2]
+    seen_values = torch.empty(how_many, 1)
+    for k in range(how_many):
+        plan = population[k].cpu().numpy()
+        pred_obs, pred_rewards, _ = rollout_mujoco_env(
+            env, init_obs, lookahead, plan=plan
+        )
+        assert pred_rewards.size == lookahead
+        seen_values[k] = pred_rewards.sum()
+
+    corr = np.corrcoef(seen_values.squeeze(), values[:how_many].cpu().numpy())[0, 1]
+    if i == 0:
+        print(corr)
+    return
 
 
 for step in range(num_steps):
@@ -212,7 +240,7 @@ for step in range(num_steps):
         if is_test_episode(current_episode)
         else agent_noise * np_rng.standard_normal(env.action_space.shape[0])
     )
-    action = agent.act(obs) + agent_noise
+    action = agent.act(obs, optimizer_callback=agent_callback) + agent_noise
     action = np.clip(action, -1.0, 1.0)
     next_obs, reward, done, info = env.step(action)
     replay_buffer.add(obs, action, next_obs, reward, done)
