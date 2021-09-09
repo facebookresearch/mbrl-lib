@@ -87,6 +87,10 @@ def make_env(
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
             term_fn = mbrl.env.termination_fns.cartpole
             reward_fn = mbrl.env.reward_fns.cartpole
+        elif cfg.overrides.env == "cartpole_pets_version":
+            env = mbrl.env.mujoco_envs.CartPoleEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = mbrl.env.reward_fns.cartpole_pets
         elif cfg.overrides.env == "pets_halfcheetah":
             env = mbrl.env.mujoco_envs.HalfCheetahEnv()
             term_fn = mbrl.env.termination_fns.no_termination
@@ -159,6 +163,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
 
         if env_name == "cartpole_continuous":
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
+        elif env_name == "pets_cartpole":
+            env = mbrl.env.mujoco_envs.CartPoleEnv()
         elif env_name == "pets_halfcheetah":
             env = mbrl.env.mujoco_envs.HalfCheetahEnv()
         elif env_name == "pets_reacher":
@@ -207,7 +213,7 @@ class freeze_mujoco_env:
         self._elapsed_steps = 0
         self._step_count = 0
 
-        if "gym.envs.mujoco" in self._env.env.__class__.__module__:
+        if _is_mujoco_gym_env(env):
             self._enter_method = self._enter_mujoco_gym
             self._exit_method = self._exit_mujoco_gym
         elif "mbrl.third_party.dmc2gym" in self._env.env.__class__.__module__:
@@ -256,6 +262,14 @@ class freeze_mujoco_env:
         return self._exit_method()
 
 
+# Include the mujoco environments in mbrl.env
+def _is_mujoco_gym_env(env: gym.wrappers.TimeLimit) -> bool:
+    class_module = env.env.__class__.__module__
+    return "gym.envs.mujoco" in class_module or (
+        "mbrl.env." in class_module and hasattr(env.env, "data")
+    )
+
+
 def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
     """Returns the internal state of the environment.
 
@@ -274,7 +288,7 @@ def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
         environments it returns `physics.get_state().copy()`, elapsed steps and step_count.
 
     """
-    if "gym.envs.mujoco" in env.env.__class__.__module__:
+    if _is_mujoco_gym_env(env):
         state = (
             env.env.data.qpos.ravel().copy(),
             env.env.data.qvel.ravel().copy(),
@@ -307,7 +321,7 @@ def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
         state (tuple): see :func:`get_current_state` for a description.
         env (:class:`gym.wrappers.TimeLimit`): the environment.
     """
-    if "gym.envs.mujoco" in env.env.__class__.__module__:
+    if _is_mujoco_gym_env(env):
         env.set_state(*state[0])
         env._elapsed_steps = state[1]
     elif "mbrl.third_party.dmc2gym" in env.env.__class__.__module__:

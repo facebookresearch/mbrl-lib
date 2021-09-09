@@ -431,7 +431,9 @@ class TrajectoryOptimizerAgent(Agent):
 
         self.optimizer.reset()
 
-    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+    def act(
+        self, obs: np.ndarray, optimizer_callback: Optional[Callable] = None, **_kwargs
+    ) -> np.ndarray:
         """Issues an action given an observation.
 
         This method optimizes a full sequence of length ``self.planning_horizon`` and returns
@@ -441,6 +443,8 @@ class TrajectoryOptimizerAgent(Agent):
 
         Args:
             obs (np.ndarray): the observation for which the action is needed.
+            optimizer_callback (callable, optional): a callback function
+                to pass to the optimizer.
 
         Returns:
             (np.ndarray): the action.
@@ -456,7 +460,9 @@ class TrajectoryOptimizerAgent(Agent):
                 return self.trajectory_eval_fn(obs, action_sequences)
 
             start_time = time.time()
-            plan = self.optimizer.optimize(trajectory_eval_fn)
+            plan = self.optimizer.optimize(
+                trajectory_eval_fn, callback=optimizer_callback
+            )
             plan_time = time.time() - start_time
 
             self.actions_to_use.extend([a for a in plan[: self.replan_freq]])

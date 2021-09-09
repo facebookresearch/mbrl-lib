@@ -221,7 +221,7 @@ def test_mbpo():
             "validation_ratio": 0.2,
             "effective_model_rollouts_per_step": 400,
             "rollout_schedule": [1, _NUM_TRIALS_MBPO, 15, 15],
-            "num_sac_updates_per_step": 20,
+            "num_sac_updates_per_step": 40,
             "num_epochs_to_retain_sac_buffer": 1,
             "sac_updates_every_steps": 1,
             "sac_alpha_lr": 3e-4,

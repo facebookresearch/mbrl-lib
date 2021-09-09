@@ -1,0 +1,21 @@
+# @package _group_
+env: "cartpole_pets_version"
+obs_process_fn: mbrl.env.pets_cartpole.CartPoleEnv.preprocess_fn
+learned_rewards: false
+trial_length: 200
+num_steps: 10000
+
+num_elites: 5
+model_lr: 1e-4
+model_wd: 3e-5
+model_batch_size: 256
+validation_ratio: 0
+freq_train_model: 200
+patience: 25
+num_epochs_train_model: 25
+
+planning_horizon: 30
+cem_num_iters: 5
+cem_elite_ratio: 0.1
+cem_population_size: 500
+cem_alpha: 0.1
