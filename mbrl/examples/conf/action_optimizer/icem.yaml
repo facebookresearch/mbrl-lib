@@ -11,6 +11,5 @@ alpha: ${overrides.cem_alpha}
 lower_bound: ???
 upper_bound: ???
 return_mean_elites: true
-round_population: ???
-ensemble_size: ???
+population_size_module: ${dynamics_model.model.ensemble_size}
 device: ${device}

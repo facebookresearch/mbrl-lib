@@ -115,18 +115,16 @@ if __name__ == "__main__":
         optimizer_cfg = omegaconf.OmegaConf.create(
             {
                 "_target_": "mbrl.planning.ICEMOptimizer",
-                "num_iterations": 5,
+                "num_iterations": 2,
                 "elite_ratio": 0.1,
                 "population_size": args.num_processes * args.samples_per_process,
-                "population_decay_factor": 1.1,
-                "colored_noise_exponent": 2,
+                "population_decay_factor": 1.25,
+                "colored_noise_exponent": 2.0,
                 "keep_elite_frac": 0.1,
                 "alpha": 0.1,
                 "lower_bound": "???",
                 "upper_bound": "???",
                 "return_mean_elites": "true",
-                "round_population": "false",
-                "ensemble_size": "1",
                 "device": "cpu",
             }
         )
