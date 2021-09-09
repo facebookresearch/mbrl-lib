@@ -8,9 +8,10 @@ from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+import torch.distributions
+import torch.fft
 import torch.nn.functional as F
-from torch.distributions import Normal
-from torch.fft import irfft, rfftfreq
+from packaging import version
 
 import mbrl.types
 
@@ -303,6 +304,13 @@ def propagate(
     raise ValueError(f"Invalid propagation method {propagation_method}.")
 
 
+def rfftfreq(samples: torch.Tensor, device: torch.device) -> torch.Tensor:
+    if version.parse(torch.__version__) >= version.parse("1.8.0"):
+        return torch.fft.rfftfreq(samples, device=device)
+    freqs = np.fft.rfftfreq(samples.cpu().numpy())
+    return torch.from_numpy(freqs).to(device)
+
+
 # ------------------------------------------------------------------------ #
 # Colored noise generator for iCEM
 # ------------------------------------------------------------------------ #
@@ -368,7 +376,7 @@ def powerlaw_psd_gaussian(
     s_scale = s_scale[(None,) * dims_to_add + (Ellipsis,)]
 
     # Generate scaled random power + phase
-    m = Normal(loc=0.0, scale=s_scale.flatten())
+    m = torch.distributions.Normal(loc=0.0, scale=s_scale.flatten())
     sr = m.sample(tuple(size[:-1]))
     si = m.sample(tuple(size[:-1]))
 
@@ -384,6 +392,6 @@ def powerlaw_psd_gaussian(
     s = sr + 1j * si
 
     # Transform to real time series & scale to unit variance
-    y = irfft(s, n=samples, axis=-1) / sigma
+    y = torch.fft.irfft(s, n=samples, axis=-1) / sigma
 
     return y

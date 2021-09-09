@@ -297,9 +297,8 @@ class ICEMOptimizer(Optimizer):
         device (torch.device): device where computations will be performed.
         return_mean_elites (bool): if ``True`` returns the mean of the elites of the last
             iteration. Otherwise, it returns the max solution found over all iterations.
-        round_population (bool): if "True" round population size to be a multiple of ensemble size
-            (must be True for Gaussian MLP ensemble)
-        ensemble_size (int): dynamics model ensemble size
+        population_size_module (int, optional): if specified, the population is rounded to be
+            a multiple of this number. Defaults to ``None``.
 
     [2] C. Pinneri, S. Sawant, S. Blaes, J. Achterhold, J. Stueckler, M. Rolinek and
     G, Martius, Georg. "Sample-efficient Cross-Entropy Method for Real-time Planning".
@@ -319,8 +318,7 @@ class ICEMOptimizer(Optimizer):
         alpha: float,
         device: torch.device,
         return_mean_elites: bool = False,
-        round_population: bool = False,
-        ensemble_size: int = None,
+        population_size_module: Optional[int] = None,
     ):
         super().__init__()
         self.num_iterations = num_iterations
@@ -341,9 +339,19 @@ class ICEMOptimizer(Optimizer):
         self.elite = None
         self.alpha = alpha
         self.return_mean_elites = return_mean_elites
-        self.round_population = round_population
-        self.ensemble_size = ensemble_size
+        self.population_size_module = population_size_module
         self.device = device
+
+        if self.population_size_module:
+            self.keep_elite_size = self._round_up_to_module(
+                self.keep_elite_size, self.population_size_module
+            )
+
+    @staticmethod
+    def _round_up_to_module(value: int, module: int) -> int:
+        if value % module == 0:
+            return value
+        return value + (module - value % module)
 
     def optimize(
         self,
@@ -382,40 +390,10 @@ class ICEMOptimizer(Optimizer):
                 )
             ).astype(np.int32)
 
-            # to ensure population size is a multiple of the number of models in the ensemble
-            if self.round_population is True:
-                if (
-                    self.elite is None
-                    and decay_population_size % self.ensemble_size != 0
-                ):
-                    decay_population_size += (
-                        self.ensemble_size - decay_population_size % self.ensemble_size
-                    )
-                elif (
-                    self.elite is None
-                    and decay_population_size % self.ensemble_size == 0
-                ):
-                    pass
-                elif (
-                    i == self.num_iterations - 1
-                    and (decay_population_size + 1) % self.ensemble_size != 0
-                ):
-                    decay_population_size += (
-                        self.ensemble_size
-                        - (decay_population_size + 1) % self.ensemble_size
-                    )
-                elif (
-                    i < self.num_iterations - 1
-                    and (decay_population_size + self.keep_elite_size)
-                    % self.ensemble_size
-                    != 0
-                ):
-                    decay_population_size += (
-                        self.ensemble_size
-                        - (decay_population_size + self.keep_elite_size)
-                        % self.ensemble_size
-                    )
-
+            if self.population_size_module:
+                decay_population_size = self._round_up_to_module(
+                    decay_population_size, self.population_size_module
+                )
             # the last dimension is used for temporal correlations
             population = mbrl.util.math.powerlaw_psd_gaussian(
                 self.colored_noise_exponent,
@@ -427,7 +405,7 @@ class ICEMOptimizer(Optimizer):
             )
 
             if self.elite is not None:
-                keep_elites = torch.index_select(
+                kept_elites = torch.index_select(
                     self.elite,
                     dim=0,
                     index=torch.randperm(self.elite_num, device=self.device)[
@@ -437,20 +415,20 @@ class ICEMOptimizer(Optimizer):
                 if i == 0:
                     end_action = (
                         torch.normal(
-                            mu[-1, :].repeat(keep_elites.shape[0], 1),
-                            torch.sqrt(var[-1, :]).repeat(keep_elites.shape[0], 1),
+                            mu[-1, :].repeat(kept_elites.shape[0], 1),
+                            torch.sqrt(var[-1, :]).repeat(kept_elites.shape[0], 1),
                         )
                         .unsqueeze(1)
                         .to(self.device)
                     )
-                    keep_elites_shift = torch.cat(
-                        (keep_elites[:, 1:, :], end_action), dim=1
+                    kept_elites_shifted = torch.cat(
+                        (kept_elites[:, 1:, :], end_action), dim=1
                     )
-                    population = torch.cat((population, keep_elites_shift), dim=0)
+                    population = torch.cat((population, kept_elites_shifted), dim=0)
                 elif i == self.num_iterations - 1:
                     population = torch.cat((population, mu.unsqueeze(dim=0)), dim=0)
                 else:
-                    population = torch.cat((population, keep_elites), dim=0)
+                    population = torch.cat((population, kept_elites), dim=0)
 
             values = obj_fun(population)
 
