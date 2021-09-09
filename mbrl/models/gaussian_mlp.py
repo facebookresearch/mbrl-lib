@@ -7,6 +7,8 @@ import pickle
 import warnings
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import hydra
+import omegaconf
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -56,14 +58,17 @@ class GaussianMLP(Ensemble):
                           input -h1-> -h2-> -l3-> output).
         ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
-        use_silu (bool): if ``True``, hidden layers will use SiLU activations, otherwise
-                         ReLU activations will be used. Defaults to ``False``.
+        use_silu (bool) (deprecated, use activation_fn_cfg instead): if ``True``,
+            hidden layers will use SiLU activations, otherwise ``activation_fn_cfg`` will be used.
+            Defaults to ``False``.
         deterministic (bool): if ``True``, the model will be trained using MSE loss and no
             logvar prediction will be done. Defaults to ``False``.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
         learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
             they will be constant. Defaults to ``False``.
+        activation_fn_cfg (omegaconf.DictConfig, optional): config function needed to instantiate
+            desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
 
     # TODO integrate this with the checkpoint in the next version
@@ -81,6 +86,7 @@ class GaussianMLP(Ensemble):
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
         learn_logvar_bounds: bool = False,
+        activation_fn_cfg: omegaconf.DictConfig = None,
     ):
         super().__init__(
             ensemble_size, device, propagation_method, deterministic=deterministic
@@ -89,19 +95,33 @@ class GaussianMLP(Ensemble):
         self.in_size = in_size
         self.out_size = out_size
 
-        activation_cls = nn.SiLU if use_silu else nn.ReLU
+        if use_silu:
+            warnings.warn(
+                "use_silu is deprecated and will be removed in v0.2.0. "
+                "Use activation_fn_cfg with _target_=torch.nn.SiLU instead."
+            )
+
+        def create_activation():
+            if use_silu:
+                return nn.SiLU()
+            else:
+                if activation_fn_cfg is None:
+                    activation_func = nn.ReLU()
+                else:
+                    activation_func = hydra.utils.instantiate(activation_fn_cfg)
+                return activation_func
 
         def create_linear_layer(l_in, l_out):
             return EnsembleLinearLayer(ensemble_size, l_in, l_out)
 
         hidden_layers = [
-            nn.Sequential(create_linear_layer(in_size, hid_size), activation_cls())
+            nn.Sequential(create_linear_layer(in_size, hid_size), create_activation())
         ]
         for i in range(num_layers - 1):
             hidden_layers.append(
                 nn.Sequential(
                     create_linear_layer(hid_size, hid_size),
-                    activation_cls(),
+                    create_activation(),
                 )
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)

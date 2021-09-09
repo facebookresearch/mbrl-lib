@@ -19,6 +19,41 @@ from mbrl.types import TransitionBatch
 _DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
+def test_activation_functions_guassian_mlp():
+    activation_cfg_silu = omegaconf.OmegaConf.create(
+        {
+            "_target_": "torch.nn.SiLU",
+        }
+    )
+    activation_cfg_th = omegaconf.OmegaConf.create(
+        {
+            "_target_": "torch.nn.Threshold",
+            "threshold": 0.5,
+            "value": 10,
+        }
+    )
+    model1 = mbrl.models.GaussianMLP(
+        1, 1, _DEVICE, num_layers=2, activation_fn_cfg=activation_cfg_silu
+    )
+    model2 = mbrl.models.GaussianMLP(
+        1, 1, _DEVICE, num_layers=2, activation_fn_cfg=activation_cfg_th
+    )
+    model3 = mbrl.models.GaussianMLP(
+        1, 1, _DEVICE, num_layers=2, use_silu=True, activation_fn_cfg=activation_cfg_th
+    )
+    hidden_layer = model1.hidden_layers
+    silu = torch.nn.SiLU()
+    assert str(hidden_layer[0][1]) == str(silu)
+    hidden_layer = model2.hidden_layers
+    threshold = torch.nn.Threshold(0.5, 10)
+    assert str(hidden_layer[0][1]) == str(threshold)
+    hidden_layer = model3.hidden_layers
+    assert str(hidden_layer[0][1]) == str(silu)
+
+
+# use_silu = True ignores activation_cfg for nn.Threshold
+
+
 def test_basic_ensemble_gaussian_forward():
     model_in_size = 2
     model_out_size = 2
