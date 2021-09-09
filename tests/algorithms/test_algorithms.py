@@ -26,7 +26,7 @@ _INITIAL_EXPLORE = 500
 _CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
 
 # Not optimal, but the prob. of observing this by random seems to be < 1e-5
-_TARGET_REWARD = -10 * _REW_C
+_TARGET_REWARD = -20 * _REW_C
 
 _REPO_DIR = pathlib.Path(os.getcwd())
 _DIR = tempfile.TemporaryDirectory()
@@ -197,7 +197,7 @@ def test_pets_basic_ensemble_deterministic_mlp():
 
 
 def _check_pets_icem(model_type):
-    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets_icem.yaml", "r") as f:
+    with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets.yaml", "r") as f:
         algorithm_cfg = yaml.safe_load(f)
 
     with open(
@@ -205,9 +205,13 @@ def _check_pets_icem(model_type):
     ) as f:
         model_cfg = yaml.safe_load(f)
 
+    with open(_REPO_DIR / _CONF_DIR / "action_optimizer" / "icem.yaml", "r") as f:
+        action_optimizer_cfg = yaml.safe_load(f)
+
     cfg_dict = {
         "algorithm": algorithm_cfg,
         "dynamics_model": model_cfg,
+        "action_optimizer": action_optimizer_cfg,
         "overrides": {
             "learned_rewards": False,
             "num_steps": _NUM_TRIALS_PETS * _TRIAL_LEN,
