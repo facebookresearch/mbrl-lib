@@ -18,6 +18,7 @@ import mbrl.planning
 import mbrl.util.mujoco
 
 env__: gym.Env
+terminalRewards = {"gym.envs.robotics.hand.manipulate": -1000.0}
 
 
 def init(env_name: str, seed: int):
@@ -47,12 +48,22 @@ def evaluate_all_action_sequences(
 
 def evaluate_sequence_fn(action_sequence: np.ndarray, current_state: Tuple) -> float:
     global env__
+    terminal_reward = (
+        terminalRewards[env__.env.__class__.__module__]
+        if env__.env.__class__.__module__ in terminalRewards
+        else None
+    )
     # obs0__ is not used (only here for compatibility with rollout_env)
     obs0 = env__.observation_space.sample()
     env = cast(gym.wrappers.TimeLimit, env__)
     mbrl.util.mujoco.set_env_state(current_state, env)
     _, rewards_, _ = mbrl.util.mujoco.rollout_mujoco_env(
-        env, obs0, -1, agent=None, plan=action_sequence
+        env,
+        obs0,
+        -1,
+        agent=None,
+        plan=action_sequence,
+        terminal_reward=terminal_reward,
     )
     return rewards_.sum().item()
 

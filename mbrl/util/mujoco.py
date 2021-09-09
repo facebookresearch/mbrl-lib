@@ -344,6 +344,7 @@ def rollout_mujoco_env(
     lookahead: int,
     agent: Optional[mbrl.planning.Agent] = None,
     plan: Optional[np.ndarray] = None,
+    terminal_reward: Optional[float] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Runs the environment for some number of steps then returns it to its original state.
 
@@ -359,6 +360,8 @@ def rollout_mujoco_env(
         agent (:class:`mbrl.planning.Agent`, optional): if given, an agent to obtain actions.
         plan (sequence of np.ndarray, optional): if given, a sequence of actions to execute.
             Takes precedence over ``agent`` when both are given.
+        terminal_reward (float the reward after done signal): last reward of the sequence will
+            be overwritten by the terminal_reward if done signal from the environment is present.
 
     Returns:
         (tuple of np.ndarray): the observations, rewards, and actions observed, respectively.
@@ -381,6 +384,8 @@ def rollout_mujoco_env(
             real_obses.append(next_obs)
             rewards.append(reward)
             if done:
+                if terminal_reward is not None:
+                    rewards.append(terminal_reward)
                 break
             current_obs = next_obs
     return np.stack(real_obses), np.stack(rewards), np.stack(actions)
