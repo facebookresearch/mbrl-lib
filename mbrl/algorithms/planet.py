@@ -29,25 +29,10 @@ META_LOG_FORMAT = [
 device = "cuda:0"
 
 
-env = TimeLimit(
-    DMCWrapper(
-        "cheetah",
-        "run",
-        task_kwargs={"random": 0},
-        visualize_reward=False,
-        height=64,
-        width=64,
-        from_pixels=True,
-        frame_skip=4,
-    ),
-    max_episode_steps=1000,
-)
-
-
 # This is the stuff to be replaced with a config file
 action_repeat = 4
 num_steps = 1000000 // action_repeat
-num_grad_updates = 1000
+num_grad_updates = 100
 sequence_length = 50
 trajectory_length = 1000
 batch_size = 50
@@ -57,6 +42,7 @@ free_nats = 3
 kl_scale = 1.0
 test_frequency = 25
 use_agent_callback = False
+seed = 0
 agent_cfg = omegaconf.OmegaConf.create(
     {
         "_target_": "mbrl.planning.TrajectoryOptimizerAgent",
@@ -78,15 +64,36 @@ agent_cfg = omegaconf.OmegaConf.create(
         "verbose": True,
     }
 )
+
+env = TimeLimit(
+    DMCWrapper(
+        "cheetah",
+        "run",
+        task_kwargs={"random": seed},
+        visualize_reward=False,
+        height=64,
+        width=64,
+        from_pixels=True,
+        frame_skip=4,
+        bit_depth=5,
+    ),
+    max_episode_steps=1000,
+)
+
 agent_cfg = complete_agent_cfg(env, agent_cfg)
+
+torch.manual_seed(seed)
+rng = torch.Generator(device=device)
+rng.manual_seed(seed)
+np_rng = np.random.default_rng(seed=seed)
 
 
 replay_buffer = ReplayBuffer(
     num_steps,
     env.observation_space.shape,
     env.action_space.shape,
-    obs_type=np.uint8,
     max_trajectory_length=trajectory_length,
+    rng=np_rng,
 )
 total_rewards = rollout_agent_trajectories(
     env,
@@ -112,9 +119,6 @@ planet = PlaNetModel(
     free_nats_for_kl=free_nats,
     kl_scale=kl_scale,
 )
-rng = torch.Generator(device=device)
-rng.manual_seed(0)
-np_rng = np.random.default_rng(seed=0)
 model_env = ModelEnv(env, planet, no_termination, generator=rng)
 
 agent = create_trajectory_optim_agent_for_model(model_env, agent_cfg)
@@ -140,7 +144,7 @@ def batch_callback(_epoch, _loss, meta, _mode):
         grad_norms.append(meta["grad_norm"])
 
 
-exp_name = f"fourth_try___ngu{num_grad_updates}"
+exp_name = f"move_normalization___ngu{num_grad_updates}"
 save_dir = (
     pathlib.Path("/checkpoint/lep/mbrl/planet/dm_cheetah_run/full_model") / exp_name
 )
