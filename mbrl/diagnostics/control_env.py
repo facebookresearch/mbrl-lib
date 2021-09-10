@@ -184,6 +184,10 @@ if __name__ == "__main__":
                 f"reward: {reward__: .3f}, pred_value: {best_value[0]: .3f}"
             )
 
+            if done__:
+                print("Episode done!")
+                break
+
         output_dir = pathlib.Path(args.output_dir)
         pathlib.Path.mkdir(output_dir, exist_ok=True)
 
