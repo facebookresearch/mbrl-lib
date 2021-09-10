@@ -395,3 +395,33 @@ def powerlaw_psd_gaussian(
     y = torch.fft.irfft(s, n=samples, axis=-1) / sigma
 
     return y
+
+
+# ------------------------------------------------------------------------ #
+# Pixel manipulation
+# ------------------------------------------------------------------------ #
+def quantize_obs(
+    obs: np.ndarray,
+    bit_depth: int,
+    original_bit_depth: int = 8,
+    add_noise: bool = False,
+):
+    """Quantizes an array of pixel observations to the desired bit depth.
+
+    Args:
+        obs (np.ndarray): the array to quantize.
+        bit_depth (int): the desired bit depth.
+        original_bit_depth (int, optional): the original bit depth, defaults to 8.
+        add_noise (bool, optional): if ``True``, uniform noise in the range
+            (0, 1 / 2 ** bit_depth) will be added. Defaults to ``False``.`
+
+    Returns:
+        (np.ndarray): the quantized version of the array.
+    """
+    ratio = 2 ** (original_bit_depth - bit_depth)
+    quantized_obs = (obs // ratio) * ratio
+    if add_noise:
+        quantized_obs = quantized_obs.astype(np.double) + np.random.rand(*obs.shape) / (
+            2 ** bit_depth
+        )
+    return quantized_obs

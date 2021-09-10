@@ -5,6 +5,8 @@
 import gym
 import numpy as np
 
+from mbrl.util.math import quantize_obs
+
 
 # This is heavily based on
 # https://github.com/denisyarats/dmc2gym/blob/master/dmc2gym/wrappers.py
@@ -18,6 +20,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         frame_skip: int = 1,
         camera_id: int = 0,
         channels_first: bool = True,
+        bit_depth: int = 8,
     ):
         super().__init__(env)
         self._image_width = image_width
@@ -25,6 +28,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._channels_first = channels_first
         self._frame_skip = frame_skip
         self._camera_id = camera_id
+        self._bit_depth = bit_depth
 
         shape = (
             [3, image_height, image_width]
@@ -44,6 +48,10 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         obs = self.render()
         if self._channels_first:
             obs = np.transpose(obs, (2, 0, 1))
+        if self._bit_depth != 8:
+            obs = quantize_obs(
+                obs, self._bit_depth, original_bit_depth=8, add_noise=True
+            )
         return obs
 
     def _convert_action(self, action):

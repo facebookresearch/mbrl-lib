@@ -3,6 +3,8 @@ from dm_control import suite
 from dm_env import specs
 from gym import core, spaces
 
+from mbrl.util.math import quantize_obs
+
 
 def _spec_to_box(spec):
     def extract_min_max(s):
@@ -40,7 +42,7 @@ class DMCWrapper(core.Env):
         domain_name,
         task_name,
         task_kwargs=None,
-        visualize_reward={},
+        visualize_reward=False,
         from_pixels=False,
         height=84,
         width=84,
@@ -48,6 +50,7 @@ class DMCWrapper(core.Env):
         frame_skip=1,
         environment_kwargs=None,
         channels_first=True,
+        bit_depth=8,
     ):
         assert (
             "random" in task_kwargs
@@ -58,6 +61,7 @@ class DMCWrapper(core.Env):
         self._camera_id = camera_id
         self._frame_skip = frame_skip
         self._channels_first = channels_first
+        self._bit_depth = bit_depth
 
         # create task
         self._env = suite.load(
@@ -102,6 +106,10 @@ class DMCWrapper(core.Env):
             )
             if self._channels_first:
                 obs = obs.transpose(2, 0, 1).copy()
+            if self._bit_depth != 8:
+                obs = quantize_obs(
+                    obs, self._bit_depth, original_bit_depth=8, add_noise=True
+                )
         else:
             obs = _flatten_obs(time_step.observation)
         return obs
