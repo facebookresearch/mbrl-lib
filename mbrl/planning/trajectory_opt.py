@@ -553,6 +553,10 @@ class TrajectoryOptimizerAgent(Agent):
             generated sequences an use it for ``replan_freq`` number of :meth:`act` calls.
             Defaults to 1.
         verbose (bool): if ``True``, prints the planning time on the console.
+        keep_last_solution (bool): if ``True``, the last solution found by a call to
+            :meth:`optimize` is kept as the initial solution for the next step. This solution is
+            shifted ``replan_freq`` time steps, and the new entries are filled using the initial
+            solution. Defaults to ``True``.
 
     Note:
         After constructing an agent of this type, the user must call
@@ -569,6 +573,7 @@ class TrajectoryOptimizerAgent(Agent):
         planning_horizon: int = 1,
         replan_freq: int = 1,
         verbose: bool = False,
+        keep_last_solution: bool = True,
     ):
         self.optimizer = TrajectoryOptimizer(
             optimizer_cfg,
@@ -576,6 +581,7 @@ class TrajectoryOptimizerAgent(Agent):
             np.array(action_ub),
             planning_horizon=planning_horizon,
             replan_freq=replan_freq,
+            keep_last_solution=keep_last_solution,
         )
         self.optimizer_args = {
             "optimizer_cfg": optimizer_cfg,
