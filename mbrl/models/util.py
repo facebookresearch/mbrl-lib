@@ -120,10 +120,13 @@ class Conv2dEncoder(nn.Module):
                 )
             )
         self.convs = nn.ModuleList(conv_modules)
-        self.fc = nn.Linear(
-            np.prod(get_cnn_output_size(self.convs, layers_config[0][0], image_shape)),
-            encoding_size,
+        cnn_out_size = np.prod(
+            get_cnn_output_size(self.convs, layers_config[0][0], image_shape)
         )
+        if cnn_out_size == encoding_size:
+            self.fc = nn.Identity()
+        else:
+            self.fc = nn.Linear(cnn_out_size, encoding_size)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         obs = obs / 255.0
