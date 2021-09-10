@@ -157,7 +157,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
     elif "gym___" in env_name:
         env = gym.make(env_name.split("___")[1])
     elif "robo___" in env_name:
-        env = gym.make(env_name.split("___")[1], reward_type="dense")
+        env, reward = env_name.split("___")[1].split("--")
+        env = gym.make(env, reward_type=reward)
     else:
         import mbrl.env.mujoco_envs
 

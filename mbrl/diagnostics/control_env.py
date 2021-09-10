@@ -75,7 +75,9 @@ def get_random_trajectory(horizon):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="robo___HandManipulateBlock-v0")
+    parser.add_argument(
+        "--env", type=str, default="robo___HandManipulateBlock-v0--dense"
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--control_horizon", type=int, default=30)
     parser.add_argument("--num_processes", type=int, default=1)
