@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from mbrl.types import TransitionBatch
 
 from .model import LossOutput, Model
-from .util import Conv2dDecoder, Conv2dEncoder, to_tensor
+from .util import Conv2dDecoder, Conv2dEncoder
 
 
 def dreamer_init(m: nn.Module):
@@ -184,6 +184,18 @@ class PlaNetModel(Model):
 
         self._current_belief_for_sampling: torch.Tensor = None
 
+    # Converts to tensors and sends to device.
+    # If `obs` is pixels, normalizes in the range [-0.5, 0.5]
+    def _process_batch(
+        self, batch: TransitionBatch, as_float: bool = True, pixel_obs: bool = False
+    ) -> Tuple[torch.Tensor, ...]:
+        # `obs` is a sequence, so it `next_obs` is not necessary
+        # sequence iterator samples full sequences, so `dones` not necessary either
+        obs, act, _, rewards, _ = super()._process_batch(batch, as_float=as_float)
+        if pixel_obs:
+            obs = obs / 255.0 - 0.5
+        return obs, act, rewards
+
     def _sample_state_from_params(
         self, params: torch.Tensor, generator: torch.Generator
     ) -> torch.Tensor:
@@ -309,7 +321,7 @@ class PlaNetModel(Model):
         reduce: bool = True,
     ) -> LossOutput:
 
-        obs, act, _, rewards, _ = self._process_batch(batch)
+        obs, act, rewards = self._process_batch(batch, pixel_obs=True)
 
         (
             prior_dist_params,
@@ -321,7 +333,6 @@ class PlaNetModel(Model):
             pred_rewards,
         ) = self.forward(obs, act, rewards)
 
-        obs = obs / 255.0 - 0.5
         reconstruction_loss = (
             F.mse_loss(pred_obs, obs, reduction="none").sum((-1, -2, -3)).mean()
         )
@@ -358,7 +369,7 @@ class PlaNetModel(Model):
 
     def update(
         self,
-        model_in,
+        model_in: TransitionBatch,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
     ):
@@ -417,8 +428,9 @@ class PlaNetModel(Model):
             a0 = torch.zeros(len(batch), self.action_size, device=self.device)
 
             # Compute h1 = belief_model(h0, s0, a0) and s1 ~ q(s1 | h1, o1)
+            obs, *_ = self._process_batch(batch, pixel_obs=True)
             _, _, _, posterior_sample, h1 = self._forward_transition_models(
-                to_tensor(batch.obs).to(self.device),
+                obs,
                 s0,
                 a0,
                 h0,
