@@ -84,6 +84,17 @@ def make_env(
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
         else:
             reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+    elif "robo___" in cfg.overrides.env:
+        import mbrl.env
+
+        env, reward = cfg.overrides.env.split("___")[1].split("--")
+        env = gym.make(env, reward_type=reward)
+        term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
+        if hasattr(cfg.overrides, "reward_fn") and cfg.overrides.reward_fn is not None:
+            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
+        else:
+            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+
     else:
         import mbrl.env.mujoco_envs
 
@@ -142,6 +153,9 @@ def make_env_from_str(env_name: str) -> gym.Env:
           - "dmcontrol___<domain>--<task>": a Deep-Mind Control suite environment
             with the indicated domain and task (e.g., "dmcontrol___cheetah--run".
           - "gym___<env_name>": a Gym environment (e.g., "gym___HalfCheetah-v2").
+          - "robo___<env_name>--<reward_type>": Gym robotics environments where
+            the reward_type can be set as "dense" or "sparse"
+            (e.g. robo___HandManipulateBlock-v0--dense)
           - "cartpole_continuous": a continuous version of gym's Cartpole environment.
           - "pets_halfcheetah": the implementation of HalfCheetah used in Chua et al.,
             PETS paper.
@@ -365,8 +379,9 @@ def rollout_mujoco_env(
         agent (:class:`mbrl.planning.Agent`, optional): if given, an agent to obtain actions.
         plan (sequence of np.ndarray, optional): if given, a sequence of actions to execute.
             Takes precedence over ``agent`` when both are given.
-        terminal_reward (float the reward after done signal): last reward of the sequence will
-            be overwritten by the terminal_reward if done signal from the environment is present.
+        terminal_reward (float the reward after done signal, optional): last reward of the sequence
+            will be overwritten by the terminal_reward if done signal from the environment is
+            present.
 
     Returns:
         (tuple of np.ndarray): the observations, rewards, and actions observed, respectively.
