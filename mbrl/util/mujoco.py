@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+from copy import deepcopy
 from typing import Optional, Tuple, Union, cast
 
 import gym
@@ -28,6 +29,9 @@ def make_env(
           - "dmcontrol___<domain>--<task>": a Deep-Mind Control suite environment
             with the indicated domain and task (e.g., "dmcontrol___cheetah--run".
           - "gym___<env_name>": a Gym environment (e.g., "gym___HalfCheetah-v2").
+          - "robo___<env_name>--<reward_type>": Gym robotics environments where
+            the reward_type can be set as "dense" or "sparse"
+            (e.g. robo___HandManipulateBlock-v0--dense)
           - "cartpole_continuous": a continuous version of gym's Cartpole environment.
           - "pets_halfcheetah": the implementation of HalfCheetah used in Chua et al.,
             PETS paper.
@@ -227,11 +231,11 @@ class freeze_mujoco_env:
             raise RuntimeError("Tried to freeze an unsupported environment.")
 
     def _enter_mujoco_gym_robo(self):
-        self._init_state = self._env.unwrapped.sim.get_state()
+        self._init_state = deepcopy(self._env.env.sim.get_state())
         self._elapsed_steps = self._env._elapsed_steps
 
     def _exit_mujoco_gym_robo(self):
-        self._env.unwrapped.sim.set_state(self._init_state)
+        self._env.env.sim.set_state(self._init_state)
         self._env._elapsed_steps = self._elapsed_steps
 
     def _enter_mujoco_gym(self):
