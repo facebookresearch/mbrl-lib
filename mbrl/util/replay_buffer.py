@@ -522,7 +522,14 @@ class ReplayBuffer:
         if shuffle:
             permutation = self._rng.permutation(self.num_stored)
             return self._batch_from_indices(permutation)
-        return self._batch_from_indices(np.arange(self.num_stored))
+        else:
+            return TransitionBatch(
+                self.obs[: self.num_stored],
+                self.action[: self.num_stored],
+                self.next_obs[: self.num_stored],
+                self.reward[: self.num_stored],
+                self.done[: self.num_stored],
+            )
 
     def get_iterators(
         self,
