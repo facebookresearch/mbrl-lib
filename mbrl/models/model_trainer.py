@@ -74,6 +74,7 @@ class ModelTrainer:
         improvement_threshold: float = 0.01,
         callback: Optional[Callable] = None,
         batch_callback: Optional[Callable] = None,
+        evaluate: bool = True,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
 
@@ -95,8 +96,10 @@ class ModelTrainer:
                 Default is ``None``, which indicates there is no limit.
             patience (int, optional): if provided, the patience to use for training. That is,
                 training will stop after ``patience`` number of epochs without improvement.
+                Ignored if ``evaluate=False`.
             improvement_threshold (float): The threshold in relative decrease of the evaluation
                 score at which the model is seen as having improved.
+                Ignored if ``evaluate=False`.
             callback (callable, optional): if provided, this function will be called after
                 every training epoch with the following positional arguments::
 
@@ -114,6 +117,11 @@ class ModelTrainer:
                 ``mode`` is one of ``"train"`` or ``"eval"``, indicating if the callback
                 was called during training or evaluation.
 
+            evaluate (bool, optional): if ``True``, the trainer will use ``model.eval_score()``
+                to keep track of the best model. If ``False`` the model will not compute
+                an evaluation score, and simply train for some number of epochs. Defaults to
+                ``True``.
+
         Returns:
             (tuple of two list(float)): the history of training losses and validation losses.
 
@@ -124,7 +132,7 @@ class ModelTrainer:
         best_weights: Optional[Dict] = None
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
-        best_val_score = self.evaluate(eval_dataset)
+        best_val_score = self.evaluate(eval_dataset) if evaluate else None
         for epoch in epoch_iter:
             if batch_callback:
                 batch_callback_epoch = functools.partial(batch_callback, epoch)
@@ -147,20 +155,24 @@ class ModelTrainer:
             total_avg_loss = np.mean(batch_losses).mean().item()
             training_losses.append(total_avg_loss)
 
-            eval_score = self.evaluate(
-                eval_dataset, batch_callback=batch_callback_epoch
-            )
-            val_scores.append(eval_score.mean().item())
+            eval_score = None
+            model_val_score = 0
+            if evaluate:
+                eval_score = self.evaluate(
+                    eval_dataset, batch_callback=batch_callback_epoch
+                )
+                val_scores.append(eval_score.mean().item())
 
-            maybe_best_weights = self.maybe_get_best_weights(
-                best_val_score, eval_score, improvement_threshold
-            )
-            if maybe_best_weights:
-                best_val_score = torch.minimum(best_val_score, eval_score)
-                best_weights = maybe_best_weights
-                epochs_since_update = 0
-            else:
-                epochs_since_update += 1
+                maybe_best_weights = self.maybe_get_best_weights(
+                    best_val_score, eval_score, improvement_threshold
+                )
+                if maybe_best_weights:
+                    best_val_score = torch.minimum(best_val_score, eval_score)
+                    best_weights = maybe_best_weights
+                    epochs_since_update = 0
+                else:
+                    epochs_since_update += 1
+                model_val_score = eval_score.mean()
 
             if self.logger:
                 self.logger.log_data(
@@ -173,8 +185,10 @@ class ModelTrainer:
                         if dataset_val is not None
                         else 0,
                         "model_loss": total_avg_loss,
-                        "model_val_score": eval_score.mean(),
-                        "model_best_val_score": best_val_score.mean(),
+                        "model_val_score": model_val_score,
+                        "model_best_val_score": best_val_score.mean()
+                        if best_val_score is not None
+                        else 0,
                     },
                 )
             if callback:
@@ -191,7 +205,8 @@ class ModelTrainer:
                 break
 
         # saving the best models:
-        self._maybe_set_best_weights_and_elite(best_weights, best_val_score)
+        if evaluate:
+            self._maybe_set_best_weights_and_elite(best_weights, best_val_score)
 
         self._train_iteration += 1
         return training_losses, val_scores
