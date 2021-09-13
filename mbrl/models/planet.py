@@ -63,11 +63,11 @@ class StatesAndBeliefs:
         self,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         return (
-            torch.stack(self.all_prior_dist_params),
-            torch.stack(self.prior_states),
-            torch.stack(self.all_posterior_dist_params),
-            torch.stack(self.posterior_states),
-            torch.stack(self.beliefs),
+            torch.stack(self.all_prior_dist_params, dim=1),
+            torch.stack(self.prior_states, dim=1),
+            torch.stack(self.all_posterior_dist_params, dim=1),
+            torch.stack(self.posterior_states, dim=1),
+            torch.stack(self.beliefs, dim=1),
         )
 
 
@@ -333,37 +333,47 @@ class PlaNetModel(Model):
             pred_rewards,
         ) = self.forward(obs, act, rewards)
 
-        reconstruction_loss = (
-            F.mse_loss(pred_obs, obs, reduction="none").sum((-1, -2, -3)).mean()
+        reconstruction_loss = F.mse_loss(pred_obs, obs, reduction="none").sum(
+            (-1, -2, -3)
         )
-        reward_loss = F.mse_loss(pred_rewards, rewards)
+        reward_loss = F.mse_loss(pred_rewards, rewards, reduction="none")
 
         # ------------------ Computing KL[q || p] ------------------
         # [1:] indexing because for each batch the first time index has all zero params
         # also recall that params is mean/std concatenated (half and half)
-        # finally, we sum over the time dimension
+        # finally, we sum over the latent dimension
         kl_loss = (
             torch.distributions.kl_divergence(
                 torch.distributions.Normal(
-                    posterior_dist_params[1:, :, : self.latent_state_size],
-                    posterior_dist_params[1:, :, self.latent_state_size :],
+                    posterior_dist_params[:, 1:, : self.latent_state_size],
+                    posterior_dist_params[:, 1:, self.latent_state_size :],
                 ),
                 torch.distributions.Normal(
-                    prior_dist_params[1:, :, : self.latent_state_size],
-                    prior_dist_params[1:, :, self.latent_state_size :],
+                    prior_dist_params[:, 1:, : self.latent_state_size],
+                    prior_dist_params[:, 1:, self.latent_state_size :],
                 ),
             )
-            .sum(0)
+            .sum(2)
             .max(self.free_nats_for_kl)
-            .mean()
         )
 
-        meta = {
-            "reconstruction": pred_obs.detach(),
-            "reconstruction_loss": reconstruction_loss.item(),
-            "reward_loss": reward_loss.item(),
-            "kl_loss": kl_loss.item(),
-        }
+        if reduce:
+            reconstruction_loss = reconstruction_loss.mean()
+            reward_loss = reward_loss.mean()
+            kl_loss = kl_loss.mean()
+            meta = {
+                "reconstruction": pred_obs.detach(),
+                "reconstruction_loss": reconstruction_loss.item(),
+                "reward_loss": reward_loss.item(),
+                "kl_loss": kl_loss.item(),
+            }
+        else:
+            meta = {
+                "reconstruction": pred_obs.detach(),
+                "reconstruction_loss": reconstruction_loss.detach().mean().item(),
+                "reward_loss": reward_loss.detach().mean().item(),
+                "kl_loss": kl_loss.detach().mean().item(),
+            }
 
         return reconstruction_loss + reward_loss + self.kl_scale * kl_loss, meta
 
@@ -393,7 +403,8 @@ class PlaNetModel(Model):
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
     ) -> LossOutput:
-        return torch.zeros(len(batch), 1), {}
+        with torch.no_grad():
+            return self.loss(batch, reduce=False)
 
     def sample(  # type: ignore
         self,

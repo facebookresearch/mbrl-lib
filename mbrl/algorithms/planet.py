@@ -142,7 +142,8 @@ def batch_callback(_epoch, _loss, meta, _mode):
         rec_losses.append(np.sqrt(meta["reconstruction_loss"] / (3 * 64 * 64)))
         reward_losses.append(meta["reward_loss"])
         kl_losses.append(meta["kl_loss"])
-        grad_norms.append(meta["grad_norm"])
+        if "grad_norm" in meta:
+            grad_norms.append(meta["grad_norm"])
 
 
 exp_name = f"move_normalization___ngu{num_grad_updates}"
