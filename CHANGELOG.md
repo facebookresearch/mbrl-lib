@@ -6,7 +6,9 @@
 - `control_env.py` now works with CEM, iCEM and MPPI.
 - Changed algorithm configuration so that action optimizer is passed as another 
   config file.
-- Added option to quantize pixel obs of gym mujoco and dm control env wrappers.    
+- Added option to quantize pixel obs of gym mujoco and dm control env wrappers.
+- Added a sequence iterator, `SequenceTransitionSampler`, that always returns a 
+  fixed number of random batches.
 
 ## v0.1.3
 - Methods `loss`, `eval_score` and `update` of `Model` class now return a 

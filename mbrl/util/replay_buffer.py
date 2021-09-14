@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import pathlib
 import warnings
-from typing import List, Optional, Sequence, Sized, Tuple, Type, Union
+from typing import Any, List, Optional, Sequence, Sized, Tuple, Type, Union
 
 import numpy as np
 
@@ -177,6 +177,21 @@ class BootstrapIterator(TransitionIterator):
         return self._ensemble_size
 
 
+def _sequence_getitem_impl(
+    transitions: TransitionBatch,
+    batch_size: int,
+    sequence_length: int,
+    valid_starts: np.ndarray,
+    item: Any,
+):
+    start_indices = valid_starts[item].repeat(sequence_length)
+    increment_array = np.tile(np.arange(sequence_length), len(item))
+    full_trajectory_indices = start_indices + increment_array
+    return transitions[full_trajectory_indices].add_new_batch_dim(
+        min(batch_size, len(item))
+    )
+
+
 class SequenceTransitionIterator(BootstrapIterator):
     """
     A transition iterator that provides sequences of transitions.
@@ -283,11 +298,103 @@ class SequenceTransitionIterator(BootstrapIterator):
             return super().__len__()
 
     def __getitem__(self, item):
-        start_indices = self._valid_starts[item].repeat(self._sequence_length)
-        increment_array = np.tile(np.arange(self._sequence_length), len(item))
-        full_trajectory_indices = start_indices + increment_array
-        return self.transitions[full_trajectory_indices].add_new_batch_dim(
-            min(self.batch_size, len(item))
+        return _sequence_getitem_impl(
+            self.transitions,
+            self.batch_size,
+            self._sequence_length,
+            self._valid_starts,
+            item,
+        )
+
+
+class SequenceTransitionSampler(TransitionIterator):
+    """A transition iterator that provides sequences of transitions sampled at random.
+
+    Returns batches of short sequences of transitions in the buffer, corresponding
+    to fixed-length segments of the trajectories indicated by the given trajectory indices.
+    The start states of all trajectories are sampled uniformly at random from the set of
+    states from which a sequence of the desired length can be started.
+    When iterating over this object, batches might contain overlapping trajectories.
+
+    Args:
+        transitions (:class:`TransitionBatch`): the transition data used to built
+            the iterator.
+        trajectory_indices (list(tuple(int, int)): a list of [start, end) indices for
+            trajectories.
+        batch_size (int): the batch size to use when iterating over the stored data.
+        sequence_length (int): the length of the sequences returned.
+        batches_per_loop (int): if given, specifies how many batches
+            to return (at most) over a full loop of the iterator.
+        rng (np.random.Generator, optional): a random number generator when sampling
+            batches. If ``None`` (default value), a new default generator will be used.
+    """
+
+    def __init__(
+        self,
+        transitions: TransitionBatch,
+        trajectory_indices: List[Tuple[int, int]],
+        batch_size: int,
+        sequence_length: int,
+        batches_per_loop: int,
+        rng: Optional[np.random.Generator] = None,
+    ):
+        self._sequence_length = sequence_length
+        self._valid_starts = self._get_indices_valid_starts(
+            trajectory_indices, sequence_length
+        )
+        self._batches_per_loop = batches_per_loop
+        if len(self._valid_starts) < 0.5 * len(trajectory_indices):
+            warnings.warn(
+                "More than 50% of the trajectories were discarded for being shorter "
+                "than the specified length."
+            )
+        # no need to pass transitions to super(), since it's only used by __getitem__,
+        # which this class replaces. Passing the set of possible starts allow us to
+        # use all the indexing machinery of the superclasses.
+        super().__init__(
+            self._valid_starts,  # type: ignore
+            batch_size,
+            shuffle_each_epoch=True,  # this is ignored
+            rng=rng,
+        )
+        self.transitions = transitions
+
+    @staticmethod
+    def _get_indices_valid_starts(
+        trajectory_indices: List[Tuple[int, int]],
+        sequence_length: int,
+    ) -> np.ndarray:
+        # This is memory and time inefficient but it's only done once when creating the
+        # iterator. It's a good price to pay for now, since it simplifies things
+        # enormously and it's less error prone
+        valid_starts = []
+        for (start, end) in trajectory_indices:
+            if end - start < sequence_length:
+                continue
+            valid_starts.extend(list(range(start, end - sequence_length + 1)))
+        return np.array(valid_starts)
+
+    def __iter__(self):
+        self._current_batch = 0
+        return self
+
+    def __next__(self):
+        if self._current_batch >= self._batches_per_loop:
+            raise StopIteration
+        self._current_batch += 1
+        indices = self._rng.choice(self.num_stored, size=self.batch_size, replace=True)
+        return self[indices]
+
+    def __len__(self):
+        return self._batches_per_loop
+
+    def __getitem__(self, item):
+        return _sequence_getitem_impl(
+            self.transitions,
+            self.batch_size,
+            self._sequence_length,
+            self._valid_starts,
+            item,
         )
 
 

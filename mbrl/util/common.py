@@ -18,6 +18,7 @@ from .replay_buffer import (
     BootstrapIterator,
     ReplayBuffer,
     SequenceTransitionIterator,
+    SequenceTransitionSampler,
     TransitionIterator,
 )
 
@@ -257,6 +258,9 @@ def get_basic_buffer_iterators(
     return train_iter, val_iter
 
 
+_SequenceIterType = Union[SequenceTransitionIterator, SequenceTransitionSampler]
+
+
 def get_sequence_buffer_iterator(
     replay_buffer: ReplayBuffer,
     batch_size: int,
@@ -266,7 +270,8 @@ def get_sequence_buffer_iterator(
     shuffle_each_epoch: bool = True,
     max_batches_per_loop_train: Optional[int] = None,
     max_batches_per_loop_val: Optional[int] = None,
-) -> Tuple[SequenceTransitionIterator, Optional[SequenceTransitionIterator]]:
+    use_simple_sampler: bool = False,
+) -> Tuple[_SequenceIterType, Optional[_SequenceIterType]]:
     """Returns training/validation iterators for the data in the replay buffer.
 
     Args:
@@ -284,9 +289,12 @@ def get_sequence_buffer_iterator(
             to return (at most) over a full loop of the training iterator.
         max_batches_per_loop_val (int, optional): if given, specifies how many batches
             to return (at most) over a full loop of the validation iterator.
+        use_simple_sampler (int): if ``True``, returns an iterator of type
+            :class:`mbrl.replay_buffer.SequenceTransitionSampler` instead of
+            :class:`mbrl.replay_buffer.SequenceTransitionIterator`.
 
     Returns:
-        (tuple of :class:`mbrl.replay_buffer.SequenceTransitionIterator`): the training
+        (tuple of :class:`mbrl.replay_buffer.TransitionIterator`): the training
         and validation iterators, respectively.
     """
 
@@ -303,31 +311,51 @@ def get_sequence_buffer_iterator(
     all_trajectories = replay_buffer.rng.permutation(replay_buffer.trajectory_indices)
     train_trajectories = all_trajectories[:train_size]
 
-    train_iterator = SequenceTransitionIterator(
-        transitions,
-        train_trajectories,
-        batch_size,
-        sequence_length,
-        ensemble_size,
-        shuffle_each_epoch=shuffle_each_epoch,
-        rng=replay_buffer.rng,
-        max_batches_per_loop=max_batches_per_loop_train,
-    )
-
-    val_iterator = None
-    if val_size > 0:
-        val_trajectories = all_trajectories[train_size:]
-        val_iterator = SequenceTransitionIterator(
+    if use_simple_sampler:
+        train_iterator: _SequenceIterType = SequenceTransitionSampler(
             transitions,
-            val_trajectories,
+            train_trajectories,
             batch_size,
             sequence_length,
-            1,
+            max_batches_per_loop_train,
+            rng=replay_buffer.rng,
+        )
+    else:
+        train_iterator = SequenceTransitionIterator(
+            transitions,
+            train_trajectories,
+            batch_size,
+            sequence_length,
+            ensemble_size,
             shuffle_each_epoch=shuffle_each_epoch,
             rng=replay_buffer.rng,
-            max_batches_per_loop=max_batches_per_loop_val,
+            max_batches_per_loop=max_batches_per_loop_train,
         )
-        val_iterator.toggle_bootstrap()
+
+    val_iterator: Optional[_SequenceIterType] = None
+    if val_size > 0:
+        val_trajectories = all_trajectories[train_size:]
+        if use_simple_sampler:
+            val_iterator = SequenceTransitionSampler(
+                transitions,
+                val_trajectories,
+                batch_size,
+                sequence_length,
+                max_batches_per_loop_val,
+                rng=replay_buffer.rng,
+            )
+        else:
+            val_iterator = SequenceTransitionIterator(
+                transitions,
+                val_trajectories,
+                batch_size,
+                sequence_length,
+                1,
+                shuffle_each_epoch=shuffle_each_epoch,
+                rng=replay_buffer.rng,
+                max_batches_per_loop=max_batches_per_loop_val,
+            )
+            val_iterator.toggle_bootstrap()
 
     return train_iterator, val_iterator
 

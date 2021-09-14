@@ -386,6 +386,35 @@ def test_get_all():
     assert np.allclose(np.sort(shuffled_rewards), expected_rewards)
 
 
+def _add_dummy_trajectories_to_buffer(buffer, dummy, num_trajectories, max_len, rng):
+    F = 1000
+    for i in range(num_trajectories):
+        traj_length = rng.integers(15, max_len)
+        for j in range(traj_length):
+            v = F * i + j
+            buffer.add(dummy * v, dummy * v + 1, dummy * v + 2, v, j == traj_length - 1)
+
+
+# This function checks that batches are returning correct trajectories
+# Assumes that buffer entries were added with _add_dummy_trajectories_to_buffer
+def _check_non_ensemble_sequence_batch(
+    batch, expected_batch_size, sequence_length, obs_shape=(1, 1)
+):
+    assert batch.obs.shape == (expected_batch_size, sequence_length) + obs_shape
+    assert batch.rewards.shape == (expected_batch_size, sequence_length)
+
+    for t in range(1, sequence_length):
+        # all trajectories are built so that the o[t + 1] - o[t] = 1
+        assert np.all(batch.obs[:, t] - batch.obs[:, t - 1] == 1)
+
+    # also check that actions and next_obs are ok
+    assert np.all(batch.obs - batch.act == -1)
+    assert np.all(batch.obs - batch.next_obs == -2)
+    if np.any(batch.dones):
+        # Any dones must be at the end of a trajectory
+        assert not np.any(batch.dones[:, :-1])
+
+
 def test_sequence_iterator():
     max_len = 20
     buffer = replay_buffer.ReplayBuffer(
@@ -399,29 +428,7 @@ def test_sequence_iterator():
     rng = np.random.default_rng(0)
     num_trajectories = 40
     dummy = np.ones((1, 1))
-    F = 1000
-    # Add a bunch of trajectories to the replay buffer
-    for i in range(num_trajectories):
-        traj_length = rng.integers(15, max_len)
-        for j in range(traj_length):
-            v = F * i + j
-            buffer.add(dummy * v, dummy * v + 1, dummy * v + 2, v, j == traj_length - 1)
-
-    # This function checks that batches are returning correct trajectories
-    def _check_non_ensemble_sequence_batch(batch_, expected_batch_size_):
-        assert batch_.obs.shape == (expected_batch_size_, sequence_length, 1, 1)
-        assert batch_.rewards.shape == (expected_batch_size_, sequence_length)
-
-        for t in range(1, sequence_length):
-            # all trajectories are built so that the o[t + 1] - o[t] = 1
-            assert np.all(batch_.obs[:, t] - batch_.obs[:, t - 1] == 1)
-
-        # also check that actions and next_obs are ok
-        assert np.all(batch_.obs - batch_.act == -1)
-        assert np.all(batch_.obs - batch_.next_obs == -2)
-        if np.any(batch_.dones):
-            # Any dones must be at the end of a trajectory
-            assert not np.any(batch_.dones[:, :-1])
+    _add_dummy_trajectories_to_buffer(buffer, dummy, num_trajectories, max_len, rng)
 
     def _expected_batch_size(batch_size_, batch_idx_, iterator_):
         expected_batch_size_ = batch_size
@@ -457,7 +464,9 @@ def test_sequence_iterator():
                         assert not np.allclose(batch.obs[e1, :, 0], batch.obs[e2, :, 0])
 
                 # Now check that each ensemble batch is consistent
-                _check_non_ensemble_sequence_batch(batch[e1], expected_batch_size)
+                _check_non_ensemble_sequence_batch(
+                    batch[e1], expected_batch_size, sequence_length
+                )
 
             obs_first_epoch.append(batch.obs)
         assert total_seen == iterator.num_stored
@@ -479,7 +488,9 @@ def test_sequence_iterator():
         iterator.toggle_bootstrap()
         for batch_idx, batch in enumerate(iterator):
             expected_batch_size = _expected_batch_size(batch_size_, batch_idx, iterator)
-            _check_non_ensemble_sequence_batch(batch, expected_batch_size)
+            _check_non_ensemble_sequence_batch(
+                batch, expected_batch_size, sequence_length
+            )
 
     ensemble_size = 3
     for batch_size in [1, 8]:
@@ -522,3 +533,40 @@ def test_sequence_iterator_max_batches_per_loop():
             cnt += 1
         assert cnt == max_batches
         assert len(iterator) == max_batches
+
+
+def test_sequence_sampler():
+    max_len = 20
+    buffer = replay_buffer.ReplayBuffer(
+        1000,
+        (1, 2, 3),
+        (1, 2, 3),
+        max_trajectory_length=20,
+        obs_type=int,
+        action_type=int,
+    )
+    rng = np.random.default_rng(0)
+    num_trajectories = 40
+    dummy = np.ones((1, 2, 3))
+    _add_dummy_trajectories_to_buffer(buffer, dummy, num_trajectories, max_len, rng)
+
+    batch_size = 8
+    sequence_length = 4
+    for batches_per_loop in [1, 10, 100]:
+        iterator = replay_buffer.SequenceTransitionSampler(
+            buffer.get_all(),
+            buffer.trajectory_indices,
+            batch_size,
+            sequence_length,
+            batches_per_loop,
+        )
+
+        cnt = 0
+        for batch in iterator:
+            cnt += 1
+            _check_non_ensemble_sequence_batch(
+                batch, batch_size, sequence_length, obs_shape=(1, 2, 3)
+            )
+
+        assert cnt == batches_per_loop
+        assert len(iterator) == batches_per_loop
