@@ -146,12 +146,12 @@ def batch_callback(_epoch, _loss, meta, _mode):
             grad_norms.append(meta["grad_norm"])
 
 
-exp_name = f"move_normalization___ngu{num_grad_updates}"
+exp_name = f"debug___ngu{num_grad_updates}"
 save_dir = (
     pathlib.Path("/checkpoint/lep/mbrl/planet/dm_cheetah_run/full_model") / exp_name
 )
 
-save_dir.mkdir(exist_ok=True, parents=True)
+save_dir.mkdir(exist_ok="debug" in exp_name, parents=True)
 
 logger = Logger(save_dir)
 trainer = ModelTrainer(planet, logger=logger, optim_lr=1e-3, optim_eps=1e-4)
@@ -215,11 +215,12 @@ for step in range(num_steps):
             batch_size,
             0,
             sequence_length,
-            ensemble_size=1,
             max_batches_per_loop_train=num_grad_updates,
+            use_simple_sampler=True,
         )
-        num_epochs = (num_grad_updates - 1) // len(dataset) + 1  # int ceiling
-        trainer.train(dataset, num_epochs=num_epochs, batch_callback=batch_callback)
+        trainer.train(
+            dataset, num_epochs=1, batch_callback=batch_callback, evaluate=False
+        )
 
         planet.save(save_dir / "planet.pth")
         replay_buffer.save(save_dir)

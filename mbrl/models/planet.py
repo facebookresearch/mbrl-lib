@@ -102,7 +102,10 @@ class MeanStdSplit(nn.Module):
 
     def forward(self, state_dist_params: torch.Tensor) -> torch.Tensor:
         mean = state_dist_params[:, : self.latent_state_size]
-        std = F.softplus(state_dist_params[:, self.latent_state_size :]) + self.min_std
+        std = (
+            F.softplus(state_dist_params[:, self.latent_state_size :] + 0.55)
+            + self.min_std
+        )
         return torch.cat([mean, std], dim=1)
 
 
@@ -123,7 +126,7 @@ class PlaNetModel(Model):
         belief_size: int,
         hidden_size_fcs: int,
         device: Union[str, torch.device],
-        min_std: float = 0.1,
+        min_std: float = 0.01,
         free_nats_for_kl: float = 3,
         kl_scale: float = 1.0,
         rng: Optional[torch.Generator] = None,
