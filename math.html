@@ -445,6 +445,29 @@ number of models, batch size, and output dimension, respectively.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt id="mbrl.util.math.quantize_obs">
+<code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">quantize_obs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">bit_depth</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">original_bit_depth</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">8</span></em>, <em class="sig-param"><span class="n">add_noise</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.math.quantize_obs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Quantizes an array of pixel observations to the desired bit depth.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obs</strong> (<em>np.ndarray</em>) – the array to quantize.</p></li>
+<li><p><strong>bit_depth</strong> (<em>int</em>) – the desired bit depth.</p></li>
+<li><p><strong>original_bit_depth</strong> (<em>int</em><em>, </em><em>optional</em>) – the original bit depth, defaults to 8.</p></li>
+<li><p><strong>add_noise</strong> (<em>bool</em><em>, </em><em>optional</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, uniform noise in the range
+(0, 1 / 2 ** bit_depth) will be added. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.`</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the quantized version of the array.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(np.ndarray)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt id="mbrl.util.math.truncated_linear">
 <code class="sig-prename descclassname">mbrl.util.math.</code><code class="sig-name descname">truncated_linear</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">min_x</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">max_x</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">min_y</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">max_y</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">x</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#mbrl.util.math.truncated_linear" title="Permalink to this definition">¶</a></dt>
 <dd><p>Truncated linear function.</p>

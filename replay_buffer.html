@@ -414,6 +414,34 @@ to return (at most) over a full loop of the iterator.</p></li>
 </dd></dl>
 
 <dl class="py class">
+<dt id="mbrl.util.replay_buffer.SequenceTransitionSampler">
+<em class="property">class </em><code class="sig-prename descclassname">mbrl.util.replay_buffer.</code><code class="sig-name descname">SequenceTransitionSampler</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transitions</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">trajectory_indices</span><span class="p">:</span> <span class="n">List<span class="p">[</span>Tuple<span class="p">[</span>int<span class="p">, </span>int<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">sequence_length</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">batches_per_loop</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.SequenceTransitionSampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#mbrl.util.replay_buffer.TransitionIterator" title="mbrl.util.replay_buffer.TransitionIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">mbrl.util.replay_buffer.TransitionIterator</span></code></a></p>
+<p>A transition iterator that provides sequences of transitions sampled at random.</p>
+<p>Returns batches of short sequences of transitions in the buffer, corresponding
+to fixed-length segments of the trajectories indicated by the given trajectory indices.
+The start states of all trajectories are sampled uniformly at random from the set of
+states from which a sequence of the desired length can be started.
+When iterating over this object, batches might contain overlapping trajectories.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>transitions</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TransitionBatch</span></code>) – the transition data used to built
+the iterator.</p></li>
+<li><p><strong>trajectory_indices</strong> (<em>list</em><em>(</em><em>tuple</em><em>(</em><em>int</em><em>, </em><em>int</em><em>)</em>) – a list of [start, end) indices for
+trajectories.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – the batch size to use when iterating over the stored data.</p></li>
+<li><p><strong>sequence_length</strong> (<em>int</em>) – the length of the sequences returned.</p></li>
+<li><p><strong>batches_per_loop</strong> (<em>int</em>) – if given, specifies how many batches
+to return (at most) over a full loop of the iterator.</p></li>
+<li><p><strong>rng</strong> (<em>np.random.Generator</em><em>, </em><em>optional</em>) – a random number generator when sampling
+batches. If <code class="docutils literal notranslate"><span class="pre">None</span></code> (default value), a new default generator will be used.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
 <dt id="mbrl.util.replay_buffer.TransitionIterator">
 <em class="property">class </em><code class="sig-prename descclassname">mbrl.util.replay_buffer.</code><code class="sig-name descname">TransitionIterator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transitions</span><span class="p">:</span> <span class="n">mbrl.types.TransitionBatch</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">shuffle_each_epoch</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">rng</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>numpy.random._generator.Generator<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mbrl.util.replay_buffer.TransitionIterator" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
