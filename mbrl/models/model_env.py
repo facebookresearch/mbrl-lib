@@ -163,6 +163,7 @@ class ModelEnv:
         """
         assert len(action_sequences.shape) == 3
         population_size, horizon, action_dim = action_sequences.shape
+        # either 1-D state or 3-D pixel observation
         assert initial_state.ndim in (1, 3)
         tiling_shape = (num_particles * population_size,) + tuple(
             [1] * initial_state.ndim
