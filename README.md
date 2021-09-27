@@ -23,7 +23,7 @@ See also our companion [paper](https://arxiv.org/abs/2104.10159).
 ``mbrl`` requires Python 3.7+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
 To install the latest stable version, run
 
-    pip install mbrl
+    pip install mbrl==v0.1.4
 
 #### Developer installation
 If you are interested in modifying the library, clone the repository and set up 

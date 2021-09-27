@@ -1,5 +1,15 @@
 # Changelog
 
+## main
+### Breaking changes
+- `Model.reset()` and `Model.sample()` signature has changed. They no longer receive
+`TransitionBatch` objects, and they both return a dictionary of strings to tensors 
+  representing a model state that should be passed to `sample()` to simulate 
+  transitions. This dictionary can contain things like previous actions, predicted
+  observation, latent states, beliefs, and any other such quantity that the model
+  need to maintain to simulate trajectories when using `ModelEnv`. 
+- `Ensemble` class and sub-classes are assumed to operate on 1-D models. 
+
 ## v0.1.4
 - Added MPPI optimizer.
 - Added iCEM optimizer.  

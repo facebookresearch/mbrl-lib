@@ -5,7 +5,7 @@
 import pathlib
 import pickle
 import warnings
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -41,6 +41,9 @@ class OneDTransitionRewardModel(Model):
     The wrapper assumes that the wrapped model inputs/outputs will be consistent with
 
         [pred_obs_{t+1}, pred_rewards_{t+1} (optional)] = model([obs_t, action_t]).
+
+    To use with :class:mbrl.models.ModelEnv`, the wrapped model must define methods
+    ``reset_1d`` and ``sample_1d``.
 
     Args:
         model (:class:`mbrl.model.Model`): the model to wrap.
@@ -259,20 +262,26 @@ class OneDTransitionRewardModel(Model):
             output = self.model.forward(model_in)
         return output, target
 
-    def sample(  # type: ignore
+    def sample(
         self,
-        x: mbrl.types.TransitionBatch,
+        act: torch.Tensor,
+        model_state: Dict[str, torch.Tensor],
         deterministic: bool = False,
         rng: Optional[torch.Generator] = None,
-        **kwargs,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Samples next observations and rewards from the underlying model.
+    ) -> Tuple[
+        torch.Tensor,
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[Dict[str, torch.Tensor]],
+    ]:
+        """Samples next observations and rewards from the underlying 1-D model.
 
         This wrapper assumes that the underlying model's sample method returns a tuple
         with just one tensor, which concatenates next_observation and reward.
 
         Args:
-            x (transition): a batch of transitions.
+            act (tensor): the action at.
+            model_state (tensor): the model state st.
             deterministic (bool): if ``True``, the model returns a deterministic
                 "sample" (e.g., the mean prediction). Defaults to ``False``.
             rng (random number generator): a rng to use for sampling.
@@ -280,11 +289,17 @@ class OneDTransitionRewardModel(Model):
         Returns:
             (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
         """
-        obs = model_util.to_tensor(x.obs).to(self.device)
-        actions = model_util.to_tensor(x.act).to(self.device)
+        obs = model_util.to_tensor(model_state["obs"]).to(self.device)
+        actions = model_util.to_tensor(act).to(self.device)
 
         model_in = self._get_model_input_from_tensors(obs, actions)
-        preds = self.model.sample(model_in, rng=rng, deterministic=deterministic)[0]
+        if not hasattr(self.model, "sample_1d"):
+            raise RuntimeError(
+                "OneDTransitionRewardModel requires wrapped model to define method sample_1d"
+            )
+        preds, next_model_state = self.model.sample_1d(
+            model_in, model_state, rng=rng, deterministic=deterministic
+        )
         next_observs = preds[:, :-1] if self.learned_rewards else preds
         if self.target_is_delta:
             tmp_ = next_observs + obs
@@ -292,23 +307,31 @@ class OneDTransitionRewardModel(Model):
                 tmp_[:, dim] = next_observs[:, dim]
             next_observs = tmp_
         rewards = preds[:, -1:] if self.learned_rewards else None
-        return next_observs, rewards
+        next_model_state["obs"] = next_observs
+        return next_observs, rewards, None, next_model_state
 
-    def reset(  # type: ignore
-        self, x: mbrl.types.TransitionBatch, rng: Optional[torch.Generator] = None
-    ) -> torch.Tensor:
+    def reset(
+        self, obs: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> Dict[str, torch.Tensor]:
         """Calls reset on the underlying model.
 
         Args:
-            x (tensor): the input to the model.
-            rng (random number generator): a rng to use for sampling the model
-                indices.
+            obs (tensor): the observation from which the trajectory will be
+                started. The actual value is ignore, only the shape is used.
+            rng (`torch.Generator`, optional): an optional random number generator
+                to use.
 
         Returns:
-            (tensor): the output of the underlying model.
+            (dict(str, tensor)): the model state necessary to continue the simulation.
         """
-        obs = model_util.to_tensor(x.obs).to(self.device)
-        return self.model.reset(obs, rng=rng)
+        if not hasattr(self.model, "reset_1d"):
+            raise RuntimeError(
+                "OneDTransitionRewardModel requires wrapped model to define method reset_1d"
+            )
+        obs = model_util.to_tensor(obs).to(self.device)
+        model_state = {"obs": obs}
+        model_state.update(self.model.reset_1d(obs, rng=rng))
+        return model_state
 
     # TODO replace this with calls to self.model.save() and self.model.load() in next version
     def save(self, save_dir: Union[str, pathlib.Path]):

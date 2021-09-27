@@ -63,42 +63,6 @@ class Model(nn.Module, abc.ABC):
         """
         pass
 
-    def sample(
-        self, x: ModelInput, deterministic: bool = False, **kwargs
-    ) -> Tuple[torch.Tensor, ...]:
-        """Samples an output of the dynamics model.
-
-        The default implementation for all models is equivalent to `self.forward(x)[0]`.
-        This method will be used by :class:`ModelEnv` to simulate a step with the model.
-
-        Args:
-            x (tensor or batch of transitions): the input to the model.
-            deterministic (bool): if ``True``, the model returns a deterministic
-                "sample" (e.g., the mean prediction). Defaults to ``False``.
-
-        Returns:
-            (tuple of tensor): any number of tensors that can be sampled from
-                the model (e.g., observations, rewards, terminations).
-        """
-        return (self.forward(x)[0],)
-
-    def reset(self, x: ModelInput, **kwargs) -> torch.Tensor:
-        """Initializes any internal dependent state when using the model for simulation.
-
-        For most models this just returns the same input that is given as input. However,
-        for some models this method can be used to initialize data that should be kept
-        constant during a simulated trajectory (for example model indices when using
-        a bootstrapped ensemble with TSinf propagation). It can also be used to return
-        latent states computed by the model.
-
-        Args:
-            x (tensor or batch of transitions): the input to the model.
-
-        Returns:
-            (tensor): the initial state sampled for the model.
-        """
-        return cast(torch.Tensor, x)
-
     @abc.abstractmethod
     def loss(
         self,
@@ -201,6 +165,73 @@ class Model(nn.Module, abc.ABC):
             optimizer.step()
             return loss_and_maybe_meta.item()
 
+    def reset(
+        self, obs: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Initializes the model to start a new simulated trajectory.
+
+        This method can be used to initialize data that should be kept constant during
+        a simulated trajectory starting at the given observation (for example model
+        indices when using a bootstrapped ensemble with TSinf propagation). It should
+        also return any state produced by the model that the :meth:`sample()` method
+        will require to continue the simulation (e.g., predicted observation,
+        latent state, last action, beliefs, propagation indices, etc.).
+
+        Args:
+            obs (tensor): the observation from which the trajectory will be
+                started.
+            rng (`torch.Generator`, optional): an optional random number generator
+                to use.
+
+        Returns:
+            (dict(str, tensor)): the model state necessary to continue the simulation.
+        """
+        raise NotImplementedError(
+            "ModelEnv requires that model has a reset() method defined."
+        )
+
+    def sample(
+        self,
+        act: torch.Tensor,
+        model_state: Dict[str, torch.Tensor],
+        deterministic: bool = False,
+        rng: Optional[torch.Generator] = None,
+    ) -> Tuple[
+        torch.Tensor,
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[Dict[str, torch.Tensor]],
+    ]:
+        """Samples a simulated transition from the dynamics model.
+
+        This method will be used by :class:`ModelEnv` to simulate a transition of the form.
+            o_t+1, r_t+1, d_t+1, st = sample(at, s_t), where
+
+            - a_t: action taken at time t.
+            - s_t: model state at time t (as returned by :meth:`reset()` or :meth:`sample()`.
+            - r_t: reward at time t.
+            - d_t: terminal indicator at time t.
+
+        If the model doesn't simulate rewards and/or terminal indicators, it can return
+        ``None`` for those.
+
+        Args:
+            act (tensor): the action at.
+            model_state (tensor): the model state st.
+            deterministic (bool): if ``True``, the model returns a deterministic
+                "sample" (e.g., the mean prediction). Defaults to ``False``.
+            rng (`torch.Generator`, optional): an optional random number generator
+                to use.
+
+        Returns:
+            (tuple): predicted observation, rewards, terminal indicator and model
+                state dictionary. Everything but the observation is optional, and can
+                be returned with value ``None``.
+        """
+        raise NotImplementedError(
+            "ModelEnv requires that model has a sample() method defined."
+        )
+
     def __len__(self):
         return 1
 
@@ -217,7 +248,7 @@ class Model(nn.Module, abc.ABC):
 #                           ABSTRACT ENSEMBLE CLASS
 # ---------------------------------------------------------------------------
 class Ensemble(Model, abc.ABC):
-    """Base abstract class for all ensemble of bootstrapped models.
+    """Base abstract class for all ensemble of bootstrapped 1-D models.
 
     Implements an ensemble of bootstrapped models described in the
     Chua et al., NeurIPS 2018 paper (PETS) https://arxiv.org/pdf/1805.12114.pdf,
@@ -273,7 +304,6 @@ class Ensemble(Model, abc.ABC):
         Returns:
             (tuple of tensors): all tensors predicted by the model (e.g., .mean and logvar).
         """
-        pass
 
     # TODO this and eval_score are no longer necessary
     @abc.abstractmethod
@@ -326,31 +356,116 @@ class Ensemble(Model, abc.ABC):
         """For ensemble models, indicates if some models should be considered elite."""
         pass
 
+    @abc.abstractmethod
+    def sample_propagation_indices(
+        self, batch_size: int, rng: torch.Generator
+    ) -> torch.Tensor:
+        """Samples uncertainty propagation indices.
+
+        Args:
+            batch_size (int): the desired batch size.
+            rng (`torch.Generator`: a random number generator to use for sampling.
+        Returns:
+             (tensor) with ``batch_size`` integers from [0, ``self.num_members``).
+        """
+        pass
+
     def set_propagation_method(self, propagation_method: Optional[str] = None):
         self.propagation_method = propagation_method
 
-    def sample(  # type: ignore
-        self,
-        x: ModelInput,
-        deterministic: bool = False,
-        rng: Optional[torch.Generator] = None,
-        **kwargs,
-    ) -> Tuple[torch.Tensor, ...]:
-        """Samples an output of the dynamics model from the modeled Gaussian.
+    def reset(
+        self, obs: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> Dict[str, torch.Tensor]:
+        raise NotImplementedError(
+            "ModelEnv requires 1-D models must be wrapped into a OneDTransitionRewardModel."
+        )
+
+    def reset_1d(
+        self, obs: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Initializes the model to start a new simulated trajectory.
+
+        Returns a dictionary with one keys: "propagation_indices". If
+        `self.propagation_method == "fixed_model"`, its value will be the
+        computed propagation indices. Otherwise, its value is set to ``None``.
 
         Args:
-            x (tensor): the input to the model.
-            deterministic (bool): if ``True``, the model returns a deterministic
-                "sample" (e.g., the mean prediction). Defaults to ``False``.
-            rng (random number generator): a rng to use for sampling.
+            obs (tensor): the observation from which the trajectory will be
+                started. The actual value is ignore, only the shape is used.
+            rng (`torch.Generator`, optional): an optional random number generator
+                to use.
 
         Returns:
-            (tensor): the sampled output.
+            (dict(str, tensor)): the model state necessary to continue the simulation.
+        """
+        assert rng is not None
+        if self.propagation_method == "fixed_model":
+            propagation_indices = self.sample_propagation_indices(obs.shape[0], rng)
+        else:
+            propagation_indices = None
+        return {"obs": obs, "propagation_indices": propagation_indices}
+
+    def sample(
+        self,
+        act: torch.Tensor,
+        model_state: Dict[str, torch.Tensor],
+        deterministic: bool = False,
+        rng: Optional[torch.Generator] = None,
+    ) -> Tuple[
+        torch.Tensor,
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[Dict[str, torch.Tensor]],
+    ]:
+        raise NotImplementedError(
+            "ModelEnv requires 1-D models must be wrapped into a OneDTransitionRewardModel."
+        )
+
+    def sample_1d(
+        self,
+        model_input: torch.Tensor,
+        model_state: Dict[str, torch.Tensor],
+        deterministic: bool = False,
+        rng: Optional[torch.Generator] = None,
+    ) -> Tuple[torch.Tensor, Optional[Dict[str, torch.Tensor]]]:
+        """Samples an output from the model using .
+
+        This method will be used by :class:`ModelEnv` to simulate a transition of the form.
+            outputs_t+1, s_t+1 = sample(model_input_t, s_t), where
+
+            - model_input_t: observation and action at time t, concatenated across axis=1.
+            - s_t: model state at time t (as returned by :meth:`reset()` or :meth:`sample()`.
+            - outputs_t+1: observation and reward at time t+1, concatenated across axis=1.
+
+        The default implementation returns `s_t+1=s_t`.
+
+        Args:
+            model_input (tensor): the observation and action at.
+            model_state (tensor): the model state st. Must contain a key
+                "propagation_indices" to use for uncertainty propagation.
+            deterministic (bool): if ``True``, the model returns a deterministic
+                "sample" (e.g., the mean prediction). Defaults to ``False``.
+            rng (`torch.Generator`, optional): an optional random number generator
+                to use.
+
+        Returns:
+            (tuple): predicted observation, rewards, terminal indicator and model
+                state dictionary. Everything but the observation is optional, and can
+                be returned with value ``None``.
         """
         if deterministic or self.deterministic:
-            return (self.forward(x, rng=rng)[0],)
+            return (
+                self.forward(
+                    model_input,
+                    rng=rng,
+                    propagation_indices=model_state["propagation_indices"],
+                )[0],
+                model_state,
+            )
         assert rng is not None
-        means, logvars = self.forward(x, rng=rng)
+        means, logvars = self.forward(
+            model_input, rng=rng, propagation_indices=model_state["propagation_indices"]
+        )
         variances = logvars.exp()
         stds = torch.sqrt(variances)
-        return (torch.normal(means, stds, generator=rng),)
+        return torch.normal(means, stds, generator=rng), model_state

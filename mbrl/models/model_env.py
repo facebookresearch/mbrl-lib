@@ -60,10 +60,8 @@ class ModelEnv:
         self._return_as_np = True
 
     def reset(
-        self,
-        initial_obs_batch: np.ndarray,
-        return_as_np: bool = True,
-    ) -> mbrl.types.TensorType:
+        self, initial_obs_batch: np.ndarray, return_as_np: bool = True
+    ) -> Dict[str, torch.Tensor]:
         """Resets the model environment.
 
         Args:
@@ -75,21 +73,20 @@ class ModelEnv:
                 model. Defaults to ``True``.
 
         Returns:
-            (torch.Tensor or np.ndarray): the initial observation in the type indicated
-            by ``return_as_np``.
+            (dict(str, tensor)): the model state returned by `self.dynamics_model.reset()`.
         """
         assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
-        batch = mbrl.types.TransitionBatch(
-            initial_obs_batch.astype(np.float32), None, None, None, None
+        model_state = self.dynamics_model.reset(
+            initial_obs_batch.astype(np.float32), rng=self._rng
         )
-        self._current_obs = self.dynamics_model.reset(batch, rng=self._rng)
         self._return_as_np = return_as_np
-        if self._return_as_np:
-            return self._current_obs.cpu().numpy()
-        return self._current_obs
+        return model_state if model_state is not None else {}
 
     def step(
-        self, actions: mbrl.types.TensorType, sample: bool = False
+        self,
+        actions: mbrl.types.TensorType,
+        model_state: Dict[str, torch.Tensor],
+        sample: bool = False,
     ) -> Tuple[mbrl.types.TensorType, mbrl.types.TensorType, np.ndarray, Dict]:
         """Steps the model environment with the given batch of actions.
 
@@ -99,6 +96,7 @@ class ModelEnv:
                 and ``A`` is the action dimension. Note that ``B`` must correspond to the
                 batch size used when calling :meth:`reset`. If a np.ndarray is given, it's
                 converted to a torch.Tensor and sent to the model device.
+            model_state (dict(str, tensor)): the model state as returned by :meth:`reset()`.
             sample (bool): if ``True`` model predictions are stochastic. Defaults to ``False``.
 
         Returns:
@@ -110,11 +108,14 @@ class ModelEnv:
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
                 actions = torch.from_numpy(actions).to(self.device)
-            model_in = mbrl.types.TransitionBatch(
-                self._current_obs, actions, None, None, None
-            )
-            next_observs, pred_rewards = self.dynamics_model.sample(
-                model_in,
+            (
+                next_observs,
+                pred_rewards,
+                pred_terminals,
+                next_model_state,
+            ) = self.dynamics_model.sample(
+                actions,
+                model_state,
                 deterministic=not sample,
                 rng=self._rng,
             )
@@ -124,12 +125,17 @@ class ModelEnv:
                 else self.reward_fn(actions, next_observs)
             )
             dones = self.termination_fn(actions, next_observs)
-            self._current_obs = next_observs
+
+            if pred_terminals is not None:
+                raise NotImplementedError(
+                    "ModelEnv doesn't yet support simulating terminal indicators."
+                )
+
             if self._return_as_np:
                 next_observs = next_observs.cpu().numpy()
                 rewards = rewards.cpu().numpy()
                 dones = dones.cpu().numpy()
-            return next_observs, rewards, dones, {}
+            return next_observs, rewards, dones, next_model_state
 
     def render(self, mode="human"):
         pass
@@ -161,7 +167,7 @@ class ModelEnv:
         initial_obs_batch = np.tile(
             initial_state, (num_particles * population_size, 1)
         ).astype(np.float32)
-        self.reset(initial_obs_batch, return_as_np=False)
+        model_state = self.reset(initial_obs_batch, return_as_np=False)
         batch_size = initial_obs_batch.shape[0]
         total_rewards = torch.zeros(batch_size, 1).to(self.device)
         terminated = torch.zeros(batch_size, 1, dtype=bool).to(self.device)
@@ -170,7 +176,9 @@ class ModelEnv:
             action_batch = torch.repeat_interleave(
                 actions_for_step, num_particles, dim=0
             )
-            _, rewards, dones, _ = self.step(action_batch, sample=True)
+            _, rewards, dones, model_state = self.step(
+                action_batch, model_state, sample=True
+            )
             rewards[terminated] = 0
             terminated |= dones
             total_rewards += rewards

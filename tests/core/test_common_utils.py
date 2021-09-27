@@ -136,9 +136,9 @@ class MockModelEnv:
 
     def reset(self, obs0, return_as_np=None):
         self.obs = obs0
-        return obs0
+        return {}
 
-    def step(self, action, sample=None):
+    def step(self, action, model_state, sample=None):
         next_obs = self.obs + action[:, :1]
         reward = np.ones(next_obs.shape[0])
         done = np.zeros(next_obs.shape[0])

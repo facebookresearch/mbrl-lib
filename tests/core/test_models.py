@@ -170,11 +170,13 @@ def test_gaussian_mlp_ensemble_fixed_model_propagation():
     history = ["" for _ in range(batch_size)]
     rng = torch.Generator(device=_DEVICE)
     # This creates propagation indices to use for all runs
-    reset_output = model.reset(batch, rng)
+    state_dict = model.reset_1d(batch, rng)
     with torch.no_grad():
         for _ in range(num_reps):
-            assert reset_output is batch
-            y = model.forward(batch)[0]
+            assert "propagation_indices" in state_dict
+            y = model.forward(
+                batch, propagation_indices=state_dict["propagation_indices"]
+            )[0]
             history = _check_output_counts_and_update_history(
                 y, ensemble_size, batch_size, history
             )
@@ -262,12 +264,14 @@ def test_model_env_expectation_propagation():
     batch_size = 7
     model_env, member_incs = get_mock_env("expectation")
     init_obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=init_obs)
+    model_state = model_env.reset(initial_obs_batch=init_obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     prev_sum = 0
     for i in range(10):
-        next_obs, reward, *_ = model_env.step(action, sample=False)
+        next_obs, reward, _, model_state = model_env.step(
+            action, model_state, sample=False
+        )
         assert next_obs.shape == (batch_size, 1)
         cur_sum = np.sum(next_obs)
         assert (cur_sum - prev_sum) == pytest.approx(batch_size * np.mean(member_incs))
@@ -279,13 +283,15 @@ def test_model_env_expectation_random():
     batch_size = 100
     model_env, member_incs = get_mock_env("random_model")
     obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=obs)
+    model_state = model_env.reset(initial_obs_batch=obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     num_steps = 50
     history = ["" for _ in range(batch_size)]
     for i in range(num_steps):
-        next_obs, reward, *_ = model_env.step(action, sample=False)
+        next_obs, reward, _, model_state = model_env.step(
+            action, model_state, sample=False
+        )
         assert next_obs.shape == (batch_size, 1)
 
         diff = next_obs - obs
@@ -309,13 +315,15 @@ def test_model_env_expectation_fixed():
     batch_size = 100
     model_env, member_incs = get_mock_env("fixed_model")
     obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=obs)
+    model_state = model_env.reset(initial_obs_batch=obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     num_steps = 50
     history = ["" for _ in range(batch_size)]
     for i in range(num_steps):
-        next_obs, reward, *_ = model_env.step(action, sample=False)
+        next_obs, reward, _, model_state = model_env.step(
+            action, model_state, sample=False
+        )
         assert next_obs.shape == (batch_size, 1)
 
         diff = next_obs - obs
@@ -347,8 +355,11 @@ class DummyModel(mbrl.models.Model):
         # reward is also equal to new_obs
         return torch.cat([new_obs, new_obs], axis=1)
 
-    def sample(self, x, deterministic=False, rng=None):
-        return (self.forward(x),)
+    def reset_1d(self, _obs, rng=None):
+        return {}
+
+    def sample_1d(self, x, _, deterministic=False, rng=None):
+        return self.forward(x), {}
 
     def loss(self, _input, target=None):
         return 0.0 * self.param, {"loss": 0}
