@@ -1,5 +1,5 @@
 import pathlib
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import omegaconf
@@ -31,7 +31,7 @@ device = "cuda:0"
 
 # This is the stuff to be replaced with a config file
 action_repeat = 4
-num_steps = 1000000 // action_repeat
+num_episodes = 1000
 num_grad_updates = 100
 sequence_length = 50
 trajectory_length = 1000
@@ -90,7 +90,7 @@ np_rng = np.random.default_rng(seed=seed)
 
 
 replay_buffer = ReplayBuffer(
-    num_steps,
+    (num_episodes * trajectory_length) // action_repeat,
     env.observation_space.shape,
     env.action_space.shape,
     max_trajectory_length=trajectory_length,
@@ -146,7 +146,7 @@ def batch_callback(_epoch, _loss, meta, _mode):
             grad_norms.append(meta["grad_norm"])
 
 
-exp_name = f"debug___ngu{num_grad_updates}"
+exp_name = "updated_posterior"
 save_dir = (
     pathlib.Path("/checkpoint/lep/mbrl/planet/dm_cheetah_run/full_model") / exp_name
 )
@@ -157,13 +157,16 @@ logger = Logger(save_dir)
 trainer = ModelTrainer(planet, logger=logger, optim_lr=1e-3, optim_eps=1e-4)
 logger.register_group("meta", META_LOG_FORMAT, color="yellow")
 logger.register_group(
-    mbrl.constants.RESULTS_LOG_NAME, mbrl.constants.EVAL_LOG_FORMAT, color="green"
+    mbrl.constants.RESULTS_LOG_NAME,
+    [
+        ("env_step", "S", "int"),
+        ("train_episode_reward", "RT", "float"),
+        ("eval_episode_reward", "ET", "float"),
+    ],
+    color="green",
 )
 
-next_obs = None
-episode_reward = None
 random_agent = RandomAgent(env)
-done = True
 # start of loop will train, then increase this to 0
 current_episode = -1
 
@@ -194,62 +197,68 @@ def agent_callback(population, values, i):
     return
 
 
-for step in range(num_steps):
-    if done:
-        # this refers to the episode that just finished
-        if is_test_episode(current_episode):
-            logger.log_data(
-                mbrl.constants.RESULTS_LOG_NAME,
-                {
-                    "episode_reward": episode_reward or 0.0,
-                    "env_step": step,
-                },
-            )
-
-        obs = env.reset()
-        agent.reset()
-
-        # Train the model for one epoch of `num_grad_updates`
-        dataset, _ = get_sequence_buffer_iterator(
-            replay_buffer,
-            batch_size,
-            0,
-            sequence_length,
-            max_batches_per_loop_train=num_grad_updates,
-            use_simple_sampler=True,
-        )
-        trainer.train(
-            dataset, num_epochs=1, batch_callback=batch_callback, evaluate=False
-        )
-
-        planet.save(save_dir / "planet.pth")
-        replay_buffer.save(save_dir)
-
-        logger.log_data(
-            "meta",
-            {
-                "reconstruction_loss": np.mean(rec_losses),
-                "reward_loss": np.mean(reward_losses),
-                "gradient_norm": np.mean(grad_norms),
-                "kl_loss": np.mean(kl_losses),
-            },
-        )
-        print(f"num_batches: {len(rec_losses)}")
-        clear_log_containers()
-
-        episode_reward = 0
-        current_episode += 1
-    else:
-        obs = next_obs
-
-    action_noise = (
-        0
-        if is_test_episode(current_episode)
-        else agent_noise * np_rng.standard_normal(env.action_space.shape[0])
+step = replay_buffer.num_stored
+prev_action: Optional[np.ndarray] = None
+current_belief: Optional[torch.Tensor] = None
+for episode in range(num_episodes):
+    # Train the model for one epoch of `num_grad_updates`
+    dataset, _ = get_sequence_buffer_iterator(
+        replay_buffer,
+        batch_size,
+        0,
+        sequence_length,
+        max_batches_per_loop_train=num_grad_updates,
+        use_simple_sampler=True,
     )
-    action = agent.act(obs, optimizer_callback=agent_callback) + agent_noise
-    action = np.clip(action, -1.0, 1.0)
-    next_obs, reward, done, info = env.step(action)
-    replay_buffer.add(obs, action, next_obs, reward, done)
-    episode_reward += reward
-    print(f"step: {step}, reward: {reward}.")
+    trainer.train(dataset, num_epochs=1, batch_callback=batch_callback, evaluate=False)
+    planet.save(save_dir / "planet.pth")
+    replay_buffer.save(save_dir)
+    logger.log_data(
+        "meta",
+        {
+            "reconstruction_loss": np.mean(rec_losses).item(),
+            "reward_loss": np.mean(reward_losses).item(),
+            "gradient_norm": np.mean(grad_norms).item(),
+            "kl_loss": np.mean(kl_losses).item(),
+        },
+    )
+    print(f"num_batches: {len(rec_losses)}")
+    clear_log_containers()
+
+    # Collect one episode of data
+    episode_reward = 0.0
+    is_test = is_test_episode(current_episode)
+
+    obs = env.reset()
+    agent.reset()
+    planet.reset_posterior()
+
+    current_episode += 1
+    action = None
+    done = False
+    while not done:
+        planet.update_posterior(obs, action=action, rng=rng)
+        action_noise = (
+            0
+            if is_test_episode(current_episode)
+            else agent_noise * np_rng.standard_normal(env.action_space.shape[0])
+        )
+        action = agent.act(obs, optimizer_callback=agent_callback) + action_noise
+        action = np.clip(action, -1.0, 1.0)
+        next_obs, reward, done, info = env.step(action)
+        replay_buffer.add(obs, action, next_obs, reward, done)
+        episode_reward += reward
+        prev_action = action
+
+        obs = next_obs
+        print(f"step: {step}, reward: {reward}.")
+        step += 1
+
+    logger.log_data(
+        mbrl.constants.RESULTS_LOG_NAME,
+        {
+            "eval_episode_reward": episode_reward if is_test else 0.0,
+            "train_episode_reward": episode_reward if not is_test else 0.0,
+            "env_step": step,
+        },
+    )

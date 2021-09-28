@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from mbrl.types import TransitionBatch
 
 from .model import LossOutput, Model
-from .util import Conv2dDecoder, Conv2dEncoder
+from .util import Conv2dDecoder, Conv2dEncoder, to_tensor
 
 
 def dreamer_init(m: nn.Module):
@@ -185,7 +185,12 @@ class PlaNetModel(Model):
         self.apply(dreamer_init)
         self.to(self.device)
 
-        self._current_belief_for_sampling: torch.Tensor = None
+        self._current_belief: torch.Tensor = None
+        self._current_latent: torch.Tensor = None
+        self._current_action: torch.Tensor = None
+
+    def _process_pixel_obs(self, obs: torch.Tensor) -> torch.Tensor:
+        return to_tensor(obs).float().to(self.device) / 256.0 - 0.5
 
     # Converts to tensors and sends to device.
     # If `obs` is pixels, normalizes in the range [-0.5, 0.5]
@@ -194,10 +199,10 @@ class PlaNetModel(Model):
     ) -> Tuple[torch.Tensor, ...]:
         # `obs` is a sequence, so it `next_obs` is not necessary
         # sequence iterator samples full sequences, so `dones` not necessary either
-        obs, act, _, rewards, _ = super()._process_batch(batch, as_float=as_float)
+        obs, action, _, rewards, _ = super()._process_batch(batch, as_float=as_float)
         if pixel_obs:
-            obs = obs / 256.0 - 0.5
-        return obs, act, rewards
+            obs = self._process_pixel_obs(obs)
+        return obs, action, rewards
 
     def _sample_state_from_params(
         self, params: torch.Tensor, generator: torch.Generator
@@ -262,7 +267,7 @@ class PlaNetModel(Model):
     def forward(  # type: ignore
         self,
         obs: torch.Tensor,
-        act: torch.Tensor,
+        action: torch.Tensor,
         rewards: torch.Tensor,
         *args,
         **kwargs
@@ -304,7 +309,7 @@ class PlaNetModel(Model):
             # Update current state for next time step
             current_latent_state = prior_sample
             current_belief = next_belief
-            current_action = act[:, t_step]
+            current_action = action[:, t_step]
 
             # Keep track of all seen states/beliefs and predicted observation
             states_and_beliefs.append(
@@ -324,7 +329,7 @@ class PlaNetModel(Model):
         reduce: bool = True,
     ) -> LossOutput:
 
-        obs, act, rewards = self._process_batch(batch, pixel_obs=True)
+        obs, action, rewards = self._process_batch(batch, pixel_obs=True)
 
         (
             prior_dist_params,
@@ -334,7 +339,7 @@ class PlaNetModel(Model):
             beliefs,
             pred_obs,
             pred_rewards,
-        ) = self.forward(obs, act, rewards)
+        ) = self.forward(obs, action, rewards)
 
         reconstruction_loss = F.mse_loss(pred_obs, obs, reduction="none").sum(
             (-1, -2, -3)
@@ -409,51 +414,91 @@ class PlaNetModel(Model):
         with torch.no_grad():
             return self.loss(batch, reduce=False)
 
-    def sample(  # type: ignore
+    def sample(
         self,
-        batch: TransitionBatch,
+        action: torch.Tensor,
+        model_state: Dict[str, torch.Tensor],
         deterministic: bool = False,
         rng: Optional[torch.Generator] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[
+        torch.Tensor,
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[Dict[str, torch.Tensor]],
+    ]:
         with torch.no_grad():
-            # Note that, if this is ot, at, then
-            # current_belief should be h_t
-            latent_state, act, *_ = self._process_batch(batch)
-
+            action = to_tensor(action).to(self.device)
             next_belief = self.belief_model(
-                latent_state, act, self._current_belief_for_sampling
+                model_state["latent"], action, model_state["belief"]
             )
             state_dist_params = self.prior_transition_model(next_belief)
             next_latent = self._sample_state_from_params(
                 state_dist_params, self.rng if rng is None else rng
             )
-            self._current_belief_for_sampling = next_belief
-
             reward = self.reward_model(torch.cat([next_latent, next_belief], dim=1))
-            return next_latent, reward
+            return (
+                next_latent,
+                reward,
+                None,
+                {"latent": next_latent, "belief": next_belief},
+            )
 
-    def reset(  # type: ignore
-        self, batch: TransitionBatch, rng: Optional[torch.Generator] = None
-    ) -> torch.Tensor:
+    def _init_latent_belief_action(
+        self, batch_size: int
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        h0 = torch.zeros(batch_size, self.belief_size, device=self.device)
+        s0 = torch.zeros(batch_size, self.latent_state_size, device=self.device)
+        a0 = torch.zeros(batch_size, self.action_size, device=self.device)
+
+        return s0, h0, a0
+
+    def update_posterior(
+        self,
+        obs: torch.Tensor,
+        action: Optional[torch.Tensor] = None,
+        rng: Optional[torch.Generator] = None,
+    ):
+        assert obs.ndim == 3
+        obs = self._process_pixel_obs(obs).unsqueeze(0)
+
         with torch.no_grad():
-            # Initialize latent and belief
-            h0 = torch.zeros(len(batch), self.belief_size, device=self.device)
-            s0 = torch.zeros(len(batch), self.latent_state_size, device=self.device)
-            a0 = torch.zeros(len(batch), self.action_size, device=self.device)
+            if action is None:
+                assert self._current_latent is None and self._current_belief is None
+                latent, belief, action = self._init_latent_belief_action(obs.shape[0])
+            else:
+                assert action.ndim == 1
+                action = to_tensor(action).float().to(self.device).unsqueeze(0)
+                latent = self._current_latent
+                belief = self._current_belief
 
-            # Compute h1 = belief_model(h0, s0, a0) and s1 ~ q(s1 | h1, o1)
-            obs, *_ = self._process_batch(batch, pixel_obs=True)
-            _, _, _, posterior_sample, h1 = self._forward_transition_models(
+            obs = self._process_pixel_obs(obs)
+            action = to_tensor(action).to(self.device)
+            (
+                _,
+                _,
+                _,
+                self._current_latent,
+                self._current_belief,
+            ) = self._forward_transition_models(
                 obs,
-                s0,
-                a0,
-                h0,
+                action,
+                latent,
+                belief,
                 only_posterior=True,
                 rng=rng,
             )
-            self._current_belief_for_sampling = h1
 
-        return posterior_sample
+    def reset_posterior(self):
+        self._current_latent = None
+        self._current_belief = None
+
+    def reset(
+        self, obs: torch.Tensor, rng: Optional[torch.Generator] = None
+    ) -> Dict[str, torch.Tensor]:
+        return {
+            "latent": self._current_latent.repeat(obs.shape[0], 1),
+            "belief": self._current_belief.repeat(obs.shape[0], 1),
+        }
 
     def render(self, latent_state: torch.Tensor) -> np.ndarray:
         """Renders an observation from the decoder given a latent state.
