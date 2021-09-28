@@ -129,7 +129,6 @@ class Conv2dEncoder(nn.Module):
             self.fc = nn.Linear(cnn_out_size, encoding_size)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        obs = obs / 255.0
         conv = self.convs[0](obs)
         for i in range(1, len(self.convs)):
             conv = self.convs[i](conv)

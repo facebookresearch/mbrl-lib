@@ -97,15 +97,10 @@ class MeanStdSplit(nn.Module):
         super().__init__()
         self.min_std = min_std
         self.latent_state_size = latent_state_size
-        # technically unnecessary to initialize this since it has no learnt params
-        self.apply(dreamer_init)
 
     def forward(self, state_dist_params: torch.Tensor) -> torch.Tensor:
         mean = state_dist_params[:, : self.latent_state_size]
-        std = (
-            F.softplus(state_dist_params[:, self.latent_state_size :] + 0.55)
-            + self.min_std
-        )
+        std = F.softplus(state_dist_params[:, self.latent_state_size :]) + self.min_std
         return torch.cat([mean, std], dim=1)
 
 
@@ -126,9 +121,10 @@ class PlaNetModel(Model):
         belief_size: int,
         hidden_size_fcs: int,
         device: Union[str, torch.device],
-        min_std: float = 0.01,
+        min_std: float = 0.1,
         free_nats_for_kl: float = 3,
         kl_scale: float = 1.0,
+        grad_clip_norm: float = 1000.0,
         rng: Optional[torch.Generator] = None,
     ):
         super().__init__(device)
@@ -139,12 +135,13 @@ class PlaNetModel(Model):
         self.free_nats_for_kl = free_nats_for_kl * torch.ones(1).to(device)
         self.min_std = min_std
         self.kl_scale = kl_scale
+        self.grad_clip_norm = grad_clip_norm
         self.rng = torch.Generator(device=self.device) if rng is None else rng
 
         # Computes ht = f(ht-1, st-1, at-1)
         self.belief_model = BeliefModel(latent_state_size, action_size, belief_size)
 
-        # ---------- This is p(st | st-1, at-1, ht) (stochastic state model) ------------
+        # ---------- This is p(st | ht) (stochastic state model) ------------
         # h_t --> [MLP] --> s_t (mean and std)
         self.prior_transition_model = nn.Sequential(
             nn.Linear(belief_size, hidden_size_fcs),
@@ -218,7 +215,7 @@ class PlaNetModel(Model):
         )
         return mean + std * sample
 
-    # Forwards the encoder and the prior and posterior transition models
+    # Forwards the prior and posterior transition models
     def _forward_transition_models(
         self,
         obs: torch.Tensor,
@@ -239,7 +236,7 @@ class PlaNetModel(Model):
         )
         obs_encoding = self.encoder.forward(obs)
         posterior_dist_params = self.posterior_transition_model(
-            torch.cat([obs_encoding, next_belief], dim=1)
+            torch.cat([next_belief, obs_encoding], dim=1)
         )
         posterior_sample = self._sample_state_from_params(
             posterior_dist_params, self.rng if rng is None else rng
@@ -266,32 +263,22 @@ class PlaNetModel(Model):
     # This should be a batch of trajectories (e.g, obs shape == BS x Time x Obs_DIM)
     def forward(  # type: ignore
         self,
-        obs: torch.Tensor,
+        next_obs: torch.Tensor,
         action: torch.Tensor,
         rewards: torch.Tensor,
         *args,
         **kwargs
     ) -> Tuple[torch.Tensor, ...]:
-        batch_size, trajectory_length, *_ = obs.shape
+        batch_size, trajectory_length, *_ = next_obs.shape
         states_and_beliefs = StatesAndBeliefs()  # this will collect all the variables
         current_latent_state = torch.zeros(
             batch_size, self.latent_state_size, device=self.device
         )
         current_belief = torch.zeros(batch_size, self.belief_size, device=self.device)
-        current_action = torch.zeros(batch_size, self.action_size, device=self.device)
-        prior_dist_params = torch.zeros(
-            batch_size, 2 * self.latent_state_size, device=self.device
-        )
-        states_and_beliefs.append(
-            prior_dist_params=prior_dist_params,
-            prior_state=current_latent_state,
-            posterior_dist_params=torch.zeros_like(prior_dist_params),
-            posterior_state=torch.zeros_like(current_latent_state),
-            belief=current_belief,
-        )
-        pred_obs = torch.empty_like(obs)
+        pred_next_obs = torch.empty_like(next_obs)
         pred_rewards = torch.empty_like(rewards)
         for t_step in range(trajectory_length):
+            current_action = action[:, t_step]
             (
                 prior_dist_params,
                 prior_sample,
@@ -299,17 +286,21 @@ class PlaNetModel(Model):
                 posterior_sample,
                 next_belief,
             ) = self._forward_transition_models(
-                obs[:, t_step], current_action, current_latent_state, current_belief
+                next_obs[:, t_step],
+                current_action,
+                current_latent_state,
+                current_belief,
             )
-            pred_obs[:, t_step] = self._forward_decoder(posterior_sample, next_belief)
+            pred_next_obs[:, t_step] = self._forward_decoder(
+                posterior_sample, next_belief
+            )
             pred_rewards[:, t_step] = self.reward_model(
-                torch.cat([posterior_sample, next_belief], dim=1)
+                torch.cat([next_belief, posterior_sample], dim=1)
             ).squeeze()
 
             # Update current state for next time step
-            current_latent_state = prior_sample
+            current_latent_state = posterior_sample
             current_belief = next_belief
-            current_action = action[:, t_step]
 
             # Keep track of all seen states/beliefs and predicted observation
             states_and_beliefs.append(
@@ -320,7 +311,7 @@ class PlaNetModel(Model):
                 belief=next_belief,
             )
 
-        return states_and_beliefs.as_stacked_tuple() + (pred_obs, pred_rewards)
+        return states_and_beliefs.as_stacked_tuple() + (pred_next_obs, pred_rewards)
 
     def loss(
         self,
@@ -337,28 +328,27 @@ class PlaNetModel(Model):
             posterior_dist_params,
             posterior_states,
             beliefs,
-            pred_obs,
+            pred_next_obs,
             pred_rewards,
-        ) = self.forward(obs, action, rewards)
+        ) = self.forward(obs[:, 1:], action[:, :-1], rewards[:, :-1])
 
-        reconstruction_loss = F.mse_loss(pred_obs, obs, reduction="none").sum(
-            (-1, -2, -3)
+        obs_loss = F.mse_loss(pred_next_obs, obs[:, 1:], reduction="none").sum(
+            (2, 3, 4)
         )
-        reward_loss = F.mse_loss(pred_rewards, rewards, reduction="none")
+        reward_loss = F.mse_loss(pred_rewards, rewards[:, :-1], reduction="none")
 
         # ------------------ Computing KL[q || p] ------------------
-        # [1:] indexing because for each batch the first time index has all zero params
-        # also recall that params is mean/std concatenated (half and half)
-        # finally, we sum over the latent dimension
+        # params is mean/std concatenated (half and half)
+        # we sum over the latent dimension
         kl_loss = (
             torch.distributions.kl_divergence(
                 torch.distributions.Normal(
-                    posterior_dist_params[:, 1:, : self.latent_state_size],
-                    posterior_dist_params[:, 1:, self.latent_state_size :],
+                    posterior_dist_params[..., : self.latent_state_size],
+                    posterior_dist_params[..., self.latent_state_size :],
                 ),
                 torch.distributions.Normal(
-                    prior_dist_params[:, 1:, : self.latent_state_size],
-                    prior_dist_params[:, 1:, self.latent_state_size :],
+                    prior_dist_params[..., : self.latent_state_size],
+                    prior_dist_params[..., self.latent_state_size :],
                 ),
             )
             .sum(2)
@@ -366,24 +356,24 @@ class PlaNetModel(Model):
         )
 
         if reduce:
-            reconstruction_loss = reconstruction_loss.mean()
+            obs_loss = obs_loss.mean()
             reward_loss = reward_loss.mean()
             kl_loss = kl_loss.mean()
             meta = {
-                "reconstruction": pred_obs.detach(),
-                "reconstruction_loss": reconstruction_loss.item(),
+                "reconstruction": pred_next_obs.detach(),
+                "reconstruction_loss": obs_loss.item(),
                 "reward_loss": reward_loss.item(),
                 "kl_loss": kl_loss.item(),
             }
         else:
             meta = {
-                "reconstruction": pred_obs.detach(),
-                "reconstruction_loss": reconstruction_loss.detach().mean().item(),
+                "reconstruction": pred_next_obs.detach(),
+                "reconstruction_loss": obs_loss.detach().mean().item(),
                 "reward_loss": reward_loss.detach().mean().item(),
                 "kl_loss": kl_loss.detach().mean().item(),
             }
 
-        return reconstruction_loss + reward_loss + self.kl_scale * kl_loss, meta
+        return obs_loss + reward_loss + self.kl_scale * kl_loss, meta
 
     def update(
         self,
@@ -395,10 +385,7 @@ class PlaNetModel(Model):
         optimizer.zero_grad()
         loss, meta = self.loss(model_in, target)
         loss.backward()
-        # TODO(eugenevinitsky) this clips by concatenating all params, TF clips
-        #  by taking the norm of each element of the params and using the sum of those
-        #  norms https://www.tensorflow.org/api_docs/python/tf/clip_by_global_norm
-        nn.utils.clip_grad_norm_(self.parameters(), 1000, norm_type=2)
+        nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip_norm, norm_type=2)
 
         with torch.no_grad():
             grad_norm = 0.0
@@ -435,7 +422,7 @@ class PlaNetModel(Model):
             next_latent = self._sample_state_from_params(
                 state_dist_params, self.rng if rng is None else rng
             )
-            reward = self.reward_model(torch.cat([next_latent, next_belief], dim=1))
+            reward = self.reward_model(torch.cat([next_belief, next_latent], dim=1))
             return (
                 next_latent,
                 reward,
@@ -474,18 +461,11 @@ class PlaNetModel(Model):
             obs = self._process_pixel_obs(obs)
             action = to_tensor(action).to(self.device)
             (
-                _,
-                _,
-                _,
-                self._current_latent,
-                self._current_belief,
+                *_,
+                self._current_latent,  # posterior_sample
+                self._current_belief,  # next_belief
             ) = self._forward_transition_models(
-                obs,
-                action,
-                latent,
-                belief,
-                only_posterior=True,
-                rng=rng,
+                obs, action, latent, belief, only_posterior=True, rng=rng
             )
 
     def reset_posterior(self):
