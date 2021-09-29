@@ -32,12 +32,12 @@ device = "cuda:0"
 # This is the stuff to be replaced with a config file
 action_repeat = 4
 num_episodes = 1000
-num_grad_updates = 100
+num_grad_updates = 1
 sequence_length = 50
 trajectory_length = 1000
 batch_size = 50
-num_initial_trajectories = 5
-agent_noise = 0.3
+num_initial_trajectories = 1
+action_noise_std = 0.3
 free_nats = 3
 kl_scale = 1.0
 test_frequency = 25
@@ -60,6 +60,7 @@ agent_cfg = omegaconf.OmegaConf.create(
             "upper_bound": "???",
             "return_mean_elites": True,
             "device": device,
+            "clipped_normal": True,
         },
         "replan_freq": 1,
         "verbose": True,
@@ -117,7 +118,7 @@ planet = PlaNetModel(
     200,
     200,
     device,
-    free_nats_for_kl=free_nats,
+    free_nats=free_nats,
     kl_scale=kl_scale,
 )
 model_env = ModelEnv(env, planet, no_termination, generator=rng)
@@ -146,7 +147,7 @@ def batch_callback(_epoch, _loss, meta, _mode):
             grad_norms.append(meta["grad_norm"])
 
 
-exp_name = "updated_posterior"
+exp_name = "debug"
 save_dir = (
     pathlib.Path("/checkpoint/lep/mbrl/planet/dm_cheetah_run/full_model") / exp_name
 )
@@ -166,13 +167,9 @@ logger.register_group(
     color="green",
 )
 
-random_agent = RandomAgent(env)
-# start of loop will train, then increase this to 0
-current_episode = -1
-
 
 def is_test_episode(episode_):
-    return episode_ >= 0 and (episode_ % test_frequency == 0)
+    return episode_ % test_frequency == 0
 
 
 def agent_callback(population, values, i):
@@ -222,34 +219,27 @@ for episode in range(num_episodes):
             "kl_loss": np.mean(kl_losses).item(),
         },
     )
-    print(f"num_batches: {len(rec_losses)}")
     clear_log_containers()
 
     # Collect one episode of data
     episode_reward = 0.0
-    is_test = is_test_episode(current_episode)
-
     obs = env.reset()
     agent.reset()
     planet.reset_posterior()
-
-    current_episode += 1
     action = None
     done = False
     while not done:
         planet.update_posterior(obs, action=action, rng=rng)
         action_noise = (
             0
-            if is_test_episode(current_episode)
-            else agent_noise * np_rng.standard_normal(env.action_space.shape[0])
+            if is_test_episode(episode)
+            else action_noise_std * np_rng.standard_normal(env.action_space.shape[0])
         )
         action = agent.act(obs, optimizer_callback=agent_callback) + action_noise
         action = np.clip(action, -1.0, 1.0)
         next_obs, reward, done, info = env.step(action)
         replay_buffer.add(obs, action, next_obs, reward, done)
         episode_reward += reward
-        prev_action = action
-
         obs = next_obs
         print(f"step: {step}, reward: {reward}.")
         step += 1
@@ -257,8 +247,8 @@ for episode in range(num_episodes):
     logger.log_data(
         mbrl.constants.RESULTS_LOG_NAME,
         {
-            "eval_episode_reward": episode_reward if is_test else 0.0,
-            "train_episode_reward": episode_reward if not is_test else 0.0,
+            "eval_episode_reward": episode_reward * is_test_episode(episode),
+            "train_episode_reward": episode_reward * (1 - is_test_episode(episode)),
             "env_step": step,
         },
     )
