@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
+import tqdm
 from torch import optim as optim
 
 from mbrl.util.logger import Logger
@@ -135,13 +136,14 @@ class ModelTrainer:
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
         best_val_score = self.evaluate(eval_dataset) if evaluate else None
+
         for epoch in epoch_iter:
             if batch_callback:
                 batch_callback_epoch = functools.partial(batch_callback, epoch)
             else:
                 batch_callback_epoch = None
             batch_losses: List[float] = []
-            for batch in dataset_train:
+            for batch in tqdm.tqdm(dataset_train):
                 loss_and_maybe_meta = self.model.update(batch, self.optimizer)
                 if isinstance(loss_and_maybe_meta, tuple):
                     loss = cast(float, loss_and_maybe_meta[0])
