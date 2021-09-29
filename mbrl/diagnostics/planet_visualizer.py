@@ -58,7 +58,7 @@ class PlanetVisualizer:
             200,
             200,
             device,
-            free_nats_for_kl=3.0,
+            free_nats=3.0,
             kl_scale=1.0,
         )
         self.model.load(self.model_dir / "planet.pth")

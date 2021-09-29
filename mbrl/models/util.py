@@ -98,7 +98,6 @@ def get_cnn_output_size(
     return dummy.shape[1:]
 
 
-# encoder config is, for each conv layer in_channels, out_channels, kernel_size, stride
 class Conv2dEncoder(nn.Module):
     def __init__(
         self,
@@ -107,6 +106,28 @@ class Conv2dEncoder(nn.Module):
         encoding_size: int,
         activation_func: str = "ReLU",
     ):
+        """Implements an image encoder with a desired configuration.
+
+        The architecture will be a number of `torch.nn.Conv2D` layers followed by a
+        single linear layer. The given activation function will be applied to all
+        convolutional layers, but not to the linear layer. If the flattened output
+        of the last layer is equal to ``encoding_size``, then a `torch.nn.Identity`
+        will be used instead of a linear layer.
+
+        Args:
+            layers_config (tuple(tuple(int))): each tuple represents the configuration
+                of a convolutional layer, in the order
+                (in_channels, out_channels, kernel_size, stride). For example,
+                ( (3, 32, 4, 2), (32, 64, 4, 3) ) adds a layer
+                `nn.Conv2d(3, 32, 4, stride=2)`, followed by
+                `nn.Conv2d(32, 64, 4, stride=3)`.
+            image_shape (tuple(int, int)): the shape of the image being encoded, which
+                is used to compute the size of the output of the last convolutional
+                layer.
+            encoding_size (int): the desired size of the encoder's output.
+            activation_func (str): the `torch.nn` activation function to use after
+                each convolutional layer. Defaults to ``"ReLU"``.
+        """
         super().__init__()
         activation_cls = getattr(torch.nn, activation_func)
         conv_modules = []
@@ -139,6 +160,27 @@ class Conv2dEncoder(nn.Module):
 # decoder config's first element is the shape of the input map, second element is as
 # the encoder config but for Conv2dTranspose layers.
 class Conv2dDecoder(nn.Module):
+    """Implements an image decoder with a desired configuration.
+
+    The architecture will be a linear layer, followed by a number of
+    `torch.nn.ConvTranspose2D` layers. The given activation function will be
+    applied only to all deconvolution layers except the last one.
+
+    Args:
+        encoding_size (int): the size that was used for the encoding.
+        deconv_input_shape (tuple of 3 ints): the that the output of the linear layer
+            will be converted to when passing to the deconvolution layers.
+        layers_config (tuple(tuple(int))): each tuple represents the configuration
+            of a deconvolution layer, in the order
+            (in_channels, out_channels, kernel_size, stride). For example,
+            ( (3, 32, 4, 2), (32, 64, 4, 3) ) adds a layer
+            `nn.ConvTranspose2d(3, 32, 4, stride=2)`, followed by
+            `nn.ConvTranspose2d(32, 64, 4, stride=3)`.
+        encoding_size (int): the desired size of the encoder's output.
+        activation_func (str): the `torch.nn` activation function to use after
+            each deconvolution layer. Defaults to ``"ReLU"``.
+    """
+
     def __init__(
         self,
         encoding_size: int,

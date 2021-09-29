@@ -7,7 +7,7 @@ import torch.distributions
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mbrl.types import TransitionBatch
+from mbrl.types import TensorType, TransitionBatch
 
 from .model import LossOutput, Model
 from .util import Conv2dDecoder, Conv2dEncoder, to_tensor
@@ -25,6 +25,10 @@ def dreamer_init(m: nn.Module):
         torch.nn.init.zeros_(m.bias.data)
 
 
+# This class is simply a collection of lists for saving prior/posterior
+# parameters and states, as well as the the beliefs (ht) collected over a trajectory.
+# It provides a method to convert this to a tuple of tensors of shape
+# batch_size x trajectory_length x dim
 @dataclass
 class StatesAndBeliefs:
     all_prior_dist_params: List[torch.Tensor]  # mean+std concat
@@ -92,7 +96,9 @@ class BeliefModel(nn.Module):
         return self.rnn(embedding, current_belief)
 
 
-class MeanStdSplit(nn.Module):
+class MeanStdCat(nn.Module):
+    # Convenience module to avoid having to write chuck and softplus in multiple places
+    # (since it's needed for prior and posterior params)
     def __init__(self, latent_state_size: int, min_std: float):
         super().__init__()
         self.min_std = min_std
@@ -108,6 +114,79 @@ class MeanStdSplit(nn.Module):
 # decoder config's first element is the shape of the input map, second element is as
 # the encoder config but for Conv2dTranspose layers.
 class PlaNetModel(Model):
+    """Implementation of the PlaNet model by Hafner el al., ICML 2019
+
+    As described in http://proceedings.mlr.press/v97/hafner19a/hafner19a.pdf
+
+    Currently supports only 3-D pixel observations.
+
+    The forward method receives trajectories described by tensors ot+1, at, rt,
+    each with shape (batch_size, trajectory_length) + (tensor_dim).
+    They are organized such that their i-th element in the time dimension corresponds
+    to obs_t+1, action_t, reward_t (where reward_t is the reward produced by applying
+    action_t to obs_t). The output is a tuple that includes, for the full trajectory:
+
+        * prior parameters (mean and std concatenated, in that order).
+        * prior state samples.
+        * posterior parameters (format same as prior).
+        * posterior state samples.
+        * beliefs (ht).
+
+    This class also provides a :meth:`sample` method to sample from the prior
+    transition model, conditioned on a latent sample and a belief. Additionally, for
+    inference, the model internally keep tracks of a posterior sample, to facilitate
+    interaction with :class:`mbrl.models.ModelEnv`, which can be updated
+    using method :meth:`update_posterior`.
+    The overall logic to imagine the outcome of a sequence of actions would be
+    similar to the following pseudo-code:
+
+        .. code-block:: python
+
+           o1 = env.reset()
+           # sets internally, s0 = 0, h0 = 0, a0 = 0
+           planet.reset_posterior()
+
+           # returns a dict with s1, and h1, conditioned on o1, s0, h0, a0
+           # s1 and h1 are also kept internally
+           # s1 is taken from the posterior transition model
+           planet_state = planet.update_posterior(o1)
+
+           # imagine a full trajectory from the prior transition model just for fun
+           # note that planet.sample() doesn't change the internal state (s1, h1)
+           for a in actions:
+               next_latent, reward, _, planet_state = planet.sample(a, planet_state)
+
+           # say now we want to try action a1 in the environment and observe o2
+           o2 = env.step(a1)
+
+           # returns a dict with s2, and h2, conditioned on o2, s1, h1, a1
+           # s2, and h2 are now kept internally (replacing s1, and h1)
+           planet.update_posterior(o2, a1)
+
+
+    Args:
+        obs_shape (tuple(int, int, int)): observation shape.
+        obs_encoding_size (int): size of the encoder's output
+        encoder_config (tuple): the encoder's configuration, see
+            :class:`mbrl.models.util.Conv2DEncoder`.
+        decoder_config (tuple): the decoder's configuration, see
+            :class:`mbrl.models.util.Conv2DDecoder`. The first element should be a
+            tuple of 3 ints, indicating the shape of the input map after the decoder's
+            linear layer, the other element represents the configuration of the
+            deconvolution layers.
+        latent_state_size (int): the size of the latent state.
+        action_size (int): the size of the actions.
+        belief_size (int): the size of the belief (denoted as ht in the paper).
+        device (str or torch.device): the torch device to use.
+        min_std (float): the minimum standard deviation to add after softplus.
+            Default to 0.1.
+        free_nats (float): the free nats to use for the KL loss. Defaults to 3.0.
+        kl_scale (float): the scale to multiply the KL loss for. Defaults to 1.0.
+        grad_clip_norm (float): the 2-norm to use for grad clipping. Defaults to 1000.0.
+        rng (torch.Generator, optional): an optional random number generator to use.
+            A new one will be created if not passed.
+    """
+
     def __init__(
         self,
         obs_shape: Tuple[int, int, int],
@@ -122,7 +201,7 @@ class PlaNetModel(Model):
         hidden_size_fcs: int,
         device: Union[str, torch.device],
         min_std: float = 0.1,
-        free_nats_for_kl: float = 3,
+        free_nats: float = 3,
         kl_scale: float = 1.0,
         grad_clip_norm: float = 1000.0,
         rng: Optional[torch.Generator] = None,
@@ -132,13 +211,14 @@ class PlaNetModel(Model):
         self.action_size = action_size
         self.latent_state_size = latent_state_size
         self.belief_size = belief_size
-        self.free_nats_for_kl = free_nats_for_kl * torch.ones(1).to(device)
+        self.free_nats = free_nats * torch.ones(1).to(device)
         self.min_std = min_std
         self.kl_scale = kl_scale
         self.grad_clip_norm = grad_clip_norm
         self.rng = torch.Generator(device=self.device) if rng is None else rng
 
         # Computes ht = f(ht-1, st-1, at-1)
+        #   st-1, at-1 --> Linear --> ht-1 --> RNN --> ht
         self.belief_model = BeliefModel(latent_state_size, action_size, belief_size)
 
         # ---------- This is p(st | ht) (stochastic state model) ------------
@@ -147,7 +227,7 @@ class PlaNetModel(Model):
             nn.Linear(belief_size, hidden_size_fcs),
             nn.ReLU(),
             nn.Linear(hidden_size_fcs, 2 * latent_state_size),
-            MeanStdSplit(latent_state_size, min_std),
+            MeanStdCat(latent_state_size, min_std),
         )
 
         # ---------------- The next two blocks together form q(st | ot, ht) ----------------
@@ -163,7 +243,7 @@ class PlaNetModel(Model):
             nn.Linear(obs_encoding_size + belief_size, hidden_size_fcs),
             nn.ReLU(),
             nn.Linear(hidden_size_fcs, 2 * latent_state_size),
-            MeanStdSplit(latent_state_size, min_std),
+            MeanStdCat(latent_state_size, min_std),
         )
 
         # ---------- This is p(ot| ht, st) (observation model) ------------
@@ -183,7 +263,7 @@ class PlaNetModel(Model):
         self.to(self.device)
 
         self._current_belief: torch.Tensor = None
-        self._current_latent: torch.Tensor = None
+        self._current_posterior_sample: torch.Tensor = None
         self._current_action: torch.Tensor = None
 
     def _process_pixel_obs(self, obs: torch.Tensor) -> torch.Tensor:
@@ -194,7 +274,7 @@ class PlaNetModel(Model):
     def _process_batch(
         self, batch: TransitionBatch, as_float: bool = True, pixel_obs: bool = False
     ) -> Tuple[torch.Tensor, ...]:
-        # `obs` is a sequence, so it `next_obs` is not necessary
+        # `obs` is a sequence, so `next_obs` is not necessary
         # sequence iterator samples full sequences, so `dones` not necessary either
         obs, action, _, rewards, _ = super()._process_batch(batch, as_float=as_float)
         if pixel_obs:
@@ -202,9 +282,14 @@ class PlaNetModel(Model):
         return obs, action, rewards
 
     def _sample_state_from_params(
-        self, params: torch.Tensor, generator: torch.Generator
+        self,
+        params: torch.Tensor,
+        generator: torch.Generator,
+        deterministic: bool = False,
     ) -> torch.Tensor:
         mean = params[:, : self.latent_state_size]
+        if deterministic:
+            return mean
         std = params[:, self.latent_state_size :]
         sample = torch.randn(
             mean.size(),
@@ -319,7 +404,23 @@ class PlaNetModel(Model):
         target: Optional[torch.Tensor] = None,
         reduce: bool = True,
     ) -> LossOutput:
+        """Computes the PlaNet loss given a batch of transitions.
 
+        The loss is equal to: obs_loss + reward_loss + kl_scale * KL(posterior || prior)
+
+        Args:
+            batch (transition batch): a batch of transition sequences. The shapes of all
+                tensors should be
+                (batch_size, sequence_len) + (content_shape).
+            reduce (bool): if ``True``, returns the reduced loss. if ``False`` returns
+                tensors that are not reduced across batch and time.
+
+        Returns:
+            (tuple): the first element is the loss, the second is a dictionary with
+                keys "reconstruction", "reconstruction_loss", "reward_loss", "kl_loss",
+                which can be used for logging.
+
+        """
         obs, action, rewards = self._process_batch(batch, pixel_obs=True)
 
         (
@@ -352,7 +453,7 @@ class PlaNetModel(Model):
                 ),
             )
             .sum(2)
-            .max(self.free_nats_for_kl)
+            .max(self.free_nats)
         )
 
         if reduce:
@@ -377,13 +478,30 @@ class PlaNetModel(Model):
 
     def update(
         self,
-        model_in: TransitionBatch,
+        batch: TransitionBatch,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
     ):
+        """Updates the model given a batch of transition sequences.
+
+        Applies gradient clipping as specified at construction time. Return type is
+        the same as :meth:`loss` with `reduce==True``, except that the metadata
+        dictionary includes a key "grad_norm" with the sum of the 2-norm of all
+        parameters.
+
+        Args:
+            batch (batch of transitions): a batch of transition sequences.
+                The shapes of all tensors should be
+                (batch_size, sequence_len) + (content_shape).
+            optimizer (torch.optimizer): the optimizer to use.
+
+        Returns:
+             (float): the numeric value of the computed loss.
+             (dict): any additional metadata dictionary computed by :meth:`loss`.
+        """
         self.train()
         optimizer.zero_grad()
-        loss, meta = self.loss(model_in, target)
+        loss, meta = self.loss(batch, target)
         loss.backward()
         nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip_norm, norm_type=2)
 
@@ -398,12 +516,16 @@ class PlaNetModel(Model):
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
     ) -> LossOutput:
+        """Computes an evaluation score for the model over the given input/target.
+
+        This is equivalent to calling loss(batch, reduce=False)`.
+        """
         with torch.no_grad():
             return self.loss(batch, reduce=False)
 
     def sample(
         self,
-        action: torch.Tensor,
+        action: TensorType,
         model_state: Dict[str, torch.Tensor],
         deterministic: bool = False,
         rng: Optional[torch.Generator] = None,
@@ -413,6 +535,27 @@ class PlaNetModel(Model):
         Optional[torch.Tensor],
         Optional[Dict[str, torch.Tensor]],
     ]:
+        """Samples a latent state and reward from the prior transition and reward models.
+
+        Computes st+1, rt+1 = sample(at, st, ht)
+
+        Args:
+            action (tensor or ndarray): the value of at.
+            model_state (dict(str, tensor)): a dictionary with keys
+                "latent" and "belief", representing st and ht, respectively.
+            deterministic (bool): if ``True``, it returns the mean from the
+                prior transition's output, otherwise it samples from the corresponding
+                normal distribution. Defaults to ``False``.
+            rng (torch.Generator, optional): an optional random number generator to use.
+                If ``None``, then `self.rng` will be used.
+
+        Returns:
+            (tuple): The first two elements are st+1, and r+1, in that order. The third
+            is ``None``, since terminal state prediction is not supported by this model.
+            The fourth is a dictionary with keys "latent" and "belief", representing
+            st+1 (from prior), and ht+1, respectively.
+
+        """
         with torch.no_grad():
             action = to_tensor(action).to(self.device)
             next_belief = self.belief_model(
@@ -420,7 +563,9 @@ class PlaNetModel(Model):
             )
             state_dist_params = self.prior_transition_model(next_belief)
             next_latent = self._sample_state_from_params(
-                state_dist_params, self.rng if rng is None else rng
+                state_dist_params,
+                self.rng if rng is None else rng,
+                deterministic=deterministic,
             )
             reward = self.reward_model(torch.cat([next_belief, next_latent], dim=1))
             return (
@@ -441,42 +586,75 @@ class PlaNetModel(Model):
 
     def update_posterior(
         self,
-        obs: torch.Tensor,
-        action: Optional[torch.Tensor] = None,
+        obs: TensorType,
+        action: Optional[TensorType] = None,
         rng: Optional[torch.Generator] = None,
-    ):
-        assert obs.ndim == 3
-        obs = self._process_pixel_obs(obs).unsqueeze(0)
+    ) -> Dict[str, torch.Tensor]:
+        """Updates the saved st, ht after conditioning on an observation an action.
 
+        Computes st+1, ht+1, where st+1 is taken from the posterior transition model.
+        For st, and ht, the values saved internally will be used, which will be then
+        replaced with the result of this method. See also :meth:`reset_posterior` and
+        the explanation in :class:`PlaNetModel`.
+
+        Args:
+            obs (tensor or ndarray): the observation to condition on, corresponding to ot+1.
+            action (tensor or ndarray): the action to condition on, corresponding to at.
+            rng (torch.Generator, optional): an optional random number generator to use.
+                If ``None``, then `self.rng` will be used.
+
+        Returns:
+            (dict(str, tensor)): a dictionary with keys "latent" and "belief", representing
+            st+1 (from posterior), and ht+1, respectively.
+        """
         with torch.no_grad():
+            assert obs.ndim == 3
+            obs = self._process_pixel_obs(obs).unsqueeze(0)
+
             if action is None:
-                assert self._current_latent is None and self._current_belief is None
+                assert (
+                    self._current_posterior_sample is None
+                    and self._current_belief is None
+                )
                 latent, belief, action = self._init_latent_belief_action(obs.shape[0])
             else:
                 assert action.ndim == 1
                 action = to_tensor(action).float().to(self.device).unsqueeze(0)
-                latent = self._current_latent
+                latent = self._current_posterior_sample
                 belief = self._current_belief
-
-            obs = self._process_pixel_obs(obs)
             action = to_tensor(action).to(self.device)
             (
                 *_,
-                self._current_latent,  # posterior_sample
+                self._current_posterior_sample,  # posterior_sample
                 self._current_belief,  # next_belief
             ) = self._forward_transition_models(
                 obs, action, latent, belief, only_posterior=True, rng=rng
             )
+            return {
+                "latent": self._current_posterior_sample,
+                "belief": self._current_belief,
+            }
 
     def reset_posterior(self):
-        self._current_latent = None
+        """Resets the saved posterior state."""
+        self._current_posterior_sample = None
         self._current_belief = None
 
     def reset(
         self, obs: torch.Tensor, rng: Optional[torch.Generator] = None
     ) -> Dict[str, torch.Tensor]:
+        """Prepares the model for simulating using :class:`mbrl.models.ModelEnv`.
+
+        Args:
+            obs (tensor): and observation tensor, only used to get batch size.
+
+        Returns:
+            (dict(str, tensor)): a dictionary with keys "latent" and "belief", representing
+            st (from posterior), and ht, respectively, as saved internally. The tensor
+            are repeated to match the desired batch size.
+        """
         return {
-            "latent": self._current_latent.repeat(obs.shape[0], 1),
+            "latent": self._current_posterior_sample.repeat(obs.shape[0], 1),
             "belief": self._current_belief.repeat(obs.shape[0], 1),
         }
 

@@ -399,6 +399,7 @@ class Ensemble(Model, abc.ABC):
     def reset(
         self, obs: torch.Tensor, rng: Optional[torch.Generator] = None
     ) -> Dict[str, torch.Tensor]:
+        """Prepares the model for simulating using :class:`mbrl.models.ModelEnv`."""
         raise NotImplementedError(
             "ModelEnv requires 1-D models must be wrapped into a OneDTransitionRewardModel."
         )
