@@ -107,7 +107,7 @@ class CEMOptimizer(Optimizer):
             dispersion = ((self.upper_bound - self.lower_bound) ** 2) / 16
         return mean, dispersion
 
-    def _sample_population_(
+    def _sample_population(
         self, mean: torch.Tensor, dispersion: torch.Tensor, population: torch.Tensor
     ) -> torch.Tensor:
         # fills population with random samples
@@ -168,7 +168,7 @@ class CEMOptimizer(Optimizer):
             device=self.device
         )
         for i in range(self.num_iterations):
-            self._sample_population_(mu, dispersion, population)
+            population = self._sample_population(mu, dispersion, population)
             values = obj_fun(population)
 
             if callback is not None:
