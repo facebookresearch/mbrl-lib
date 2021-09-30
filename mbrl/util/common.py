@@ -23,7 +23,6 @@ from .replay_buffer import (
 )
 
 
-# TODO read model from hydra
 def create_one_dim_tr_model(
     cfg: omegaconf.DictConfig,
     obs_shape: Tuple[int, ...],

@@ -177,6 +177,7 @@ class PlaNetModel(Model):
         latent_state_size (int): the size of the latent state.
         action_size (int): the size of the actions.
         belief_size (int): the size of the belief (denoted as ht in the paper).
+        hidden_size_fcs (int): the size of all the fully connected hidden layers.
         device (str or torch.device): the torch device to use.
         min_std (float): the minimum standard deviation to add after softplus.
             Default to 0.1.
@@ -417,7 +418,7 @@ class PlaNetModel(Model):
 
         Returns:
             (tuple): the first element is the loss, the second is a dictionary with
-                keys "reconstruction", "reconstruction_loss", "reward_loss", "kl_loss",
+                keys "reconstruction", "observations_loss", "reward_loss", "kl_loss",
                 which can be used for logging.
 
         """
@@ -462,14 +463,14 @@ class PlaNetModel(Model):
             kl_loss = kl_loss.mean()
             meta = {
                 "reconstruction": pred_next_obs.detach(),
-                "reconstruction_loss": obs_loss.item(),
+                "observations_loss": obs_loss.item(),
                 "reward_loss": reward_loss.item(),
                 "kl_loss": kl_loss.item(),
             }
         else:
             meta = {
                 "reconstruction": pred_next_obs.detach(),
-                "reconstruction_loss": obs_loss.detach().mean().item(),
+                "observations_loss": obs_loss.detach().mean().item(),
                 "reward_loss": reward_loss.detach().mean().item(),
                 "kl_loss": kl_loss.detach().mean().item(),
             }

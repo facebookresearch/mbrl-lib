@@ -9,6 +9,7 @@ import torch
 
 import mbrl.algorithms.mbpo as mbpo
 import mbrl.algorithms.pets as pets
+import mbrl.algorithms.planet as planet
 import mbrl.util.mujoco as mujoco_util
 
 
@@ -22,6 +23,8 @@ def run(cfg: omegaconf.DictConfig):
     if cfg.algorithm.name == "mbpo":
         test_env, *_ = mujoco_util.make_env(cfg)
         return mbpo.train(env, test_env, term_fn, cfg)
+    if cfg.algorithm.name == "planet":
+        return planet.train(env, cfg)
 
 
 if __name__ == "__main__":
