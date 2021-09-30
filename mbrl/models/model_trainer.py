@@ -78,6 +78,7 @@ class ModelTrainer:
         callback: Optional[Callable] = None,
         batch_callback: Optional[Callable] = None,
         evaluate: bool = True,
+        silent: bool = False,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
 
@@ -125,6 +126,9 @@ class ModelTrainer:
                 an evaluation score, and simply train for some number of epochs. Defaults to
                 ``True``.
 
+            silent (bool): if ``True`` logging and progress bar are deactivated. Defaults
+                to ``False``.
+
         Returns:
             (tuple of two list(float)): the history of training losses and validation losses.
 
@@ -143,7 +147,7 @@ class ModelTrainer:
             else:
                 batch_callback_epoch = None
             batch_losses: List[float] = []
-            for batch in tqdm.tqdm(dataset_train):
+            for batch in tqdm.tqdm(dataset_train, disable=silent):
                 loss_and_maybe_meta = self.model.update(batch, self.optimizer)
                 if isinstance(loss_and_maybe_meta, tuple):
                     loss = cast(float, loss_and_maybe_meta[0])
@@ -178,7 +182,7 @@ class ModelTrainer:
                     epochs_since_update += 1
                 model_val_score = eval_score.mean()
 
-            if self.logger:
+            if self.logger and not silent:
                 self.logger.log_data(
                     self._LOG_GROUP_NAME,
                     {

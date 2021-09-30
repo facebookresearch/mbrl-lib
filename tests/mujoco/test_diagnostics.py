@@ -73,6 +73,7 @@ _MBPO_CFG_DICT["overrides"].update(
         "cem_population_size": 500,
         "cem_num_iters": 5,
         "cem_alpha": 0.1,
+        "cem_clipped_normal": False,
     }
 )
 

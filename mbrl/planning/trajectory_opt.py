@@ -136,8 +136,8 @@ class CEMOptimizer(Optimizer):
         else:
             new_dispersion = torch.var(elite, dim=0)
         mu = self.alpha * mu + (1 - self.alpha) * new_mu
-        var = self.alpha * dispersion + (1 - self.alpha) * new_dispersion
-        return mu, var
+        dispersion = self.alpha * dispersion + (1 - self.alpha) * new_dispersion
+        return mu, dispersion
 
     def optimize(
         self,
@@ -179,7 +179,7 @@ class CEMOptimizer(Optimizer):
             best_values, elite_idx = values.topk(self.elite_num)
             elite = population[elite_idx]
 
-            self._update_population_params(elite, mu, dispersion)
+            mu, dispersion = self._update_population_params(elite, mu, dispersion)
 
             if best_values[0] > best_value:
                 best_value = best_values[0]
