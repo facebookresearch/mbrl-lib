@@ -1,23 +1,23 @@
 # @package _group_
-env: "dmcontrol_cheetah_run"  # used to set the hydra dir, ignored otherwise
+env: "dmcontrol_walker_walk"  # used to set the hydra dir, ignored otherwise
 
 env_cfg:
   _target_: "mbrl.third_party.dmc2gym.wrappers.DMCWrapper"
-  domain_name: "cheetah"
-  task_name: "run"
+  domain_name: "walker"
+  task_name: "walk"
   task_kwargs:
     random: ${seed}
   visualize_reward: false
   from_pixels: true
   height: 64
   width: 64
-  frame_skip: 4
+  frame_skip: 2
   bit_depth: 5
 
 term_fn: "no_termination"
 
 # General configuration overrides
-trial_length: 250
+trial_length: 500
 action_noise_std: 0.3
 
 # Model overrides

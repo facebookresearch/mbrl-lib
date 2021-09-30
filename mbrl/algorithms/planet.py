@@ -100,7 +100,7 @@ def train(
     grad_norms: List[float] = []
 
     def get_metrics_and_clear_metric_containers():
-        metrics = {
+        metrics_ = {
             "observations_loss": np.mean(rec_losses).item(),
             "reward_loss": np.mean(reward_losses).item(),
             "gradient_norm": np.mean(grad_norms).item(),
@@ -110,7 +110,7 @@ def train(
         for c in [rec_losses, reward_losses, kl_losses, grad_norms]:
             c.clear()
 
-        return metrics
+        return metrics_
 
     def batch_callback(_epoch, _loss, meta, _mode):
         if meta:
@@ -131,7 +131,7 @@ def train(
         dataset, _ = get_sequence_buffer_iterator(
             replay_buffer,
             cfg.overrides.batch_size,
-            0,
+            0,  # no validation data
             cfg.overrides.sequence_length,
             max_batches_per_loop_train=cfg.overrides.num_grad_updates,
             use_simple_sampler=True,
@@ -160,6 +160,7 @@ def train(
                 * np_rng.standard_normal(env.action_space.shape[0])
             )
             action = agent.act(obs) + action_noise
+            action = np.clip(action, -1.0, 1.0)  # to account for the noise
             next_obs, reward, done, info = env.step(action)
             replay_buffer.add(obs, action, next_obs, reward, done)
             episode_reward += reward

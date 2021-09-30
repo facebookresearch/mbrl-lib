@@ -1,5 +1,5 @@
 # @package _group_
-env: "cartpole_balance"  # used to set the hydra dir, ignored otherwise
+env: "dmcontrol_cartpole_balance"  # used to set the hydra dir, ignored otherwise
 
 env_cfg:
   _target_: "mbrl.third_party.dmc2gym.wrappers.DMCWrapper"
@@ -11,13 +11,13 @@ env_cfg:
   from_pixels: true
   height: 64
   width: 64
-  frame_skip: 4
+  frame_skip: 8
   bit_depth: 5
 
 term_fn: "no_termination"
 
 # General configuration overrides
-trial_length: 1000
+trial_length: 125
 action_noise_std: 0.3
 
 # Model overrides
