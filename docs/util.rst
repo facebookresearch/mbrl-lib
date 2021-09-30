@@ -1,5 +1,5 @@
-General utilities module
-========================
+General utilities package
+=========================
 
 .. automodule:: mbrl.util.common
     :members:

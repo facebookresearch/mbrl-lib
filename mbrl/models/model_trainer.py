@@ -140,6 +140,9 @@ class ModelTrainer:
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
         best_val_score = self.evaluate(eval_dataset) if evaluate else None
+        # only enable tqdm if training for a single epoch,
+        # otherwise it produces too much output
+        disable_tqdm = silent or (num_epochs is None or num_epochs > 1)
 
         for epoch in epoch_iter:
             if batch_callback:
@@ -147,7 +150,7 @@ class ModelTrainer:
             else:
                 batch_callback_epoch = None
             batch_losses: List[float] = []
-            for batch in tqdm.tqdm(dataset_train, disable=silent):
+            for batch in tqdm.tqdm(dataset_train, disable=disable_tqdm):
                 loss_and_maybe_meta = self.model.update(batch, self.optimizer)
                 if isinstance(loss_and_maybe_meta, tuple):
                     loss = cast(float, loss_and_maybe_meta[0])

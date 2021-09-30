@@ -12,6 +12,23 @@ from mbrl.util.math import quantize_obs
 # https://github.com/denisyarats/dmc2gym/blob/master/dmc2gym/wrappers.py
 # but adapted to gym environments (instead of dmcontrol)
 class MujocoGymPixelWrapper(gym.Wrapper):
+    """Wrapper to facilitate pixel-based learning on gym Mujoco environments.
+
+    Args:
+        env (gym.Env): the environment to wrap.
+        image_width (int): the desired image width.
+        image_height (int): the desired image height.
+        frame_skip (int): the frame skip to use (aka action repeat).
+        camera_id (int): which camera_id to use for rendering.
+        channels_first (bool): if ``True`` the observation is of shape C x H x W.
+            Otherwise it's H x W x C. Defaults to ``True``.
+        bit_depth (int, optional): if provided, images are quantized to the desired
+            bit rate and then noise is applied to them.
+        use_true_actions (bool): if ``True``, the original actions of the environment
+            are used, otherwise actions are normalized to the [-1, 1] range. Defaults
+            to ``False`` (i.e., they are normalized by default).
+    """
+
     def __init__(
         self,
         env: gym.Env,

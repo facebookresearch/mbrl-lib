@@ -23,7 +23,7 @@ See also our companion [paper](https://arxiv.org/abs/2104.10159).
 ``mbrl`` requires Python 3.7+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
 To install the latest stable version, run
 
-    pip install mbrl==v0.1.4
+    pip install mbrl
 
 #### Developer installation
 If you are interested in modifying the library, clone the repository and set up 
@@ -49,8 +49,10 @@ environment.
 MBRL-Lib provides implementations of popular MBRL algorithms 
 as examples of how to use this library. You can find them in the 
 [mbrl/algorithms](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms) folder. Currently, we have implemented
-[PETS](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/pets.py) and [MBPO](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/mbpo.py), and
-we plan to keep increasing this list in the near future.
+[PETS](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/pets.py),
+[MBPO](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/mbpo.py),
+[PlaNet](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/planet.py), 
+we plan to keep increasing this list in the future.
 
 The implementations rely on [Hydra](https://github.com/facebookresearch/hydra) 
 to handle configuration. You can see the configuration files in 
