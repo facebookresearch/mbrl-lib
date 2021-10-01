@@ -9,8 +9,8 @@ Additionally, for completion, we provide a number of custom environments that ha
 used in the original papers of the algorithms we have implemented. The environments
 are provided to match their original versions, with the only changes related to the
 Mujoco version (we only support 2.0). **Whenever possible, we suggest to use the
-standard implementations of these environments in libraries like ``mujoco-gym``,
-``dmcontrol``, rather than using the environments in this folder**. These are mostly
+standard implementations of these environments in libraries like** ``mujoco-gym``,
+``dmcontrol``, **rather than using the environments in this folder**. These are mostly
 provided for completeness, and to facilitate debugging of the algorithms provided.
 The current custom environments are:
 
@@ -23,3 +23,5 @@ The current custom environments are:
   environments used in the original PETS paper, which include some observation
   pre-processing functions.
 
+.. automodule:: mbrl.env
+    :members:

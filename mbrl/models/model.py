@@ -48,6 +48,8 @@ class Model(nn.Module, abc.ABC):
             of this.
     """
 
+    _MODEL_FNAME = "model.pth"
+
     def __init__(
         self,
         device,
@@ -258,13 +260,13 @@ class Model(nn.Module, abc.ABC):
     def __len__(self):
         return 1
 
-    def save(self, path: Union[str, pathlib.Path]):
-        """Saves the model to the given path."""
-        torch.save(self.state_dict(), path)
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        """Saves the model to the given directory."""
+        torch.save(self.state_dict(), pathlib.Path(save_dir) / self._MODEL_FNAME)
 
-    def load(self, path: Union[str, pathlib.Path]):
+    def load(self, load_dir: Union[str, pathlib.Path]):
         """Loads the model from the given path."""
-        self.load_state_dict(torch.load(path))
+        self.load_state_dict(torch.load(pathlib.Path(load_dir) / self._MODEL_FNAME))
 
 
 # ---------------------------------------------------------------------------

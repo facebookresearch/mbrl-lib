@@ -3,8 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-import pickle
-import warnings
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -72,9 +70,6 @@ class OneDTransitionRewardModel(Model):
             ``None`` which means that all models will always be included in the elite set.
     """
 
-    _MODEL_FNAME = "model.pth"
-    _ELITE_FNAME = "elite_models.pkl"
-
     def __init__(
         self,
         model: Model,
@@ -104,11 +99,6 @@ class OneDTransitionRewardModel(Model):
         self.num_elites = num_elites
         if not num_elites and isinstance(self.model, Ensemble):
             self.num_elites = self.model.num_members
-        self.elite_models: List[int] = (
-            list(range(self.model.num_members))
-            if isinstance(self.model, Ensemble)
-            else None
-        )
 
     def _get_model_input(
         self,
@@ -320,46 +310,17 @@ class OneDTransitionRewardModel(Model):
         model_state.update(self.model.reset_1d(obs, rng=rng))
         return model_state
 
-    # TODO replace this with calls to self.model.save() and self.model.load() in next version
     def save(self, save_dir: Union[str, pathlib.Path]):
-        save_dir = pathlib.Path(save_dir)
-        super().save(save_dir / self._MODEL_FNAME)
-        save_dir = pathlib.Path(save_dir)
-        warnings.warn(
-            "Future versions of OneDTrasitionRewardModel will rely on the underlying model's "
-            "save method, which will change state_dict keys."
-        )
-        elite_path = save_dir / self._ELITE_FNAME
-        if self.elite_models:
-            with open(elite_path, "wb") as f:
-                pickle.dump(self.elite_models, f)
+        self.model.save(save_dir)
         if self.input_normalizer:
             self.input_normalizer.save(save_dir)
 
     def load(self, load_dir: Union[str, pathlib.Path]):
-        load_dir = pathlib.Path(load_dir)
-        super().load(load_dir / self._MODEL_FNAME)
-        load_dir = pathlib.Path(load_dir)
-        warnings.warn(
-            "Future versions of OneDTrasitionRewardModel will rely on the underlying model's "
-            "save method, which will change state_dict keys."
-        )
-        elite_path = load_dir / self._ELITE_FNAME
-        if pathlib.Path.is_file(elite_path):
-            warnings.warn(
-                "Future versions of OneDTrasitionRewardModel will load elite models from the same "
-                "checkpoint file as the model weights."
-            )
-            with open(elite_path, "rb") as f:
-                elite_models = pickle.load(f)
-            self.set_elite(elite_models)
-        else:
-            warnings.warn("No elite model information found in model load directory.")
+        self.model.load(load_dir)
         if self.input_normalizer:
             self.input_normalizer.load(load_dir)
 
     def set_elite(self, elite_indices: Sequence[int]):
-        self.elite_models = list(elite_indices)
         self.model.set_elite(elite_indices)
 
     def __len__(self):

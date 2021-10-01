@@ -9,6 +9,9 @@
   observation, latent states, beliefs, and any other such quantity that the model
   need to maintain to simulate trajectories when using `ModelEnv`. 
 - `Ensemble` class and sub-classes are assumed to operate on 1-D models.
+- Checkpointing format used by `save()` and `load()` in classes 
+  `GaussianMLP` and `OneDTransitionRewardModel` changed, making old checkpoints 
+  incompatible with the new version.
   
 ### Other changes
 - Added functions to `mbrl.util.models` to easily create convolutional encoder/decoders

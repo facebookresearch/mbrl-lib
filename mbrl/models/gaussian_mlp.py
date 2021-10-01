@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-import pickle
 import warnings
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -70,9 +69,6 @@ class GaussianMLP(Ensemble):
         activation_fn_cfg (omegaconf.DictConfig, optional): config function needed to instantiate
             desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
-
-    # TODO integrate this with the checkpoint in the next version
-    _ELITE_FNAME = "elite_models.pkl"
 
     def __init__(
         self,
@@ -394,30 +390,16 @@ class GaussianMLP(Ensemble):
         if len(elite_indices) != self.num_members:
             self.elite_models = list(elite_indices)
 
-    def save(self, path: Union[str, pathlib.Path]):
-        """Saves the model to the given path."""
-        super().save(path)
-        path = pathlib.Path(path)
-        elite_path = path / self._ELITE_FNAME
-        if self.elite_models:
-            warnings.warn(
-                "Future versions of GaussianMLP will save elite models in the same "
-                "checkpoint file as the model weights."
-            )
-            with open(elite_path, "wb") as f:
-                pickle.dump(self.elite_models, f)
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        """Saves the model to the given directory."""
+        model_dict = {
+            "state_dict": self.state_dict(),
+            "elite_models": self.elite_models,
+        }
+        torch.save(model_dict, pathlib.Path(save_dir) / self._MODEL_FNAME)
 
-    def load(self, path: Union[str, pathlib.Path]):
+    def load(self, load_dir: Union[str, pathlib.Path]):
         """Loads the model from the given path."""
-        super().load(path)
-        path = pathlib.Path(path)
-        elite_path = path / self._ELITE_FNAME
-        if pathlib.Path.is_file(elite_path):
-            warnings.warn(
-                "Future versions of GaussianMLP will load elite models from the same "
-                "checkpoint file as the model weights."
-            )
-            with open(elite_path, "rb") as f:
-                self.elite_models = pickle.load(f)
-        else:
-            warnings.warn("No elite model information found in model load directory.")
+        model_dict = torch.load(pathlib.Path(load_dir) / self._MODEL_FNAME)
+        self.load_state_dict(model_dict["state_dict"])
+        self.elite_models = model_dict["elite_models"]
