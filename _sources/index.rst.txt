@@ -55,3 +55,4 @@ environment. Then, please take a look at our API documentation below.
    util.rst
    replay_buffer.rst
    logging.rst
+   env.rst

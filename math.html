@@ -36,8 +36,8 @@
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="General utilities module" href="util.html" />
-    <link rel="prev" title="Planning module" href="planning.html" /> 
+    <link rel="next" title="General utilities package" href="util.html" />
+    <link rel="prev" title="Planning package" href="planning.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -84,12 +84,13 @@
             
               <p class="caption"><span class="caption-text">API Documentation</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="models.html">Models module</a></li>
-<li class="toctree-l1"><a class="reference internal" href="planning.html">Planning module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="planning.html">Planning package</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Math utilities module</a></li>
-<li class="toctree-l1"><a class="reference internal" href="util.html">General utilities module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">General utilities package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="replay_buffer.html">Replay buffer module</a></li>
 <li class="toctree-l1"><a class="reference internal" href="logging.html">Logging module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="env.html">Environment package</a></li>
 </ul>
 
             
@@ -455,7 +456,7 @@ number of models, batch size, and output dimension, respectively.</p>
 <li><p><strong>bit_depth</strong> (<em>int</em>) – the desired bit depth.</p></li>
 <li><p><strong>original_bit_depth</strong> (<em>int</em><em>, </em><em>optional</em>) – the original bit depth, defaults to 8.</p></li>
 <li><p><strong>add_noise</strong> (<em>bool</em><em>, </em><em>optional</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, uniform noise in the range
-(0, 1 / 2 ** bit_depth) will be added. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.`</p></li>
+(0, 2 ** (8 - bit_depth)) will be added. Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.`</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -514,10 +515,10 @@ f(x) = min(max_y, max(min_y, f1(x)))</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="util.html" class="btn btn-neutral float-right" title="General utilities module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="util.html" class="btn btn-neutral float-right" title="General utilities package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="planning.html" class="btn btn-neutral float-left" title="Planning module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="planning.html" class="btn btn-neutral float-left" title="Planning package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
