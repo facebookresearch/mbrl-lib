@@ -104,6 +104,7 @@ def _check_pets(model_type):
             "cem_population_size": 500,
             "cem_num_iters": 5,
             "cem_alpha": 0.1,
+            "cem_clipped_normal": False,
             "planning_horizon": 15,
             "num_elites": 5,
         },

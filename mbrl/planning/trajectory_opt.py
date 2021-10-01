@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import time
-from typing import Callable, List, Optional, Sequence, cast
+from typing import Callable, List, Optional, Sequence, Tuple, cast
 
 import hydra
 import numpy as np
@@ -62,6 +62,9 @@ class CEMOptimizer(Optimizer):
         device (torch.device): device where computations will be performed.
         return_mean_elites (bool): if ``True`` returns the mean of the elites of the last
             iteration. Otherwise, it returns the max solution found over all iterations.
+        clipped_normal (bool); if ``True`` samples are drawn from a normal distribution
+            and clipped to the bounds. If ``False``, sampling uses a truncated normal
+            distribution up to the bounds. Defaults to ``False``.
 
     [1] R. Rubinstein and W. Davidson. "The cross-entropy method for combinatorial and continuous
     optimization". Methodology and Computing in Applied Probability, 1999.
@@ -77,6 +80,7 @@ class CEMOptimizer(Optimizer):
         alpha: float,
         device: torch.device,
         return_mean_elites: bool = False,
+        clipped_normal: bool = False,
     ):
         super().__init__()
         self.num_iterations = num_iterations
@@ -87,10 +91,53 @@ class CEMOptimizer(Optimizer):
         )
         self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
-        self.initial_var = ((self.upper_bound - self.lower_bound) ** 2) / 16
         self.alpha = alpha
         self.return_mean_elites = return_mean_elites
         self.device = device
+
+        self._clipped_normal = clipped_normal
+
+    def _init_population_params(
+        self, x0: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        mean = x0.clone()
+        if self._clipped_normal:
+            dispersion = torch.ones_like(mean)
+        else:
+            dispersion = ((self.upper_bound - self.lower_bound) ** 2) / 16
+        return mean, dispersion
+
+    def _sample_population(
+        self, mean: torch.Tensor, dispersion: torch.Tensor, population: torch.Tensor
+    ) -> torch.Tensor:
+        # fills population with random samples
+        # for truncated normal, dispersion should be the variance
+        # for clipped normal, dispersion should be the standard deviation
+        if self._clipped_normal:
+            pop = mean + dispersion * torch.randn_like(population)
+            pop = torch.where(pop > self.lower_bound, pop, self.lower_bound)
+            population = torch.where(pop < self.upper_bound, pop, self.upper_bound)
+            return population
+        else:
+            lb_dist = mean - self.lower_bound
+            ub_dist = self.upper_bound - mean
+            mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
+            constrained_var = torch.min(mv, dispersion)
+
+            population = mbrl.util.math.truncated_normal_(population)
+            return population * torch.sqrt(constrained_var) + mean
+
+    def _update_population_params(
+        self, elite: torch.Tensor, mu: torch.Tensor, dispersion: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        new_mu = torch.mean(elite, dim=0)
+        if self._clipped_normal:
+            new_dispersion = torch.std(elite, dim=0)
+        else:
+            new_dispersion = torch.var(elite, dim=0)
+        mu = self.alpha * mu + (1 - self.alpha) * new_mu
+        dispersion = self.alpha * dispersion + (1 - self.alpha) * new_dispersion
+        return mu, dispersion
 
     def optimize(
         self,
@@ -114,23 +161,14 @@ class CEMOptimizer(Optimizer):
         Returns:
             (torch.Tensor): the best solution found.
         """
-        mu = x0.clone()
-        var = self.initial_var.clone()
-
+        mu, dispersion = self._init_population_params(x0)
         best_solution = torch.empty_like(mu)
         best_value = -np.inf
         population = torch.zeros((self.population_size,) + x0.shape).to(
             device=self.device
         )
         for i in range(self.num_iterations):
-            lb_dist = mu - self.lower_bound
-            ub_dist = self.upper_bound - mu
-            mv = torch.min(torch.square(lb_dist / 2), torch.square(ub_dist / 2))
-            constrained_var = torch.min(mv, var)
-
-            population = mbrl.util.math.truncated_normal_(population)
-            population = population * torch.sqrt(constrained_var) + mu
-
+            population = self._sample_population(mu, dispersion, population)
             values = obj_fun(population)
 
             if callback is not None:
@@ -141,10 +179,7 @@ class CEMOptimizer(Optimizer):
             best_values, elite_idx = values.topk(self.elite_num)
             elite = population[elite_idx]
 
-            new_mu = torch.mean(elite, dim=0)
-            new_var = torch.var(elite, unbiased=False, dim=0)
-            mu = self.alpha * mu + (1 - self.alpha) * new_mu
-            var = self.alpha * var + (1 - self.alpha) * new_var
+            mu, dispersion = self._update_population_params(elite, mu, dispersion)
 
             if best_values[0] > best_value:
                 best_value = best_values[0]

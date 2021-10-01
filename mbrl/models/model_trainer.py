@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
+import tqdm
 from torch import optim as optim
 
 from mbrl.util.logger import Logger
@@ -45,6 +46,7 @@ class ModelTrainer:
         model: Model,
         optim_lr: float = 1e-4,
         weight_decay: float = 1e-5,
+        optim_eps: float = 1e-8,
         logger: Optional[Logger] = None,
     ):
         self.model = model
@@ -63,6 +65,7 @@ class ModelTrainer:
             self.model.parameters(),
             lr=optim_lr,
             weight_decay=weight_decay,
+            eps=optim_eps,
         )
 
     def train(
@@ -75,6 +78,7 @@ class ModelTrainer:
         callback: Optional[Callable] = None,
         batch_callback: Optional[Callable] = None,
         evaluate: bool = True,
+        silent: bool = False,
     ) -> Tuple[List[float], List[float]]:
         """Trains the model for some number of epochs.
 
@@ -122,6 +126,9 @@ class ModelTrainer:
                 an evaluation score, and simply train for some number of epochs. Defaults to
                 ``True``.
 
+            silent (bool): if ``True`` logging and progress bar are deactivated. Defaults
+                to ``False``.
+
         Returns:
             (tuple of two list(float)): the history of training losses and validation losses.
 
@@ -133,13 +140,17 @@ class ModelTrainer:
         epoch_iter = range(num_epochs) if num_epochs else itertools.count()
         epochs_since_update = 0
         best_val_score = self.evaluate(eval_dataset) if evaluate else None
+        # only enable tqdm if training for a single epoch,
+        # otherwise it produces too much output
+        disable_tqdm = silent or (num_epochs is None or num_epochs > 1)
+
         for epoch in epoch_iter:
             if batch_callback:
                 batch_callback_epoch = functools.partial(batch_callback, epoch)
             else:
                 batch_callback_epoch = None
             batch_losses: List[float] = []
-            for batch in dataset_train:
+            for batch in tqdm.tqdm(dataset_train, disable=disable_tqdm):
                 loss_and_maybe_meta = self.model.update(batch, self.optimizer)
                 if isinstance(loss_and_maybe_meta, tuple):
                     loss = cast(float, loss_and_maybe_meta[0])
@@ -174,7 +185,7 @@ class ModelTrainer:
                     epochs_since_update += 1
                 model_val_score = eval_score.mean()
 
-            if self.logger:
+            if self.logger and not silent:
                 self.logger.log_data(
                     self._LOG_GROUP_NAME,
                     {
@@ -249,8 +260,16 @@ class ModelTrainer:
             batch_scores_list.append(batch_score)
             if batch_callback:
                 batch_callback(batch_score.mean(), meta, "eval")
-        batch_scores = torch.cat(batch_scores_list, dim=batch_scores_list[0].ndim - 2)
-
+        try:
+            batch_scores = torch.cat(
+                batch_scores_list, dim=batch_scores_list[0].ndim - 2
+            )
+        except RuntimeError as e:
+            print(
+                f"There was an error calling ModelTrainer.evaluate(). "
+                f"Note that model.eval_score() should be non-reduced. Error was: {e}"
+            )
+            raise e
         if isinstance(dataset, BootstrapIterator):
             dataset.toggle_bootstrap()
 

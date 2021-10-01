@@ -1,5 +1,28 @@
 # Changelog
 
+## main (v0.2.0.dev1)
+### Breaking changes
+- `Model.reset()` and `Model.sample()` signature has changed. They no longer receive
+`TransitionBatch` objects, and they both return a dictionary of strings to tensors 
+  representing a model state that should be passed to `sample()` to simulate 
+  transitions. This dictionary can contain things like previous actions, predicted
+  observation, latent states, beliefs, and any other such quantity that the model
+  need to maintain to simulate trajectories when using `ModelEnv`. 
+- `Ensemble` class and sub-classes are assumed to operate on 1-D models.
+  
+### Other changes
+- Added functions to `mbrl.util.models` to easily create convolutional encoder/decoders
+  with a desired configuration.
+- `mbrl.util.common.rollout_agent_trajectories` now allows rolling out a pixel-based
+environment using a policy trained on its corresponding non-pixel environment version.
+- `ModelTrainer` can be given `eps` for `Adam` optimizer. It now also includes a
+  progress bar using `tqdm` (can be turned off).
+- CEM optimizer can now be toggled between using clipped normal distribution or
+truncated normal distribution.
+- `mbrl.util.mujoco.make_env` can now create an environment specified via an `omegaconf`
+configuration and `hydra.utils.instantiate`, which takes precedence over the old
+  mechanism if both are present.
+
 ## v0.1.4
 - Added MPPI optimizer.
 - Added iCEM optimizer.  

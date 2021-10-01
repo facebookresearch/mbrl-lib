@@ -413,7 +413,7 @@ def quantize_obs(
         bit_depth (int): the desired bit depth.
         original_bit_depth (int, optional): the original bit depth, defaults to 8.
         add_noise (bool, optional): if ``True``, uniform noise in the range
-            (0, 1 / 2 ** bit_depth) will be added. Defaults to ``False``.`
+            (0, 2 ** (8 - bit_depth)) will be added. Defaults to ``False``.`
 
     Returns:
         (np.ndarray): the quantized version of the array.
@@ -421,7 +421,7 @@ def quantize_obs(
     ratio = 2 ** (original_bit_depth - bit_depth)
     quantized_obs = (obs // ratio) * ratio
     if add_noise:
-        quantized_obs = quantized_obs.astype(np.double) + np.random.rand(*obs.shape) / (
-            2 ** bit_depth
+        quantized_obs = quantized_obs.astype(np.double) + ratio * np.random.rand(
+            *obs.shape
         )
     return quantized_obs

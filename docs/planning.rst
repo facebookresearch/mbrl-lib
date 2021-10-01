@@ -1,5 +1,5 @@
-Planning module
-===============
+Planning package
+================
 
 .. automodule:: mbrl.planning
     :members:

@@ -9,3 +9,4 @@ lower_bound: ???
 upper_bound: ???
 return_mean_elites: true
 device: ${device}
+clipped_normal: ${overrides.cem_clipped_normal}

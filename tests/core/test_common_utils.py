@@ -14,7 +14,7 @@ import mbrl.util.common as utils
 
 class MockModel(models.Model):
     def __init__(self, x, y, in_size, out_size):
-        super().__init__()
+        super().__init__(None)
         self.in_size = in_size
         self.out_size = out_size
         self.x = x
@@ -136,9 +136,9 @@ class MockModelEnv:
 
     def reset(self, obs0, return_as_np=None):
         self.obs = obs0
-        return obs0
+        return {}
 
-    def step(self, action, sample=None):
+    def step(self, action, model_state, sample=None):
         next_obs = self.obs + action[:, :1]
         reward = np.ones(next_obs.shape[0])
         done = np.zeros(next_obs.shape[0])
@@ -342,3 +342,35 @@ def test_model_trainer_maybe_get_best_weights_negative_score():
         model_trainer.maybe_get_best_weights(previous_eval_value, eval_value_smaller)
         is not None
     )
+
+
+def test_bootstrap_rb_sample_obs3d():
+    capacity = 1000
+    ensemble_size = 2
+    batch_size = 16
+    obs_shape = (40, 40, 3)
+    act_shape = (1,)
+    buffer = mbrl.util.ReplayBuffer(capacity, obs_shape, act_shape, obs_type=np.int8)
+    obs = np.ones(obs_shape)
+    for i in range(20 * batch_size):
+        buffer.add(obs, np.zeros(act_shape), obs + 1, 0, False)
+        obs += 1
+
+    assert buffer.obs.shape == (capacity,) + obs_shape
+    assert buffer.next_obs.shape == (capacity,) + obs_shape
+
+    it, _ = buffer.get_iterators(
+        batch_size, 0.0, train_ensemble=True, ensemble_size=ensemble_size
+    )
+
+    for batch in it:
+        assert batch.obs.shape == (ensemble_size, batch_size) + obs_shape
+        assert batch.obs.shape == batch.next_obs.shape
+        diff = batch.next_obs - batch.obs
+        assert diff.min() == 1 and diff.max() == 1
+        # Each member should have a different batch
+        # yes, this is random, but the odds of a collision are
+        # C(500, 16) ~ 5e-29, so I think it's (probably) fine
+        for i in range(ensemble_size):
+            for j in range(i + 1, ensemble_size):
+                assert not np.array_equal(batch.obs[i], batch.obs[j])
