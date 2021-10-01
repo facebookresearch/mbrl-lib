@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -12,7 +12,7 @@ import mbrl.models.util as model_util
 import mbrl.types
 import mbrl.util.math
 
-from .model import Ensemble, LossOutput, Model, UpdateOutput
+from .model import Ensemble, Model
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -165,7 +165,7 @@ class OneDTransitionRewardModel(Model):
         self,
         batch: mbrl.types.TransitionBatch,
         target: Optional[torch.Tensor] = None,
-    ) -> LossOutput:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the model loss over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,
@@ -187,7 +187,7 @@ class OneDTransitionRewardModel(Model):
         batch: mbrl.types.TransitionBatch,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
-    ) -> UpdateOutput:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Updates the model given a batch of transitions and an optimizer.
 
         Args:
@@ -205,7 +205,7 @@ class OneDTransitionRewardModel(Model):
         self,
         batch: mbrl.types.TransitionBatch,
         target: Optional[torch.Tensor] = None,
-    ) -> LossOutput:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Evaluates the model score over a batch of transitions.
 
         This method constructs input and targets from the information in the batch,

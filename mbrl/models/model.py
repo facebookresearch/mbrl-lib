@@ -4,25 +4,13 @@
 # LICENSE file in the root directory of this source tree.
 import abc
 import pathlib
-import warnings
-from typing import Any, Dict, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import nn as nn
 
 from mbrl.models.util import to_tensor
 from mbrl.types import ModelInput, TransitionBatch
-
-# TODO: these are temporary, eventually it will be tuple(tensor, dict), keeping this
-#  for back-compatibility with v0.1.x, and will be removed in v0.2.0
-LossOutput = Union[torch.Tensor, Tuple[torch.Tensor, Dict[str, Any]]]
-UpdateOutput = Union[float, Tuple[float, Dict[str, Any]]]
-
-
-_NO_META_WARNING_MSG = (
-    "Starting in version v0.2.0, `model.loss()`, model.update(), and model.eval_score() "
-    "must all return a tuple with (loss, metadata)."
-)
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +82,7 @@ class Model(nn.Module, abc.ABC):
         self,
         model_in: ModelInput,
         target: Optional[torch.Tensor] = None,
-    ) -> LossOutput:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes a loss that can be used to update the model using backpropagation.
 
         Args:
@@ -112,7 +100,7 @@ class Model(nn.Module, abc.ABC):
     @abc.abstractmethod
     def eval_score(
         self, model_in: ModelInput, target: Optional[torch.Tensor] = None
-    ) -> LossOutput:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes an evaluation score for the model over the given input/target.
 
         This method should compute a non-reduced score for the model, intended mostly for
@@ -142,7 +130,7 @@ class Model(nn.Module, abc.ABC):
         model_in: ModelInput,
         optimizer: torch.optim.Optimizer,
         target: Optional[torch.Tensor] = None,
-    ) -> UpdateOutput:
+    ) -> Tuple[float, Dict[str, Any]]:
         """Updates the model using backpropagation with given input and target tensors.
 
         Provides a basic update function, following the steps below:
@@ -166,29 +154,16 @@ class Model(nn.Module, abc.ABC):
         """
         self.train()
         optimizer.zero_grad()
-        loss_and_maybe_meta = self.loss(model_in, target)
-        if isinstance(loss_and_maybe_meta, tuple):
-            # TODO - v0.2.0 remove this back-compatibility logic
-            loss = cast(torch.Tensor, loss_and_maybe_meta[0])
-            meta = cast(Dict[str, Any], loss_and_maybe_meta[1])
-            loss.backward()
-
-            if meta is not None:
-                with torch.no_grad():
-                    grad_norm = 0.0
-                    for p in list(
-                        filter(lambda p: p.grad is not None, self.parameters())
-                    ):
-                        grad_norm += p.grad.data.norm(2).item() ** 2
-                    meta["grad_norm"] = grad_norm
-            optimizer.step()
-            return loss.item(), meta
-
-        else:
-            warnings.warn(_NO_META_WARNING_MSG)
-            loss_and_maybe_meta.backward()
-            optimizer.step()
-            return loss_and_maybe_meta.item()
+        loss, meta = self.loss(model_in, target)
+        loss.backward()
+        if meta is not None:
+            with torch.no_grad():
+                grad_norm = 0.0
+                for p in list(filter(lambda p: p.grad is not None, self.parameters())):
+                    grad_norm += p.grad.data.norm(2).item() ** 2
+                meta["grad_norm"] = grad_norm
+        optimizer.step()
+        return loss.item(), meta
 
     def reset(
         self, obs: torch.Tensor, rng: Optional[torch.Generator] = None

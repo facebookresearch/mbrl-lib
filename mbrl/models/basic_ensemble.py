@@ -3,14 +3,14 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import warnings
-from typing import Any, Dict, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import hydra
 import omegaconf
 import torch
 import torch.nn as nn
 
-from .model import _NO_META_WARNING_MSG, Ensemble
+from .model import Ensemble
 
 
 class BasicEnsemble(Ensemble):
@@ -215,15 +215,7 @@ class BasicEnsemble(Ensemble):
         ensemble_meta = {}
         for i, model in enumerate(self.members):
             model.train()
-            loss_and_maybe_meta = model.loss(model_ins[i], targets[i])
-            if isinstance(loss_and_maybe_meta, tuple):
-                loss = cast(torch.Tensor, loss_and_maybe_meta[0])
-                meta = cast(Dict[str, Any], loss_and_maybe_meta[1])
-            else:
-                # TODO remove in v0.2.0
-                warnings.warn(_NO_META_WARNING_MSG)
-                loss = cast(torch.Tensor, loss_and_maybe_meta)
-                meta = None
+            loss, meta = model.loss(model_ins[i], targets[i])
             ensemble_meta[f"model_{i}"] = meta
             avg_ensemble_loss += loss
         return avg_ensemble_loss / len(self.members), ensemble_meta
@@ -251,15 +243,7 @@ class BasicEnsemble(Ensemble):
             ensemble_meta = {}
             for i, model in enumerate(self.members):
                 model.eval()
-                score_and_maybe_meta = model.eval_score(inputs[i], targets[i])
-                if isinstance(score_and_maybe_meta, tuple):
-                    score = cast(torch.Tensor, score_and_maybe_meta[0])
-                    meta = cast(Dict[str, Any], score_and_maybe_meta[1])
-                else:
-                    # TODO remove in v0.2.0
-                    warnings.warn(_NO_META_WARNING_MSG)
-                    score = cast(torch.Tensor, score_and_maybe_meta)
-                    meta = None
+                score, meta = model.eval_score(inputs[i], targets[i])
                 ensemble_meta[f"model_{i}"] = meta
 
                 if score.ndim == 3:

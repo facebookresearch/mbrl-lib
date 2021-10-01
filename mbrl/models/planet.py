@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -13,7 +13,7 @@ import torch.nn.functional as F
 
 from mbrl.types import TensorType, TransitionBatch
 
-from .model import LossOutput, Model
+from .model import Model
 from .util import Conv2dDecoder, Conv2dEncoder, to_tensor
 
 
@@ -408,7 +408,7 @@ class PlaNetModel(Model):
         batch: TransitionBatch,
         target: Optional[torch.Tensor] = None,
         reduce: bool = True,
-    ) -> LossOutput:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the PlaNet loss given a batch of transitions.
 
         The loss is equal to: obs_loss + reward_loss + kl_scale * KL(posterior || prior)
@@ -520,7 +520,7 @@ class PlaNetModel(Model):
 
     def eval_score(
         self, batch: TransitionBatch, target: Optional[torch.Tensor] = None
-    ) -> LossOutput:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes an evaluation score for the model over the given input/target.
 
         This is equivalent to calling loss(batch, reduce=False)`.

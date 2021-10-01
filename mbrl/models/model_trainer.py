@@ -5,8 +5,7 @@
 import copy
 import functools
 import itertools
-import warnings
-from typing import Callable, Dict, List, Optional, Tuple, cast
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -16,7 +15,7 @@ from torch import optim as optim
 from mbrl.util.logger import Logger
 from mbrl.util.replay_buffer import BootstrapIterator, TransitionIterator
 
-from .model import _NO_META_WARNING_MSG, Model
+from .model import Model
 
 MODEL_LOG_FORMAT = [
     ("train_iteration", "I", "int"),
@@ -151,15 +150,7 @@ class ModelTrainer:
                 batch_callback_epoch = None
             batch_losses: List[float] = []
             for batch in tqdm.tqdm(dataset_train, disable=disable_tqdm):
-                loss_and_maybe_meta = self.model.update(batch, self.optimizer)
-                if isinstance(loss_and_maybe_meta, tuple):
-                    loss = cast(float, loss_and_maybe_meta[0])
-                    meta = cast(Dict, loss_and_maybe_meta[1])
-                else:
-                    # TODO remove this if in v0.2.0
-                    warnings.warn(_NO_META_WARNING_MSG)
-                    loss = cast(float, loss_and_maybe_meta)
-                    meta = None
+                loss, meta = self.model.update(batch, self.optimizer)
                 batch_losses.append(loss)
                 if batch_callback_epoch:
                     batch_callback_epoch(loss, meta, "train")
@@ -248,15 +239,7 @@ class ModelTrainer:
 
         batch_scores_list = []
         for batch in dataset:
-            batch_score_and_maybe_meta = self.model.eval_score(batch)
-            if isinstance(batch_score_and_maybe_meta, tuple):
-                batch_score = cast(torch.Tensor, batch_score_and_maybe_meta[0])
-                meta = cast(Dict, batch_score_and_maybe_meta[1])
-            else:
-                # TODO remove this "else" in v0.2.0
-                warnings.warn(_NO_META_WARNING_MSG)
-                batch_score = cast(torch.Tensor, batch_score_and_maybe_meta)
-                meta = None
+            batch_score, meta = self.model.eval_score(batch)
             batch_scores_list.append(batch_score)
             if batch_callback:
                 batch_callback(batch_score.mean(), meta, "eval")
