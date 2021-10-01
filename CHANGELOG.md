@@ -1,6 +1,6 @@
 # Changelog
 
-## main (v0.2.0.dev1)
+## main (v0.2.0.dev2)
 ### Breaking changes
 - `Model.reset()` and `Model.sample()` signature has changed. They no longer receive
 `TransitionBatch` objects, and they both return a dictionary of strings to tensors 
@@ -12,6 +12,9 @@
 - Checkpointing format used by `save()` and `load()` in classes 
   `GaussianMLP` and `OneDTransitionRewardModel` changed, making old checkpoints 
   incompatible with the new version.
+- `use_silu` argument to `GaussianMLP` has been replaced by `activation_fn_cfg`, which
+is an `omegaconf.DictConfig` specifying the class to use for the activation functions, 
+  thus giving more flexibility. 
   
 ### Other changes
 - Added functions to `mbrl.util.models` to easily create convolutional encoder/decoders

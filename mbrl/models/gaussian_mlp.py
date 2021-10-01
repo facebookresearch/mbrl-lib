@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-import warnings
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import hydra
@@ -57,16 +56,13 @@ class GaussianMLP(Ensemble):
                           input -h1-> -h2-> -l3-> output).
         ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
-        use_silu (bool) (deprecated, use activation_fn_cfg instead): if ``True``,
-            hidden layers will use SiLU activations, otherwise ``activation_fn_cfg`` will be used.
-            Defaults to ``False``.
         deterministic (bool): if ``True``, the model will be trained using MSE loss and no
             logvar prediction will be done. Defaults to ``False``.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
         learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
             they will be constant. Defaults to ``False``.
-        activation_fn_cfg (omegaconf.DictConfig, optional): config function needed to instantiate
+        activation_fn_cfg (dict or omegaconf.DictConfig, optional): configuration of the
             desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
 
@@ -78,11 +74,10 @@ class GaussianMLP(Ensemble):
         num_layers: int = 4,
         ensemble_size: int = 1,
         hid_size: int = 200,
-        use_silu: bool = False,
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
         learn_logvar_bounds: bool = False,
-        activation_fn_cfg: omegaconf.DictConfig = None,
+        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
     ):
         super().__init__(
             ensemble_size, device, propagation_method, deterministic=deterministic
@@ -91,21 +86,14 @@ class GaussianMLP(Ensemble):
         self.in_size = in_size
         self.out_size = out_size
 
-        if use_silu:
-            warnings.warn(
-                "use_silu is deprecated and will be removed in v0.2.0. "
-                "Use activation_fn_cfg with _target_=torch.nn.SiLU instead."
-            )
-
         def create_activation():
-            if use_silu:
-                return nn.SiLU()
+            if activation_fn_cfg is None:
+                activation_func = nn.ReLU()
             else:
-                if activation_fn_cfg is None:
-                    activation_func = nn.ReLU()
-                else:
-                    activation_func = hydra.utils.instantiate(activation_fn_cfg)
-                return activation_func
+                # Handle the case where activation_fn_cfg is a dict
+                cfg = omegaconf.OmegaConf.create(activation_fn_cfg)
+                activation_func = hydra.utils.instantiate(cfg)
+            return activation_func
 
         def create_linear_layer(l_in, l_out):
             return EnsembleLinearLayer(ensemble_size, l_in, l_out)
