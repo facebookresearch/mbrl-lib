@@ -641,53 +641,6 @@ class ReplayBuffer:
                 self.done[: self.num_stored],
             )
 
-    def get_iterators(
-        self,
-        batch_size: int,
-        val_ratio: float,
-        train_ensemble: bool = False,  # noqa
-        ensemble_size: Optional[int] = None,
-        shuffle_each_epoch: bool = True,
-        bootstrap_permutes: bool = False,
-    ) -> Tuple[TransitionIterator, Optional[TransitionIterator]]:
-        """Returns training/validation iterators for the data in the replay buffer.
-
-        .. deprecated:: v0.1.2
-           Use :func:`mbrl.util.common.get_basic_buffer_iterators`.
-
-
-        Args:
-            batch_size (int): the batch size for the iterators.
-            val_ratio (float): the proportion of data to use for validation. If 0., the
-                validation buffer will be set to ``None``.
-            train_ensemble (bool): if ``True``, the training iterator will be and
-                instance of :class:`BootstrapIterator`. Defaults to ``False``.
-            ensemble_size (int): the size of the ensemble being trained. Must be
-                provided if ``train_ensemble == True``.
-            shuffle_each_epoch (bool): if ``True``, the iterator will shuffle the
-                order each time a loop starts. Otherwise the iteration order will
-                be the same. Defaults to ``True``.
-            bootstrap_permutes (bool): if ``True``, the bootstrap iterator will create
-                the bootstrap data using permutations of the original data. Otherwise
-                it will use sampling with replacement. Defaults to ``False``.
-
-        """
-        warnings.warn(
-            "ReplayBuffer.get_iterators() is deprecated and will be removed "
-            " starting on v0.2.0. Use mbrl.util.common.get_basic_iterators() "
-            " instead."
-        )
-        from mbrl.util.common import get_basic_buffer_iterators
-
-        return get_basic_buffer_iterators(
-            self,
-            batch_size,
-            val_ratio,
-            1 if ensemble_size is None else ensemble_size,
-            shuffle_each_epoch,
-            bootstrap_permutes,
-        )
-
     @property
     def rng(self) -> np.random.Generator:
         return self._rng

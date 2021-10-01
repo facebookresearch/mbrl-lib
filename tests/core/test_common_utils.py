@@ -359,8 +359,8 @@ def test_bootstrap_rb_sample_obs3d():
     assert buffer.obs.shape == (capacity,) + obs_shape
     assert buffer.next_obs.shape == (capacity,) + obs_shape
 
-    it, _ = buffer.get_iterators(
-        batch_size, 0.0, train_ensemble=True, ensemble_size=ensemble_size
+    it, _ = mbrl.util.common.get_basic_buffer_iterators(
+        buffer, batch_size, 0.0, ensemble_size=ensemble_size
     )
 
     for batch in it:
