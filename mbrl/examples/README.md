@@ -35,7 +35,7 @@ python -m mbrl.examples.main \
   dynamics_model=gaussian_mlp_ensemble \
   algorithm.agent.batch_size=256 \
   overrides.validation_ratio=0.2 \
-  dynamics_model.model.activation_fn_cfg._target_=torch.nn.ReLU
+  dynamics_model.activation_fn_cfg._target_=torch.nn.ReLU
 ```
 where we have re-written some defaults, just to show how `hydra` command line syntax
 works. The number of possible options is extensive, and the best way to explore would be to 

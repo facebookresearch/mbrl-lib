@@ -95,8 +95,8 @@ one_dim_model.set_elite(range(_CFG["overrides"]["num_elites"]))
 one_dim_model.save(_DIR.name)
 
 # Create replay buffers and save to directory with some data
-_CFG.dynamics_model.model.in_size = "???"
-_CFG.dynamics_model.model.out_size = "???"
+_CFG.dynamics_model.in_size = "???"
+_CFG.dynamics_model.out_size = "???"
 replay_buffer = mbrl.util.common.create_replay_buffer(_CFG, _OBS_SHAPE, _ACT_SHAPE)
 mbrl.util.common.rollout_agent_trajectories(
     _ENV, 128, planning.RandomAgent(_ENV), {}, replay_buffer=replay_buffer

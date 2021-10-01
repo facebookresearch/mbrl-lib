@@ -84,8 +84,8 @@ def train(
     )
 
     # Create PlaNet model
-    cfg.dynamics_model.model.action_size = env.action_space.shape[0]
-    planet = hydra.utils.instantiate(cfg.dynamics_model.model)
+    cfg.dynamics_model.action_size = env.action_space.shape[0]
+    planet = hydra.utils.instantiate(cfg.dynamics_model)
     assert isinstance(planet, mbrl.models.PlaNetModel)
     model_env = ModelEnv(env, planet, no_termination, generator=rng)
     trainer = ModelTrainer(planet, logger=logger, optim_lr=1e-3, optim_eps=1e-4)

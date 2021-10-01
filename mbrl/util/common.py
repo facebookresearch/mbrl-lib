@@ -54,8 +54,8 @@ def create_one_dim_tr_model(
             -obs_process_fn (str, optional): a Python function to pre-process observations
             -num_elites (int, optional): number of elite members for ensembles
 
-    If ``cfg.dynamics_model.model.in_size`` is not provided, it will be automatically set to
-    `obs_shape[0] + act_shape[0]`. If ``cfg.dynamics_model.model.out_size`` is not provided,
+    If ``cfg.dynamics_model.in_size`` is not provided, it will be automatically set to
+    `obs_shape[0] + act_shape[0]`. If ``cfg.dynamics_model.out_size`` is not provided,
     it will be automatically set to `obs_shape[0] + int(cfg.algorithm.learned_rewards)`.
 
     The model will be instantiated using :func:`hydra.utils.instantiate` function.
@@ -76,7 +76,7 @@ def create_one_dim_tr_model(
     """
     # This first part takes care of the case where model is BasicEnsemble and in/out sizes
     # are handled by member_cfg
-    model_cfg = cfg.dynamics_model.model
+    model_cfg = cfg.dynamics_model
     if model_cfg._target_ == "mbrl.models.BasicEnsemble":
         model_cfg = model_cfg.member_cfg
     if model_cfg.get("in_size", None) is None:
@@ -85,7 +85,7 @@ def create_one_dim_tr_model(
         model_cfg.out_size = obs_shape[0] + int(cfg.algorithm.learned_rewards)
 
     # Now instantiate the model
-    model = hydra.utils.instantiate(cfg.dynamics_model.model)
+    model = hydra.utils.instantiate(cfg.dynamics_model)
 
     name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
     if name_obs_process_fn:

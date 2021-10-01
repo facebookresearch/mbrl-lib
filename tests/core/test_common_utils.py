@@ -36,11 +36,9 @@ def mock_obs_func():
 def test_create_one_dim_tr_model():
     cfg_dict = {
         "dynamics_model": {
-            "model": {
-                "_target_": "tests.core.test_common_utils.MockModel",
-                "x": 1,
-                "y": 2,
-            }
+            "_target_": "tests.core.test_common_utils.MockModel",
+            "x": 1,
+            "y": 2,
         },
         "algorithm": {
             "learned_rewards": True,
@@ -65,8 +63,8 @@ def test_create_one_dim_tr_model():
     assert dynamics_model.input_normalizer.mean.dtype == torch.float32
 
     # Check given input/output sizes, overrides active, and no learned rewards option
-    cfg.dynamics_model.model.in_size = 11
-    cfg.dynamics_model.model.out_size = 7
+    cfg.dynamics_model.in_size = 11
+    cfg.dynamics_model.out_size = 7
     cfg.algorithm.learned_rewards = False
     cfg.overrides.no_delta_list = [0]
     cfg.overrides.num_elites = 8
@@ -92,7 +90,7 @@ def test_create_replay_buffer():
     trial_length = 20
     num_trials = 10
     cfg_dict = {
-        "dynamics_model": {"model": {"ensemble_size": 1}},
+        "dynamics_model": {"ensemble_size": 1},
         "algorithm": {},
         "overrides": {
             "num_steps": num_trials * trial_length,

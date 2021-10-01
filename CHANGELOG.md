@@ -14,8 +14,9 @@
   incompatible with the new version.
 - `use_silu` argument to `GaussianMLP` has been replaced by `activation_fn_cfg`, which
 is an `omegaconf.DictConfig` specifying the class to use for the activation functions, 
-  thus giving more flexibility. 
-  
+  thus giving more flexibility.
+- Removed unnecessary nesting inside `dynamics_model` Hydra configuration.
+
 ### Other changes
 - Added functions to `mbrl.util.models` to easily create convolutional encoder/decoders
   with a desired configuration.

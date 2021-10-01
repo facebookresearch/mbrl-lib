@@ -117,7 +117,7 @@ def _check_pets(model_type):
     cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
     cfg.algorithm.freq_train_model = _TRIAL_LEN
     if model_type == "basic_ensemble":
-        cfg.dynamics_model.model.member_cfg.deterministic = True
+        cfg.dynamics_model.member_cfg.deterministic = True
 
     env = MockLineEnv()
     term_fn = mbrl_env.termination_fns.no_termination
@@ -172,7 +172,7 @@ def _check_pets_mppi(model_type):
     cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
     cfg.algorithm.freq_train_model = _TRIAL_LEN
     if model_type == "basic_ensemble":
-        cfg.dynamics_model.model.member_cfg.deterministic = True
+        cfg.dynamics_model.member_cfg.deterministic = True
 
     env = MockLineEnv()
     term_fn = mbrl_env.termination_fns.no_termination
@@ -241,7 +241,7 @@ def _check_pets_icem(model_type):
     cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
     cfg.algorithm.freq_train_model = _TRIAL_LEN
     if model_type == "basic_ensemble":
-        cfg.dynamics_model.model.member_cfg.deterministic = True
+        cfg.dynamics_model.member_cfg.deterministic = True
 
     env = MockLineEnv()
     term_fn = mbrl_env.termination_fns.no_termination
@@ -305,7 +305,7 @@ def test_mbpo():
         "log_frequency_agent": 200,
     }
     cfg = OmegaConf.create(cfg_dict)
-    cfg.dynamics_model.model.ensemble_size = 7
+    cfg.dynamics_model.ensemble_size = 7
     cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
     cfg.algorithm.dataset_size = _TRIAL_LEN * _NUM_TRIALS_MBPO + _INITIAL_EXPLORE
     cfg.algorithm.agent.learnable_temperature = True
