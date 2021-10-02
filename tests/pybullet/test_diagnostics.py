@@ -74,15 +74,19 @@ _MBPO_CFG_DICT["overrides"].update(
         "cem_population_size": 500,
         "cem_num_iters": 5,
         "cem_alpha": 0.1,
+        "cem_clipped_normal": False,
     }
 )
 
 # Extend default config file with information for a trajectory optimizer agent
 with open(_REPO_DIR / _CONF_DIR / "algorithm" / "pets.yaml", "r") as f:
     _PETS_ALGO_CFG = yaml.safe_load(f)
+with open(_REPO_DIR / _CONF_DIR / "action_optimizer" / "cem.yaml", "r") as f:
+    _CEM_CFG = yaml.safe_load(f)
 _CFG_DICT["algorithm"].update(_PETS_ALGO_CFG)
 _CFG_DICT["algorithm"]["learned_rewards"] = True
 _CFG_DICT["algorithm"]["agent"]["verbose"] = False
+_CFG_DICT["action_optimizer"] = _CEM_CFG
 _CFG = OmegaConf.create(_CFG_DICT)
 _MBPO_CFG = OmegaConf.create(_MBPO_CFG_DICT)
 
@@ -92,8 +96,8 @@ one_dim_model.set_elite(range(_CFG["overrides"]["num_elites"]))
 one_dim_model.save(_DIR.name)
 
 # Create replay buffers and save to directory with some data
-_CFG.dynamics_model.model.in_size = "???"
-_CFG.dynamics_model.model.out_size = "???"
+_CFG.dynamics_model.in_size = "???"
+_CFG.dynamics_model.out_size = "???"
 replay_buffer = mbrl.util.common.create_replay_buffer(_CFG, _OBS_SHAPE, _ACT_SHAPE)
 mbrl.util.common.rollout_agent_trajectories(
     _ENV, 128, planning.RandomAgent(_ENV), {}, replay_buffer=replay_buffer
