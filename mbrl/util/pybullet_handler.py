@@ -11,19 +11,26 @@ import numpy as np
 # Need to import pybulletgym to register pybullet envs.
 # Ignore the flake8 error generated
 import pybulletgym  # noqa
+from pybulletgym.envs.mujoco.env_bases import BaseBulletEnv as MJBaseBulletEnv
+from pybulletgym.envs.mujoco.robots.locomotors.walker_base import (
+    WalkerBase as MJWalkerBase,
+)
+from pybulletgym.envs.roboschool.env_bases import BaseBulletEnv as RSBaseBulletEnv
+from pybulletgym.envs.roboschool.robots.locomotors.walker_base import (
+    WalkerBase as RSWalkerBase,
+)
 
 from mbrl.util.env_handler import EnvHandler, Freeze
 
 
 def _is_pybullet_gym_env(env: gym.wrappers.TimeLimit) -> bool:
-    # TODO: Figure out how to implement this correctly
-    return True
+    return isinstance(env, MJBaseBulletEnv) or isinstance(env, RSBaseBulletEnv)
 
 
 class FreezePybullet(Freeze):
-    """Provides a context to freeze a Pybullet environment.
+    """Provides a context to freeze a PyBullet environment.
 
-    This context allows the user to manipulate the state of a Mujoco environment and return it
+    This context allows the user to manipulate the state of a PyBullet environment and return it
     to its original state upon exiting the context.
 
     Example usage:
@@ -34,7 +41,7 @@ class FreezePybullet(Freeze):
        env.reset()
        action = env.action_space.sample()
        # o1_expected, *_ = env.step(action)
-       with FreezeMujoco(env):
+       with FreezePybullet(env):
            step_the_env_a_bunch_of_times()
        o1, *_ = env.step(action) # o1 will be equal to what o1_expected would have been
 
@@ -52,46 +59,10 @@ class FreezePybullet(Freeze):
             raise RuntimeError("Tried to freeze an unsupported environment.")
 
     def __enter__(self):
-        # For now, the accepted envs are limited to ease implementation and testing
-        from pybulletgym.envs.mujoco.robots.locomotors.walker_base import (
-            WalkerBase as MJWalkerBase,
-        )
-        from pybulletgym.envs.roboschool.robots.locomotors.walker_base import (
-            WalkerBase as RSWalkerBase,
-        )
-
-        env = self._env.env
-        robot = env.robot
-        assert isinstance(robot, (RSWalkerBase, MJWalkerBase))
-        self.state_id = env._p.saveState()
-        self.ground_ids = env.ground_ids
-        self.potential = env.potential
-        self.reward = float(env.reward)
-        robot_keys = [
-            ("body_rpy", tuple),
-            ("body_xyz", tuple),
-            ("feet_contact", np.copy),
-            ("initial_z", float),
-            ("joint_speeds", np.copy),
-            ("joints_at_limit", int),
-            ("walk_target_dist", float),
-            ("walk_target_theta", float),
-            ("walk_target_x", float),
-            ("walk_target_y", float),
-        ]
-
-        self.robot_data = {}
-        for k, t in robot_keys:
-            self.robot_data[k] = t(getattr(robot, k))
+        self.state = PybulletEnvHandler.get_current_state(self._env)
 
     def __exit__(self):
-        env = self._env.env
-        env.ground_ids = self.ground_ids
-        env.potential = self.potential
-        env.reward = self.reward
-        env._p.restoreState(self.state_id)
-        for k, v in self.robot_data.items():
-            setattr(env.robot, k, v)
+        PybulletEnvHandler.set_env_state(self.state)
 
 
 class PybulletEnvHandler(EnvHandler):
@@ -123,9 +94,49 @@ class PybulletEnvHandler(EnvHandler):
         Args:
             env (:class:`gym.wrappers.TimeLimit`): the environment.
         """
-        # TODO: Figure out what this should return
         if _is_pybullet_gym_env(env):
-            return ()
+            env = env.env
+            robot = env.robot
+
+            # pybullet-gym implements 2 types of environment:
+            # - Roboschool
+            # - Mujoco
+            #
+            # In each case, the env is decomposed into the robot and the surroundings
+            # For now, we only support locomotion-based envs
+            if not isinstance(robot, (RSWalkerBase, MJWalkerBase)):
+                raise RuntimeError(
+                    "Only locomotion-based PyBullet envs are currently supported"
+                )
+
+            state_id = env._p.saveState()
+            ground_ids = env.ground_ids
+            potential = env.potential
+            reward = float(env.reward)
+            robot_keys = [
+                ("body_rpy", tuple),
+                ("body_xyz", tuple),
+                ("feet_contact", np.copy),
+                ("initial_z", float),
+                ("joint_speeds", np.copy),
+                ("joints_at_limit", int),
+                ("walk_target_dist", float),
+                ("walk_target_theta", float),
+                ("walk_target_x", float),
+                ("walk_target_y", float),
+            ]
+
+            robot_data = {}
+            for k, t in robot_keys:
+                robot_data[k] = t(getattr(robot, k))
+
+            return (
+                state_id,
+                ground_ids,
+                potential,
+                reward,
+                robot_data,
+            )
         else:
             raise NotImplementedError("Only pybulletgym environments supported.")
 
@@ -140,6 +151,20 @@ class PybulletEnvHandler(EnvHandler):
             env (:class:`gym.wrappers.TimeLimit`): the environment.
         """
         if _is_pybullet_gym_env(env):
-            pass
+            (
+                state_id,
+                ground_ids,
+                potential,
+                reward,
+                robot_data,
+            ) = state
+
+            env = env.env
+            env.ground_ids = ground_ids
+            env.potential = potential
+            env.reward = reward
+            env._p.restoreState(state_id)
+            for k, v in robot_data.items():
+                setattr(env.robot, k, v)
         else:
             raise NotImplementedError("Only pybulletgym environments supported.")
