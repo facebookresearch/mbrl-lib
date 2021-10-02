@@ -130,7 +130,7 @@ class freeze_pybullet_env:
         else:
             raise RuntimeError("Tried to freeze an unsupported environment.")
 
-    def _enter_pybullet(self):
+    def _enter_pybullet_gym(self):
         # For now, the accepted envs are limited to ease implementation and testing
         from pybulletgym.envs.roboschool.robots.locomotors.walker_base import  WalkerBase as RSWalkerBase
         from pybulletgym.envs.mujoco.robots.locomotors.walker_base import WalkerBase as MJWalkerBase
@@ -147,7 +147,7 @@ class freeze_pybullet_env:
         for k, t in robot_keys:
             self.robot_data[k] = t(getattr(robot, k))
 
-    def _exit_pybullet(self):
+    def _exit_pybullet_gym(self):
         env = self._env.env
         env.ground_ids = self.ground_ids
         env.potential = self.potential

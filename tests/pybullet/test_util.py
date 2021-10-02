@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 import pybulletgym
 
-import mbrl.util.mujoco
+import mbrl.util.pybullet
 
 
-def _freeze_mujoco_gym_env(env):
+def _freeze_pybullet_gym_env(env):
     env.seed(0)
     env.reset()
 
@@ -19,7 +19,7 @@ def _freeze_mujoco_gym_env(env):
     actions = []
     num_steps = 100
 
-    with mbrl.util.mujoco.freeze_mujoco_env(env):
+    with mbrl.util.pybullet.freeze_pybullet_env(env):
         for _ in range(num_steps):
             action = env.action_space.sample()
             next_obs, reward, done, _ = env.step(action)
@@ -38,6 +38,6 @@ def _freeze_mujoco_gym_env(env):
 
 
 def test_freeze():
-    _freeze_mujoco_gym_env(gym.make("HalfCheetahPyBulletEnv-v0"))
-    _freeze_mujoco_gym_env(gym.make("HopperPyBulletEnv-v0"))
-    _freeze_mujoco_gym_env(gym.make("HumanoidPyBulletEnv-v0"))
+    _freeze_pybullet_gym_env(gym.make("HalfCheetahPyBulletEnv-v0"))
+    _freeze_pybullet_gym_env(gym.make("HopperPyBulletEnv-v0"))
+    _freeze_pybullet_gym_env(gym.make("HumanoidPyBulletEnv-v0"))
