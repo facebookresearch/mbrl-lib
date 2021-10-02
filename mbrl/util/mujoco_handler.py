@@ -60,7 +60,7 @@ class FreezeMujoco(Freeze):
         )
         self._elapsed_steps = self._env._elapsed_steps
 
-    def __exit__(self):
+    def __exit__(self, *_args):
         self._env.set_state(*self._init_state)
         self._env._elapsed_steps = self._elapsed_steps
 

@@ -24,7 +24,7 @@ from mbrl.util.env_handler import EnvHandler, Freeze
 
 
 def _is_pybullet_gym_env(env: gym.wrappers.TimeLimit) -> bool:
-    return isinstance(env, MJBaseBulletEnv) or isinstance(env, RSBaseBulletEnv)
+    return isinstance(env.env, MJBaseBulletEnv) or isinstance(env.env, RSBaseBulletEnv)
 
 
 class FreezePybullet(Freeze):
@@ -61,8 +61,8 @@ class FreezePybullet(Freeze):
     def __enter__(self):
         self.state = PybulletEnvHandler.get_current_state(self._env)
 
-    def __exit__(self):
-        PybulletEnvHandler.set_env_state(self.state)
+    def __exit__(self, *_args):
+        PybulletEnvHandler.set_env_state(self.state, self._env)
 
 
 class PybulletEnvHandler(EnvHandler):
