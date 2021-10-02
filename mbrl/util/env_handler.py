@@ -139,7 +139,7 @@ class EnvHandler(ABC):
     and override self.freeze with that subclass
     """
 
-    freeze: Freeze
+    freeze = Freeze
 
     @abstractclassmethod
     @staticmethod
