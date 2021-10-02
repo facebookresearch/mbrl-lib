@@ -2,7 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-from abc import ABC, abstractclassmethod
+from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, Union, cast
 
 import gym
@@ -118,8 +118,8 @@ class EnvHandler(ABC):
 
     freeze = Freeze
 
-    @abstractclassmethod
     @staticmethod
+    @abstractmethod
     def is_correct_env_type(env: gym.wrappers.TimeLimit) -> bool:
         """ Checks that the env being handled is of the correct type """
         raise NotImplementedError
@@ -188,8 +188,8 @@ class EnvHandler(ABC):
         env, reward_fn = _handle_learned_rewards_and_seed(cfg, env, reward_fn)
         return env, term_fn, reward_fn
 
-    @abstractclassmethod
     @staticmethod
+    @abstractmethod
     def make_env_from_str(env_name: str) -> gym.Env:
         """Creates a new environment from its string description.
 
@@ -201,8 +201,8 @@ class EnvHandler(ABC):
         """
         raise NotImplementedError
 
-    @abstractclassmethod
     @staticmethod
+    @abstractmethod
     def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
         """Returns the internal state of the environment.
 
@@ -215,8 +215,8 @@ class EnvHandler(ABC):
         """
         raise NotImplementedError
 
-    @abstractclassmethod
     @staticmethod
+    @abstractmethod
     def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
         """Sets the state of the environment.
 
