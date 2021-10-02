@@ -5,11 +5,30 @@
 import gym
 import numpy as np
 
+from mbrl.util.math import quantize_obs
+
 
 # This is heavily based on
 # https://github.com/denisyarats/dmc2gym/blob/master/dmc2gym/wrappers.py
 # but adapted to gym environments (instead of dmcontrol)
 class MujocoGymPixelWrapper(gym.Wrapper):
+    """Wrapper to facilitate pixel-based learning on gym Mujoco environments.
+
+    Args:
+        env (gym.Env): the environment to wrap.
+        image_width (int): the desired image width.
+        image_height (int): the desired image height.
+        frame_skip (int): the frame skip to use (aka action repeat).
+        camera_id (int): which camera_id to use for rendering.
+        channels_first (bool): if ``True`` the observation is of shape C x H x W.
+            Otherwise it's H x W x C. Defaults to ``True``.
+        bit_depth (int, optional): if provided, images are quantized to the desired
+            bit rate and then noise is applied to them.
+        use_true_actions (bool): if ``True``, the original actions of the environment
+            are used, otherwise actions are normalized to the [-1, 1] range. Defaults
+            to ``False`` (i.e., they are normalized by default).
+    """
+
     def __init__(
         self,
         env: gym.Env,
@@ -18,6 +37,8 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         frame_skip: int = 1,
         camera_id: int = 0,
         channels_first: bool = True,
+        bit_depth: int = 8,
+        use_true_actions: bool = False,
     ):
         super().__init__(env)
         self._image_width = image_width
@@ -25,6 +46,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._channels_first = channels_first
         self._frame_skip = frame_skip
         self._camera_id = camera_id
+        self._bit_depth = bit_depth
 
         shape = (
             [3, image_height, image_width]
@@ -35,15 +57,27 @@ class MujocoGymPixelWrapper(gym.Wrapper):
             low=0, high=255, shape=shape, dtype=np.uint8
         )
 
+        self._use_true_actions = use_true_actions
         self._true_action_space = env.action_space
-        self.action_space = gym.spaces.Box(
-            low=-1.0, high=1.0, shape=self._true_action_space.shape, dtype=np.float32
-        )
+        if use_true_actions:
+            self.action_space = self._true_action_space
+        else:
+            self.action_space = gym.spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=self._true_action_space.shape,
+                dtype=np.float32,
+            )
+        self._last_low_dim_obs: np.ndarray = None
 
     def _get_obs(self):
         obs = self.render()
         if self._channels_first:
             obs = np.transpose(obs, (2, 0, 1))
+        if self._bit_depth != 8:
+            obs = quantize_obs(
+                obs, self._bit_depth, original_bit_depth=8, add_noise=True
+            )
         return obs
 
     def _convert_action(self, action):
@@ -56,15 +90,17 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         return action
 
     def reset(self):
-        self.env.reset()
+        self._last_low_dim_obs = self.env.reset()
         return self._get_obs()
 
     def step(self, action):
-        action = self._convert_action(action)
+        if not self._use_true_actions:
+            action = self._convert_action(action)
         total_reward = 0.0
         done = False
         for _ in range(self._frame_skip):
-            _, reward, done, _ = self.env.step(action)
+            orig_obs, reward, done, _ = self.env.step(action)
+            self._last_low_dim_obs = orig_obs
             total_reward += reward
             if done:
                 break
@@ -86,3 +122,6 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._true_action_space.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
+
+    def get_last_low_dim_obs(self):
+        return self._last_low_dim_obs

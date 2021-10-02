@@ -1,0 +1,18 @@
+# @package _group_
+name: "planet"
+
+agent:
+  _target_: mbrl.planning.TrajectoryOptimizerAgent
+  action_lb: ???
+  action_ub: ???
+  planning_horizon: ${overrides.planning_horizon}
+  optimizer_cfg: ${action_optimizer}
+  replan_freq: 1
+  keep_last_solution: false
+  verbose: ${debug_mode}
+
+num_initial_trajectories: 5
+action_noise_std: 0.3
+test_frequency: 25
+num_episodes: 1000
+dataset_size: 1000000

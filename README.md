@@ -1,6 +1,6 @@
 [![PyPi Version](https://img.shields.io/pypi/v/mbrl)](https://pypi.org/project/mbrl/)
-[![Master](https://github.com/facebookresearch/mbrl-lib/workflows/CI/badge.svg)](https://github.com/facebookresearch/mbrl-lib/actions?query=workflow%3ACI)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/facebookresearch/mbrl-lib/tree/master/LICENSE)
+[![Main](https://github.com/facebookresearch/mbrl-lib/workflows/CI/badge.svg)](https://github.com/facebookresearch/mbrl-lib/actions?query=workflow%3ACI)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/facebookresearch/mbrl-lib/tree/main/LICENSE)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
  
@@ -39,7 +39,7 @@ And test it by running the following from the root folder of the repository
 
 
 ### Basic example
-As a starting point, check out our [tutorial notebook](https://github.com/facebookresearch/mbrl-lib/tree/master/notebooks/pets_example.ipynb) 
+As a starting point, check out our [tutorial notebook](https://github.com/facebookresearch/mbrl-lib/tree/main/notebooks/pets_example.ipynb) 
 on how to write the PETS algorithm 
 ([Chua et al., NeurIPS 2018](https://arxiv.org/pdf/1805.12114.pdf)) 
 using our toolbox, and running it on a continuous version of the cartpole 
@@ -48,15 +48,17 @@ environment.
 ## Provided algorithm implementations
 MBRL-Lib provides implementations of popular MBRL algorithms 
 as examples of how to use this library. You can find them in the 
-[mbrl/algorithms](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/algorithms) folder. Currently, we have implemented
-[PETS](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/algorithms/pets.py) and [MBPO](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/algorithms/mbpo.py), and
-we plan to keep increasing this list in the near future.
+[mbrl/algorithms](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms) folder. Currently, we have implemented
+[PETS](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/pets.py),
+[MBPO](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/mbpo.py),
+[PlaNet](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/planet.py), 
+we plan to keep increasing this list in the future.
 
 The implementations rely on [Hydra](https://github.com/facebookresearch/hydra) 
 to handle configuration. You can see the configuration files in 
-[this](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/examples/conf) 
+[this](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/examples/conf) 
 folder. 
-The [overrides](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/examples/conf/overrides) 
+The [overrides](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/examples/conf/overrides) 
 subfolder contains
 environment specific configurations for each environment, overriding the 
 default configurations with the best hyperparameter values we have found so far 
@@ -79,7 +81,7 @@ such as the type of dynamics model
 (e.g., `dynamics_model=basic_ensemble`), or the number of models in the ensemble 
 (e.g., `dynamics_model.model.ensemble_size=some-number`). To learn more about
 all the available options, take a look at the provided 
-[configuration files](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/examples/conf). 
+[configuration files](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/examples/conf). 
 
 ### Note
 Running the provided examples requires Mujoco, but
@@ -100,7 +102,7 @@ install [`pybullet-gym`](https://github.com/benelot/pybullet-gym). Test it with:
 
 ## Visualization tools
 Our library also contains a set of 
-[visualization](https://github.com/facebookresearch/mbrl-lib/tree/master/mbrl/diagnostics) tools, meant to facilitate diagnostics and 
+[visualization](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/diagnostics) tools, meant to facilitate diagnostics and 
 development of models and controllers. These currently require a Mujoco 
 installation (see previous subsection), but we are planning to add support for other environments 
 and extensions in the future. Currently, the following tools are provided:
@@ -118,7 +120,7 @@ assess model predictions over a rolling horizon. Specifically, it runs a
   be trained independently. The following gif shows an example of 200 steps 
   of pre-trained MBPO policy on Inverted Pendulum environment.
   
-  ![Example of Visualizer](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/master/docs/resources/inv_pendulum_mbpo_vis.gif)
+  ![Example of Visualizer](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/inv_pendulum_mbpo_vis.gif)
   
 * ``DatasetEvaluator``: Loads a pre-trained model
 and a dataset (can be loaded from separate directories), and computes 
@@ -127,7 +129,7 @@ and a dataset (can be loaded from separate directories), and computes
   vs. the model's prediction. If the model is an ensemble, the plot shows the
   mean prediction as well as the individual predictions of each ensemble member.
   
-  ![Example of DatasetEvaluator](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/master/docs/resources/dataset_evaluator.png)
+  ![Example of DatasetEvaluator](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/dataset_evaluator.png)
 
 * ``FineTuner``: Can be used to train a
 model on a dataset produced by a given agent/controller. The model and agent
@@ -143,7 +145,7 @@ a trajectory optimizer agent on the true environment using Python's
   a video if the ``render`` argument is passed. Below is an example on 
   HalfCheetah-v2 using CEM for trajectory optimization.
   
-  ![Control Half-Cheetah True Dynamics](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/master/docs/resources/halfcheetah-break.gif)
+  ![Control Half-Cheetah True Dynamics](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/halfcheetah-break.gif)
 
 * [``TrainingBrowser``](training_browser.py): This script launches a lightweight
 training browser for plotting rewards obtained after training runs 
@@ -153,7 +155,7 @@ training browser for plotting rewards obtained after training runs
   can be edited in the pane at the bottom left. Requires installing `PyQt5`. 
   Thanks to [a3ahmad](https://github.com/a3ahmad) for the contribution.
 
-  ![Training Browser Example](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/master/docs/resources/training-browser-example.png)
+  ![Training Browser Example](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/training-browser-example.png)
 
 Note that, except for the training browser, all the tools above require Mujoco 
 installation and are specific to models of type 

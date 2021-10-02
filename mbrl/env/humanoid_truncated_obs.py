@@ -11,13 +11,6 @@ def mass_center(model, sim):
 
 # Obtained from https://raw.githubusercontent.com/JannerM/mbpo/master/mbpo/env/humanoid.py
 class HumanoidTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    """
-    COM inertia (cinert), COM velocity (cvel), actuator forces (qfrc_actuator),
-    and external forces (cfrc_ext) are removed from the observation.
-    Otherwise identical to Humanoid-v2 from
-    https://github.com/openai/gym/blob/master/gym/envs/mujoco/humanoid.py
-    """
-
     def __init__(self):
         mujoco_env.MujocoEnv.__init__(self, "humanoid.xml", 5)
         utils.EzPickle.__init__(self)

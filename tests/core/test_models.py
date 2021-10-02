@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import collections
 import functools
 
 import numpy as np
@@ -11,9 +12,39 @@ import torch
 import torch.nn as nn
 
 import mbrl.models
+import mbrl.models.util as model_utils
+import mbrl.util.replay_buffer
 from mbrl.env.termination_fns import no_termination
+from mbrl.types import TransitionBatch
 
 _DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+
+def test_activation_functions_guassian_mlp():
+    activation_cfg_silu = omegaconf.OmegaConf.create(
+        {
+            "_target_": "torch.nn.SiLU",
+        }
+    )
+    activation_cfg_th = omegaconf.OmegaConf.create(
+        {
+            "_target_": "torch.nn.Threshold",
+            "threshold": 0.5,
+            "value": 10,
+        }
+    )
+    model1 = mbrl.models.GaussianMLP(
+        1, 1, _DEVICE, num_layers=2, activation_fn_cfg=activation_cfg_silu
+    )
+    model2 = mbrl.models.GaussianMLP(
+        1, 1, _DEVICE, num_layers=2, activation_fn_cfg=activation_cfg_th
+    )
+    hidden_layer = model1.hidden_layers
+    silu = torch.nn.SiLU()
+    assert str(hidden_layer[0][1]) == str(silu)
+    hidden_layer = model2.hidden_layers
+    threshold = torch.nn.Threshold(0.5, 10)
+    assert str(hidden_layer[0][1]) == str(threshold)
 
 
 def test_basic_ensemble_gaussian_forward():
@@ -132,11 +163,13 @@ def test_gaussian_mlp_ensemble_fixed_model_propagation():
     history = ["" for _ in range(batch_size)]
     rng = torch.Generator(device=_DEVICE)
     # This creates propagation indices to use for all runs
-    reset_output = model.reset(batch, rng)
+    state_dict = model.reset_1d(batch, rng)
     with torch.no_grad():
         for _ in range(num_reps):
-            assert reset_output is batch
-            y = model.forward(batch)[0]
+            assert "propagation_indices" in state_dict
+            y = model.forward(
+                batch, propagation_indices=state_dict["propagation_indices"]
+            )[0]
             history = _check_output_counts_and_update_history(
                 y, ensemble_size, batch_size, history
             )
@@ -224,12 +257,14 @@ def test_model_env_expectation_propagation():
     batch_size = 7
     model_env, member_incs = get_mock_env("expectation")
     init_obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=init_obs)
+    model_state = model_env.reset(initial_obs_batch=init_obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     prev_sum = 0
     for i in range(10):
-        next_obs, reward, *_ = model_env.step(action, sample=False)
+        next_obs, reward, _, model_state = model_env.step(
+            action, model_state, sample=False
+        )
         assert next_obs.shape == (batch_size, 1)
         cur_sum = np.sum(next_obs)
         assert (cur_sum - prev_sum) == pytest.approx(batch_size * np.mean(member_incs))
@@ -241,13 +276,15 @@ def test_model_env_expectation_random():
     batch_size = 100
     model_env, member_incs = get_mock_env("random_model")
     obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=obs)
+    model_state = model_env.reset(initial_obs_batch=obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     num_steps = 50
     history = ["" for _ in range(batch_size)]
     for i in range(num_steps):
-        next_obs, reward, *_ = model_env.step(action, sample=False)
+        next_obs, reward, _, model_state = model_env.step(
+            action, model_state, sample=False
+        )
         assert next_obs.shape == (batch_size, 1)
 
         diff = next_obs - obs
@@ -271,13 +308,15 @@ def test_model_env_expectation_fixed():
     batch_size = 100
     model_env, member_incs = get_mock_env("fixed_model")
     obs = np.zeros((batch_size, _MOCK_OBS_DIM)).astype(np.float32)
-    model_env.reset(initial_obs_batch=obs)
+    model_state = model_env.reset(initial_obs_batch=obs)
 
     action = np.zeros((batch_size, _MOCK_ACT_DIM)).astype(np.float32)
     num_steps = 50
     history = ["" for _ in range(batch_size)]
     for i in range(num_steps):
-        next_obs, reward, *_ = model_env.step(action, sample=False)
+        next_obs, reward, _, model_state = model_env.step(
+            action, model_state, sample=False
+        )
         assert next_obs.shape == (batch_size, 1)
 
         diff = next_obs - obs
@@ -297,24 +336,29 @@ def test_model_env_expectation_fixed():
 
 class DummyModel(mbrl.models.Model):
     def __init__(self):
-        super().__init__()
-        self.device = torch.device(_DEVICE)
-        self.to(self.device)
+        super().__init__(torch.device(_DEVICE))
+        self.param = nn.Parameter(torch.ones(1))
 
     def forward(self, x, **kwargs):
         obs = x[:, :_MOCK_OBS_DIM]
         act = x[:, _MOCK_OBS_DIM:]
         new_obs = obs + act.mean(axis=1, keepdim=True)
         # reward is also equal to new_obs
-        return torch.cat([new_obs, new_obs], axis=1)
+        return torch.cat([new_obs, new_obs], dim=1)
 
-    def sample(self, x, deterministic=False, rng=None):
-        return (self.forward(x),)
+    def reset_1d(self, _obs, rng=None):
+        return {}
+
+    def sample_1d(self, x, _, deterministic=False, rng=None):
+        return self.forward(x), {}
 
     def loss(self, _input, target=None):
-        pass
+        return 0.0 * self.param, {"loss": 0}
 
     def eval_score(self, _input, target=None):
+        return torch.zeros_like(_input), {"score": 0}
+
+    def set_elite(self, _indices):
         pass
 
 
@@ -335,7 +379,103 @@ def test_model_env_evaluate_action_sequences():
             expected_returns = horizon * (horizon + 1) * action_sequences[..., 0, 0] / 2
             returns = model_env.evaluate_action_sequences(
                 action_sequences,
-                np.zeros((1, _MOCK_OBS_DIM)),
+                np.zeros(_MOCK_OBS_DIM),
                 num_particles=num_particles,
             )
             assert torch.allclose(expected_returns, returns)
+
+
+def test_model_trainer_batch_callback():
+    model = DummyModel()
+    wrapper = mbrl.models.OneDTransitionRewardModel(model, target_is_delta=False)
+    trainer = mbrl.models.ModelTrainer(wrapper)
+    num_batches = 10
+    dummy_data = torch.zeros(num_batches, 1)
+    mock_dataset = mbrl.util.replay_buffer.TransitionIterator(
+        TransitionBatch(
+            dummy_data,
+            dummy_data,
+            dummy_data,
+            dummy_data.squeeze(1),
+            dummy_data.squeeze(1),
+        ),
+        1,
+    )
+
+    train_counter = collections.Counter()
+    val_counter = collections.Counter()
+
+    def batch_callback(epoch, val, meta, mode):
+        assert mode in ["train", "eval"]
+        if mode == "train":
+            assert "loss" in meta
+            train_counter[epoch] += 1
+        else:
+            assert "score" in meta
+            val_counter[epoch] += 1
+
+    num_epochs = 20
+    trainer.train(mock_dataset, num_epochs=num_epochs, batch_callback=batch_callback)
+
+    for counter in [train_counter, val_counter]:
+        assert set(counter.keys()) == set(range(num_epochs))
+        for i in range(num_epochs):
+            assert counter[i] == num_batches
+
+
+def test_conv2d_encoder_shapes():
+    in_channels = 3
+    config = ((in_channels, 32, 3, 2), (32, 64, 3, 2))
+    activation_cls = [nn.ReLU, nn.SiLU, nn.Tanh]
+    encoding_size = 200
+    image_shape = (32, 32)
+    for act_idx, activation_func in enumerate(["ReLU", "SiLU", "Tanh"]):
+        encoder = model_utils.Conv2dEncoder(
+            config, image_shape, encoding_size, activation_func
+        )
+        assert len(encoder.convs) == len(config)
+        for i, layer_cfg in enumerate(config):
+            assert isinstance(encoder.convs[i][0], nn.Conv2d)
+            assert encoder.convs[i][0].in_channels == layer_cfg[0]
+            assert encoder.convs[i][0].out_channels == layer_cfg[1]
+            assert encoder.convs[i][0].kernel_size == (layer_cfg[2], layer_cfg[2])
+            assert encoder.convs[i][0].stride == (layer_cfg[3], layer_cfg[3])
+            assert isinstance(encoder.convs[i][1], activation_cls[act_idx])
+
+        assert isinstance(encoder.fc, nn.Linear)
+        assert encoder.fc.out_features == encoding_size
+
+        dummy = torch.ones((8, in_channels) + image_shape)
+        out = encoder.forward(dummy)
+        assert out.shape == (8, encoding_size)
+
+
+def test_conv2d_decoder_shapes():
+    in_channels = 64
+    config = ((in_channels, 32, 3, 2), (32, 16, 3, 2))
+    activation_cls = [nn.ReLU, nn.SiLU, nn.Tanh]
+    encoding_size = 200
+    deconv_input_shape = (in_channels, 3, 3)
+    for act_idx, activation_func in enumerate(["ReLU", "SiLU", "Tanh"]):
+        decoder = model_utils.Conv2dDecoder(
+            encoding_size, deconv_input_shape, config, activation_func=activation_func
+        )
+        assert len(decoder.deconvs) == len(config)
+        for i, layer_cfg in enumerate(config):
+            if i < len(config) - 1:
+                deconv = decoder.deconvs[i][0]
+                assert isinstance(decoder.deconvs[i][1], activation_cls[act_idx])
+            else:
+                deconv = decoder.deconvs[i]
+            assert isinstance(deconv, nn.ConvTranspose2d)
+            assert deconv.in_channels == layer_cfg[0]
+            assert deconv.out_channels == layer_cfg[1]
+            assert deconv.kernel_size == (layer_cfg[2], layer_cfg[2])
+            assert deconv.stride == (layer_cfg[3], layer_cfg[3])
+
+        assert isinstance(decoder.fc, nn.Linear)
+        assert decoder.fc.out_features == np.prod(deconv_input_shape)
+
+        dummy = torch.ones(8, encoding_size)
+        out = decoder.forward(dummy)
+        assert out.shape[0] == 8 and out.shape[1] == config[-1][1]

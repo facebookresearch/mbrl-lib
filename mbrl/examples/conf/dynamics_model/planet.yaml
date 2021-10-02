@@ -1,0 +1,24 @@
+# @package _group_
+_target_: mbrl.models.PlaNetModel
+obs_shape: [3, 64, 64]
+obs_encoding_size: 1024
+encoder_config:
+  - [3, 32, 4, 2]
+  - [32, 64, 4, 2]
+  - [64, 128, 4, 2]
+  - [128, 256, 4, 2]
+decoder_config:
+  - [1024, 1, 1]
+  - - [1024, 128, 5, 2]
+    - [128, 64, 5, 2]
+    - [64, 32, 6, 2]
+    - [32, 3, 6, 2]
+action_size: ???
+hidden_size_fcs: 200
+belief_size: 200
+latent_state_size: 30
+device: ${device}
+min_std: 0.1
+free_nats: 3.0
+kl_scale: 1.0
+grad_clip_norm: 1000.0

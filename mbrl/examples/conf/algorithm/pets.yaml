@@ -6,22 +6,12 @@ agent:
   action_lb: ???
   action_ub: ???
   planning_horizon: ${overrides.planning_horizon}
-  optimizer_cfg: ${algorithm.optimizer}
+  optimizer_cfg: ${action_optimizer}
   replan_freq: 1
   verbose: ${debug_mode}
 
-optimizer:
-  _target_: mbrl.planning.CEMOptimizer
-  num_iterations: ${overrides.cem_num_iters}
-  elite_ratio: ${overrides.cem_elite_ratio}
-  population_size: ${overrides.cem_population_size}
-  alpha: ${overrides.cem_alpha}
-  lower_bound: ???
-  upper_bound: ???
-  return_mean_elites: true
-  device: ${device}
-
 normalize: true
+normalize_double_precision: true
 target_is_delta: true
 initial_exploration_steps: ${overrides.trial_length}
 freq_train_model: ${overrides.freq_train_model}

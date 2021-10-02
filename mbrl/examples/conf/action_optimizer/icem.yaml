@@ -1,0 +1,15 @@
+# @package _group_
+
+_target_: mbrl.planning.ICEMOptimizer
+num_iterations: ${overrides.cem_num_iters}
+elite_ratio: ${overrides.cem_elite_ratio}
+population_size: ${overrides.cem_population_size}
+population_decay_factor: ${overrides.cem_population_decay_factor}
+colored_noise_exponent: ${overrides.cem_colored_noise_exponent}
+keep_elite_frac: ${overrides.cem_keep_elite_frac}
+alpha: ${overrides.cem_alpha}
+lower_bound: ???
+upper_bound: ???
+return_mean_elites: true
+population_size_module: ${dynamics_model.ensemble_size}
+device: ${device}

@@ -6,12 +6,96 @@ from typing import Optional, Tuple, Union, cast
 
 import gym
 import gym.wrappers
+import hydra
 import numpy as np
 import omegaconf
 import torch
 
 import mbrl.planning
 import mbrl.types
+
+
+def _get_term_and_reward_fn(
+    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
+) -> Tuple[mbrl.types.TermFnType, Optional[mbrl.types.RewardFnType]]:
+    import mbrl.env
+
+    term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
+    if hasattr(cfg.overrides, "reward_fn") and cfg.overrides.reward_fn is not None:
+        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
+    else:
+        reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
+
+    return term_fn, reward_fn
+
+
+def _handle_learned_rewards_and_seed(
+    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
+    env: gym.Env,
+    reward_fn: mbrl.types.RewardFnType,
+) -> Tuple[gym.Env, mbrl.types.RewardFnType]:
+    if cfg.overrides.get("learned_rewards", True):
+        reward_fn = None
+
+    if cfg.seed is not None:
+        env.seed(cfg.seed)
+        env.observation_space.seed(cfg.seed + 1)
+        env.action_space.seed(cfg.seed + 2)
+
+    return env, reward_fn
+
+
+def _legacy_make_env(
+    cfg: Union[omegaconf.ListConfig, omegaconf.DictConfig],
+) -> Tuple[gym.Env, mbrl.types.TermFnType, Optional[mbrl.types.RewardFnType]]:
+    if "dmcontrol___" in cfg.overrides.env:
+        import mbrl.third_party.dmc2gym as dmc2gym
+
+        domain, task = cfg.overrides.env.split("___")[1].split("--")
+        term_fn, reward_fn = _get_term_and_reward_fn(cfg)
+        env = dmc2gym.make(domain_name=domain, task_name=task)
+    elif "gym___" in cfg.overrides.env:
+        env = gym.make(cfg.overrides.env.split("___")[1])
+        term_fn, reward_fn = _get_term_and_reward_fn(cfg)
+    else:
+        import mbrl.env.mujoco_envs
+
+        if cfg.overrides.env == "cartpole_continuous":
+            env = mbrl.env.cartpole_continuous.CartPoleEnv()
+            term_fn = mbrl.env.termination_fns.cartpole
+            reward_fn = mbrl.env.reward_fns.cartpole
+        elif cfg.overrides.env == "cartpole_pets_version":
+            env = mbrl.env.mujoco_envs.CartPoleEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = mbrl.env.reward_fns.cartpole_pets
+        elif cfg.overrides.env == "pets_halfcheetah":
+            env = mbrl.env.mujoco_envs.HalfCheetahEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
+        elif cfg.overrides.env == "pets_reacher":
+            env = mbrl.env.mujoco_envs.Reacher3DEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = None
+        elif cfg.overrides.env == "pets_pusher":
+            env = mbrl.env.mujoco_envs.PusherEnv()
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = mbrl.env.reward_fns.pusher
+        elif cfg.overrides.env == "ant_truncated_obs":
+            env = mbrl.env.mujoco_envs.AntTruncatedObsEnv()
+            term_fn = mbrl.env.termination_fns.ant
+            reward_fn = None
+        elif cfg.overrides.env == "humanoid_truncated_obs":
+            env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
+            term_fn = mbrl.env.termination_fns.ant
+            reward_fn = None
+        else:
+            raise ValueError("Invalid environment string.")
+        env = gym.wrappers.TimeLimit(
+            env, max_episode_steps=cfg.overrides.get("trial_length", 1000)
+        )
+
+    env, reward_fn = _handle_learned_rewards_and_seed(cfg, env, reward_fn)
+    return env, term_fn, reward_fn
 
 
 def make_env(
@@ -22,8 +106,10 @@ def make_env(
     This method expects the configuration, ``cfg``,
     to have the following attributes (some are optional):
 
-        - ``cfg.overrides.env``: the string description of the environment.
-          Valid options are:
+        - If ``cfg.overrides.env_cfg`` is present, this method
+          instantiates the environment using `hydra.utils.instantiate(env_cfg)`.
+          Otherwise, it expects attribute ``cfg.overrides.env``, which should be a
+          string description of the environment where valid options are:
 
           - "dmcontrol___<domain>--<task>": a Deep-Mind Control suite environment
             with the indicated domain and task (e.g., "dmcontrol___cheetah--run".
@@ -60,68 +146,16 @@ def make_env(
         the termination function to use, and the reward function to use (or ``None`` if
         ``cfg.learned_rewards == True``).
     """
-    if "dmcontrol___" in cfg.overrides.env:
-        import mbrl.env
-        import mbrl.third_party.dmc2gym as dmc2gym
+    env_cfg = cfg.overrides.get("env_cfg", None)
+    if env_cfg is None:
+        return _legacy_make_env(cfg)
 
-        domain, task = cfg.overrides.env.split("___")[1].split("--")
-        term_fn = getattr(mbrl.env.termination_fns, domain)
-        if hasattr(cfg.overrides, "reward_fn") and cfg.overrides.reward_fn is not None:
-            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
-        else:
-            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
-        env = dmc2gym.make(domain_name=domain, task_name=task)
-    elif "gym___" in cfg.overrides.env:
-        import mbrl.env
-
-        env = gym.make(cfg.overrides.env.split("___")[1])
-        term_fn = getattr(mbrl.env.termination_fns, cfg.overrides.term_fn)
-        if hasattr(cfg.overrides, "reward_fn") and cfg.overrides.reward_fn is not None:
-            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.reward_fn)
-        else:
-            reward_fn = getattr(mbrl.env.reward_fns, cfg.overrides.term_fn, None)
-    else:
-        import mbrl.env.mujoco_envs
-
-        if cfg.overrides.env == "cartpole_continuous":
-            env = mbrl.env.cartpole_continuous.CartPoleEnv()
-            term_fn = mbrl.env.termination_fns.cartpole
-            reward_fn = mbrl.env.reward_fns.cartpole
-        elif cfg.overrides.env == "pets_halfcheetah":
-            env = mbrl.env.mujoco_envs.HalfCheetahEnv()
-            term_fn = mbrl.env.termination_fns.no_termination
-            reward_fn = getattr(mbrl.env.reward_fns, "halfcheetah", None)
-        elif cfg.overrides.env == "pets_reacher":
-            env = mbrl.env.mujoco_envs.Reacher3DEnv()
-            term_fn = mbrl.env.termination_fns.no_termination
-            reward_fn = None
-        elif cfg.overrides.env == "pets_pusher":
-            env = mbrl.env.mujoco_envs.PusherEnv()
-            term_fn = mbrl.env.termination_fns.no_termination
-            reward_fn = mbrl.env.reward_fns.pusher
-        elif cfg.overrides.env == "ant_truncated_obs":
-            env = mbrl.env.mujoco_envs.AntTruncatedObsEnv()
-            term_fn = mbrl.env.termination_fns.ant
-            reward_fn = None
-        elif cfg.overrides.env == "humanoid_truncated_obs":
-            env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
-            term_fn = mbrl.env.termination_fns.ant
-            reward_fn = None
-        else:
-            raise ValueError("Invalid environment string.")
-        env = gym.wrappers.TimeLimit(
-            env, max_episode_steps=cfg.overrides.get("trial_length", 1000)
-        )
-
-    learned_rewards = cfg.overrides.get("learned_rewards", True)
-    if learned_rewards:
-        reward_fn = None
-
-    if cfg.seed is not None:
-        env.seed(cfg.seed)
-        env.observation_space.seed(cfg.seed + 1)
-        env.action_space.seed(cfg.seed + 2)
-
+    env = hydra.utils.instantiate(cfg.overrides.env_cfg)
+    env = gym.wrappers.TimeLimit(
+        env, max_episode_steps=cfg.overrides.get("trial_length", 1000)
+    )
+    term_fn, reward_fn = _get_term_and_reward_fn(cfg)
+    env, reward_fn = _handle_learned_rewards_and_seed(cfg, env, reward_fn)
     return env, term_fn, reward_fn
 
 
@@ -157,6 +191,8 @@ def make_env_from_str(env_name: str) -> gym.Env:
 
         if env_name == "cartpole_continuous":
             env = mbrl.env.cartpole_continuous.CartPoleEnv()
+        elif env_name == "pets_cartpole":
+            env = mbrl.env.mujoco_envs.CartPoleEnv()
         elif env_name == "pets_halfcheetah":
             env = mbrl.env.mujoco_envs.HalfCheetahEnv()
         elif env_name == "pets_reacher":
@@ -205,7 +241,7 @@ class freeze_mujoco_env:
         self._elapsed_steps = 0
         self._step_count = 0
 
-        if "gym.envs.mujoco" in self._env.env.__class__.__module__:
+        if _is_mujoco_gym_env(env):
             self._enter_method = self._enter_mujoco_gym
             self._exit_method = self._exit_mujoco_gym
         elif "mbrl.third_party.dmc2gym" in self._env.env.__class__.__module__:
@@ -243,6 +279,14 @@ class freeze_mujoco_env:
         return self._exit_method()
 
 
+# Include the mujoco environments in mbrl.env
+def _is_mujoco_gym_env(env: gym.wrappers.TimeLimit) -> bool:
+    class_module = env.env.__class__.__module__
+    return "gym.envs.mujoco" in class_module or (
+        "mbrl.env." in class_module and hasattr(env.env, "data")
+    )
+
+
 def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
     """Returns the internal state of the environment.
 
@@ -261,7 +305,7 @@ def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
         environments it returns `physics.get_state().copy()`, elapsed steps and step_count.
 
     """
-    if "gym.envs.mujoco" in env.env.__class__.__module__:
+    if _is_mujoco_gym_env(env):
         state = (
             env.env.data.qpos.ravel().copy(),
             env.env.data.qvel.ravel().copy(),
@@ -291,7 +335,7 @@ def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
         state (tuple): see :func:`get_current_state` for a description.
         env (:class:`gym.wrappers.TimeLimit`): the environment.
     """
-    if "gym.envs.mujoco" in env.env.__class__.__module__:
+    if _is_mujoco_gym_env(env):
         env.set_state(*state[0])
         env._elapsed_steps = state[1]
     elif "mbrl.third_party.dmc2gym" in env.env.__class__.__module__:

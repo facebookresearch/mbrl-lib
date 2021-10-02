@@ -43,7 +43,7 @@ class FineTuner:
             self.cfg,
             self.env.observation_space.shape,
             self.env.action_space.shape,
-            None if new_model else model_dir,
+            load_dir=None if new_model else model_dir,
         )
         self.rng = np.random.default_rng(seed)
 
@@ -75,10 +75,10 @@ class FineTuner:
             logger=logger,
         )
 
-        dataset_train, dataset_val = self.replay_buffer.get_iterators(
+        dataset_train, dataset_val = mbrl.util.common.get_basic_buffer_iterators(
+            self.replay_buffer,
             batch_size,
             val_ratio,
-            train_ensemble=len(self.dynamics_model.model) is not None,
             ensemble_size=len(self.dynamics_model.model),
             shuffle_each_epoch=True,
             bootstrap_permutes=False,

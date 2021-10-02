@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import warnings
-from typing import Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import hydra
 import omegaconf
@@ -14,7 +14,7 @@ from .model import Ensemble
 
 
 class BasicEnsemble(Ensemble):
-    """Implements an ensemble of bootstrapped models.
+    """Implements an ensemble of bootstrapped 1-D models.
 
     Note: This model is provided as an easy way to build ensembles of generic Models. For
     more optimized implementations, please check other subclasses of
@@ -77,7 +77,6 @@ class BasicEnsemble(Ensemble):
         self.in_size = getattr(self.members[0], "in_size", None)
         self.out_size = getattr(self.members[0], "out_size", None)
         self.members = nn.ModuleList(self.members)
-        self._propagation_indices = None
 
     def __len__(self):
         return len(self.members)
@@ -93,7 +92,7 @@ class BasicEnsemble(Ensemble):
     # --------------------------------------------------------------------- #
     # These are customized for this class, to avoid unnecessary computation
     def _default_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        predictions = [model(x) for model in self.members]
+        predictions = [model.forward(x) for model in self.members]
         all_means = torch.stack([p[0] for p in predictions], dim=0)
         if predictions[0][1] is not None:
             all_logvars = torch.stack([p[1] for p in predictions], dim=0)
@@ -144,6 +143,7 @@ class BasicEnsemble(Ensemble):
         self,
         x: torch.Tensor,
         rng: Optional[torch.Generator] = None,
+        propagation_indices: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes the output of the ensemble.
 
@@ -162,14 +162,17 @@ class BasicEnsemble(Ensemble):
 
         Args:
             x (tensor): the input to the models (shape ``B x D``). The input will be
-                        evaluated over all models, then aggregated according to ``propagation``,
-                        as explained above.
-            rng (torch.Generator, optional): random number generator to use for "random_model"
-                                             propagation.
+                evaluated over all models, then aggregated according to
+                ``propagation``, as explained above.
+            rng (torch.Generator, optional): random number generator to use for
+                "random_model" propagation.
+            propagation_indices (tensor, optional): propagation indices to use for
+                "fixed_model" propagation method.
 
         Returns:
-            (tuple of two tensors): one for aggregated mean predictions, and one for aggregated
-            log variance prediction (or ``None`` if the ensemble members don't predict variance).
+            (tuple of two tensors): one for aggregated mean predictions, and one for
+            aggregated log variance prediction (or ``None`` if the ensemble members
+            don't predict variance).
 
         """
         if self.propagation_method is None:
@@ -177,10 +180,11 @@ class BasicEnsemble(Ensemble):
         if self.propagation_method == "random_model":
             return self._forward_random_model(x, rng)
         if self.propagation_method == "fixed_model":
-            assert (
-                self._propagation_indices is not None
-            ), "When using propagation='fixed_model', `propagation_indices` must be provided."
-            return self._forward_from_indices(x, self._propagation_indices)
+            if propagation_indices is None:
+                raise ValueError(
+                    "When using propagation='fixed_model', `propagation_indices` must be provided."
+                )
+            return self._forward_from_indices(x, propagation_indices)
         if self.propagation_method == "expectation":
             return self._forward_expectation(x)
         raise ValueError(
@@ -193,8 +197,11 @@ class BasicEnsemble(Ensemble):
         self,
         model_ins: Sequence[torch.Tensor],
         targets: Optional[Sequence[torch.Tensor]] = None,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes average loss over the losses of all members of the ensemble.
+
+        Returns a dictionary with metadata for all models, indexed as
+            meta["model_i"] = meta_for_model_i
 
         Args:
             model_ins (sequence of tensors): one input for each model in the ensemble.
@@ -205,15 +212,17 @@ class BasicEnsemble(Ensemble):
         """
         assert targets is not None
         avg_ensemble_loss: torch.Tensor = 0.0
+        ensemble_meta = {}
         for i, model in enumerate(self.members):
             model.train()
-            loss = model.loss(model_ins[i], targets[i])
+            loss, meta = model.loss(model_ins[i], targets[i])
+            ensemble_meta[f"model_{i}"] = meta
             avg_ensemble_loss += loss
-        return avg_ensemble_loss / len(self.members)
+        return avg_ensemble_loss / len(self.members), ensemble_meta
 
     def eval_score(  # type: ignore
         self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the average score over all members given input/target.
 
         The input and target tensors are replicated once for each model in the ensemble.
@@ -231,44 +240,23 @@ class BasicEnsemble(Ensemble):
 
         with torch.no_grad():
             scores = []
+            ensemble_meta = {}
             for i, model in enumerate(self.members):
                 model.eval()
-                score = model.eval_score(inputs[i], targets[i])
+                score, meta = model.eval_score(inputs[i], targets[i])
+                ensemble_meta[f"model_{i}"] = meta
+
                 if score.ndim == 3:
                     assert score.shape[0] == 1
                     score = score[0]
                 scores.append(score)
-            return torch.stack(scores)
+            return torch.stack(scores), ensemble_meta
 
-    def reset(  # type: ignore
-        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
-    ) -> torch.Tensor:
-        """Initializes any internal dependent state when using the model for simulation.
-
-        Initializes model indices for "fixed_model" propagation method
-        a bootstrapped ensemble with TSinf propagation).
-
-        Args:
-            x (tensor): the input to the model.
-            rng (random number generator): a rng to use for sampling the model
-                indices.
-
-        Returns:
-            (tensor): forwards the same input.
-        """
-        assert rng is not None
-        self._propagation_indices = self._sample_propagation_indices(x.shape[0], rng)
-        return x
-
-    def _sample_propagation_indices(
+    def sample_propagation_indices(
         self, batch_size: int, rng: torch.Generator
     ) -> torch.Tensor:
-        """Returns a tensor with ``batch_size`` integers from [0, ``self.num_members``)."""
         return torch.randint(
-            len(self),
-            (batch_size,),
-            generator=rng,
-            device=self.device,
+            len(self), (batch_size,), generator=rng, device=self.device
         )
 
     def set_elite(self, elite_models: Sequence[int]):

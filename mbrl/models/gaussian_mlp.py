@@ -3,10 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-import pickle
-import warnings
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import hydra
+import omegaconf
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -56,18 +56,15 @@ class GaussianMLP(Ensemble):
                           input -h1-> -h2-> -l3-> output).
         ensemble_size (int): the number of members in the ensemble. Defaults to 1.
         hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
-        use_silu (bool): if ``True``, hidden layers will use SiLU activations, otherwise
-                         ReLU activations will be used. Defaults to ``False``.
         deterministic (bool): if ``True``, the model will be trained using MSE loss and no
             logvar prediction will be done. Defaults to ``False``.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
         learn_logvar_bounds (bool): if ``True``, the logvar bounds will be learned, otherwise
             they will be constant. Defaults to ``False``.
+        activation_fn_cfg (dict or omegaconf.DictConfig, optional): configuration of the
+            desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
-
-    # TODO integrate this with the checkpoint in the next version
-    _ELITE_FNAME = "elite_models.pkl"
 
     def __init__(
         self,
@@ -77,10 +74,10 @@ class GaussianMLP(Ensemble):
         num_layers: int = 4,
         ensemble_size: int = 1,
         hid_size: int = 200,
-        use_silu: bool = False,
         deterministic: bool = False,
         propagation_method: Optional[str] = None,
         learn_logvar_bounds: bool = False,
+        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
     ):
         super().__init__(
             ensemble_size, device, propagation_method, deterministic=deterministic
@@ -89,19 +86,26 @@ class GaussianMLP(Ensemble):
         self.in_size = in_size
         self.out_size = out_size
 
-        activation_cls = nn.SiLU if use_silu else nn.ReLU
+        def create_activation():
+            if activation_fn_cfg is None:
+                activation_func = nn.ReLU()
+            else:
+                # Handle the case where activation_fn_cfg is a dict
+                cfg = omegaconf.OmegaConf.create(activation_fn_cfg)
+                activation_func = hydra.utils.instantiate(cfg)
+            return activation_func
 
         def create_linear_layer(l_in, l_out):
             return EnsembleLinearLayer(ensemble_size, l_in, l_out)
 
         hidden_layers = [
-            nn.Sequential(create_linear_layer(in_size, hid_size), activation_cls())
+            nn.Sequential(create_linear_layer(in_size, hid_size), create_activation())
         ]
         for i in range(num_layers - 1):
             hidden_layers.append(
                 nn.Sequential(
                     create_linear_layer(hid_size, hid_size),
-                    activation_cls(),
+                    create_activation(),
                 )
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
@@ -121,8 +125,6 @@ class GaussianMLP(Ensemble):
         self.to(self.device)
 
         self.elite_models: List[int] = None
-
-        self._propagation_indices: torch.Tensor = None
 
     def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
         if self.elite_models is None:
@@ -178,6 +180,7 @@ class GaussianMLP(Ensemble):
         self,
         x: torch.Tensor,
         rng: Optional[torch.Generator] = None,
+        propagation_indices: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         if self.propagation_method is None:
             mean, logvar = self._default_forward(x, only_elite=False)
@@ -202,7 +205,11 @@ class GaussianMLP(Ensemble):
             model_indices = torch.randperm(x.shape[1], device=self.device)
             return self._forward_from_indices(x, model_indices)
         if self.propagation_method == "fixed_model":
-            return self._forward_from_indices(x, self._propagation_indices)
+            if propagation_indices is None:
+                raise ValueError(
+                    "When using propagation='fixed_model', `propagation_indices` must be provided."
+                )
+            return self._forward_from_indices(x, propagation_indices)
         if self.propagation_method == "expectation":
             mean, logvar = self._default_forward(x, only_elite=True)
             return mean.mean(dim=0), logvar.mean(dim=0)
@@ -212,6 +219,7 @@ class GaussianMLP(Ensemble):
         self,
         x: torch.Tensor,
         rng: Optional[torch.Generator] = None,
+        propagation_indices: Optional[torch.Tensor] = None,
         use_propagation: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Computes mean and logvar predictions for the given input.
@@ -244,6 +252,9 @@ class GaussianMLP(Ensemble):
                 the shape must be ``B x Id``.
             rng (torch.Generator, optional): random number generator to use for "random_model"
                 propagation.
+            propagation_indices (tensor, optional): propagation indices to use,
+                as generated by :meth:`sample_propagation_indices`. Ignore if
+                `use_propagation == False` or `self.propagation_method != "fixed_model".
             use_propagation (bool): if ``False``, the propagation method will be ignored
                 and the method will return outputs for all models. Defaults to ``True``.
 
@@ -264,7 +275,9 @@ class GaussianMLP(Ensemble):
 
         """
         if use_propagation:
-            return self._forward_ensemble(x, rng=rng)
+            return self._forward_ensemble(
+                x, rng=rng, propagation_indices=propagation_indices
+            )
         return self._default_forward(x)
 
     def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -295,11 +308,13 @@ class GaussianMLP(Ensemble):
         self,
         model_in: torch.Tensor,
         target: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes Gaussian NLL loss.
 
         It also includes terms for ``max_logvar`` and ``min_logvar`` with small weights,
         with positive and negative signs, respectively.
+
+        This function returns no metadata, so the second output is set to an empty dict.
 
         Args:
             model_in (tensor): input tensor. The shape must be ``E x B x Id``, or ``B x Id``
@@ -315,18 +330,20 @@ class GaussianMLP(Ensemble):
             the average over all models.
         """
         if self.deterministic:
-            return self._mse_loss(model_in, target)
+            return self._mse_loss(model_in, target), {}
         else:
-            return self._nll_loss(model_in, target)
+            return self._nll_loss(model_in, target), {}
 
     def eval_score(  # type: ignore
         self, model_in: torch.Tensor, target: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """Computes the squared error for the model over the given input/target.
 
         When model is not an ensemble, this is equivalent to
         `F.mse_loss(model(model_in, target), reduction="none")`. If the model is ensemble,
         then return is batched over the model dimension.
+
+        This function returns no metadata, so the second output is set to an empty dict.
 
         Args:
             model_in (tensor): input tensor. The shape must be ``B x Id``, where `B`` and ``Id``
@@ -341,32 +358,11 @@ class GaussianMLP(Ensemble):
         with torch.no_grad():
             pred_mean, _ = self.forward(model_in, use_propagation=False)
             target = target.repeat((self.num_members, 1, 1))
-            return F.mse_loss(pred_mean, target, reduction="none")
+            return F.mse_loss(pred_mean, target, reduction="none"), {}
 
-    def reset(  # type: ignore
-        self, x: torch.Tensor, rng: Optional[torch.Generator] = None
-    ) -> torch.Tensor:
-        """Initializes any internal dependent state when using the model for simulation.
-
-        Initializes model indices for "fixed_model" propagation method
-        a bootstrapped ensemble with TSinf propagation).
-
-        Args:
-            x (tensor): the input to the model.
-            rng (random number generator): a rng to use for sampling the model
-                indices.
-
-        Returns:
-            (tensor): forwards the same input.
-        """
-        assert rng is not None
-        self._propagation_indices = self._sample_propagation_indices(x.shape[0], rng)
-        return x
-
-    def _sample_propagation_indices(
+    def sample_propagation_indices(
         self, batch_size: int, _rng: torch.Generator
     ) -> torch.Tensor:
-        """Returns a random permutation of integers in [0, ``batch_size``)."""
         model_len = (
             len(self.elite_models) if self.elite_models is not None else len(self)
         )
@@ -382,30 +378,16 @@ class GaussianMLP(Ensemble):
         if len(elite_indices) != self.num_members:
             self.elite_models = list(elite_indices)
 
-    def save(self, path: Union[str, pathlib.Path]):
-        """Saves the model to the given path."""
-        super().save(path)
-        path = pathlib.Path(path)
-        elite_path = path / self._ELITE_FNAME
-        if self.elite_models:
-            warnings.warn(
-                "Future versions of GaussianMLP will save elite models in the same "
-                "checkpoint file as the model weights."
-            )
-            with open(elite_path, "wb") as f:
-                pickle.dump(self.elite_models, f)
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        """Saves the model to the given directory."""
+        model_dict = {
+            "state_dict": self.state_dict(),
+            "elite_models": self.elite_models,
+        }
+        torch.save(model_dict, pathlib.Path(save_dir) / self._MODEL_FNAME)
 
-    def load(self, path: Union[str, pathlib.Path]):
+    def load(self, load_dir: Union[str, pathlib.Path]):
         """Loads the model from the given path."""
-        super().load(path)
-        path = pathlib.Path(path)
-        elite_path = path / self._ELITE_FNAME
-        if pathlib.Path.is_file(elite_path):
-            warnings.warn(
-                "Future versions of GaussianMLP will load elite models from the same "
-                "checkpoint file as the model weights."
-            )
-            with open(elite_path, "rb") as f:
-                self.elite_models = pickle.load(f)
-        else:
-            warnings.warn("No elite model information found in model load directory.")
+        model_dict = torch.load(pathlib.Path(load_dir) / self._MODEL_FNAME)
+        self.load_state_dict(model_dict["state_dict"])
+        self.elite_models = model_dict["elite_models"]

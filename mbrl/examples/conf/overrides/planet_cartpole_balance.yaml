@@ -1,0 +1,36 @@
+# @package _group_
+env: "dmcontrol_cartpole_balance"  # used to set the hydra dir, ignored otherwise
+
+env_cfg:
+  _target_: "mbrl.third_party.dmc2gym.wrappers.DMCWrapper"
+  domain_name: "cartpole"
+  task_name: "balance"
+  task_kwargs:
+    random: ${seed}
+  visualize_reward: false
+  from_pixels: true
+  height: 64
+  width: 64
+  frame_skip: 8
+  bit_depth: 5
+
+term_fn: "no_termination"
+
+# General configuration overrides
+trial_length: 125
+action_noise_std: 0.3
+
+# Model overrides
+num_grad_updates: 100
+sequence_length: 50
+batch_size: 50
+free_nats: 3
+kl_scale: 1.0
+
+# Planner configuration overrides
+planning_horizon: 12
+cem_num_iters: 10
+cem_elite_ratio: 0.1
+cem_population_size: 1000
+cem_alpha: 0.0
+cem_clipped_normal: true

@@ -2,6 +2,7 @@
 name: "mbpo"
 
 normalize: true
+normalize_double_precision: true
 target_is_delta: true
 learned_rewards: true
 freq_train_model: ${overrides.freq_train_model}
