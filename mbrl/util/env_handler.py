@@ -25,7 +25,7 @@ class Freeze(ABC):
         raise NotImplementedError
 
 def create_handler(env_name: str):
-    """Creates a new environment from its string description.
+    """Creates a new environment handler from its string description.
 
     Args:
         env_name (str): the string description of the environment. Valid options are:
@@ -119,5 +119,3 @@ class EnvHandler(ABC):
                     break
                 current_obs = next_obs
         return np.stack(real_obses), np.stack(rewards), np.stack(actions)
-
-    
