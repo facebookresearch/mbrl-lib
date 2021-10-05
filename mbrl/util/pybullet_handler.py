@@ -138,7 +138,7 @@ class PybulletEnvHandler(EnvHandler):
                 robot_data,
             )
         else:
-            raise NotImplementedError("Only pybulletgym environments supported.")
+            raise RuntimeError("Only pybulletgym environments supported.")
 
     @staticmethod
     def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
@@ -167,4 +167,4 @@ class PybulletEnvHandler(EnvHandler):
             for k, v in robot_data.items():
                 setattr(env.robot, k, v)
         else:
-            raise NotImplementedError("Only pybulletgym environments supported.")
+            raise RuntimeError("Only pybulletgym environments supported.")

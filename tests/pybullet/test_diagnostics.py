@@ -46,7 +46,7 @@ _CFG_DICT = {
     },
     "dynamics_model": _MODEL_CFG,
     "overrides": {
-        "env": f"gym___{_ENV_NAME}",
+        "env": f"pybulletgym___{_ENV_NAME}",
         "term_fn": "no_termination",
         "model_batch_size": 32,
         "validation_ratio": 0.1,
