@@ -1,5 +1,5 @@
 # @package _group_
-env: "gym___InvertedPendulumMuJoCoEnv-v0"
+env: "pybulletgym___InvertedPendulumMuJoCoEnv-v0"
 
 env_cfg: 
   _target_: "pybulletgym.envs.mujoco.envs.pendulum.inverted_pendulum_env.InvertedPendulumMuJoCoEnv"
