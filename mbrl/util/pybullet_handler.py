@@ -95,8 +95,7 @@ class PybulletEnvHandler(EnvHandler):
             env (:class:`gym.wrappers.TimeLimit`): the environment.
         """
         if _is_pybullet_gym_env(env):
-            env = env.env
-            robot = env.robot
+            robot = env.env.robot
 
             # pybullet-gym implements 2 types of environment:
             # - Roboschool
@@ -104,44 +103,90 @@ class PybulletEnvHandler(EnvHandler):
             #
             # In each case, the env is decomposed into the robot and the surroundings
             # For now, we only support locomotion-based envs
-            if not isinstance(robot, (RSWalkerBase, MJWalkerBase)):
+            if isinstance(robot, (RSWalkerBase, MJWalkerBase)):
+                return PybulletEnvHandler._get_current_state_locomotion(env)
+            else:
                 raise RuntimeError(
                     "Only locomotion-based PyBullet envs are currently supported"
                 )
-
-            state_id = env._p.saveState()
-            ground_ids = env.ground_ids
-            potential = env.potential
-            reward = float(env.reward)
-            robot_keys = [
-                ("body_rpy", tuple),
-                ("body_xyz", tuple),
-                ("feet_contact", np.copy),
-                ("initial_z", float),
-                ("joint_speeds", np.copy),
-                ("joints_at_limit", int),
-                ("walk_target_dist", float),
-                ("walk_target_theta", float),
-                ("walk_target_x", float),
-                ("walk_target_y", float),
-            ]
-
-            robot_data = {}
-            for k, t in robot_keys:
-                robot_data[k] = t(getattr(robot, k))
-
-            return (
-                state_id,
-                ground_ids,
-                potential,
-                reward,
-                robot_data,
-            )
         else:
-            raise NotImplementedError("Only pybulletgym environments supported.")
+            raise RuntimeError("Only pybulletgym environments supported.")
+
+    @staticmethod
+    def _get_current_state_locomotion(env: gym.wrappers.TimeLimit) -> Tuple:
+        """Returns the internal state of the environment.
+
+        Returns a tuple with information that can be passed to :func:set_env_state` to manually
+        set the environment (or a copy of it) to the same state it had when this function was
+        called.
+
+        Args:
+            env (:class:`gym.wrappers.TimeLimit`): the environment.
+        """
+        env = env.env
+        robot = env.robot
+        if not isinstance(robot, (RSWalkerBase, MJWalkerBase)):
+            raise RuntimeError("Invalid robot type. Expected a locomotor robot")
+
+        state_id = env._p.saveState()
+        ground_ids = env.ground_ids
+        potential = env.potential
+        reward = float(env.reward)
+        robot_keys = [
+            ("body_rpy", tuple),
+            ("body_xyz", tuple),
+            ("feet_contact", np.copy),
+            ("initial_z", float),
+            ("joint_speeds", np.copy),
+            ("joints_at_limit", int),
+            ("walk_target_dist", float),
+            ("walk_target_theta", float),
+            ("walk_target_x", float),
+            ("walk_target_y", float),
+        ]
+
+        robot_data = {}
+        for k, t in robot_keys:
+            robot_data[k] = t(getattr(robot, k))
+
+        return (
+            state_id,
+            ground_ids,
+            potential,
+            reward,
+            robot_data,
+        )
 
     @staticmethod
     def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
+        """Sets the state of the environment.
+
+        Assumes ``state`` was generated using :func:`get_current_state`.
+
+        Args:
+            state (tuple): see :func:`get_current_state` for a description.
+            env (:class:`gym.wrappers.TimeLimit`): the environment.
+        """
+        if _is_pybullet_gym_env(env):
+            robot = env.env.robot
+
+            # pybullet-gym implements 2 types of environment:
+            # - Roboschool
+            # - Mujoco
+            #
+            # In each case, the env is decomposed into the robot and the surroundings
+            # For now, we only support locomotion-based envs
+            if isinstance(robot, (RSWalkerBase, MJWalkerBase)):
+                return PybulletEnvHandler._set_env_state_locomotion(state, env)
+            else:
+                raise RuntimeError(
+                    "Only locomotion-based PyBullet envs are currently supported"
+                )
+        else:
+            raise RuntimeError("Only pybulletgym environments supported.")
+
+    @staticmethod
+    def _set_env_state_locomotion(state: Tuple, env: gym.wrappers.TimeLimit):
         """Sets the state of the environment.
 
         Assumes ``state`` was generated using :func:`get_current_state`.
@@ -167,4 +212,4 @@ class PybulletEnvHandler(EnvHandler):
             for k, v in robot_data.items():
                 setattr(env.robot, k, v)
         else:
-            raise NotImplementedError("Only pybulletgym environments supported.")
+            raise RuntimeError("Only pybulletgym environments supported.")

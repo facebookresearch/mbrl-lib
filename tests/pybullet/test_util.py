@@ -7,11 +7,11 @@ import numpy as np
 import pybulletgym
 import pytest
 
-from mbrl.util import create_handler
+from mbrl.util import create_handler_from_str
 
 
 def _freeze_pybullet_gym_env(env_name: str):
-    handler = create_handler(env_name)
+    handler = create_handler_from_str(env_name)
     env = handler.make_env_from_str(env_name)
     env.seed(0)
     env.reset()

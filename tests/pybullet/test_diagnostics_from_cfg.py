@@ -46,7 +46,9 @@ _CFG_DICT = {
     },
     "dynamics_model": _MODEL_CFG,
     "overrides": {
-        "env": f"pybulletgym___{_ENV_NAME}",
+        "env_cfg": {
+            "_target_": "pybulletgym.envs.roboschool.envs.locomotion.hopper_env.HopperBulletEnv"
+        },
         "term_fn": "no_termination",
         "model_batch_size": 32,
         "validation_ratio": 0.1,
