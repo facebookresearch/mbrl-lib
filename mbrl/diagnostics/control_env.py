@@ -83,7 +83,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     mp.set_start_method("spawn")
-    eval_env = handler__.make_env_from_str(args.env)
+    handler = mbrl.util.create_handler_from_str(args.env)
+    eval_env = handler.make_env_from_str(args.env)
     eval_env.seed(args.seed)
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -161,7 +162,7 @@ if __name__ == "__main__":
                 frames.append(eval_env.render(mode="rgb_array"))
             start = time.time()
 
-            current_state__ = handler__.get_current_state(
+            current_state__ = handler.get_current_state(
                 cast(gym.wrappers.TimeLimit, eval_env)
             )
 
