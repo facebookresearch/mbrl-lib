@@ -12,7 +12,6 @@ import numpy as np
 
 import mbrl.util
 import mbrl.util.common
-import mbrl.util.mujoco
 
 
 class DatasetEvaluator:
