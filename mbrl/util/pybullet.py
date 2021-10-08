@@ -66,7 +66,7 @@ class FreezePybullet(Freeze):
 
 
 class PybulletEnvHandler(EnvHandler):
-    """ Env handler for Mujoco-backed gym envs """
+    """ Env handler for PyBullet-backed gym envs """
 
     freeze = FreezePybullet
 
