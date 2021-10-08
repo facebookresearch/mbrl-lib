@@ -16,7 +16,7 @@ import torch
 
 import mbrl.planning
 import mbrl.util
-from mbrl.util.env_handler import EnvHandler
+from mbrl.util.env import EnvHandler
 
 env__: gym.Env
 handler__: EnvHandler
@@ -51,10 +51,11 @@ def evaluate_all_action_sequences(
 
 def evaluate_sequence_fn(action_sequence: np.ndarray, current_state: Tuple) -> float:
     global env__
+    global handler__
     # obs0__ is not used (only here for compatibility with rollout_env)
     obs0 = env__.observation_space.sample()
     env = cast(gym.wrappers.TimeLimit, env__)
-    mbrl.util.mujoco.set_env_state(current_state, env)
+    handler__.set_env_state(current_state, env)
     _, rewards_, _ = handler__.rollout_env(
         env, obs0, -1, agent=None, plan=action_sequence
     )
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     mp.set_start_method("spawn")
-    eval_env = mbrl.util.mujoco.make_env_from_str(args.env)
+    eval_env = handler__.make_env_from_str(args.env)
     eval_env.seed(args.seed)
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -160,7 +161,7 @@ if __name__ == "__main__":
                 frames.append(eval_env.render(mode="rgb_array"))
             start = time.time()
 
-            current_state__ = mbrl.util.mujoco.get_current_state(
+            current_state__ = handler__.get_current_state(
                 cast(gym.wrappers.TimeLimit, eval_env)
             )
 
