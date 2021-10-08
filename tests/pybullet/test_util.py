@@ -39,7 +39,25 @@ def _freeze_pybullet_gym_env(env_name: str):
         assert reward == pytest.approx(ref_reward)
 
 
+def _get_and_set_state(env_name):
+    handler = create_handler_from_str(env_name)
+    env = handler.make_env_from_str(env_name)
+    env.reset()
+    state = handler.get_current_state(env)
+    handler.set_env_state(state, env)
+    new_state = handler.get_current_state(env)
+
+    for a, b in zip(state, new_state):
+        assert a == b
+
+
 def test_freeze():
     _freeze_pybullet_gym_env("pybulletgym___HalfCheetahPyBulletEnv-v0")
     _freeze_pybullet_gym_env("pybulletgym___HopperPyBulletEnv-v0")
     _freeze_pybullet_gym_env("pybulletgym___HumanoidPyBulletEnv-v0")
+
+
+def test_get_and_set_state():
+    _get_and_set_state("pybulletgym___HalfCheetahPyBulletEnv-v0")
+    _get_and_set_state("pybulletgym___HopperPyBulletEnv-v0")
+    _get_and_set_state("pybulletgym___HumanoidPyBulletEnv-v0")
