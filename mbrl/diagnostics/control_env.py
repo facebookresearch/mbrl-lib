@@ -15,14 +15,18 @@ import skvideo.io
 import torch
 
 import mbrl.planning
-import mbrl.util.mujoco
+import mbrl.util
+from mbrl.util.env_handler import EnvHandler
 
 env__: gym.Env
+handler__: EnvHandler
 
 
 def init(env_name: str, seed: int):
     global env__
-    env__ = mbrl.util.mujoco.make_env_from_str(env_name)
+    global handler__
+    handler__ = mbrl.util.create_handler_from_str(env_name)
+    env__ = handler__.make_env_from_str(env_name)
     env__.seed(seed)
 
 
@@ -51,7 +55,7 @@ def evaluate_sequence_fn(action_sequence: np.ndarray, current_state: Tuple) -> f
     obs0 = env__.observation_space.sample()
     env = cast(gym.wrappers.TimeLimit, env__)
     mbrl.util.mujoco.set_env_state(current_state, env)
-    _, rewards_, _ = mbrl.util.mujoco.rollout_mujoco_env(
+    _, rewards_, _ = handler__.rollout_env(
         env, obs0, -1, agent=None, plan=action_sequence
     )
     return rewards_.sum().item()
