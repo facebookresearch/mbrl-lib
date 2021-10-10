@@ -16,7 +16,6 @@ import mbrl
 import mbrl.models
 import mbrl.planning
 import mbrl.util.common
-import mbrl.util.mujoco
 
 VisData = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 

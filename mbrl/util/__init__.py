@@ -48,11 +48,11 @@ def create_handler(cfg: Union[Dict, omegaconf.ListConfig, omegaconf.DictConfig])
 
     target = cfg.overrides.env_cfg.get("_target_")
     if "pybulletgym" in target:
-        from mbrl.util.pybullet_handler import PybulletEnvHandler
+        from mbrl.util.pybullet import PybulletEnvHandler
 
         return PybulletEnvHandler()
     elif "mujoco" in target:
-        from mbrl.util.mujoco_handler import MujocoEnvHandler
+        from mbrl.util.mujoco import MujocoEnvHandler
 
         return MujocoEnvHandler()
     else:
@@ -84,12 +84,12 @@ def create_handler_from_str(env_name: str):
     if "dmcontrol___" in env_name:
         raise NotImplementedError
     elif "pybulletgym___" in env_name:
-        from .pybullet_handler import PybulletEnvHandler
+        from mbrl.util.pybullet import PybulletEnvHandler
 
         return PybulletEnvHandler()
     elif "gym___" in env_name:
         raise NotImplementedError
     else:
-        from .mujoco_handler import MujocoEnvHandler
+        from mbrl.util.mujoco import MujocoEnvHandler
 
         return MujocoEnvHandler()

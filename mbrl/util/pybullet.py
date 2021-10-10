@@ -20,7 +20,7 @@ from pybulletgym.envs.roboschool.robots.locomotors.walker_base import (
     WalkerBase as RSWalkerBase,
 )
 
-from mbrl.util.env_handler import EnvHandler, Freeze
+from mbrl.util.env import EnvHandler, Freeze
 
 
 def _is_pybullet_gym_env(env: gym.wrappers.TimeLimit) -> bool:
@@ -66,7 +66,7 @@ class FreezePybullet(Freeze):
 
 
 class PybulletEnvHandler(EnvHandler):
-    """ Env handler for Mujoco-backed gym envs """
+    """ Env handler for PyBullet-backed gym envs """
 
     freeze = FreezePybullet
 
@@ -76,7 +76,7 @@ class PybulletEnvHandler(EnvHandler):
 
     @staticmethod
     def make_env_from_str(env_name: str) -> gym.Env:
-        if "gym___" in env_name:
+        if "pybulletgym___" in env_name:
             env = gym.make(env_name.split("___")[1])
         else:
             raise ValueError("Invalid environment string.")
