@@ -46,6 +46,8 @@ def _get_and_set_state(env_name):
     env.reset()
     state = handler.get_current_state(env)
     handler.set_env_state(state, env)
+    # test if we can restore the state multiple times
+    handler.set_env_state(state, env)
 
 
 def test_freeze():
