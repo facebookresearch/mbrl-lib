@@ -50,6 +50,17 @@ def _get_and_set_state(env_name):
     handler.set_env_state(state, env)
 
 
+def _transfer_state(env_name):
+    """ Test that states can be transferred between envs """
+    handler = create_handler_from_str(env_name)
+    env1 = handler.make_env_from_str(env_name)
+    env1.reset()
+    state = handler.get_current_state(env1)
+    env2 = handler.make_env_from_str(env_name)
+    env2.reset()
+    handler.set_env_state(state, env2)
+
+
 def test_freeze():
     _freeze_pybullet_gym_env("pybulletgym___HalfCheetahPyBulletEnv-v0")
     _freeze_pybullet_gym_env("pybulletgym___HopperPyBulletEnv-v0")
@@ -60,3 +71,9 @@ def test_get_and_set_state():
     _get_and_set_state("pybulletgym___HalfCheetahPyBulletEnv-v0")
     _get_and_set_state("pybulletgym___HopperPyBulletEnv-v0")
     _get_and_set_state("pybulletgym___HumanoidPyBulletEnv-v0")
+
+
+def test_transfer_state():
+    _transfer_state("pybulletgym___HalfCheetahPyBulletEnv-v0")
+    _transfer_state("pybulletgym___HopperPyBulletEnv-v0")
+    _transfer_state("pybulletgym___HumanoidPyBulletEnv-v0")
