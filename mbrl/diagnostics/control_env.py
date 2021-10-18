@@ -28,6 +28,7 @@ def init(env_name: str, seed: int):
     handler__ = mbrl.util.create_handler_from_str(env_name)
     env__ = handler__.make_env_from_str(env_name)
     env__.seed(seed)
+    env__.reset()
 
 
 def step_env(action: np.ndarray):
