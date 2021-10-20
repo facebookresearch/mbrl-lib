@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import tempfile
 from typing import Tuple
 
 import gym
@@ -113,6 +114,16 @@ class PybulletEnvHandler(EnvHandler):
             raise RuntimeError("Only pybulletgym environments supported.")
 
     @staticmethod
+    def save_state_to_file(p) -> str:
+        bulletfile = tempfile.NamedTemporaryFile(suffix=".bullet").name
+        p.saveBullet(bulletfile)
+        return bulletfile
+
+    @staticmethod
+    def load_state_from_file(p, filename: str) -> None:
+        p.restoreState(fileName=filename)
+
+    @staticmethod
     def _get_current_state_locomotion(env: gym.wrappers.TimeLimit) -> Tuple:
         """Returns the internal state of the environment.
 
@@ -128,7 +139,7 @@ class PybulletEnvHandler(EnvHandler):
         if not isinstance(robot, (RSWalkerBase, MJWalkerBase)):
             raise RuntimeError("Invalid robot type. Expected a locomotor robot")
 
-        state_id = env._p.saveState()
+        filename = PybulletEnvHandler.save_state_to_file(env._p)
         ground_ids = env.ground_ids
         potential = env.potential
         reward = float(env.reward)
@@ -150,7 +161,7 @@ class PybulletEnvHandler(EnvHandler):
             robot_data[k] = t(getattr(robot, k))
 
         return (
-            state_id,
+            filename,
             ground_ids,
             potential,
             reward,
@@ -197,7 +208,7 @@ class PybulletEnvHandler(EnvHandler):
         """
         if _is_pybullet_gym_env(env):
             (
-                state_id,
+                filename,
                 ground_ids,
                 potential,
                 reward,
@@ -208,7 +219,7 @@ class PybulletEnvHandler(EnvHandler):
             env.ground_ids = ground_ids
             env.potential = potential
             env.reward = reward
-            env._p.restoreState(state_id)
+            PybulletEnvHandler.load_state_from_file(env._p, filename)
             for k, v in robot_data.items():
                 setattr(env.robot, k, v)
         else:
