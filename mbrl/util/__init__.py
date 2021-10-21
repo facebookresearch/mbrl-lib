@@ -82,7 +82,9 @@ def create_handler_from_str(env_name: str):
         (EnvHandler): A handler for the associated gym environment
     """
     if "dmcontrol___" in env_name:
-        raise NotImplementedError
+        from mbrl.util.dmcontrol import DmcontrolEnvHandler
+
+        return DmcontrolEnvHandler()
     elif "pybulletgym___" in env_name:
         from mbrl.util.pybullet import PybulletEnvHandler
 
