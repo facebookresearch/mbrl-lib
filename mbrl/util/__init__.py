@@ -88,8 +88,8 @@ def create_handler_from_str(env_name: str):
 
         return PybulletEnvHandler()
     elif "gym___" in env_name:
-        raise NotImplementedError
-    else:
         from mbrl.util.mujoco import MujocoEnvHandler
 
         return MujocoEnvHandler()
+    else:
+        raise NotImplementedError

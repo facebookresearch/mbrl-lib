@@ -86,6 +86,8 @@ _CFG_DICT["algorithm"].update(_PETS_ALGO_CFG)
 _CFG_DICT["algorithm"]["learned_rewards"] = True
 _CFG_DICT["algorithm"]["agent"]["verbose"] = False
 _CFG_DICT["action_optimizer"] = _CEM_CFG
+_CFG_DICT["seed"] = 0
+_MBPO_CFG_DICT["seed"] = 0
 _CFG = OmegaConf.create(_CFG_DICT)
 _MBPO_CFG = OmegaConf.create(_MBPO_CFG_DICT)
 
