@@ -107,9 +107,7 @@ class PybulletEnvHandler(EnvHandler):
             if isinstance(robot, (RSWalkerBase, MJWalkerBase)):
                 return PybulletEnvHandler._get_current_state_locomotion(env)
             else:
-                raise RuntimeError(
-                    "Only locomotion-based PyBullet envs are currently supported"
-                )
+                return PybulletEnvHandler._get_current_state_default(env)
         else:
             raise RuntimeError("Only pybulletgym environments supported.")
 
@@ -122,6 +120,26 @@ class PybulletEnvHandler(EnvHandler):
     @staticmethod
     def load_state_from_file(p, filename: str) -> None:
         p.restoreState(fileName=filename)
+
+    @staticmethod
+    def _get_current_state_default(env: gym.wrappers.TimeLimit) -> Tuple:
+        """Returns the internal state of a manipulation / pendulum environment."""
+        env = env.env
+        filename = PybulletEnvHandler.save_state_to_file(env._p)
+        import pickle
+
+        pickle_bytes = pickle.dumps(env)
+        return ((filename, pickle_bytes),)
+
+    @staticmethod
+    def _set_env_state_default(state: Tuple, env: gym.wrappers.TimeLimit) -> None:
+        import pickle
+
+        ((filename, pickle_bytes),) = state
+        new_env = pickle.loads(pickle_bytes)
+        env.env = new_env
+        env = env.env
+        PybulletEnvHandler.load_state_from_file(env._p, filename)
 
     @staticmethod
     def _get_current_state_locomotion(env: gym.wrappers.TimeLimit) -> Tuple:
@@ -169,7 +187,7 @@ class PybulletEnvHandler(EnvHandler):
         )
 
     @staticmethod
-    def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit):
+    def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit) -> None:
         """Sets the state of the environment.
 
         Assumes ``state`` was generated using :func:`get_current_state`.
@@ -190,9 +208,7 @@ class PybulletEnvHandler(EnvHandler):
             if isinstance(robot, (RSWalkerBase, MJWalkerBase)):
                 return PybulletEnvHandler._set_env_state_locomotion(state, env)
             else:
-                raise RuntimeError(
-                    "Only locomotion-based PyBullet envs are currently supported"
-                )
+                return PybulletEnvHandler._set_env_state_default(state, env)
         else:
             raise RuntimeError("Only pybulletgym environments supported.")
 
