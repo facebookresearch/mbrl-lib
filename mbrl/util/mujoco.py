@@ -76,23 +76,28 @@ class MujocoEnvHandler(EnvHandler):
 
     @staticmethod
     def make_env_from_str(env_name: str) -> gym.Env:
-        if env_name == "cartpole_continuous":
-            env = mbrl.env.cartpole_continuous.CartPoleEnv()
-        elif env_name == "pets_cartpole":
-            env = mbrl.env.mujoco_envs.CartPoleEnv()
-        elif env_name == "pets_halfcheetah":
-            env = mbrl.env.mujoco_envs.HalfCheetahEnv()
-        elif env_name == "pets_reacher":
-            env = mbrl.env.mujoco_envs.Reacher3DEnv()
-        elif env_name == "pets_pusher":
-            env = mbrl.env.mujoco_envs.PusherEnv()
-        elif env_name == "ant_truncated_obs":
-            env = mbrl.env.mujoco_envs.AntTruncatedObsEnv()
-        elif env_name == "humanoid_truncated_obs":
-            env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
+        # Handle standard MuJoCo envs
+        if "gym___" in env_name:
+            env = gym.make(env_name.split("___")[1])
+        # Handle custom MuJoco envs in mbrl-lib
         else:
-            raise ValueError("Invalid environment string.")
-        env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
+            if env_name == "cartpole_continuous":
+                env = mbrl.env.cartpole_continuous.CartPoleEnv()
+            elif env_name == "pets_cartpole":
+                env = mbrl.env.mujoco_envs.CartPoleEnv()
+            elif env_name == "pets_halfcheetah":
+                env = mbrl.env.mujoco_envs.HalfCheetahEnv()
+            elif env_name == "pets_reacher":
+                env = mbrl.env.mujoco_envs.Reacher3DEnv()
+            elif env_name == "pets_pusher":
+                env = mbrl.env.mujoco_envs.PusherEnv()
+            elif env_name == "ant_truncated_obs":
+                env = mbrl.env.mujoco_envs.AntTruncatedObsEnv()
+            elif env_name == "humanoid_truncated_obs":
+                env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
+            else:
+                raise ValueError("Invalid environment string.")
+            env = gym.wrappers.TimeLimit(env, max_episode_steps=1000)
         return env
 
     @staticmethod
