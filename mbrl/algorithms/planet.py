@@ -17,11 +17,9 @@ from mbrl.env.termination_fns import no_termination
 from mbrl.models import ModelEnv, ModelTrainer
 from mbrl.planning import RandomAgent, create_trajectory_optim_agent_for_model
 from mbrl.util import Logger
-from mbrl.util.common import (
-    create_replay_buffer,
-    get_sequence_buffer_iterator,
-    rollout_agent_trajectories,
-)
+from mbrl.util.common import (create_replay_buffer,
+                              get_sequence_buffer_iterator,
+                              rollout_agent_trajectories)
 
 METRICS_LOG_FORMAT = [
     ("observations_loss", "OL", "float"),

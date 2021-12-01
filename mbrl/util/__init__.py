@@ -7,12 +7,8 @@ from typing import Dict, Union
 import omegaconf
 
 from .logger import Logger
-from .replay_buffer import (
-    ReplayBuffer,
-    SequenceTransitionIterator,
-    SequenceTransitionSampler,
-    TransitionIterator,
-)
+from .replay_buffer import (ReplayBuffer, SequenceTransitionIterator,
+                            SequenceTransitionSampler, TransitionIterator)
 
 
 def create_handler(cfg: Union[Dict, omegaconf.ListConfig, omegaconf.DictConfig]):

@@ -14,13 +14,9 @@ import mbrl.models
 import mbrl.planning
 import mbrl.types
 
-from .replay_buffer import (
-    BootstrapIterator,
-    ReplayBuffer,
-    SequenceTransitionIterator,
-    SequenceTransitionSampler,
-    TransitionIterator,
-)
+from .replay_buffer import (BootstrapIterator, ReplayBuffer,
+                            SequenceTransitionIterator,
+                            SequenceTransitionSampler, TransitionIterator)
 
 
 def create_one_dim_tr_model(
