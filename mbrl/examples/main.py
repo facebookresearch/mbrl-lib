@@ -10,18 +10,18 @@ import torch
 import mbrl.algorithms.mbpo as mbpo
 import mbrl.algorithms.pets as pets
 import mbrl.algorithms.planet as planet
-import mbrl.util.mujoco as mujoco_util
+import mbrl.util.env
 
 
 @hydra.main(config_path="conf", config_name="main")
 def run(cfg: omegaconf.DictConfig):
-    env, term_fn, reward_fn = mujoco_util.make_env(cfg)
+    env, term_fn, reward_fn = mbrl.util.env.EnvHandler.make_env(cfg)
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
     if cfg.algorithm.name == "pets":
         return pets.train(env, term_fn, reward_fn, cfg)
     if cfg.algorithm.name == "mbpo":
-        test_env, *_ = mujoco_util.make_env(cfg)
+        test_env, *_ = mbrl.util.env.EnvHandler.make_env(cfg)
         return mbpo.train(env, test_env, term_fn, cfg)
     if cfg.algorithm.name == "planet":
         return planet.train(env, cfg)
