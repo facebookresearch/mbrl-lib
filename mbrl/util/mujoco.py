@@ -66,7 +66,7 @@ class FreezeMujoco(Freeze):
 
 
 class MujocoEnvHandler(EnvHandler):
-    """ Env handler for Mujoco-backed gym envs """
+    """Env handler for Mujoco-backed gym envs"""
 
     freeze = FreezeMujoco
 
