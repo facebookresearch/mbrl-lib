@@ -15,15 +15,20 @@ import skvideo.io
 import torch
 
 import mbrl.planning
-import mbrl.util.mujoco
+import mbrl.util
+from mbrl.util.env import EnvHandler
 
 env__: gym.Env
+handler__: EnvHandler
 
 
 def init(env_name: str, seed: int):
     global env__
-    env__ = mbrl.util.mujoco.make_env_from_str(env_name)
+    global handler__
+    handler__ = mbrl.util.create_handler_from_str(env_name)
+    env__ = handler__.make_env_from_str(env_name)
     env__.seed(seed)
+    env__.reset()
 
 
 def step_env(action: np.ndarray):
@@ -47,11 +52,12 @@ def evaluate_all_action_sequences(
 
 def evaluate_sequence_fn(action_sequence: np.ndarray, current_state: Tuple) -> float:
     global env__
+    global handler__
     # obs0__ is not used (only here for compatibility with rollout_env)
     obs0 = env__.observation_space.sample()
     env = cast(gym.wrappers.TimeLimit, env__)
-    mbrl.util.mujoco.set_env_state(current_state, env)
-    _, rewards_, _ = mbrl.util.mujoco.rollout_mujoco_env(
+    handler__.set_env_state(current_state, env)
+    _, rewards_, _ = handler__.rollout_env(
         env, obs0, -1, agent=None, plan=action_sequence
     )
     return rewards_.sum().item()
@@ -78,7 +84,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     mp.set_start_method("spawn")
-    eval_env = mbrl.util.mujoco.make_env_from_str(args.env)
+    handler = mbrl.util.create_handler_from_str(args.env)
+    eval_env = handler.make_env_from_str(args.env)
     eval_env.seed(args.seed)
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -156,7 +163,7 @@ if __name__ == "__main__":
                 frames.append(eval_env.render(mode="rgb_array"))
             start = time.time()
 
-            current_state__ = mbrl.util.mujoco.get_current_state(
+            current_state__ = handler.get_current_state(
                 cast(gym.wrappers.TimeLimit, eval_env)
             )
 

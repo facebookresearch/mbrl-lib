@@ -11,7 +11,6 @@ import numpy as np
 import mbrl.models
 import mbrl.planning
 import mbrl.util.common
-import mbrl.util.mujoco
 
 LOG_FORMAT = [
     ("epoch", "E", "int"),
@@ -31,7 +30,8 @@ class FineTuner:
         new_model: bool = False,
     ):
         self.cfg = mbrl.util.common.load_hydra_cfg(model_dir)
-        self.env, self.term_fn, self.reward_fn = mbrl.util.mujoco.make_env(self.cfg)
+        self.handler = mbrl.util.create_handler(self.cfg)
+        self.env, self.term_fn, self.reward_fn = self.handler.make_env(self.cfg)
         self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(
             self.cfg,
             self.env.observation_space.shape,

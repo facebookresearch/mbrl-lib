@@ -10,21 +10,13 @@ from argparse import ArgumentParser
 
 import pandas as pd
 import yaml
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import \
+    FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5.QtCore import QAbstractTableModel, QDir, Qt
-from PyQt5.QtWidgets import (
-    QAbstractItemView,
-    QApplication,
-    QCheckBox,
-    QDockWidget,
-    QFileDialog,
-    QHeaderView,
-    QMainWindow,
-    QPushButton,
-    QTableView,
-    QToolBar,
-)
+from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QCheckBox,
+                             QDockWidget, QFileDialog, QHeaderView,
+                             QMainWindow, QPushButton, QTableView, QToolBar)
 
 MULTI_ROOT = "multirun.yaml"
 SOURCE = "results.csv"

@@ -16,7 +16,6 @@ import mbrl
 import mbrl.models
 import mbrl.planning
 import mbrl.util.common
-import mbrl.util.mujoco
 
 VisData = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
@@ -49,8 +48,9 @@ class Visualizer:
         self.num_steps = num_steps
 
         self.cfg = mbrl.util.common.load_hydra_cfg(self.results_path)
+        self.handler = mbrl.util.create_handler(self.cfg)
 
-        self.env, term_fn, reward_fn = mbrl.util.mujoco.make_env(self.cfg)
+        self.env, term_fn, reward_fn = self.handler.make_env(self.cfg)
 
         self.reward_fn = reward_fn
 
@@ -109,7 +109,7 @@ class Visualizer:
                 num_samples=self.num_model_samples,
             )
             # Then evaluate in the environment
-            real_obses, real_rewards, _ = mbrl.util.mujoco.rollout_mujoco_env(
+            real_obses, real_rewards, _ = self.handler.rollout_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,
@@ -118,7 +118,7 @@ class Visualizer:
             )
         else:
             # When not using MPC, rollout the agent on the environment and get its actions
-            real_obses, real_rewards, actions = mbrl.util.mujoco.rollout_mujoco_env(
+            real_obses, real_rewards, actions = self.handler.rollout_env(
                 cast(gym.wrappers.TimeLimit, self.env),
                 obs,
                 self.lookahead,

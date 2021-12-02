@@ -9,7 +9,7 @@ import pytest
 from mbrl.util import create_handler_from_str
 
 
-def _freeze_mujoco_gym_env(env_name):
+def _freeze_dmcontrol_gym_env(env_name: str):
     handler = create_handler_from_str(env_name)
     env = handler.make_env_from_str(env_name)
     env.seed(0)
@@ -61,18 +61,15 @@ def _transfer_state(env_name):
 
 
 def test_freeze():
-    _freeze_mujoco_gym_env("gym___HalfCheetah-v2")
-    _freeze_mujoco_gym_env("gym___Hopper-v2")
-    _freeze_mujoco_gym_env("gym___Humanoid-v2")
+    _freeze_dmcontrol_gym_env("dmcontrol___walker--walk")
+    _freeze_dmcontrol_gym_env("dmcontrol___ball_in_cup--catch")
 
 
 def test_get_and_set_state():
-    _get_and_set_state("gym___HalfCheetah-v2")
-    _get_and_set_state("gym___Hopper-v2")
-    _get_and_set_state("gym___Humanoid-v2")
+    _get_and_set_state("dmcontrol___walker--walk")
+    _get_and_set_state("dmcontrol___ball_in_cup--catch")
 
 
 def test_transfer_state():
-    _transfer_state("gym___HalfCheetah-v2")
-    _transfer_state("gym___Hopper-v2")
-    _transfer_state("gym___Humanoid-v2")
+    _transfer_state("dmcontrol___walker--walk")
+    _transfer_state("dmcontrol___ball_in_cup--catch")

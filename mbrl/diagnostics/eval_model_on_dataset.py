@@ -12,7 +12,6 @@ import numpy as np
 
 import mbrl.util
 import mbrl.util.common
-import mbrl.util.mujoco
 
 
 class DatasetEvaluator:
@@ -22,8 +21,9 @@ class DatasetEvaluator:
         pathlib.Path.mkdir(self.output_path, parents=True, exist_ok=True)
 
         self.cfg = mbrl.util.common.load_hydra_cfg(self.model_path)
+        self.handler = mbrl.util.create_handler(self.cfg)
 
-        self.env, term_fn, reward_fn = mbrl.util.mujoco.make_env(self.cfg)
+        self.env, term_fn, reward_fn = self.handler.make_env(self.cfg)
         self.reward_fn = reward_fn
 
         self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(

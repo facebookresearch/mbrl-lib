@@ -9,6 +9,7 @@ import tempfile
 import gym
 import hydra
 import numpy as np
+import pybulletgym  # register PyBullet enviroments with open ai gym
 import torch
 import yaml
 from omegaconf import OmegaConf
@@ -23,7 +24,7 @@ _HYDRA_DIR = pathlib.Path(_DIR.name) / ".hydra"
 pathlib.Path.mkdir(_HYDRA_DIR)
 
 # Environment information
-_ENV_NAME = "HalfCheetah-v2"
+_ENV_NAME = "HopperPyBulletEnv-v0"
 _ENV = gym.make(_ENV_NAME)
 _OBS_SHAPE = _ENV.observation_space.shape
 _ACT_SHAPE = _ENV.action_space.shape
@@ -45,7 +46,7 @@ _CFG_DICT = {
     },
     "dynamics_model": _MODEL_CFG,
     "overrides": {
-        "env": f"gym___{_ENV_NAME}",
+        "env": f"pybulletgym___{_ENV_NAME}",
         "term_fn": "no_termination",
         "model_batch_size": 32,
         "validation_ratio": 0.1,

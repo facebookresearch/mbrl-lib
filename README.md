@@ -83,22 +83,38 @@ such as the type of dynamics model
 all the available options, take a look at the provided 
 [configuration files](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/examples/conf). 
 
-### Note
-Running the provided examples requires Mujoco, but
-you can try out the library components (and algorithms) on other environments 
-by creating your own entry script and Hydra configuration (see [examples].
+## Supported environments
+Our example configurations are largely based on [Mujoco](https://mujoco.org/), but
+our library components (and algorithms) are compatible with any environment that follows
+the standard gym syntax. You can try our utilities in other environments 
+by creating your own entry script and Hydra configuration, using our default entry 
+[`main.py`](https://github.com/facebookresearch/mbrl-lib/blob/main/mbrl/examples/main.py) as guiding template. 
+See also the example [override](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/examples/conf/overrides)
+configurations. 
 
-If you do have a working Mujoco installation (and license), you can check
-that it works correctly with our library by running 
-(also requires [`dm_control`](https://github.com/deepmind/dm_control)).
+Without any modifications, our provided `main.py` can be used to launch experiments with the following environments:
+  * [`mujoco-py`](https://github.com/openai/mujoco-py) (up to version 2.0)
+  * [`dm_control`](https://github.com/deepmind/dm_control)
+  * [`pybullet-gym`](https://github.com/benelot/pybullet-gym) (thanks to [dtch1997](https://github.com/dtch1997)) for the contribution!
+
+You can test your Mujoco and PyBullet installations by running
 
     python -m pytest tests/mujoco
+    python -m pytest tests/pybullet
 
-## Visualization tools
+To specify the environment to use for `main.py`, there are two possibilities:
+
+  * **Preferred way**: Use a Hydra dictionary to specify arguments for your env constructor. See [example](https://github.com/facebookresearch/mbrl-lib/blob/main/mbrl/examples/conf/overrides/planet_cartpole_balance.yaml#L4).
+  * Less flexible alternative: A single string with the following syntax:
+      - `mujoco-gym`: `"gym___<env-name>"`, where `env-name` is the name of the environment in gym (e.g., "HalfCheetah-v2").
+      - `dm_control`: `"dmcontrol___<domain>--<task>`, where domain/task are defined as in DMControl (e.g., "cheetah--run").
+      - `pybullet-gym`: `"pybulletgym___<env-name>"`, where `env-name` is the name of the environment in pybullet gym (e.g., "HopperPyBulletEnv-v0")
+
+## Visualization and diagnostics tools
 Our library also contains a set of 
-[visualization](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/diagnostics) tools, meant to facilitate diagnostics and 
-development of models and controllers. These currently require a Mujoco 
-installation (see previous subsection), but we are planning to add support for other environments 
+[diagnostics](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/diagnostics) tools, meant to facilitate 
+development and debugging of models and controllers. With the exception of the CPU-controller, which also supports 
+PyBullet, these currently require a Mujoco installation, but we are planning to add support for other environments 
 and extensions in the future. Currently, the following tools are provided:
 
 * ``Visualizer``: Creates a video to qualitatively
@@ -113,41 +129,47 @@ assess model predictions over a rolling horizon. Specifically, it runs a
   by passing directories containing configuration files for each; they can 
   be trained independently. The following gif shows an example of 200 steps 
   of pre-trained MBPO policy on Inverted Pendulum environment.
-  
+  \
+  \
   ![Example of Visualizer](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/inv_pendulum_mbpo_vis.gif)
-  
-* ``DatasetEvaluator``: Loads a pre-trained model
-and a dataset (can be loaded from separate directories), and computes 
-  predictions of the model for each output dimension. The evaluator then
+  <br>
+  <br>
+* ``DatasetEvaluator``: Loads a pre-trained model and a dataset (can be loaded from separate directories), 
+  and computes predictions of the model for each output dimension. The evaluator then
   creates a scatter plot for each dimension comparing the ground truth output 
   vs. the model's prediction. If the model is an ensemble, the plot shows the
   mean prediction as well as the individual predictions of each ensemble member.
-  
+  \
+  \
   ![Example of DatasetEvaluator](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/dataset_evaluator.png)
-
-* ``FineTuner``: Can be used to train a
-model on a dataset produced by a given agent/controller. The model and agent
-  can be loaded from separate directories, and the fine tuner will roll the 
+  <br>
+  <br>
+* ``FineTuner``: Can be used to train a model on a dataset produced by a given agent/controller. 
+  The model and agent can be loaded from separate directories, and the fine tuner will roll the 
   environment for some number of steps using actions obtained from the 
   controller. The final model and dataset will then be saved under directory
-  "model_dir/diagnostics/subdir", where `subdir` is provided by the user.
-  
+  "model_dir/diagnostics/subdir", where `subdir` is provided by the user.\
+  <br>
 * ``True Dynamics Multi-CPU Controller``: This script can run
 a trajectory optimizer agent on the true environment using Python's 
   multiprocessing. Each environment runs in its own CPU, which can significantly
   speed up costly sampling algorithm such as CEM. The controller will also save
   a video if the ``render`` argument is passed. Below is an example on 
-  HalfCheetah-v2 using CEM for trajectory optimization.
-  
+  HalfCheetah-v2 using CEM for trajectory optimization. To specify the environment,
+  follow the single string syntax described 
+  [here](https://github.com/facebookresearch/mbrl-lib/blob/main/README.md#supported-environments).
+  \
+  \
   ![Control Half-Cheetah True Dynamics](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/halfcheetah-break.gif)
-
+  <br>
+  <br>
 * [``TrainingBrowser``](training_browser.py): This script launches a lightweight
 training browser for plotting rewards obtained after training runs 
   (as long as the runs use our logger). 
   The browser allows aggregating multiple runs and displaying mean/std, 
   and also lets the user save the image to hard drive. The legend and axes labels
   can be edited in the pane at the bottom left. Requires installing `PyQt5`. 
-  Thanks to [a3ahmad](https://github.com/a3ahmad) for the contribution.
+  Thanks to [a3ahmad](https://github.com/a3ahmad) for the contribution!
 
   ![Training Browser Example](http://raw.githubusercontent.com/facebookresearch/mbrl-lib/main/docs/resources/training-browser-example.png)
 
