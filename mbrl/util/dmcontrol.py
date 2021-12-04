@@ -51,7 +51,7 @@ class FreezeDmcontrol(Freeze):
 
 
 class DmcontrolEnvHandler(EnvHandler):
-    """ Env handler for Dmcontrol-backed gym envs """
+    """Env handler for Dmcontrol-backed gym envs"""
 
     freeze = FreezeDmcontrol
 

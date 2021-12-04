@@ -3,22 +3,23 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import tempfile
-from typing import Tuple
+from typing import Callable, List, Tuple
 
 import gym
 import gym.wrappers
 import numpy as np
+
 # Need to import pybulletgym to register pybullet envs.
 # Ignore the flake8 error generated
 import pybulletgym  # noqa
-from pybulletgym.envs.mujoco.envs.env_bases import \
-    BaseBulletEnv as MJBaseBulletEnv
-from pybulletgym.envs.mujoco.robots.locomotors.walker_base import \
-    WalkerBase as MJWalkerBase
-from pybulletgym.envs.roboschool.envs.env_bases import \
-    BaseBulletEnv as RSBaseBulletEnv
-from pybulletgym.envs.roboschool.robots.locomotors.walker_base import \
-    WalkerBase as RSWalkerBase
+from pybulletgym.envs.mujoco.envs.env_bases import BaseBulletEnv as MJBaseBulletEnv
+from pybulletgym.envs.mujoco.robots.locomotors.walker_base import (
+    WalkerBase as MJWalkerBase,
+)
+from pybulletgym.envs.roboschool.envs.env_bases import BaseBulletEnv as RSBaseBulletEnv
+from pybulletgym.envs.roboschool.robots.locomotors.walker_base import (
+    WalkerBase as RSWalkerBase,
+)
 
 from mbrl.util.env import EnvHandler, Freeze
 
@@ -66,7 +67,7 @@ class FreezePybullet(Freeze):
 
 
 class PybulletEnvHandler(EnvHandler):
-    """ Env handler for PyBullet-backed gym envs """
+    """Env handler for PyBullet-backed gym envs"""
 
     freeze = FreezePybullet
 
@@ -160,7 +161,7 @@ class PybulletEnvHandler(EnvHandler):
         ground_ids = env.ground_ids
         potential = env.potential
         reward = float(env.reward)
-        robot_keys = [
+        robot_keys: List[Tuple[str, Callable]] = [
             ("body_rpy", tuple),
             ("body_xyz", tuple),
             ("feet_contact", np.copy),

@@ -100,7 +100,7 @@ def _legacy_make_env(
 
 
 class Freeze(ABC):
-    """ Abstract base class for freezing various gym backends """
+    """Abstract base class for freezing various gym backends"""
 
     def __enter__(self, env):
         raise NotImplementedError
@@ -121,7 +121,7 @@ class EnvHandler(ABC):
     @staticmethod
     @abstractmethod
     def is_correct_env_type(env: gym.wrappers.TimeLimit) -> bool:
-        """ Checks that the env being handled is of the correct type """
+        """Checks that the env being handled is of the correct type"""
         raise NotImplementedError
 
     @staticmethod
