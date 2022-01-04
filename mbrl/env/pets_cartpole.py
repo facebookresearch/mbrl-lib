@@ -6,6 +6,15 @@ from gym import utils
 from gym.envs.mujoco import mujoco_env
 
 
+# This is the cartpole environment as was used in the original PETS paper
+# Includes a pre-process function to change the cartpole angle into sin/cos, which
+# increases the observation dimension. Therefore, to use it you need to set the model
+# input size manually. For example,
+#
+# python -m mbrl.examples.main  \
+#   algorithm=pets \
+#   overrides=pets_cartpole_paper_version \
+#   dynamics_model.in_size=6
 class CartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
 

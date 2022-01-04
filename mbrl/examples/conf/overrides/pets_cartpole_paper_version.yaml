@@ -1,5 +1,9 @@
 # @package _group_
 env: "cartpole_pets_version"
+
+# Note: This pre-process function requires setting model input manually
+# Run as
+# python -m mbrl.examples.main  algorithm=pets overrides=pets_cartpole_paper_version dynamics_model.in_size=6
 obs_process_fn: mbrl.env.pets_cartpole.CartPoleEnv.preprocess_fn
 learned_rewards: false
 trial_length: 200
