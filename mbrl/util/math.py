@@ -304,10 +304,10 @@ def propagate(
     raise ValueError(f"Invalid propagation method {propagation_method}.")
 
 
-def rfftfreq(samples: torch.Tensor, device: torch.device) -> torch.Tensor:
+def rfftfreq(samples: int, device: torch.device) -> torch.Tensor:
     if version.parse(torch.__version__) >= version.parse("1.8.0"):
         return torch.fft.rfftfreq(samples, device=device)
-    freqs = np.fft.rfftfreq(samples.cpu().numpy())
+    freqs = np.fft.rfftfreq(samples)  # type: ignore
     return torch.from_numpy(freqs).to(device)
 
 
