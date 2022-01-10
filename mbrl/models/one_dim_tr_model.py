@@ -114,7 +114,7 @@ class OneDTransitionRewardModel(Model):
         self,
         obs: mbrl.types.TensorType,
         action: mbrl.types.TensorType,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> torch.Tensor:
         if self.obs_process_fn:
             obs = self.obs_process_fn(obs)
         obs = model_util.to_tensor(obs).to(self.device)
@@ -122,7 +122,7 @@ class OneDTransitionRewardModel(Model):
         model_in = torch.cat([obs, action], dim=obs.ndim - 1)
         if self.input_normalizer:
             model_in = self.input_normalizer.normalize(model_in).float()
-        return model_in, obs, action
+        return model_in
 
     def _process_batch(
         self, batch: mbrl.types.TransitionBatch
@@ -136,13 +136,13 @@ class OneDTransitionRewardModel(Model):
             target_obs = next_obs
         target_obs = model_util.to_tensor(target_obs).to(self.device)
 
-        model_in, *_ = self._get_model_input(obs, action)
+        model_in = self._get_model_input(obs, action)
         if self.learned_rewards:
             reward = model_util.to_tensor(reward).to(self.device).unsqueeze(reward.ndim)
             target = torch.cat([target_obs, reward], dim=obs.ndim - 1)
         else:
             target = target_obs
-        return model_in, target
+        return model_in.float(), target.float()
 
     def forward(self, x: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, ...]:
         """Calls forward method of base model with the given input and args."""
@@ -207,7 +207,7 @@ class OneDTransitionRewardModel(Model):
             (tensor and optional dict): as returned by `model.loss().`
         """
         assert target is None
-        model_in, target = self._get_model_input_and_target_from_batch(batch)
+        model_in, target = self._process_batch(batch)
         return self.model.update(model_in, optimizer, target=target)
 
     def eval_score(
@@ -278,7 +278,8 @@ class OneDTransitionRewardModel(Model):
         Returns:
             (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
         """
-        model_in, obs, action = self._get_model_input(model_state["obs"], act)
+        obs = model_util.to_tensor(model_state["obs"]).to(self.device)
+        model_in = self._get_model_input(model_state["obs"], act)
         if not hasattr(self.model, "sample_1d"):
             raise RuntimeError(
                 "OneDTransitionRewardModel requires wrapped model to define method sample_1d"
