@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -129,12 +130,10 @@ class DeterministicPolicy(nn.Module):
             self.action_scale = 1.0
             self.action_bias = 0.0
         else:
-            self.action_scale = torch.FloatTensor(
-                (action_space.high - action_space.low) / 2.0
-            )
-            self.action_bias = torch.FloatTensor(
-                (action_space.high + action_space.low) / 2.0
-            )
+            high = np.array(action_space.high)
+            low = np.array(action_space.low)
+            self.action_scale = torch.FloatTensor((high - low) / 2.0)
+            self.action_bias = torch.FloatTensor((high + low) / 2.0)
 
     def forward(self, state):
         x = F.relu(self.linear1(state))

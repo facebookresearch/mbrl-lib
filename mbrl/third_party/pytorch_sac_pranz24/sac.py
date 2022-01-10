@@ -2,9 +2,10 @@ import os
 
 import torch
 import torch.nn.functional as F
-from model import DeterministicPolicy, GaussianPolicy, QNetwork
 from torch.optim import Adam
-from utils import hard_update, soft_update
+
+from .model import DeterministicPolicy, GaussianPolicy, QNetwork
+from .utils import hard_update, soft_update
 
 
 class SAC(object):
@@ -18,7 +19,7 @@ class SAC(object):
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
 
-        self.device = torch.device("cuda" if args.cuda else "cpu")
+        self.device = args.device
 
         self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(
             device=self.device
@@ -143,10 +144,11 @@ class SAC(object):
         )
 
     # Save model parameters
-    def save_checkpoint(self, env_name, suffix="", ckpt_path=None):
-        if not os.path.exists("checkpoints/"):
-            os.makedirs("checkpoints/")
+    def save_checkpoint(self, env_name=None, suffix="", ckpt_path=None):
         if ckpt_path is None:
+            assert env_name is not None
+            if not os.path.exists("checkpoints/"):
+                os.makedirs("checkpoints/")
             ckpt_path = "checkpoints/sac_checkpoint_{}_{}".format(env_name, suffix)
         print("Saving models to {}".format(ckpt_path))
         torch.save(
