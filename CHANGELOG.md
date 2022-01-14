@@ -1,6 +1,6 @@
 # Changelog
 
-## main
+## v0.1.5
 ### Breaking changes
 - `Model.reset()` and `Model.sample()` signature has changed. They no longer receive
 `TransitionBatch` objects, and they both return a dictionary of strings to tensors 
