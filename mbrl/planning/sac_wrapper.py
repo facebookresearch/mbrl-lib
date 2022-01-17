@@ -41,4 +41,6 @@ class SACAgent(Agent):
             (np.ndarray): the action.
         """
         with torch.no_grad():
-            return self.sac_agent.select_action(obs, evaluate=not sample)
+            return self.sac_agent.select_action(
+                obs, batched=batched, evaluate=not sample
+            )
