@@ -73,7 +73,9 @@ class SAC(object):
             return action.detach().cpu().numpy()
         return action.detach().cpu().numpy()[0]
 
-    def update_parameters(self, memory, batch_size, updates, logger=None):
+    def update_parameters(
+        self, memory, batch_size, updates, logger=None, reverse_mask=False
+    ):
         # Sample a batch from memory
         (
             state_batch,
@@ -88,6 +90,8 @@ class SAC(object):
         action_batch = torch.FloatTensor(action_batch).to(self.device)
         reward_batch = torch.FloatTensor(reward_batch).to(self.device).unsqueeze(1)
         mask_batch = torch.FloatTensor(mask_batch).to(self.device).unsqueeze(1)
+        if reverse_mask:
+            mask_batch = mask_batch.logical_not()
 
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.policy.sample(
