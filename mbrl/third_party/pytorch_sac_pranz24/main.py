@@ -5,9 +5,10 @@ import itertools
 import gym
 import numpy as np
 import torch
-from replay_memory import ReplayMemory
 from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
+
+from mbrl.util.replay_buffer import ReplayBuffer
 
 parser = argparse.ArgumentParser(description="PyTorch Soft Actor-Critic Args")
 parser.add_argument(
@@ -140,7 +141,12 @@ writer = SummaryWriter(
 )
 
 # Memory
-memory = ReplayMemory(args.replay_size, args.seed)
+memory = ReplayBuffer(
+    args.replay_size,
+    env.observation_space.shape,
+    env.action_space.shape,
+    rng=np.random.default_rng(seed=args.seed),
+)
 
 # Training Loop
 total_numsteps = 0
@@ -184,11 +190,9 @@ for i_episode in itertools.count(1):
 
         # Ignore the "done" signal if it comes from hitting the time horizon.
         # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
-        mask = 1 if episode_steps == env._max_episode_steps else float(not done)
+        mask = True if episode_steps == env._max_episode_steps else not done
 
-        memory.push(
-            state, action, reward, next_state, mask
-        )  # Append transition to memory
+        memory.add(state, action, next_state, reward, mask)
 
         state = next_state
 

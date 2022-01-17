@@ -78,10 +78,10 @@ class SAC(object):
         (
             state_batch,
             action_batch,
-            reward_batch,
             next_state_batch,
+            reward_batch,
             mask_batch,
-        ) = memory.sample(batch_size=batch_size)
+        ) = memory.sample(batch_size).astuple()
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
