@@ -45,6 +45,7 @@ def test_transition_batch_getitem():
         assert np.allclose(o, obs[indices])
 
 
+# Shapes: obs (batch_size, 2), act (batch_size, 1), done/reward (batch_size, 1)
 def _create_batch(size, mult=1):
     obs = (
         mult
@@ -58,33 +59,33 @@ def _create_batch(size, mult=1):
     return obs, act, next_obs, reward, done
 
 
-def test_sac_p24_buffer_batched_add():
+def test_replay_buffer_batched_add():
     def compare_batch_to_buffer_slice(
         start_idx, batch_size, obs, act, next_obs, reward, done
     ):
         for i in range(batch_size):
-            buf_obs, buf_act, buf_reward, buf_next_obs, buf_done = buffer.buffer[
-                start_idx + i
-            ]
-            np.testing.assert_array_equal(buf_obs, obs[i])
-            np.testing.assert_array_equal(buf_act, act[i])
-            np.testing.assert_array_equal(buf_next_obs, next_obs[i])
-            np.testing.assert_array_equal(buf_reward, reward[i])
-            np.testing.assert_array_equal(buf_done, done[i])
+            buffer_idx = (start_idx + i) % buffer.capacity
+            np.testing.assert_array_equal(buffer.obs[buffer_idx], obs[i])
+            np.testing.assert_array_equal(buffer.action[buffer_idx], act[i])
+            np.testing.assert_array_equal(buffer.next_obs[buffer_idx], next_obs[i])
+            np.testing.assert_array_equal(buffer.reward[buffer_idx], reward[i])
+            np.testing.assert_array_equal(buffer.done[buffer_idx], done[i])
 
     capacity = 20
-    buffer = sac_p24_buffer.ReplayMemory(capacity, 0)
+    buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
 
     # Test adding less than capacity
     batch_size_ = 10
     obs_, act_, next_obs_, reward_, done_ = _create_batch(batch_size_)
-    buffer.add_batch(obs_, act_, reward_, next_obs_, done_)
-    assert buffer.position == batch_size_
+    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], done_[:, 0])
+    assert buffer.cur_idx == batch_size_
+    assert buffer.num_stored == batch_size_
     compare_batch_to_buffer_slice(0, batch_size_, obs_, act_, next_obs_, reward_, done_)
 
     # Test adding up to capacity
-    buffer.add_batch(obs_, act_, reward_, next_obs_, done_)
-    assert buffer.position == 0
+    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], done_[:, 0])
+    assert buffer.cur_idx == 0
+    assert buffer.num_stored == buffer.capacity
     compare_batch_to_buffer_slice(
         batch_size_, batch_size_, obs_, act_, next_obs_, reward_, done_
     )  # new additions
@@ -94,15 +95,16 @@ def test_sac_p24_buffer_batched_add():
 
     # Test adding beyond capacity
     start = 4
-    buffer = sac_p24_buffer.ReplayMemory(capacity, 0)
+    buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
     # first add a few elements to set buffer.idx != 0
     obs_1, act_1, next_obs_1, reward_1, done_1 = _create_batch(start, mult=3)
-    buffer.add_batch(obs_1, act_1, reward_1, next_obs_1, done_1)
+    buffer.add_batch(obs_1, act_1, next_obs_1, reward_1[:, 0], done_1[:, 0])
     # now add a batch larger than capacity
     batch_size_ = 27
     obs_2, act_2, next_obs_2, reward_2, done_2 = _create_batch(batch_size_, mult=7)
-    buffer.add_batch(obs_2, act_2, reward_2, next_obs_2, done_2)
-    assert buffer.position == 11
+    buffer.add_batch(obs_2, act_2, next_obs_2, reward_2[:, 0], done_2[:, 0])
+    assert buffer.cur_idx == 11
+    assert buffer.num_stored == buffer.capacity
     # The last 11 observations loop around and overwrite the first 11
     compare_batch_to_buffer_slice(
         0, 11, obs_2[16:], act_2[16:], next_obs_2[16:], reward_2[16:], done_2[16:]

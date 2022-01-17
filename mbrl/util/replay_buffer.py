@@ -543,6 +543,51 @@ class ReplayBuffer:
             self.cur_idx = (self.cur_idx + 1) % self.capacity
             self.num_stored = min(self.num_stored + 1, self.capacity)
 
+    def add_batch(
+        self,
+        obs: np.ndarray,
+        action: np.ndarray,
+        next_obs: np.ndarray,
+        reward: np.ndarray,
+        done: np.ndarray,
+    ):
+        """Adds a transition (s, a, s', r, done) to the replay buffer.
+
+        Expected shapes are:
+            obs --> (batch_size,) + obs_shape
+            act --> (batch_size,) + action_shape
+            reward/done --> (batch_size,)
+
+        Args:
+            obs (np.ndarray): the batch of observations at time t.
+            action (np.ndarray): the batch of actions at time t.
+            next_obs (np.ndarray): the batch of observations at time t + 1.
+            reward (float): the batch of rewards at time t + 1.
+            done (bool): a batch of booleans terminal indicators.
+        """
+
+        def copy_from_to(buffer_start, batch_start, how_many):
+            buffer_slice = slice(buffer_start, buffer_start + how_many)
+            batch_slice = slice(batch_start, batch_start + how_many)
+            np.copyto(self.obs[buffer_slice], obs[batch_slice])
+            np.copyto(self.action[buffer_slice], action[batch_slice])
+            np.copyto(self.reward[buffer_slice], reward[batch_slice])
+            np.copyto(self.next_obs[buffer_slice], next_obs[batch_slice])
+            np.copyto(self.done[buffer_slice], done[batch_slice])
+
+        _batch_start = 0
+        buffer_end = self.cur_idx + len(obs)
+        if buffer_end > self.capacity:
+            copy_from_to(self.cur_idx, _batch_start, self.capacity - self.cur_idx)
+            _batch_start = self.capacity - self.cur_idx
+            self.cur_idx = 0
+            self.num_stored = self.capacity
+
+        _how_many = len(obs) - _batch_start
+        copy_from_to(self.cur_idx, _batch_start, _how_many)
+        self.cur_idx = (self.cur_idx + _how_many) % self.capacity
+        self.num_stored = min(self.num_stored + _how_many, self.capacity)
+
     def sample(self, batch_size: int) -> TransitionBatch:
         """Samples a batch of transitions from the replay buffer.
 
