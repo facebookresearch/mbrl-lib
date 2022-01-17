@@ -27,9 +27,10 @@ agent:
     gamma: ${overrides.sac_gamma}
     tau: ${overrides.sac_tau}
     alpha: ${overrides.sac_alpha}
-    policy_type: ${overrides.sac_policy_type}
+    policy: ${overrides.sac_policy}
     target_update_interval: ${overrides.sac_target_update_interval}
     automatic_entropy_tuning: ${overrides.sac_automatic_entropy_tuning}
+    target_entropy: ${overrides.sac_target_entropy}
     hidden_size: ${overrides.sac_hidden_size}
     device: ${device}
     lr: ${overrides.sac_lr}
