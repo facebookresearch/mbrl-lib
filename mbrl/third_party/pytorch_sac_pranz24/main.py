@@ -116,6 +116,12 @@ parser.add_argument(
     metavar="N",
     help="size of replay buffer (default: 10000000)",
 )
+parser.add_argument(
+    "--target_entropy",
+    type=float,
+    default=None,
+    help="If given, a target entropy to use (default: none --> -dim(|A|))",
+)
 parser.add_argument("--device", type=str)
 args = parser.parse_args()
 
