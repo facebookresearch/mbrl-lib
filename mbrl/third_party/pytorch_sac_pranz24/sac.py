@@ -4,13 +4,17 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 
-from .model import DeterministicPolicy, GaussianPolicy, QNetwork
-from .utils import hard_update, soft_update
+from mbrl.third_party.pytorch_sac_pranz24.model import (
+    DeterministicPolicy,
+    GaussianPolicy,
+    QNetwork,
+)
+from mbrl.third_party.pytorch_sac_pranz24.utils import hard_update, soft_update
 
 
 class SAC(object):
     def __init__(self, num_inputs, action_space, args):
-
+        self.args = args
         self.gamma = args.gamma
         self.tau = args.tau
         self.alpha = args.alpha
@@ -34,9 +38,12 @@ class SAC(object):
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:
-                self.target_entropy = -torch.prod(
-                    torch.Tensor(action_space.shape).to(self.device)
-                ).item()
+                if args.target_entropy is None:
+                    self.target_entropy = -torch.prod(
+                        torch.Tensor(action_space.shape).to(self.device)
+                    ).item()
+                else:
+                    self.target_entropy = args.target_entropy
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
