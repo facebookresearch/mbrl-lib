@@ -234,7 +234,7 @@ def train(
                 ) < rollout_batch_size:
                     break  # only update every once in a while
                 agent.sac_agent.update_parameters(
-                    sac_buffer, cfg.overrides.sac_batch_size, updates_made
+                    sac_buffer, cfg.overrides.sac_batch_size, updates_made, logger
                 )
                 updates_made += 1
                 if not silent and updates_made % cfg.log_frequency_agent == 0:

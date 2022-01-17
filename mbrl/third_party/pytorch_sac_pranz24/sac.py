@@ -66,7 +66,7 @@ class SAC(object):
             return action.detach().cpu().numpy()
         return action.detach().cpu().numpy()[0]
 
-    def update_parameters(self, memory, batch_size, updates):
+    def update_parameters(self, memory, batch_size, updates, logger=None):
         # Sample a batch from memory
         (
             state_batch,
@@ -139,6 +139,18 @@ class SAC(object):
 
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
+
+        if logger is not None:
+            logger.log("train/batch_reward", reward_batch.mean(), updates)
+            logger.log("train_critic/loss", qf_loss, updates)
+            logger.log("train_actor/loss", policy_loss, updates)
+            if self.automatic_entropy_tuning:
+                logger.log("train_actor/target_entropy", self.target_entropy, updates)
+            else:
+                logger.log("train_actor/target_entropy", 0, updates)
+            logger.log("train_actor/entropy", -log_pi.mean(), updates)
+            logger.log("train_alpha/loss", alpha_loss, updates)
+            logger.log("train_alpha/value", self.alpha, updates)
 
         return (
             qf1_loss.item(),
