@@ -8,6 +8,7 @@ import torch
 from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
 
+from mbrl.util.logger import Logger
 from mbrl.util.replay_buffer import ReplayBuffer
 
 parser = argparse.ArgumentParser(description="PyTorch Soft Actor-Critic Args")
@@ -152,6 +153,8 @@ memory = ReplayBuffer(
 total_numsteps = 0
 updates = 0
 
+logger = Logger("/scratch/lep/mbrl/borra", enable_back_compatible=True)
+
 for i_episode in itertools.count(1):
     episode_reward = 0
     episode_steps = 0
@@ -174,7 +177,11 @@ for i_episode in itertools.count(1):
                     policy_loss,
                     ent_loss,
                     alpha,
-                ) = agent.update_parameters(memory, args.batch_size, updates)
+                ) = agent.update_parameters(
+                    memory, args.batch_size, updates, logger=logger
+                )
+                if updates % 1000 == 0:
+                    logger.dump(updates, save=True)
 
                 writer.add_scalar("loss/critic_1", critic_1_loss, updates)
                 writer.add_scalar("loss/critic_2", critic_2_loss, updates)

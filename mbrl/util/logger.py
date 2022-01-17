@@ -22,7 +22,7 @@ SAC_TRAIN_LOG_FORMAT = [
     ("step", "S", "int"),
     ("batch_reward", "BR", "float"),
     ("actor_loss", "ALOSS", "float"),
-    ("target_entropy", "TENTR", "float"),
+    ("actor_target_entropy", "TENTR", "float"),
     ("critic_loss", "CLOSS", "float"),
     ("alpha_loss", "TLOSS", "float"),
     ("alpha_value", "ALPHA", "float"),
