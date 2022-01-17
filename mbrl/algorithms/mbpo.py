@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
-from typing import Optional, cast
+from typing import Optional, Sequence, cast
 
 import gym
 import hydra.utils
@@ -32,7 +32,7 @@ def rollout_model_and_populate_sac_buffer(
     model_env: mbrl.models.ModelEnv,
     replay_buffer: mbrl.util.ReplayBuffer,
     agent: SACAgent,
-    sac_buffer: pytorch_sac_pranz24.ReplayMemory,
+    sac_buffer: mbrl.util.ReplayBuffer,
     sac_samples_action: bool,
     rollout_horizon: int,
     batch_size: int,
@@ -54,9 +54,9 @@ def rollout_model_and_populate_sac_buffer(
         sac_buffer.add_batch(
             obs[~accum_dones],
             action[~accum_dones],
-            pred_rewards[~accum_dones],
             pred_next_obs[~accum_dones],
-            pred_dones[~accum_dones],
+            pred_rewards[~accum_dones, 0],
+            pred_dones[~accum_dones, 0],
         )
         obs = pred_next_obs
         accum_dones |= pred_dones.squeeze()
@@ -84,17 +84,22 @@ def evaluate(
 
 
 def maybe_replace_sac_buffer(
-    sac_buffer: Optional[pytorch_sac_pranz24.ReplayMemory],
+    sac_buffer: Optional[mbrl.util.ReplayBuffer],
+    obs_shape: Sequence[int],
+    act_shape: Sequence[int],
     new_capacity: int,
     seed: int,
-) -> pytorch_sac_pranz24.ReplayMemory:
+) -> mbrl.util.ReplayBuffer:
     if sac_buffer is None or new_capacity != sac_buffer.capacity:
-        new_buffer = pytorch_sac_pranz24.ReplayMemory(new_capacity, seed)
+        if sac_buffer is None:
+            rng = np.random.default_rng(seed=seed)
+        else:
+            rng = sac_buffer.rng
+        new_buffer = mbrl.util.ReplayBuffer(new_capacity, obs_shape, act_shape, rng=rng)
         if sac_buffer is None:
             return new_buffer
-        n = len(sac_buffer)
-        obs, action, reward, next_obs, done = [*zip(*sac_buffer.buffer[:n])]
-        new_buffer.add_batch(obs, action, reward, next_obs, done)
+        obs, action, next_obs, reward, done = sac_buffer.get_all().astuple()
+        new_buffer.add_batch(obs, action, next_obs, reward, done)
         return new_buffer
     return sac_buffer
 
@@ -187,7 +192,9 @@ def train(
         )
         sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
         sac_buffer_capacity *= cfg.overrides.num_epochs_to_retain_sac_buffer
-        sac_buffer = maybe_replace_sac_buffer(sac_buffer, sac_buffer_capacity, cfg.seed)
+        sac_buffer = maybe_replace_sac_buffer(
+            sac_buffer, obs_shape, act_shape, sac_buffer_capacity, cfg.seed
+        )
         obs, done = None, False
         for steps_epoch in range(cfg.overrides.epoch_length):
             if steps_epoch == 0 or done:
