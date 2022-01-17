@@ -7,6 +7,7 @@ import pathlib
 from typing import Any, Union
 
 import gym
+import hydra
 import numpy as np
 import omegaconf
 
@@ -144,15 +145,13 @@ def load_agent(agent_path: Union[str, pathlib.Path], env: gym.Env) -> Agent:
     cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
 
     if cfg.algorithm.agent._target_ == "mbrl.third_party.pytorch_sac_pranz24.sac.SAC":
-        raise NotImplementedError
-        # import mbrl.third_party.pytorch_sac as pytorch_sac
-        #
-        # from .sac_wrapper import SACAgent
-        #
-        # complete_agent_cfg(env, cfg.algorithm.agent)
-        # agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.algorithm.agent)
-        # agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
-        # agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
-        # return SACAgent(agent)
+        import mbrl.third_party.pytorch_sac_pranz24 as pytorch_sac
+
+        from .sac_wrapper import SACAgent
+
+        complete_agent_cfg(env, cfg.algorithm.agent)
+        agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
+        agent.load_checkpoint(ckpt_path=agent_path / "sac.pth")
+        return SACAgent(agent)
     else:
         raise ValueError("Invalid agent configuration.")
