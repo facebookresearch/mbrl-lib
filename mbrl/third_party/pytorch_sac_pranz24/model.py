@@ -79,12 +79,10 @@ class GaussianPolicy(nn.Module):
             self.action_scale = torch.tensor(1.0)
             self.action_bias = torch.tensor(0.0)
         else:
-            self.action_scale = torch.FloatTensor(
-                (action_space.high - action_space.low) / 2.0
-            )
-            self.action_bias = torch.FloatTensor(
-                (action_space.high + action_space.low) / 2.0
-            )
+            high = np.array(action_space.high)
+            low = np.array(action_space.low)
+            self.action_scale = torch.FloatTensor((high - low) / 2.0)
+            self.action_bias = torch.FloatTensor((high + low) / 2.0)
 
     def forward(self, state):
         x = F.relu(self.linear1(state))
