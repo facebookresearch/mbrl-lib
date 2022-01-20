@@ -1,13 +1,12 @@
 import argparse
-import datetime
 import itertools
 
 import gym
 import numpy as np
 import torch
 from sac import SAC
-from torch.utils.tensorboard import SummaryWriter
 
+import mbrl.constants
 from mbrl.util.logger import Logger
 from mbrl.util.replay_buffer import ReplayBuffer
 
@@ -122,6 +121,7 @@ parser.add_argument(
     default=None,
     help="If given, a target entropy to use (default: none --> -dim(|A|))",
 )
+parser.add_argument("--logdir", type=str, help="Directory to log results to.")
 parser.add_argument("--device", type=str)
 args = parser.parse_args()
 
@@ -137,16 +137,6 @@ np.random.seed(args.seed)
 # Agent
 agent = SAC(env.observation_space.shape[0], env.action_space, args)
 
-# Tesnorboard
-writer = SummaryWriter(
-    "runs/{}_SAC_{}_{}_{}".format(
-        datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-        args.env_name,
-        args.policy,
-        "autotune" if args.automatic_entropy_tuning else "",
-    )
-)
-
 # Memory
 memory = ReplayBuffer(
     args.replay_size,
@@ -159,7 +149,16 @@ memory = ReplayBuffer(
 total_numsteps = 0
 updates = 0
 
-logger = Logger("/scratch/lep/mbrl/borra", enable_back_compatible=True)
+logger = Logger(args.logdir, enable_back_compatible=True)
+logger.register_group(
+    mbrl.constants.RESULTS_LOG_NAME,
+    [
+        ("episode", "E", "int"),
+        ("reward", "R", "float"),
+    ],
+    color="green",
+    dump_frequency=1,
+)
 
 for i_episode in itertools.count(1):
     episode_reward = 0
@@ -186,14 +185,9 @@ for i_episode in itertools.count(1):
                 ) = agent.update_parameters(
                     memory, args.batch_size, updates, logger=logger
                 )
-                if updates % 1000 == 0:
+                if updates % 100 == 0:
                     logger.dump(updates, save=True)
 
-                writer.add_scalar("loss/critic_1", critic_1_loss, updates)
-                writer.add_scalar("loss/critic_2", critic_2_loss, updates)
-                writer.add_scalar("loss/policy", policy_loss, updates)
-                writer.add_scalar("loss/entropy_loss", ent_loss, updates)
-                writer.add_scalar("entropy_temprature/alpha", alpha, updates)
                 updates += 1
 
         next_state, reward, done, _ = env.step(action)  # Step
@@ -212,7 +206,6 @@ for i_episode in itertools.count(1):
     if total_numsteps > args.num_steps:
         break
 
-    writer.add_scalar("reward/train", episode_reward, i_episode)
     print(
         "Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(
             i_episode, total_numsteps, episode_steps, round(episode_reward, 2)
@@ -236,12 +229,9 @@ for i_episode in itertools.count(1):
             avg_reward += episode_reward
         avg_reward /= episodes
 
-        writer.add_scalar("avg_reward/test", avg_reward, i_episode)
-
-        print("----------------------------------------")
-        print(
-            "Test Episodes: {}, Avg. Reward: {}".format(episodes, round(avg_reward, 2))
+        logger.log_data(
+            mbrl.constants.RESULTS_LOG_NAME,
+            {"episode": i_episode, "reward": avg_reward},
         )
-        print("----------------------------------------")
 
 env.close()
