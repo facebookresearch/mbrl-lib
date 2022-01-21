@@ -87,7 +87,7 @@ def _legacy_make_env(
             reward_fn = None
         elif cfg.overrides.env == "humanoid_truncated_obs":
             env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
-            term_fn = mbrl.env.termination_fns.ant
+            term_fn = mbrl.env.termination_fns.humanoid
             reward_fn = None
         else:
             raise ValueError("Invalid environment string.")
