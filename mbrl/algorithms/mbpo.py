@@ -236,12 +236,15 @@ def train(
 
             # --------------- Agent Training -----------------
             for _ in range(cfg.overrides.num_sac_updates_per_step):
+                use_real_data = rng.random() < cfg.algorithm.real_data_ratio
+                which_buffer = replay_buffer if use_real_data else sac_buffer
                 if (env_steps + 1) % cfg.overrides.sac_updates_every_steps != 0 or len(
-                    sac_buffer
-                ) < rollout_batch_size:
+                    which_buffer
+                ) < cfg.overrides.sac_batch_size:
                     break  # only update every once in a while
+
                 agent.sac_agent.update_parameters(
-                    sac_buffer,
+                    which_buffer,
                     cfg.overrides.sac_batch_size,
                     updates_made,
                     logger,
