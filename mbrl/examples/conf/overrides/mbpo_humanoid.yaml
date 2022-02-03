@@ -1,5 +1,6 @@
 # @package _group_
 env: "humanoid_truncated_obs"
+# term_fn is set automatically by mbrl.util.env.EnvHandler.make_env
 
 num_steps: 300000
 epoch_length: 1000
