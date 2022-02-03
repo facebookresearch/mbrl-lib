@@ -1,6 +1,12 @@
 # Changelog
 
-## main (v0.2.0.dev3)
+## main (v0.2.0.dev4)
+### Main new features
+- Added [PlaNet](http://proceedings.mlr.press/v97/hafner19a/hafner19a.pdf) implementation.
+- Added support for [PyBullet](https://pybullet.org/wordpress/) environments. 
+- Changed SAC library used by MBPO 
+  (now based on [Pranjan Tadon's](https://github.com/pranz24/pytorch-soft-actor-critic)).
+  
 ### Breaking changes
 - `Model.reset()` and `Model.sample()` signature has changed. They no longer receive
 `TransitionBatch` objects, and they both return a dictionary of strings to tensors 
@@ -16,8 +22,10 @@
 is an `omegaconf.DictConfig` specifying the class to use for the activation functions, 
   thus giving more flexibility.
 - Removed unnecessary nesting inside `dynamics_model` Hydra configuration.
+- SAC agents prior to v0.2.0 cannot be loaded anymore.
 
 ### Other changes
+- Added `add_batch()` method to `mbrl.util.ReplayBuffer`.
 - Added functions to `mbrl.util.models` to easily create convolutional encoder/decoders
   with a desired configuration.
 - `mbrl.util.common.rollout_agent_trajectories` now allows rolling out a pixel-based
@@ -29,6 +37,7 @@ truncated normal distribution.
 - `mbrl.util.mujoco.make_env` can now create an environment specified via an `omegaconf`
 configuration and `hydra.utils.instantiate`, which takes precedence over the old
   mechanism if both are present.
+- Fixed bug that assigned wrong termination functino to `humanoid_truncated_obs` env. 
 
 ## v0.1.4
 - Added MPPI optimizer.

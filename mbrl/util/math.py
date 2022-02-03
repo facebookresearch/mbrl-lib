@@ -364,7 +364,7 @@ def powerlaw_psd_gaussian(
     # Calculate theoretical output standard deviation from scaling
     w = s_scale[1:].detach().clone()
     w[-1] *= (1 + (samples % 2)) / 2.0  # correct f = +-0.5
-    sigma = 2 * torch.sqrt(torch.sum(w ** 2)) / samples
+    sigma = 2 * torch.sqrt(torch.sum(w**2)) / samples
 
     # Adjust size to generate one Fourier component per frequency
     size[-1] = len(f)

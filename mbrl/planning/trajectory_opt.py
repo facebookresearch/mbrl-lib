@@ -229,7 +229,7 @@ class MPPIOptimizer(Optimizer):
 
         self.lower_bound = torch.tensor(lower_bound, device=device, dtype=torch.float32)
         self.upper_bound = torch.tensor(upper_bound, device=device, dtype=torch.float32)
-        self.var = sigma ** 2 * torch.ones_like(self.lower_bound)
+        self.var = sigma**2 * torch.ones_like(self.lower_bound)
         self.beta = beta
         self.gamma = gamma
         self.refinements = num_iterations
@@ -419,7 +419,7 @@ class ICEMOptimizer(Optimizer):
             decay_population_size = np.ceil(
                 np.max(
                     (
-                        self.population_size * self.population_decay_factor ** -i,
+                        self.population_size * self.population_decay_factor**-i,
                         2 * self.elite_num,
                     )
                 )

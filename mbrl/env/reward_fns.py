@@ -19,8 +19,8 @@ def cartpole_pets(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     x0 = next_obs[:, :1]
     theta = next_obs[:, 1:2]
     ee_pos = torch.cat([x0 - 0.6 * theta.sin(), -0.6 * theta.cos()], dim=1)
-    obs_cost = torch.exp(-torch.sum((ee_pos - goal_pos) ** 2, dim=1) / (0.6 ** 2))
-    act_cost = -0.01 * torch.sum(act ** 2, dim=1)
+    obs_cost = torch.exp(-torch.sum((ee_pos - goal_pos) ** 2, dim=1) / (0.6**2))
+    act_cost = -0.01 * torch.sum(act**2, dim=1)
     return (obs_cost + act_cost).view(-1, 1)
 
 
@@ -48,6 +48,6 @@ def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     obj_goal_dist = (goal_pos - obj_pos).abs().sum(axis=1)
     obs_cost = to_w * tip_obj_dist + og_w * obj_goal_dist
 
-    act_cost = 0.1 * (act ** 2).sum(axis=1)
+    act_cost = 0.1 * (act**2).sum(axis=1)
 
     return -(obs_cost + act_cost).view(-1, 1)

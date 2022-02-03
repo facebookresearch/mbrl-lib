@@ -34,7 +34,7 @@ class CartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                     self._get_ee_pos(ob) - np.array([0.0, CartPoleEnv.PENDULUM_LENGTH])
                 )
             )
-            / (cost_lscale ** 2)
+            / (cost_lscale**2)
         )
         reward -= 0.01 * np.sum(np.square(a))
 
