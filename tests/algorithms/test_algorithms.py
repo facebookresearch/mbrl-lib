@@ -289,15 +289,18 @@ def test_mbpo():
             "rollout_schedule": [1, _NUM_TRIALS_MBPO, 15, 15],
             "num_sac_updates_per_step": 40,
             "num_epochs_to_retain_sac_buffer": 1,
-            "sac_updates_every_steps": 1,
-            "sac_alpha_lr": 3e-4,
-            "sac_actor_lr": 3e-4,
-            "sac_actor_update_frequency": 4,
-            "sac_critic_lr": 3e-4,
-            "sac_critic_target_update_frequency": 4,
-            "sac_target_entropy": -0.05,
-            "sac_hidden_depth": 2,
             "num_elites": 5,
+            "sac_updates_every_steps": 1,
+            "sac_gamma": 0.99,
+            "sac_tau": 0.005,
+            "sac_alpha": 0.2,
+            "sac_policy": "Gaussian",
+            "sac_target_update_interval": 4,
+            "sac_automatic_entropy_tuning": True,
+            "sac_hidden_size": 200,
+            "sac_lr": 0.0003,
+            "sac_batch_size": 256,
+            "sac_target_entropy": -0.05,
         },
         "debug_mode": _DEBUG_MODE,
         "seed": SEED,
@@ -308,7 +311,6 @@ def test_mbpo():
     cfg.dynamics_model.ensemble_size = 7
     cfg.algorithm.initial_exploration_steps = _INITIAL_EXPLORE
     cfg.algorithm.dataset_size = _TRIAL_LEN * _NUM_TRIALS_MBPO + _INITIAL_EXPLORE
-    cfg.algorithm.agent.learnable_temperature = True
 
     env = MockLineEnv()
     test_env = MockLineEnv()

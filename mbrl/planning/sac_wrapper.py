@@ -5,8 +5,7 @@
 import numpy as np
 import torch
 
-import mbrl.third_party.pytorch_sac as pytorch_sac
-import mbrl.third_party.pytorch_sac.utils as pytorch_sac_utils
+import mbrl.third_party.pytorch_sac_pranz24 as pytorch_sac
 
 from .core import Agent
 
@@ -22,7 +21,7 @@ class SACAgent(Agent):
         (pytorch_sac.SACAgent): the agent to wrap.
     """
 
-    def __init__(self, sac_agent: pytorch_sac.SACAgent):
+    def __init__(self, sac_agent: pytorch_sac.SAC):
         self.sac_agent = sac_agent
 
     def act(
@@ -41,5 +40,7 @@ class SACAgent(Agent):
         Returns:
             (np.ndarray): the action.
         """
-        with pytorch_sac_utils.eval_mode(), torch.no_grad():
-            return self.sac_agent.act(obs, sample=sample, batched=batched)
+        with torch.no_grad():
+            return self.sac_agent.select_action(
+                obs, batched=batched, evaluate=not sample
+            )

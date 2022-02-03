@@ -61,11 +61,15 @@ _MBPO_CFG_DICT = _CFG_DICT.copy()
 _MBPO_CFG_DICT["algorithm"] = _MBPO__ALGO_CFG
 _MBPO_CFG_DICT["overrides"].update(
     {
-        "sac_alpha_lr": 3e-4,
-        "sac_actor_lr": 3e-4,
-        "sac_actor_update_frequency": 4,
-        "sac_critic_lr": 3.7e-5,
-        "sac_critic_target_update_frequency": 16,
+        "sac_gamma": 0.99,
+        "sac_tau": 0.005,
+        "sac_alpha": 0.2,
+        "sac_policy": "Gaussian",
+        "sac_target_update_interval": 16,
+        "sac_automatic_entropy_tuning": True,
+        "sac_hidden_size": 200,
+        "sac_lr": 0.0003,
+        "sac_batch_size": 256,
         "sac_target_entropy": -3,
         "sac_hidden_depth": 2,
         "num_steps": 2000,
@@ -123,8 +127,7 @@ def test_eval_on_dataset():
 def test_finetuner():
     planning.complete_agent_cfg(_ENV, _MBPO_CFG.algorithm.agent)
     agent = hydra.utils.instantiate(_MBPO_CFG.algorithm.agent)
-    torch.save(agent.critic.state_dict(), os.path.join(_DIR.name, "critic.pth"))
-    torch.save(agent.actor.state_dict(), os.path.join(_DIR.name, "actor.pth"))
+    agent.save_checkpoint(ckpt_path=os.path.join(_DIR.name, "sac.pth"))
 
     with open(_HYDRA_DIR / "config.yaml", "w") as f:
         OmegaConf.save(_MBPO_CFG, f)

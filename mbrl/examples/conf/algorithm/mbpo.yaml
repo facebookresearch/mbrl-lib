@@ -6,6 +6,7 @@ normalize_double_precision: true
 target_is_delta: true
 learned_rewards: true
 freq_train_model: ${overrides.freq_train_model}
+real_data_ratio: 0.0
 
 sac_samples_action: true
 initial_exploration_steps: 5000
@@ -16,39 +17,21 @@ num_eval_episodes: 1
 #          SAC Agent configuration
 # --------------------------------------------
 agent:
-  _target_: mbrl.third_party.pytorch_sac.agent.sac.SACAgent
-  obs_dim: ??? # to be specified later
-  action_dim: ??? # to be specified later
-  action_range: ??? # to be specified later
-  device: ${device}
-  critic_cfg: ${algorithm.double_q_critic}
-  actor_cfg: ${algorithm.diag_gaussian_actor}
-  discount: 0.99
-  init_temperature: 0.1
-  alpha_lr: ${overrides.sac_alpha_lr}
-  alpha_betas: [0.9, 0.999]
-  actor_lr: ${overrides.sac_actor_lr}
-  actor_betas: [0.9, 0.999]
-  actor_update_frequency: ${overrides.sac_actor_update_frequency}
-  critic_lr: ${overrides.sac_critic_lr}
-  critic_betas: [0.9, 0.999]
-  critic_tau: 0.005
-  critic_target_update_frequency: ${overrides.sac_critic_target_update_frequency}
-  batch_size: 256
-  learnable_temperature: true
-  target_entropy: ${overrides.sac_target_entropy}
-
-double_q_critic:
-  _target_: mbrl.third_party.pytorch_sac.agent.critic.DoubleQCritic
-  obs_dim: ${algorithm.agent.obs_dim}
-  action_dim: ${algorithm.agent.action_dim}
-  hidden_dim: 1024
-  hidden_depth: ${overrides.sac_hidden_depth}
-
-diag_gaussian_actor:
-  _target_: mbrl.third_party.pytorch_sac.agent.actor.DiagGaussianActor
-  obs_dim: ${algorithm.agent.obs_dim}
-  action_dim: ${algorithm.agent.action_dim}
-  hidden_depth: ${overrides.sac_hidden_depth}
-  hidden_dim: 1024
-  log_std_bounds: [-5, 2]
+  _target_: mbrl.third_party.pytorch_sac_pranz24.sac.SAC
+  num_inputs: ???
+  action_space:
+    _target_: gym.env.Box
+    low: ???
+    high: ???
+    shape: ???
+  args:
+    gamma: ${overrides.sac_gamma}
+    tau: ${overrides.sac_tau}
+    alpha: ${overrides.sac_alpha}
+    policy: ${overrides.sac_policy}
+    target_update_interval: ${overrides.sac_target_update_interval}
+    automatic_entropy_tuning: ${overrides.sac_automatic_entropy_tuning}
+    target_entropy: ${overrides.sac_target_entropy}
+    hidden_size: ${overrides.sac_hidden_size}
+    device: ${device}
+    lr: ${overrides.sac_lr}

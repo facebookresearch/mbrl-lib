@@ -4,14 +4,12 @@
 # LICENSE file in the root directory of this source tree.
 import abc
 import pathlib
-from typing import Union
+from typing import Any, Union
 
 import gym
 import hydra
 import numpy as np
 import omegaconf
-import torch
-import torch.distributions
 
 import mbrl.models
 import mbrl.types
@@ -94,6 +92,20 @@ def complete_agent_cfg(
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
+    def _check_and_replace(key: str, value: Any, cfg: omegaconf.DictConfig):
+        if key in cfg.keys() and key not in cfg:
+            setattr(cfg, key, value)
+
+    _check_and_replace("num_inputs", obs_shape[0], agent_cfg)
+    if "action_space" in agent_cfg.keys() and isinstance(
+        agent_cfg.action_space, omegaconf.DictConfig
+    ):
+        _check_and_replace("low", env.action_space.low.tolist(), agent_cfg.action_space)
+        _check_and_replace(
+            "high", env.action_space.high.tolist(), agent_cfg.action_space
+        )
+        _check_and_replace("shape", env.action_space.shape, agent_cfg.action_space)
+
     if "obs_dim" in agent_cfg.keys() and "obs_dim" not in agent_cfg:
         agent_cfg.obs_dim = obs_shape[0]
     if "action_dim" in agent_cfg.keys() and "action_dim" not in agent_cfg:
@@ -132,18 +144,14 @@ def load_agent(agent_path: Union[str, pathlib.Path], env: gym.Env) -> Agent:
     agent_path = pathlib.Path(agent_path)
     cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
 
-    if (
-        cfg.algorithm.agent._target_
-        == "mbrl.third_party.pytorch_sac.agent.sac.SACAgent"
-    ):
-        import mbrl.third_party.pytorch_sac as pytorch_sac
+    if cfg.algorithm.agent._target_ == "mbrl.third_party.pytorch_sac_pranz24.sac.SAC":
+        import mbrl.third_party.pytorch_sac_pranz24 as pytorch_sac
 
         from .sac_wrapper import SACAgent
 
         complete_agent_cfg(env, cfg.algorithm.agent)
-        agent: pytorch_sac.SACAgent = hydra.utils.instantiate(cfg.algorithm.agent)
-        agent.critic.load_state_dict(torch.load(agent_path / "critic.pth"))
-        agent.actor.load_state_dict(torch.load(agent_path / "actor.pth"))
+        agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
+        agent.load_checkpoint(ckpt_path=agent_path / "sac.pth")
         return SACAgent(agent)
     else:
         raise ValueError("Invalid agent configuration.")

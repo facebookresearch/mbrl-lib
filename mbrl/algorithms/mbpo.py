@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
-from typing import Optional, Tuple, cast
+from typing import Optional, Sequence, cast
 
 import gym
 import hydra.utils
@@ -14,12 +14,13 @@ import torch
 import mbrl.constants
 import mbrl.models
 import mbrl.planning
-import mbrl.third_party.pytorch_sac as pytorch_sac
+import mbrl.third_party.pytorch_sac_pranz24 as pytorch_sac_pranz24
 import mbrl.types
 import mbrl.util
 import mbrl.util.common
 import mbrl.util.math
 from mbrl.planning.sac_wrapper import SACAgent
+from mbrl.third_party.pytorch_sac import VideoRecorder
 
 MBPO_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT + [
     ("epoch", "E", "int"),
@@ -31,7 +32,7 @@ def rollout_model_and_populate_sac_buffer(
     model_env: mbrl.models.ModelEnv,
     replay_buffer: mbrl.util.ReplayBuffer,
     agent: SACAgent,
-    sac_buffer: pytorch_sac.ReplayBuffer,
+    sac_buffer: mbrl.util.ReplayBuffer,
     sac_samples_action: bool,
     rollout_horizon: int,
     batch_size: int,
@@ -53,10 +54,9 @@ def rollout_model_and_populate_sac_buffer(
         sac_buffer.add_batch(
             obs[~accum_dones],
             action[~accum_dones],
-            pred_rewards[~accum_dones],
             pred_next_obs[~accum_dones],
-            pred_dones[~accum_dones],
-            pred_dones[~accum_dones],
+            pred_rewards[~accum_dones, 0],
+            pred_dones[~accum_dones, 0],
         )
         obs = pred_next_obs
         accum_dones |= pred_dones.squeeze()
@@ -64,9 +64,9 @@ def rollout_model_and_populate_sac_buffer(
 
 def evaluate(
     env: gym.Env,
-    agent: pytorch_sac.Agent,
+    agent: SACAgent,
     num_episodes: int,
-    video_recorder: pytorch_sac.VideoRecorder,
+    video_recorder: VideoRecorder,
 ) -> float:
     avg_episode_reward = 0
     for episode in range(num_episodes):
@@ -84,27 +84,22 @@ def evaluate(
 
 
 def maybe_replace_sac_buffer(
-    sac_buffer: Optional[pytorch_sac.ReplayBuffer],
+    sac_buffer: Optional[mbrl.util.ReplayBuffer],
+    obs_shape: Sequence[int],
+    act_shape: Sequence[int],
     new_capacity: int,
-    obs_shape: Tuple[int],
-    act_shape: Tuple[int],
-    device: torch.device,
-) -> pytorch_sac.ReplayBuffer:
+    seed: int,
+) -> mbrl.util.ReplayBuffer:
     if sac_buffer is None or new_capacity != sac_buffer.capacity:
-        new_buffer = pytorch_sac.ReplayBuffer(
-            obs_shape, act_shape, new_capacity, device
-        )
+        if sac_buffer is None:
+            rng = np.random.default_rng(seed=seed)
+        else:
+            rng = sac_buffer.rng
+        new_buffer = mbrl.util.ReplayBuffer(new_capacity, obs_shape, act_shape, rng=rng)
         if sac_buffer is None:
             return new_buffer
-        n = len(sac_buffer)
-        new_buffer.add_batch(
-            sac_buffer.obses[:n],
-            sac_buffer.actions[:n],
-            sac_buffer.rewards[:n],
-            sac_buffer.next_obses[:n],
-            np.logical_not(sac_buffer.not_dones[:n]),
-            np.logical_not(sac_buffer.not_dones_no_max[:n]),
-        )
+        obs, action, next_obs, reward, done = sac_buffer.get_all().astuple()
+        new_buffer.add_batch(obs, action, next_obs, reward, done)
         return new_buffer
     return sac_buffer
 
@@ -124,7 +119,9 @@ def train(
     act_shape = env.action_space.shape
 
     mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
-    agent = hydra.utils.instantiate(cfg.algorithm.agent)
+    agent = SACAgent(
+        cast(pytorch_sac_pranz24.SAC, hydra.utils.instantiate(cfg.algorithm.agent))
+    )
 
     work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
@@ -136,7 +133,7 @@ def train(
         dump_frequency=1,
     )
     save_video = cfg.get("save_video", False)
-    video_recorder = pytorch_sac.VideoRecorder(work_dir if save_video else None)
+    video_recorder = VideoRecorder(work_dir if save_video else None)
 
     rng = np.random.default_rng(seed=cfg.seed)
     torch_generator = torch.Generator(device=cfg.device)
@@ -196,11 +193,7 @@ def train(
         sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
         sac_buffer_capacity *= cfg.overrides.num_epochs_to_retain_sac_buffer
         sac_buffer = maybe_replace_sac_buffer(
-            sac_buffer,
-            sac_buffer_capacity,
-            obs_shape,
-            act_shape,
-            torch.device(cfg.device),
+            sac_buffer, obs_shape, act_shape, sac_buffer_capacity, cfg.seed
         )
         obs, done = None, False
         for steps_epoch in range(cfg.overrides.epoch_length):
@@ -243,11 +236,20 @@ def train(
 
             # --------------- Agent Training -----------------
             for _ in range(cfg.overrides.num_sac_updates_per_step):
+                use_real_data = rng.random() < cfg.algorithm.real_data_ratio
+                which_buffer = replay_buffer if use_real_data else sac_buffer
                 if (env_steps + 1) % cfg.overrides.sac_updates_every_steps != 0 or len(
-                    sac_buffer
-                ) < rollout_batch_size:
+                    which_buffer
+                ) < cfg.overrides.sac_batch_size:
                     break  # only update every once in a while
-                agent.update(sac_buffer, logger, updates_made)
+
+                agent.sac_agent.update_parameters(
+                    which_buffer,
+                    cfg.overrides.sac_batch_size,
+                    updates_made,
+                    logger,
+                    reverse_mask=True,
+                )
                 updates_made += 1
                 if not silent and updates_made % cfg.log_frequency_agent == 0:
                     logger.dump(updates_made, save=True)
@@ -269,11 +271,8 @@ def train(
                 if avg_reward > best_eval_reward:
                     video_recorder.save(f"{epoch}.mp4")
                     best_eval_reward = avg_reward
-                    torch.save(
-                        agent.critic.state_dict(), os.path.join(work_dir, "critic.pth")
-                    )
-                    torch.save(
-                        agent.actor.state_dict(), os.path.join(work_dir, "actor.pth")
+                    agent.sac_agent.save_checkpoint(
+                        ckpt_path=os.path.join(work_dir, "sac.pth")
                     )
                 epoch += 1
 

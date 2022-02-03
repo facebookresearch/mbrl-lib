@@ -7,6 +7,7 @@ import pytest
 import torch
 
 import mbrl.third_party.pytorch_sac.replay_buffer as sac_buffer
+import mbrl.third_party.pytorch_sac_pranz24.replay_memory as sac_p24_buffer
 import mbrl.util.replay_buffer as replay_buffer
 from mbrl.types import TransitionBatch
 
@@ -44,19 +45,77 @@ def test_transition_batch_getitem():
         assert np.allclose(o, obs[indices])
 
 
-def test_sac_buffer_batched_add():
-    def create_batch(size, mult=1):
-        obs = (
-            mult
-            * np.expand_dims(np.arange(100, 100 + size), axis=1)
-            * np.ones((size, 2)).astype(np.int8)
-        )
-        act = mult * np.expand_dims(np.arange(0, size), axis=1).astype(np.int8)
-        next_obs = obs + act
-        reward = mult * 10 * np.expand_dims(np.arange(0, size), axis=1).astype(np.int8)
-        done = np.random.randint(0, 1, size=(size, 1), dtype=bool)
-        return obs, act, next_obs, reward, done
+# Shapes: obs (batch_size, 2), act (batch_size, 1), done/reward (batch_size, 1)
+def _create_batch(size, mult=1):
+    obs = (
+        mult
+        * np.expand_dims(np.arange(100, 100 + size), axis=1)
+        * np.ones((size, 2)).astype(np.int8)
+    )
+    act = mult * np.expand_dims(np.arange(0, size), axis=1).astype(np.int8)
+    next_obs = obs + act
+    reward = mult * 10 * np.expand_dims(np.arange(0, size), axis=1).astype(np.int8)
+    done = np.random.randint(0, 1, size=(size, 1), dtype=bool)
+    return obs, act, next_obs, reward, done
 
+
+def test_replay_buffer_batched_add():
+    def compare_batch_to_buffer_slice(
+        start_idx, batch_size, obs, act, next_obs, reward, done
+    ):
+        for i in range(batch_size):
+            buffer_idx = (start_idx + i) % buffer.capacity
+            np.testing.assert_array_equal(buffer.obs[buffer_idx], obs[i])
+            np.testing.assert_array_equal(buffer.action[buffer_idx], act[i])
+            np.testing.assert_array_equal(buffer.next_obs[buffer_idx], next_obs[i])
+            np.testing.assert_array_equal(buffer.reward[buffer_idx], reward[i])
+            np.testing.assert_array_equal(buffer.done[buffer_idx], done[i])
+
+    capacity = 20
+    buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
+
+    # Test adding less than capacity
+    batch_size_ = 10
+    obs_, act_, next_obs_, reward_, done_ = _create_batch(batch_size_)
+    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], done_[:, 0])
+    assert buffer.cur_idx == batch_size_
+    assert buffer.num_stored == batch_size_
+    compare_batch_to_buffer_slice(0, batch_size_, obs_, act_, next_obs_, reward_, done_)
+
+    # Test adding up to capacity
+    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], done_[:, 0])
+    assert buffer.cur_idx == 0
+    assert buffer.num_stored == buffer.capacity
+    compare_batch_to_buffer_slice(
+        batch_size_, batch_size_, obs_, act_, next_obs_, reward_, done_
+    )  # new additions
+    compare_batch_to_buffer_slice(
+        0, batch_size_, obs_, act_, next_obs_, reward_, done_
+    )  # Check that nothing changed here
+
+    # Test adding beyond capacity
+    start = 4
+    buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
+    # first add a few elements to set buffer.idx != 0
+    obs_1, act_1, next_obs_1, reward_1, done_1 = _create_batch(start, mult=3)
+    buffer.add_batch(obs_1, act_1, next_obs_1, reward_1[:, 0], done_1[:, 0])
+    # now add a batch larger than capacity
+    batch_size_ = 27
+    obs_2, act_2, next_obs_2, reward_2, done_2 = _create_batch(batch_size_, mult=7)
+    buffer.add_batch(obs_2, act_2, next_obs_2, reward_2[:, 0], done_2[:, 0])
+    assert buffer.cur_idx == 11
+    assert buffer.num_stored == buffer.capacity
+    # The last 11 observations loop around and overwrite the first 11
+    compare_batch_to_buffer_slice(
+        0, 11, obs_2[16:], act_2[16:], next_obs_2[16:], reward_2[16:], done_2[16:]
+    )
+    # Now check that the last 9 observations are correct
+    compare_batch_to_buffer_slice(
+        11, 9, obs_2[7:16], act_2[7:16], next_obs_2[7:16], reward_2[7:16], done_2[7:16]
+    )
+
+
+def test_sac_buffer_batched_add():
     def compare_batch_to_buffer_slice(
         start_idx, batch_size, obs, act, next_obs, reward, done
     ):
@@ -75,7 +134,7 @@ def test_sac_buffer_batched_add():
 
     # Test adding less than capacity
     batch_size_ = 10
-    obs_, act_, next_obs_, reward_, done_ = create_batch(batch_size_)
+    obs_, act_, next_obs_, reward_, done_ = _create_batch(batch_size_)
     buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
     assert buffer.idx == batch_size_
     assert not buffer.full
@@ -96,11 +155,11 @@ def test_sac_buffer_batched_add():
     start = 4
     buffer = sac_buffer.ReplayBuffer((2,), (1,), 20, torch.device("cpu"))
     # first add a few elements to set buffer.idx != 0
-    obs_, act_, next_obs_, reward_, done_ = create_batch(start, mult=3)
+    obs_, act_, next_obs_, reward_, done_ = _create_batch(start, mult=3)
     buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
     # now add a batch larger than capacity
     batch_size_ = 27
-    obs_, act_, next_obs_, reward_, done_ = create_batch(batch_size_, mult=7)
+    obs_, act_, next_obs_, reward_, done_ = _create_batch(batch_size_, mult=7)
     buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
     assert buffer.idx == 11
     assert buffer.full
