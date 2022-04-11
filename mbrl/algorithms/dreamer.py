@@ -1,3 +1,7 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 import os
 import pathlib
 from typing import List, Optional, Union
@@ -11,7 +15,8 @@ import torch
 import mbrl.constants
 from mbrl.env.termination_fns import no_termination
 from mbrl.models import ModelEnv, ModelTrainer
-from mbrl.planning import RandomAgent, create_trajectory_optim_agent_for_model, DreamerActorCritic
+from mbrl.planning import RandomAgent, create_trajectory_optim_agent_for_model
+from mbrl.util import Logger
 from mbrl.util.common import (
     create_replay_buffer,
     get_sequence_buffer_iterator,
@@ -25,9 +30,8 @@ METRICS_LOG_FORMAT = [
     ("kl_loss", "KL", "float"),
 ]
 
-from models.planet import PlaNetModel
 
-def train(                                      ## need to modify this
+def train(
     env: gym.Env,
     cfg: omegaconf.DictConfig,
     silent: bool = False,
@@ -180,4 +184,3 @@ def train(                                      ## need to modify this
 
     # returns average episode reward (e.g., to use for tuning learning curves)
     return total_rewards / cfg.algorithm.num_episodes
-
