@@ -2,7 +2,6 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import nntplib
 import time
 from typing import Callable, List, Optional, Sequence, Tuple, cast
 
@@ -11,8 +10,6 @@ import numpy as np
 import omegaconf
 import torch
 import torch.distributions
-import torch.nn as nn
-import torch.nn.functional as F
 
 import mbrl.models
 import mbrl.types
@@ -489,33 +486,6 @@ class ICEMOptimizer(Optimizer):
 
         return mu if self.return_mean_elites else best_solution
 
-class ActorCriticOPtimizer(Optimizer):
-    """Actor Critic Planning agent used for Dreamers"""
-    def __init__(
-        self,
-        action_dim,
-        latent_dim,
-    ):
-        # self.conv1 = nn.Conv2d(3, 32, 4, stride=4)
-        # self.conv2 = nn.Conv2d(32, 64, 3, stride=2)
-        # self.conv3 = nn.Conv2d(64, 64, 3, stride=1)
-        self.linear1 = nn.Linear(latent_dim, 512)
-        self.critic_linear = nn.Linear(512, 1)
-        self.actor_linear = nn.Linear(512, action_dim)
-
-        self.train()
-
-    def act(self, inputs):
-        x = F.relu(self.conv1(inputs / 255.))
-        x = F.relu(self.conv2(x))
-        # x = F.relu(self.conv3(x))
-        x = x.view(-1, 64 * 6 * 6)
-        x = F.relu(self.linear1(x))
-
-        return self.critic_linear(x), self.actor_linear(x)
-
-    def optimize(self, traj, obs):
-        pass
 
 class TrajectoryOptimizer:
     """Class for using generic optimizers on trajectory optimization problems.

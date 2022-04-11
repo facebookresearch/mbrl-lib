@@ -1,10 +1,9 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 22.1.0
+    rev: 22.3.0
     hooks:
       - id: black
         files: 'mbrl'
-        language_version: python3.7
 
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.9.2
