@@ -156,6 +156,8 @@ def train(
         planet.reset_posterior()
         action = None
         done = False
+        pbar = tqdm(total=500)
+        breakpoint()
         while not done:
             planet.update_posterior(obs, action=action, rng=rng)
             action_noise = (
@@ -165,7 +167,9 @@ def train(
                 * np_rng.standard_normal(env.action_space.shape[0])
             )
             action = agent.act(obs) + action_noise
-            action = np.clip(action, -1.0, 1.0)  # to account for the noise
+            action = np.clip(
+                action, -1.0, 1.0, dtype=env.action_space.dtype
+            )  # to account for the noise and fix dtype
             next_obs, reward, done, info = env.step(action)
             replay_buffer.add(obs, action, next_obs, reward, done)
             episode_reward += reward
@@ -173,6 +177,8 @@ def train(
             if debug_mode:
                 print(f"step: {step}, reward: {reward}.")
             step += 1
+            pbar.update(1)
+        pbar.close()
         total_rewards += episode_reward
         logger.log_data(
             mbrl.constants.RESULTS_LOG_NAME,

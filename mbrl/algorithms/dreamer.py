@@ -191,7 +191,9 @@ def train(
                 * np_rng.standard_normal(env.action_space.shape[0])
             )
             action = agent.act(latent_state) + action_noise
-            action = np.clip(action, -1.0, 1.0)  # to account for the noise
+            action = np.clip(
+                action, -1.0, 1.0, dtype=env.action_space.dtype
+            )  # to account for the noise and fix dtype
             next_obs, reward, done, info = env.step(action)
             replay_buffer.add(obs, action, next_obs, reward, done)
             episode_reward += reward
