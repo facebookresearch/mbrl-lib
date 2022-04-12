@@ -157,7 +157,6 @@ def train(
         action = None
         done = False
         pbar = tqdm(total=500)
-        breakpoint()
         while not done:
             planet.update_posterior(obs, action=action, rng=rng)
             action_noise = (

@@ -182,6 +182,7 @@ def train(
         planet.reset_posterior()
         action = None
         done = False
+        pbar = tqdm(total=500)
         while not done:
             latent_state = planet.update_posterior(obs, action=action, rng=rng)
             action_noise = (
@@ -201,6 +202,8 @@ def train(
             if debug_mode:
                 print(f"step: {step}, reward: {reward}.")
             step += 1
+            pbar.update(1)
+        pbar.close()
         total_rewards += episode_reward
         logger.log_data(
             mbrl.constants.RESULTS_LOG_NAME,
