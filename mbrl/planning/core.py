@@ -150,8 +150,15 @@ def load_agent(agent_path: Union[str, pathlib.Path], env: gym.Env) -> Agent:
         from .sac_wrapper import SACAgent
 
         complete_agent_cfg(env, cfg.algorithm.agent)
-        agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
-        agent.load_checkpoint(ckpt_path=agent_path / "sac.pth")
-        return SACAgent(agent)
+        sac: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
+        sac.load_checkpoint(ckpt_path=agent_path / "sac.pth")
+        return SACAgent(sac)
+    elif cfg.algorithm.agent == "mbrl.planning.dreamer_agent.DreamerAgent":
+        from mbrl.planning.dreamer_agent import DreamerAgent
+
+        complete_agent_cfg(env, cfg.algorithm.agent)
+        dreamer_agent: DreamerAgent = hydra.utils.instantiate(cfg.algorithm.agent)
+        dreamer_agent.load(agent_path)
+        return dreamer_agent
     else:
         raise ValueError("Invalid agent configuration.")

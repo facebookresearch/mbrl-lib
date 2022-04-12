@@ -11,6 +11,7 @@ import hydra
 import numpy as np
 import omegaconf
 import torch
+from tqdm import tqdm
 
 import mbrl.constants
 from mbrl.env.termination_fns import no_termination
@@ -130,7 +131,7 @@ def train(
     # PlaNet loop
     step = replay_buffer.num_stored
     total_rewards = 0.0
-    for episode in range(cfg.algorithm.num_episodes):
+    for episode in tqdm(range(cfg.algorithm.num_episodes)):
         # Train the model for one epoch of `num_grad_updates`
         dataset, _ = get_sequence_buffer_iterator(
             replay_buffer,
@@ -143,7 +144,7 @@ def train(
         trainer.train(
             dataset, num_epochs=1, batch_callback=batch_callback, evaluate=False
         )
-        planet.save(work_dir / "planet.pth")
+        planet.save(work_dir)
         replay_buffer.save(work_dir)
         metrics = get_metrics_and_clear_metric_containers()
         logger.log_data("metrics", metrics)
