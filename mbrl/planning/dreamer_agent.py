@@ -17,7 +17,7 @@ from torch.optim import Adam
 import mbrl.models
 from mbrl.util.replay_buffer import TransitionIterator
 
-from .core import Agent, complete_agent_cfg
+from .core import Agent
 
 
 class Policy(nn.Module):
@@ -58,9 +58,10 @@ class Policy(nn.Module):
 class DreamerAgent(Agent):
     def __init__(
         self,
-        planet: mbrl.models.PlaNetModel,
-        model_env: mbrl.models.ModelEnv,
         device: torch.device,
+        latent_state_size: int,
+        belief_size: int,
+        action_size: int,
         hidden_size_fcs: int = 200,
         horizon: int = 15,
         policy_lr: float = 8e-5,
@@ -68,12 +69,11 @@ class DreamerAgent(Agent):
         grad_clip_norm: float = 1000.0,
         rng: Optional[torch.Generator] = None,
     ) -> None:
-        self.planet: mbrl.models.PlaNetModel = planet
-        self.model_env = model_env
+        self.planet: mbrl.models.PlaNetModel = None
         self.device = device
         self.horizon = horizon
-        self.latent_size = planet.latent_state_size + planet.belief_size
-        self.action_size = planet.action_size
+        self.latent_size = latent_state_size + belief_size
+        self.action_size = action_size
 
         self.policy = Policy(
             self.latent_size,
@@ -159,6 +159,9 @@ def create_dreamer_agent_for_model(
         (:class:`DreamerAgent`): the agent.
 
     """
-    complete_agent_cfg(model_env, agent_cfg)
+    agent_cfg.latent_state_size = planet.latent_state_size
+    agent_cfg.belief_size = planet.belief_size
+    agent_cfg.action_size = planet.action_size
     agent = hydra.utils.instantiate(agent_cfg)
+    agent.planet = planet
     return agent

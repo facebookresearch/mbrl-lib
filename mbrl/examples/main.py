@@ -7,6 +7,7 @@ import numpy as np
 import omegaconf
 import torch
 
+import mbrl.algorithms.dreamer as dreamer
 import mbrl.algorithms.mbpo as mbpo
 import mbrl.algorithms.pets as pets
 import mbrl.algorithms.planet as planet
@@ -25,6 +26,8 @@ def run(cfg: omegaconf.DictConfig):
         return mbpo.train(env, test_env, term_fn, cfg)
     if cfg.algorithm.name == "planet":
         return planet.train(env, cfg)
+    if cfg.algorithm.name == "dreamer":
+        return dreamer.train(env, cfg)
 
 
 if __name__ == "__main__":
