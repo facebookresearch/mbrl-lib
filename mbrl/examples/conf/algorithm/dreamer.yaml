@@ -3,9 +3,18 @@ name: "dreamer"
 
 agent:
   _target_: mbrl.planning.DreamerAgent
-  planning_horizon: ${overrides.planning_horizon}
-  optimizer_cfg: ${action_optimizer}
-  verbose: ${debug_mode}
+  action_lb: ???
+  action_ub: ???
+  horizon: 15
+  policy_lr: 0.00008
+  critic_lr: 0.00008
+  gamma: 0.99
+  lam: 0.95
+  grad_clip_norm: 100.0
+  min_std: 0.0001
+  init_std: 5
+  mean_scale: 5
+  activation_function: "elu"
 
 num_initial_trajectories: 5
 action_noise_std: 0.3
