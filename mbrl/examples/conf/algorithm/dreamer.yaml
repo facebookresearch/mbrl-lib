@@ -15,6 +15,7 @@ agent:
   init_std: 5
   mean_scale: 5
   activation_function: "elu"
+  device: ${device}
 
 num_initial_trajectories: 5
 action_noise_std: 0.3

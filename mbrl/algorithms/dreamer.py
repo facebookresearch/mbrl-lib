@@ -166,9 +166,7 @@ def train(
         trainer.train(
             dataset, num_epochs=1, batch_callback=model_batch_callback, evaluate=False
         )
-        agent.train(
-            dataset, num_epochs=1, batch_callback=agent_batch_callback, evaluate=False
-        )
+        agent.train(dataset, num_epochs=1, batch_callback=agent_batch_callback)
         planet.save(work_dir)
         agent.save(work_dir)
         replay_buffer.save(work_dir)
@@ -191,7 +189,9 @@ def train(
                 else cfg.overrides.action_noise_std
                 * np_rng.standard_normal(env.action_space.shape[0])
             )
-            action = agent.act(latent_state) + action_noise
+            action = agent.act(latent_state)
+            action = action.detach().cpu().squeeze(0).numpy()
+            action = action + action_noise
             action = np.clip(
                 action, -1.0, 1.0, dtype=env.action_space.dtype
             )  # to account for the noise and fix dtype

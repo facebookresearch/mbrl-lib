@@ -3,12 +3,13 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import pathlib
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Optional, Sequence, Union
 
 import hydra
 import numpy as np
 import omegaconf
 import torch
+import tqdm
 from torch import nn
 from torch.distributions import (
     Independent,
@@ -58,8 +59,8 @@ class PolicyModel(nn.Module):
         self.mean_scale = mean_scale
         self.raw_init_std = np.log(np.exp(self.init_std) - 1)
 
-    def forward(self, belief, state):
-        hidden = self.act_fn(self.fc1(torch.cat([belief, state], dim=1)))
+    def forward(self, belief, latent):
+        hidden = self.act_fn(self.fc1(torch.cat([belief, latent], dim=-1)))
         hidden = self.act_fn(self.fc2(hidden))
         model_out = self.fc3(hidden).squeeze(dim=1)
         mean, std = torch.chunk(model_out, 2, -1)
@@ -79,8 +80,8 @@ class ValueModel(nn.Module):
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, 1)
 
-    def forward(self, belief, state):
-        hidden = self.act_fn(self.fc1(torch.cat([belief, state], dim=1)))
+    def forward(self, belief, latent):
+        hidden = self.act_fn(self.fc1(torch.cat([belief, latent], dim=-1)))
         hidden = self.act_fn(self.fc2(hidden))
         value = self.fc3(hidden).squeeze(dim=1)
         return value
@@ -135,6 +136,9 @@ class DreamerAgent(Agent):
         ).to(device)
         self.critic_optim = Adam(self.critic.parameters(), critic_lr)
 
+    def parameters(self):
+        return list(self.policy.parameters()) + list(self.critic.parameters())
+
     def act(
         self, obs: Dict[str, TensorType], training: bool = True, **_kwargs
     ) -> TensorType:
@@ -143,98 +147,111 @@ class DreamerAgent(Agent):
             action = action_dist.rsample()
         else:
             action = action_dist.mode()
-        return action.cpu().detach().numpy()
+        return action
 
     def train(
         self,
         dataset_train: TransitionIterator,
-        dataset_val: Optional[TransitionIterator] = None,
         num_epochs: Optional[int] = None,
-        patience: Optional[int] = None,
-        improvement_threshold: float = 0.01,
-        callback: Optional[Callable] = None,
         batch_callback: Optional[Callable] = None,
-        evaluate: bool = True,
         silent: bool = False,
-    ) -> Tuple[List[float], List[float]]:
+    ) -> None:
 
-        raise NotImplementedError
-        """
-        eval_dataset = dataset_train if dataset_val is None else dataset_val
-
-        training_losses, val_scores = [], []
-        best_weights: Optional[Dict] = None
-        epoch_iter = range(num_epochs) if num_epochs else itertools.count()
-        epochs_since_update = 0
-        best_val_score = self.evaluate(eval_dataset) if evaluate else None
         # only enable tqdm if training for a single epoch,
         # otherwise it produces too much output
         disable_tqdm = silent or (num_epochs is None or num_epochs > 1)
 
-        for batch in dataset_train:
-            B, L, _ = beliefs.shape
-            beliefs = torch.reshape(beliefs, [B * L, -1])
-            states = torch.reshape(states, [B * L, -1])
-            imag_beliefs = []
-            imag_states = []
-            imag_actions = []
-            imag_rewards = []
-            for _ in range(self.horizon):
-                state = {"belief": beliefs, "latent": states}
-                actions = self.act(beliefs, states)
-                imag_beliefs.append(beliefs)
-                imag_states.append(states)
-                imag_actions.append(actions)
+        meta = {}
 
-                states, rewards = self.planet_model.sample(actions, states)
-                imag_rewards.append(rewards)
-
-            # I x (B*L) x _
-            imag_beliefs = torch.stack(imag_beliefs).to(self.device)
-            imag_states = torch.stack(imag_states).to(self.device)
-            imag_actions = torch.stack(imag_actions).to(self.device)
-            freeze(self.critic)
-            imag_values = self.critic({"belief": imag_beliefs, "latent": imag_states})
-            unfreeze(self.critic)
-
-            discount_arr = self.gamma * torch.ones_like(imag_rewards)
-            returns = self._compute_return(
-                imag_rewards[:-1],
-                imag_values[:-1],
-                discount_arr[:-1],
-                bootstrap=imag_values[-1],
-                lambda_=self.lam,
+        for batch in tqdm.tqdm(dataset_train, disable=disable_tqdm):
+            obs, actions, rewards = self.planet_model._process_batch(
+                batch,
+                pixel_obs=True,
             )
-            # Make the top row 1 so the cumulative product starts with discount^0
-            discount_arr = torch.cat(
-                [torch.ones_like(discount_arr[:1]), discount_arr[1:]]
-            )
-            discount = torch.cumprod(discount_arr[:-1], 0)
-            policy_loss = -torch.mean(discount * returns)
 
-            # Detach tensors which have gradients through policy model for value loss
-            value_beliefs = imag_beliefs.detach()[:-1]
-            value_states = imag_states.detach()[:-1]
-            value_discount = discount.detach()
-            value_target = returns.detach()
-            state = {"belief": value_beliefs, "latent": value_states}
-            value_pred = self.critic(state)
-            value_loss = F.mse_loss(value_discount * value_target, value_pred)
+            (
+                _,
+                _,
+                _,
+                latents,
+                beliefs,
+                _,
+                rewards,
+            ) = self.planet_model(obs[:, 1:], actions[:, :-1], rewards[:, :-1])
 
-            self.policy_optim.zero_grad()
-            self.critic_optim.zero_grad()
+            for epoch in range(num_epochs):
+                B, L, _ = beliefs.shape
+                beliefs = torch.reshape(beliefs, [B * L, -1])
+                latents = torch.reshape(latents, [B * L, -1])
+                states = {"belief": beliefs, "latent": latents}
+                imag_beliefs = []
+                imag_latents = []
+                imag_actions = []
+                imag_rewards = []
+                for _ in range(self.horizon):
+                    actions = self.act(states)
+                    imag_beliefs.append(states["belief"])
+                    imag_latents.append(states["latent"])
+                    imag_actions.append(actions)
 
-            nn.utils.clip_grad_norm_(
-                self.policy_model.parameters(), self.grad_clip_norm
-            )
-            nn.utils.clip_grad_norm_(self.value_model.parameters(), self.grad_clip_norm)
+                    _, rewards, _, states = self.planet_model.sample(actions, states)
+                    imag_rewards.append(rewards)
 
-            policy_loss.backward()
-            value_loss.backward()
+                # I x (B*L) x _
+                imag_beliefs = torch.stack(imag_beliefs).to(self.device)
+                imag_latents = torch.stack(imag_latents).to(self.device)
+                imag_actions = torch.stack(imag_actions).to(self.device)
+                freeze(self.critic)
+                imag_values = self.critic(imag_beliefs, imag_latents)
+                unfreeze(self.critic)
 
-            self.policy_optim.step()
-            self.critic_optim.step()
-        """
+                imag_rewards = torch.stack(imag_rewards).to(self.device)
+                discount_arr = self.gamma * torch.ones_like(imag_rewards)
+                returns = self._compute_return(
+                    imag_rewards[:-1],
+                    imag_values[:-1],
+                    discount_arr[:-1],
+                    bootstrap=imag_values[-1],
+                    lambda_=self.lam,
+                )
+                # Make the top row 1 so the cumulative product starts with discount^0
+                discount_arr = torch.cat(
+                    [torch.ones_like(discount_arr[:1]), discount_arr[1:]]
+                )
+                discount = torch.cumprod(discount_arr[:-1], 0)
+                policy_loss = -torch.mean(discount * returns)
+
+                # Detach tensors which have gradients through policy model for value loss
+                value_beliefs = imag_beliefs.detach()[:-1]  # type: ignore
+                value_latents = imag_latents.detach()[:-1]  # type: ignore
+                value_discount = discount.detach()
+                value_target = returns.detach()
+                value_pred = self.critic(value_beliefs, value_latents)
+                critic_loss = F.mse_loss(value_discount * value_target, value_pred)
+
+                self.policy_optim.zero_grad()
+                self.critic_optim.zero_grad()
+
+                nn.utils.clip_grad_norm_(self.policy.parameters(), self.grad_clip_norm)
+                nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip_norm)
+
+                policy_loss.backward()
+                critic_loss.backward()
+
+                meta["policy_loss"] = policy_loss.item()
+                meta["critic_loss"] = critic_loss.item()
+
+                with torch.no_grad():
+                    grad_norm = 0.0
+                    for p in list(
+                        filter(lambda p: p.grad is not None, self.parameters())
+                    ):
+                        grad_norm += p.grad.data.norm(2).item()
+                    meta["grad_norm"] = grad_norm
+
+                self.policy_optim.step()
+                self.critic_optim.step()
+                batch_callback(epoch, None, meta, "train")
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         """Saves the agent to the given directory."""
