@@ -6,7 +6,6 @@ from collections import defaultdict
 import numpy as np
 import torch
 from termcolor import colored
-from torch.utils.tensorboard import SummaryWriter
 
 COMMON_TRAIN_FORMAT = [
     ("episode", "E", "int"),
@@ -118,7 +117,6 @@ class Logger(object):
     def __init__(
         self,
         log_dir,
-        save_tb=False,
         log_frequency=10000,
         agent="sac",
         train_format=None,
@@ -126,17 +124,6 @@ class Logger(object):
     ):
         self._log_dir = log_dir
         self._log_frequency = log_frequency
-        if save_tb:
-            tb_dir = os.path.join(log_dir, "tb")
-            if os.path.exists(tb_dir):
-                try:
-                    shutil.rmtree(tb_dir)
-                except:
-                    print("logger.py warning: Unable to remove tb directory")
-                    pass
-            self._sw = SummaryWriter(tb_dir)
-        else:
-            self._sw = None
         if not train_format:
             # each agent has specific output format for training
             assert agent in AGENT_TRAIN_FORMAT
@@ -153,27 +140,12 @@ class Logger(object):
         log_frequency = log_frequency or self._log_frequency
         return step % log_frequency == 0
 
-    def _try_sw_log(self, key, value, step):
-        if self._sw is not None:
-            self._sw.add_scalar(key, value, step)
-
-    def _try_sw_log_video(self, key, frames, step):
-        if self._sw is not None:
-            frames = torch.from_numpy(np.array(frames))
-            frames = frames.unsqueeze(0)
-            self._sw.add_video(key, frames, step, fps=30)
-
-    def _try_sw_log_histogram(self, key, histogram, step):
-        if self._sw is not None:
-            self._sw.add_histogram(key, histogram, step)
-
     def log(self, key, value, step, n=1, log_frequency=1):
         if not self._should_log(step, log_frequency):
             return
         assert key.startswith("train") or key.startswith("eval")
         if type(value) == torch.Tensor:
             value = value.item()
-        self._try_sw_log(key, value / n, step)
         mg = self._train_mg if key.startswith("train") else self._eval_mg
         mg.log(key, value, n)
 
@@ -192,13 +164,11 @@ class Logger(object):
         if not self._should_log(step, log_frequency):
             return
         assert key.startswith("train") or key.startswith("eval")
-        self._try_sw_log_video(key, frames, step)
 
     def log_histogram(self, key, histogram, step, log_frequency=None):
         if not self._should_log(step, log_frequency):
             return
         assert key.startswith("train") or key.startswith("eval")
-        self._try_sw_log_histogram(key, histogram, step)
 
     def dump(self, step, save=True, ty=None):
         if ty is None:
