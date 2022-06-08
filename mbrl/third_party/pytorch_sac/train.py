@@ -6,10 +6,11 @@ import time
 import hydra
 import numpy as np
 import torch
-from pytorch_sac import utils
-from pytorch_sac.logger import Logger
-from pytorch_sac.replay_buffer import ReplayBuffer
-from pytorch_sac.video import VideoRecorder
+
+from mbrl.third_party.pytorch_sac import utils
+from mbrl.third_party.pytorch_sac.logger import Logger
+from mbrl.third_party.pytorch_sac.replay_buffer import ReplayBuffer
+from mbrl.third_party.pytorch_sac.video import VideoRecorder
 
 
 class Workspace(object):
@@ -21,7 +22,6 @@ class Workspace(object):
 
         self.logger = Logger(
             self.work_dir,
-            save_tb=cfg.log_save_tb,
             log_frequency=cfg.log_frequency,
             agent="sac",
         )
