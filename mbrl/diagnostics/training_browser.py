@@ -51,7 +51,7 @@ class ExperimentsModel(QAbstractTableModel):
         self.data = []
         for path in data:
             if path.endswith(SOURCE):
-                config_path = Path(path).parent / Path(".hydra/config.yaml")
+                config_path = Path(path).parent / ".hydra/config.yaml"
                 config = yaml.load(
                     open(config_path, "r"),
                     Loader=yaml.FullLoader,
