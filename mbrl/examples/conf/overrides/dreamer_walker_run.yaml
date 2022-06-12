@@ -21,7 +21,7 @@ trial_length: 500
 action_noise_std: 0.3
 
 # Model overrides
-num_grad_updates: 1 # Why is this 100 for PlaNet?
+num_grad_updates: 100
 sequence_length: 50
 batch_size: 50
 free_nats: 3
