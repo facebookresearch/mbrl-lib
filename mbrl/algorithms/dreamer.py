@@ -29,6 +29,8 @@ METRICS_LOG_FORMAT = [
     ("reward_loss", "RL", "float"),
     ("gradient_norm", "GN", "float"),
     ("kl_loss", "KL", "float"),
+    ("policy_loss", "PL", "float"),
+    ("critic_loss", "CL", "float"),
 ]
 
 
