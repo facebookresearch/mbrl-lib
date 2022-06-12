@@ -145,7 +145,8 @@ def train(
             dataset, num_epochs=1, batch_callback=batch_callback, evaluate=False
         )
         planet.save(work_dir)
-        replay_buffer.save(work_dir)
+        if cfg.overrides.get("save_replay_buffer", False):
+            replay_buffer.save(work_dir)
         metrics = get_metrics_and_clear_metric_containers()
         logger.log_data("metrics", metrics)
 
