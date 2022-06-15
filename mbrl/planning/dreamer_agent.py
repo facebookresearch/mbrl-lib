@@ -163,6 +163,8 @@ class DreamerAgent(Agent):
 
         meta = {}
 
+        freeze(self.planet_model)
+
         for batch in tqdm.tqdm(dataset_train, disable=disable_tqdm):
             obs, actions, rewards = self.planet_model._process_batch(
                 batch,
@@ -252,6 +254,7 @@ class DreamerAgent(Agent):
                 self.policy_optim.step()
                 self.critic_optim.step()
                 batch_callback(epoch, None, meta, "train")
+        unfreeze(self.planet_model)
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         """Saves the agent to the given directory."""
