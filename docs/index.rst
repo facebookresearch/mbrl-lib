@@ -26,6 +26,7 @@ and set up a development environment, as follows
 .. code-block:: bash
 
     git clone https://github.com/facebookresearch/mbrl-lib.git
+    cd mbrl-lib
     pip install -e ".[dev]"
 
 And test it by running
