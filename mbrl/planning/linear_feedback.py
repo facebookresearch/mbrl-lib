@@ -3,6 +3,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Union
+
 import numpy as np
 
 from .core import Agent
@@ -13,7 +15,15 @@ class PIDAgent(Agent):
     Agent that reacts via an internal set of PID controllers.
     """
 
-    def __init__(self, dX, dU, P, I, D, target):
+    def __init__(
+        self,
+        dX: int,
+        dU: int,
+        P_value: Union[int, float],
+        I_value: Union[int, float],
+        D_value: Union[int, float],
+        target: float,
+    ):
         """
         :param dX: unused
         :param dU: dimensionality of state and control signal
@@ -25,18 +35,9 @@ class PIDAgent(Agent):
         super().__init__()
         self.n_dof = dU
         # TODO: fix dimensionality with P
-        if isinstance(P, int):
-            self.Kp = np.tile(P, self.n_dof)
-        else:
-            self.Kp = P
-        if isinstance(I, int):
-            self.Ki = np.tile(I, self.n_dof)
-        else:
-            self.Ki = I
-        if isinstance(D, int):
-            self.Kd = np.tile(D, self.n_dof)
-        else:
-            self.Kd = D
+        self.Kp = np.tile(P_value, self.n_dof)
+        self.Ki = np.tile(I_value, self.n_dof)
+        self.Kd = np.tile(D_value, self.n_dof)
         self.target = target
         self.prev_error = 0
         self.error = 0
@@ -63,4 +64,3 @@ class PIDAgent(Agent):
 
     def _get_D(self):
         return self.Kd
-
