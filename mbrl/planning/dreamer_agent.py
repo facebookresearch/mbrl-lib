@@ -183,13 +183,14 @@ class DreamerAgent(Agent):
 
             for epoch in range(num_epochs):
                 B, L, _ = beliefs.shape
-                beliefs = torch.reshape(beliefs, [B * L, -1])
-                latents = torch.reshape(latents, [B * L, -1])
-                states = {"belief": beliefs, "latent": latents}
                 imag_beliefs = []
                 imag_latents = []
                 imag_actions = []
                 imag_rewards = []
+                states = {
+                    "belief": beliefs.reshape(B * L, -1),
+                    "latent": latents.reshape(B * L, -1),
+                }
                 for _ in range(self.horizon):
                     actions = self.act(states)
                     imag_beliefs.append(states["belief"])
@@ -200,14 +201,13 @@ class DreamerAgent(Agent):
                     imag_rewards.append(rewards)
 
                 # I x (B*L) x _
-                imag_beliefs = torch.stack(imag_beliefs).to(self.device)
-                imag_latents = torch.stack(imag_latents).to(self.device)
-                imag_actions = torch.stack(imag_actions).to(self.device)
-                freeze(self.critic)
-                imag_values = self.critic(imag_beliefs, imag_latents)
-                unfreeze(self.critic)
+                imag_beliefs = torch.stack(imag_beliefs)
+                imag_latents = torch.stack(imag_latents)
+                imag_actions = torch.stack(imag_actions)
+                with torch.no_grad():
+                    imag_values = self.critic(imag_beliefs, imag_latents)
 
-                imag_rewards = torch.stack(imag_rewards).to(self.device)
+                imag_rewards = torch.stack(imag_rewards)
                 discount_arr = self.gamma * torch.ones_like(imag_rewards)
                 returns = self._compute_return(
                     imag_rewards[:-1],
@@ -303,10 +303,9 @@ class DreamerAgent(Agent):
         """
         next_values = torch.cat([value[1:], bootstrap[None]], 0)
         target = reward + discount * next_values * (1 - lambda_)
-        timesteps = list(range(reward.shape[0] - 1, -1, -1))
         outputs = []
         accumulated_reward = bootstrap
-        for t in timesteps:
+        for t in range(reward.shape[0] - 1, -1, -1):
             inp = target[t]
             discount_factor = discount[t]
             accumulated_reward = inp + discount_factor * lambda_ * accumulated_reward
