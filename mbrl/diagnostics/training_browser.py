@@ -7,6 +7,7 @@ import glob
 import os
 import sys
 from argparse import ArgumentParser
+from pathlib import Path
 
 import pandas as pd
 import yaml
@@ -50,10 +51,9 @@ class ExperimentsModel(QAbstractTableModel):
         self.data = []
         for path in data:
             if path.endswith(SOURCE):
+                config_path = Path(path).parent / ".hydra/config.yaml"
                 config = yaml.load(
-                    open(
-                        path.replace("/{}".format(SOURCE), "/.hydra/config.yaml"), "r"
-                    ),
+                    open(config_path, "r"),
                     Loader=yaml.FullLoader,
                 )
             elif path.endswith(MULTI_ROOT):
