@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 22.1.0
+    rev: 22.6.0
     hooks:
       - id: black
         files: 'mbrl'
@@ -13,11 +13,11 @@ repos:
         files: 'mbrl'
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.931
+    rev: v0.971
     hooks:
       - id: mypy
         files: 'mbrl'
-        additional_dependencies: [torch, tokenize-rt==3.2.0, types-PyYAML, types-termcolor]
+        additional_dependencies: [numpy, torch, tokenize-rt==3.2.0, types-PyYAML, types-termcolor]
         args: [--no-strict-optional, --ignore-missing-imports]
         exclude: setup.py
 

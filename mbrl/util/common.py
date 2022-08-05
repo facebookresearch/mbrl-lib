@@ -313,7 +313,7 @@ def get_sequence_buffer_iterator(
     if use_simple_sampler:
         train_iterator: _SequenceIterType = SequenceTransitionSampler(
             transitions,
-            train_trajectories,
+            train_trajectories,  # type:ignore
             batch_size,
             sequence_length,
             max_batches_per_loop_train,
@@ -322,7 +322,7 @@ def get_sequence_buffer_iterator(
     else:
         train_iterator = SequenceTransitionIterator(
             transitions,
-            train_trajectories,
+            train_trajectories,  # type: ignore
             batch_size,
             sequence_length,
             ensemble_size,
@@ -337,7 +337,7 @@ def get_sequence_buffer_iterator(
         if use_simple_sampler:
             val_iterator = SequenceTransitionSampler(
                 transitions,
-                val_trajectories,
+                val_trajectories,  # type: ignore
                 batch_size,
                 sequence_length,
                 max_batches_per_loop_val,
@@ -346,7 +346,7 @@ def get_sequence_buffer_iterator(
         else:
             val_iterator = SequenceTransitionIterator(
                 transitions,
-                val_trajectories,
+                val_trajectories,  # type: ignore
                 batch_size,
                 sequence_length,
                 1,
