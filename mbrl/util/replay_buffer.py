@@ -233,7 +233,7 @@ class SequenceTransitionIterator(BootstrapIterator):
     def __init__(
         self,
         transitions: TransitionBatch,
-        trajectory_indices: List[Tuple[int, int]],
+        trajectory_indices: Sequence[Tuple[int, int]],
         batch_size: int,
         sequence_length: int,
         ensemble_size: int,
@@ -266,7 +266,7 @@ class SequenceTransitionIterator(BootstrapIterator):
 
     @staticmethod
     def _get_indices_valid_starts(
-        trajectory_indices: List[Tuple[int, int]],
+        trajectory_indices: Sequence[Tuple[int, int]],
         sequence_length: int,
     ) -> np.ndarray:
         # This is memory and time inefficient but it's only done once when creating the
@@ -332,7 +332,7 @@ class SequenceTransitionSampler(TransitionIterator):
     def __init__(
         self,
         transitions: TransitionBatch,
-        trajectory_indices: List[Tuple[int, int]],
+        trajectory_indices: Sequence[Tuple[int, int]],
         batch_size: int,
         sequence_length: int,
         batches_per_loop: int,
@@ -361,7 +361,7 @@ class SequenceTransitionSampler(TransitionIterator):
 
     @staticmethod
     def _get_indices_valid_starts(
-        trajectory_indices: List[Tuple[int, int]],
+        trajectory_indices: Sequence[Tuple[int, int]],
         sequence_length: int,
     ) -> np.ndarray:
         # This is memory and time inefficient but it's only done once when creating the
@@ -618,7 +618,7 @@ class ReplayBuffer:
         )
         return self._batch_from_indices(indices)
 
-    def _batch_from_indices(self, indices: Sized) -> TransitionBatch:
+    def _batch_from_indices(self, indices) -> TransitionBatch:
         obs = self.obs[indices]
         next_obs = self.next_obs[indices]
         action = self.action[indices]
