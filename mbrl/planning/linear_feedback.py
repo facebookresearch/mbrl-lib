@@ -18,12 +18,12 @@ class PIDAgent(Agent):
     https://en.wikipedia.org/wiki/PID_controller.
 
     Args:
-        :param dim: dimensionality of state and control signal
-        :param k_p: proportional control coeff
-        :param I: integral control coeff
-        :param D: derivative control coeff
-        :param target: setpoint
-        :param state_mapping: indices of the state vector to apply the PID control to.
+        dim (int): dimensionality of state and control signal
+        k_p (np.ndarry): proportional control coeff
+        k_i (np.ndarry): integral control coeff
+        k_d (np.ndarry): derivative control coeff
+        target (np.ndarry): setpoint
+        state_mapping (np.ndarry): indices of the state vector to apply the PID control to.
             E.g. for a system with states [angle, angle_vel, position, position_vel], state_mapping
             of [1, 3] and dim of 2 will apply the PID to angle_vel and position_vel variables.
     """
