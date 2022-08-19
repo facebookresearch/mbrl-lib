@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: black
         files: 'mbrl'
-        language_version: python3
+        language_version: python3.7
 
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.9.2
