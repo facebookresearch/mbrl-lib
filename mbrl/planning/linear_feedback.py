@@ -60,16 +60,15 @@ class PIDAgent(Agent):
     def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
         """Issues an action given an observation.
 
-        This method optimizes a full sequence of length ``self.planning_horizon`` and returns
-        the first action in the sequence. If ``self.replan_freq > 1``, future calls will use
-        subsequent actions in the sequence, for ``self.replan_freq`` number of steps.
-        After that, the method will plan again, and repeat this process.
+        This method optimizes a given observation or batch of observations for a one-step action choice.
+
 
         Args:
-            obs (np.ndarray): the observation for which the action is needed.
+            obs (np.ndarray): the observation for which the action is needed either N x 1 or N x B, where N is the
+                state dim and B is the batch size.
 
         Returns:
-            (np.ndarray): the action.
+            (np.ndarray): the action outputted from the PID, either shape n_dof x 1 or n_dof x B.
         """
         if obs.ndim == 1:
             obs = np.expand_dims(obs, -1)
