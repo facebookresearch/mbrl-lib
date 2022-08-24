@@ -179,6 +179,11 @@ installation and are specific to models of type
 We are planning to extend this in the future; if you have useful suggestions
 don't hesitate to raise an issue or submit a pull request!
 
+## Advanced Examples
+MBRL-Lib can be used for many different research projects in the subject area. 
+We have support for the following projects:
+*  [Trajectory-based Dynamics Model](https://arxiv.org/abs/2012.09156) Training [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/15lodC9KyzzQCv9hQY3wtAe-yYOdk9vZB?usp=sharing) 
+
 ## Documentation 
 Please check out our **[documentation](https://facebookresearch.github.io/mbrl-lib/)** 
 and don't hesitate to raise issues or contribute if anything is unclear!
