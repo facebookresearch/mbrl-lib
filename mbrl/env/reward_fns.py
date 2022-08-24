@@ -7,6 +7,9 @@ import torch
 from . import termination_fns
 
 
+def no_reward(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    return torch.Tensor(0)
+
 def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
 
