@@ -94,7 +94,7 @@ class MetersGroup(object):
         if len(self._meters) == 0:
             return
         if save:
-            data = dict([(key, meter.value()) for key, meter in self._meters.items()])
+            data = {key: meter.value() for key, meter in self._meters.items()}
             data["step"] = step
             self._dump_to_csv(data)
             self._dump_to_console(data, prefix, color)
