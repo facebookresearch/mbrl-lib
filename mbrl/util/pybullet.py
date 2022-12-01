@@ -8,7 +8,6 @@ from typing import Callable, List, Tuple
 import gym
 import gym.wrappers
 import numpy as np
-
 # Need to import pybulletgym to register pybullet envs.
 # Ignore the flake8 error generated
 import pybulletgym  # noqa
@@ -124,11 +123,11 @@ class PybulletEnvHandler(EnvHandler):
     @staticmethod
     def _get_current_state_default(env: gym.wrappers.TimeLimit) -> Tuple:
         """Returns the internal state of a manipulation / pendulum environment."""
-        env = env.env
-        filename = PybulletEnvHandler.save_state_to_file(env._p)
+        new_env = env.env
+        filename = PybulletEnvHandler.save_state_to_file(new_env._p)
         import pickle
 
-        pickle_bytes = pickle.dumps(env)
+        pickle_bytes = pickle.dumps(new_env)
         return ((filename, pickle_bytes),)
 
     @staticmethod
@@ -138,8 +137,8 @@ class PybulletEnvHandler(EnvHandler):
         ((filename, pickle_bytes),) = state
         new_env = pickle.loads(pickle_bytes)
         env.env = new_env
-        env = env.env
-        PybulletEnvHandler.load_state_from_file(env._p, filename)
+        new_env = env.env
+        PybulletEnvHandler.load_state_from_file(new_env._p, filename)
 
     @staticmethod
     def _get_current_state_locomotion(env: gym.wrappers.TimeLimit) -> Tuple:
@@ -152,15 +151,15 @@ class PybulletEnvHandler(EnvHandler):
         Args:
             env (:class:`gym.wrappers.TimeLimit`): the environment.
         """
-        env = env.env
+        new_env = env.env
         robot = env.robot
         if not isinstance(robot, (RSWalkerBase, MJWalkerBase)):
             raise RuntimeError("Invalid robot type. Expected a locomotor robot")
 
-        filename = PybulletEnvHandler.save_state_to_file(env._p)
-        ground_ids = env.ground_ids
-        potential = env.potential
-        reward = float(env.reward)
+        filename = PybulletEnvHandler.save_state_to_file(new_env._p)
+        ground_ids = new_env.ground_ids
+        potential = new_env.potential
+        reward = float(new_env.reward)
         robot_keys: List[Tuple[str, Callable]] = [
             ("body_rpy", tuple),
             ("body_xyz", tuple),
@@ -231,12 +230,12 @@ class PybulletEnvHandler(EnvHandler):
                 robot_data,
             ) = state
 
-            env = env.env
-            env.ground_ids = ground_ids
-            env.potential = potential
-            env.reward = reward
-            PybulletEnvHandler.load_state_from_file(env._p, filename)
+            new_env = env.env
+            new_env.ground_ids = ground_ids
+            new_env.potential = potential
+            new_env.reward = reward
+            PybulletEnvHandler.load_state_from_file(new_env._p, filename)
             for k, v in robot_data.items():
-                setattr(env.robot, k, v)
+                setattr(new_env.robot, k, v)
         else:
             raise RuntimeError("Only pybulletgym environments supported.")
