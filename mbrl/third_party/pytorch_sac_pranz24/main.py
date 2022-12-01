@@ -4,11 +4,11 @@ import itertools
 import gym
 import numpy as np
 import torch
+from sac import SAC
 
 import mbrl.constants
 from mbrl.util.logger import Logger
 from mbrl.util.replay_buffer import ReplayBuffer
-from sac import SAC
 
 parser = argparse.ArgumentParser(description="PyTorch Soft Actor-Critic Args")
 parser.add_argument(

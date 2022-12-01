@@ -8,6 +8,7 @@ from typing import Callable, List, Tuple
 import gym
 import gym.wrappers
 import numpy as np
+
 # Need to import pybulletgym to register pybullet envs.
 # Ignore the flake8 error generated
 import pybulletgym  # noqa
