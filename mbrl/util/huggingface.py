@@ -18,6 +18,22 @@ from huggingface_hub.repocard import metadata_eval_result, metadata_save
 from ..models import Model
 
 
+def get_model_id(org:str, gym_id: str, tag:str = None, algo_name: str = None):
+    """
+    Construct a name for the model on the hub.
+
+    Args:
+        org: HF organization to upload the model to.
+        gym_id: environment name for the data.
+        tag (optional): Tag for the model to differentiate from models in the same environment-algo pairing.
+        algo_name (optional): Name for the algorithm (if one was used to gather the data and train the model).
+    """
+    gym_id = gym_id.replace("/", "-")
+    name =  f"{org}/{algo_name}-{gym_id}"
+    if tag is not None: name += tag
+    return name
+
+
 def _generate_config(model: Model, local_path: Path) -> None:
     """
     Generate a config.json file containing information
@@ -175,9 +191,7 @@ def package_to_hub(
     repo_id: str,
     commit_message: str,
     is_deterministic: bool = True,
-    n_eval_episodes=10,
     token: Optional[str] = None,
-    video_length=1000,
     logs=None,
     mean_reward=None,
     std_reward=None,
@@ -198,8 +212,6 @@ def package_to_hub(
     :param repo_id: id of the model repository from the Hugging Face Hub
     :param commit_message: commit message
     :param is_deterministic: use deterministic or stochastic actions (by default: True)
-    :param n_eval_episodes: number of evaluation episodes (by default: 10)
-    :param video_length: length of the video (in timesteps)
     :param logs: directory on local machine of tensorboard logs you'd like to upload
     """
 
