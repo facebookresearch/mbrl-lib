@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import gym
-from huggingface_hub import HfApi, upload_folder
+from huggingface_hub import upload_folder, create_repo
 from huggingface_hub.repocard import metadata_eval_result, metadata_save
 
 from ..models import Model
@@ -58,7 +58,7 @@ def is_atari(env_id: str) -> bool:
 
 
 def generate_metadata(
-    model_name: str, env_id: str, mean_reward: float, std_reward: float
+    model_name: str, env_id: str, mean_reward: float = None, std_reward: float = None
 ) -> Dict[str, Any]:
     """
     Define the tags for the model card
@@ -95,7 +95,7 @@ def generate_metadata(
 
 
 def _generate_model_card(
-    model_name: str, env_id: str, mean_reward: float, std_reward: float
+    model_name: str, env_id: str, mean_reward: float = None, std_reward: float = None
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Generate the model card for the Hub
@@ -111,15 +111,14 @@ def _generate_model_card(
     model_card = f"""
 # **{model_name}** Agent playing **{env_id}**
 This is a trained model of a **{model_name}** agent playing **{env_id}**
-using the [stable-baselines3 library](https://github.com/DLR-RM/stable-baselines3).
+using [MBRL-Lib](https://github.com/facebookresearch/mbrl-lib).
 """
 
     model_card += """
-## Usage (with Stable-baselines3)
+## Usage (with MBRL-Lib)
 TODO: Add your code
 ```python
-from stable_baselines3 import ...
-from huggingface_sb3 import load_from_hub
+from mbrl import ...
 ...
 ```
 """
@@ -211,7 +210,7 @@ def package_to_hub(
     )
     print(msg)
 
-    repo_url = HfApi().create_repo(
+    repo_url = create_repo(
         repo_id=repo_id,
         token=token,
         private=False,
@@ -297,7 +296,7 @@ def push_to_hub(
     :param token
     """
 
-    repo_url = HfApi().create_repo(
+    repo_url = create_repo(
         repo_id=repo_id,
         token=token,
         private=False,
