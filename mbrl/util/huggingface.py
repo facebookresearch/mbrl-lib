@@ -12,46 +12,52 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import gym
-from huggingface_hub import upload_folder, create_repo
+from huggingface_hub import create_repo, upload_folder
 from huggingface_hub.repocard import metadata_eval_result, metadata_save
 
 from ..models import Model
 
 
-def get_model_id(org:str, gym_id: str, tag:str = None, algo_name: str = None):
+def get_model_id(org_name: str, env_id: str, tag: str = None, algo_name: str = None):
     """
     Construct a name for the model on the hub.
 
     Args:
-        org: HF organization to upload the model to.
-        gym_id: environment name for the data.
+        org_name (str): HF organization to upload the model to.
+        env_id: environment name for the data (often from Gym registration).
         tag (optional): Tag for the model to differentiate from models in the same environment-algo pairing.
         algo_name (optional): Name for the algorithm (if one was used to gather the data and train the model).
+
+    Returns:
+        name: string combining the various naming components in a deterministic manner (for ease of use on the Hub)
     """
-    gym_id = gym_id.replace("/", "-")
-    name =  f"{org}/{algo_name}-{gym_id}"
-    if tag is not None: name += tag
+    env_id = env_id.replace("/", "-")
+    name = f"{org_name}/{algo_name}-{env_id}"
+    if tag is not None:
+        name += tag
     return name
 
 
-def _generate_config(model: Model, local_path: Path) -> None:
+def _generate_config(model_name: str, local_path: Path) -> None:
     """
-    Generate a config.json file containing information
-    about the agent and the environment
-    :param model: name of the model zip file
-    :param local_path: path of the local directory
+    Generate a config.json file containing information about the agent and the environment.
+
+    Args:
+        model_name (str): name of the model pytorch file (.pth)
+        local_path (str or pathlib Path): path of the local directory
     """
-    unzipped_model_folder = model
+    unzipped_model_folder = model_name
 
     # Check if the user forgot to mention the extension of the file
-    if model.endswith(".zip") is False:
-        model += ".zip"
+    if model_name.endswith(".pth") is False:
+        model_name += ".pth"
 
     # Step 1: Unzip the model
-    with zipfile.ZipFile(local_path / model, "r") as zip_ref:
+    with zipfile.ZipFile(local_path / model_name, "r") as zip_ref:
         zip_ref.extractall(local_path / unzipped_model_folder)
 
     # Step 2: Get data (JSON containing infos) and read it
+    # TODO update this for cfg / yaml
     with open(Path.joinpath(local_path, unzipped_model_folder, "data")) as json_file:
         data = json.load(json_file)
         # Add system_info elements to our JSON
@@ -62,34 +68,25 @@ def _generate_config(model: Model, local_path: Path) -> None:
         json.dump(data, outfile)
 
 
-def is_atari(env_id: str) -> bool:
-    """
-    Check if the environment is an Atari one
-    (Taken from RL-Baselines3-zoo)
-    :param env_id: name of the environment
-    """
-    entry_point = gym.envs.registry.env_specs[env_id].entry_point
-    return "AtariEnv" in str(entry_point)
-
-
-
 def generate_metadata(
     model_name: str, env_id: str, mean_reward: float = None, std_reward: float = None
 ) -> Dict[str, Any]:
     """
-    Define the tags for the model card
-    :param model_name: name of the model
-    :param env_id: name of the environment
-    :mean_reward: mean reward of the agent
-    :std_reward: standard deviation of the mean reward of the agent
+    Define and generate the tags for the model card.
+
+    Args:
+        model_name (str): name of the model.
+        env_id (str): name of the environment
+        mean_reward (optional): mean reward of the agent
+        std_reward (optional): standard deviation of the mean reward of the agent
     """
     metadata = {}
-    metadata["library_name"] = "stable-baselines3"
+    metadata["library_name"] = "mbrl-lib"
     metadata["tags"] = [
         env_id,
         "deep-reinforcement-learning",
         "reinforcement-learning",
-        "stable-baselines3",
+        "mbrl-lib",
     ]
 
     # Add metrics
@@ -197,11 +194,9 @@ def package_to_hub(
     std_reward=None,
 ):
     """
-    Evaluate, Generate a video and Upload a model to Hugging Face Hub.
+    Upload a model to Hugging Face Hub by creating a new repository.
     This method does the complete pipeline:
-    - It evaluates the model
-    - It generates the model card
-    - It generates a replay video of the agent
+    - It generates the model card TODO(NOL)
     - It pushes everything to the hub
     :param model: trained model
     :param model_name: name of the model zip file
@@ -251,10 +246,6 @@ def package_to_hub(
         # one for video generation and one for evaluation
         replay_env = eval_env
 
-        # Deterministic by default (except for Atari)
-        if is_deterministic:
-            is_deterministic = not is_atari(env_id)
-
         # Step 2: Create a config file
         _generate_config(model_name, tmpdirname)
 
@@ -268,7 +259,7 @@ def package_to_hub(
         if logs:
             _add_logdir(tmpdirname, Path(logs))
 
-        msg.info(f"Pushing repo {repo_id} to the Hugging Face Hub")
+        print(f"Pushing repo {repo_id} to the Hugging Face Hub")
 
         repo_url = upload_folder(
             repo_id=repo_id,
@@ -278,7 +269,7 @@ def package_to_hub(
             token=token,
         )
 
-        msg.info(
+        print(
             f"Your model is pushed to the Hub. You can view your model here: {repo_url}"
         )
     return repo_url
@@ -301,11 +292,11 @@ def push_to_hub(
     token: Optional[str] = None,
 ):
     """
-    Upload a model to Hugging Face Hub.
-    :param repo_id: repo_id: id of the model repository from the Hugging Face Hub
+    Upload a model to Hugging Face Hub (this is for updating an existing repo!).
+    :param repo_id: repo_id id of the model repository from the Hugging Face Hub
     :param filename: name of the model zip or mp4 file from the repository
     :param commit_message: commit message
-    :param token
+    :param token: optional token for HF API
     """
 
     repo_url = create_repo(
@@ -331,9 +322,7 @@ def push_to_hub(
             token=token,
         )
 
-    print(
-        f"Your model has been uploaded to the Hub, you can find it here: {repo_url}"
-    )
+    print(f"Your model has been uploaded to the Hub, you can find it here: {repo_url}")
     return repo_url
 
 
