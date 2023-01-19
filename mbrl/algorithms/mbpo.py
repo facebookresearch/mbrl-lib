@@ -37,7 +37,6 @@ def rollout_model_and_populate_sac_buffer(
     rollout_horizon: int,
     batch_size: int,
 ):
-
     batch = replay_buffer.sample(batch_size)
     initial_obs, *_ = cast(mbrl.types.TransitionBatch, batch).astuple()
     model_state = model_env.reset(
