@@ -161,7 +161,7 @@ logger.register_group(
 )
 
 for i_episode in itertools.count(1):
-    episode_reward = 0
+    episode_reward = 0.0
     episode_steps = 0
     done = False
     state = env.reset()

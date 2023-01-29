@@ -67,12 +67,12 @@ def evaluate(
     num_episodes: int,
     video_recorder: VideoRecorder,
 ) -> float:
-    avg_episode_reward = 0
+    avg_episode_reward = 0.0
     for episode in range(num_episodes):
         obs = env.reset()
         video_recorder.init(enabled=(episode == 0))
         done = False
-        episode_reward = 0
+        episode_reward = 0.0
         while not done:
             action = agent.act(obs)
             obs, reward, done, _ = env.step(action)
