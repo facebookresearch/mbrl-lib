@@ -10,7 +10,7 @@ class CartPoleEnv(gym.Env):
     # This is a continuous version of gym's cartpole environment, with the only difference
     # being valid actions are any numbers in the range [-1, 1], and the are applied as
     # a multiplicative factor to the total force.
-    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 50}
+    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": [50]}
 
     def __init__(self):
         self.gravity = 9.8
