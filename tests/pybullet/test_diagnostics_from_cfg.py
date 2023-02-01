@@ -6,7 +6,7 @@ import os
 import pathlib
 import tempfile
 
-import gym
+import gymnasium as gym
 import hydra
 import numpy as np
 import pybulletgym  # register PyBullet enviroments with open ai gym
@@ -25,7 +25,7 @@ pathlib.Path.mkdir(_HYDRA_DIR)
 
 # Environment information
 _ENV_NAME = "HopperPyBulletEnv-v0"
-_ENV = gym.make(_ENV_NAME)
+_ENV = gym.make("GymV22Environment-v0", env_id=_ENV_NAME)
 _OBS_SHAPE = _ENV.observation_space.shape
 _ACT_SHAPE = _ENV.action_space.shape
 _CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"

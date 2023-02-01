@@ -6,7 +6,7 @@ import os
 import pathlib
 import tempfile
 
-import gym
+import gymnasium as gym
 import hydra
 import numpy as np
 import torch

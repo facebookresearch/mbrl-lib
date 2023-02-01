@@ -5,7 +5,8 @@ tensorboard>=2.4.0
 imageio>=2.9.0
 numpy>=1.19.1
 matplotlib>=3.3.1
-gym==0.17.2
+gymnasium==0.27.1
+shimmy==0.2.0
 jupyter>=1.0.0
 pytest>=6.0.1
 sk-video>=1.1.10
