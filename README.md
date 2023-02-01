@@ -20,7 +20,7 @@ See also our companion [paper](https://arxiv.org/abs/2104.10159).
 
 #### Standard Installation
 
-``mbrl`` requires Python 3.7+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
+``mbrl`` requires Python 3.8+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
 To install the latest stable version, run
 
     pip install mbrl
