@@ -64,7 +64,7 @@ environment specific configurations for each environment, overriding the
 default configurations with the best hyperparameter values we have found so far 
 for each combination of algorithm and environment. You can run training
 by passing the desired override option via command line. 
-For example, to run MBPO on the gym version of HalfCheetah, you should call
+For example, to run MBPO on the [Gymnasium](https://github.com/Farama-Foundation/Gymnasium/) version of HalfCheetah, you should call
 ```python
 python -m mbrl.examples.main algorithm=mbpo overrides=mbpo_halfcheetah 
 ```
@@ -86,7 +86,7 @@ all the available options, take a look at the provided
 ## Supported environments
 Our example configurations are largely based on [Mujoco](https://mujoco.org/), but
 our library components (and algorithms) are compatible with any environment that follows
-the standard gym syntax. You can try our utilities in other environments 
+the standard [Gymnasium](https://github.com/Farama-Foundation/Gymnasium/) syntax. You can try our utilities in other environments 
 by creating your own entry script and Hydra configuration, using our default entry 
 [`main.py`](https://github.com/facebookresearch/mbrl-lib/blob/main/mbrl/examples/main.py) as guiding template. 
 See also the example [override](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/examples/conf/overrides)
@@ -106,7 +106,7 @@ To specify the environment to use for `main.py`, there are two possibilities:
 
   * **Preferred way**: Use a Hydra dictionary to specify arguments for your env constructor. See [example](https://github.com/facebookresearch/mbrl-lib/blob/main/mbrl/examples/conf/overrides/planet_cartpole_balance.yaml#L4).
   * Less flexible alternative: A single string with the following syntax:
-      - `mujoco-gym`: `"gym___<env-name>"`, where `env-name` is the name of the environment in gym (e.g., "HalfCheetah-v2").
+      - `mujoco-gym`: `"gym___<env-name>"`, where `env-name` is the name of the environment in Gymnasium (e.g., "HalfCheetah-v2").
       - `dm_control`: `"dmcontrol___<domain>--<task>`, where domain/task are defined as in DMControl (e.g., "cheetah--run").
       - `pybullet-gym`: `"pybulletgym___<env-name>"`, where `env-name` is the name of the environment in pybullet gym (e.g., "HopperPyBulletEnv-v0")
 
