@@ -3,7 +3,7 @@ import os
 import random
 from collections import deque
 
-import gym
+import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -35,6 +35,8 @@ def make_env(cfg):
     env.seed(cfg.seed)
     assert env.action_space.low.min() >= -1
     assert env.action_space.high.max() <= 1
+
+    env = gym.make("GymV26Environment-v0", env=env)
 
     return env
 

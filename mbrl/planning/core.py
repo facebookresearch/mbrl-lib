@@ -6,7 +6,7 @@ import abc
 import pathlib
 from typing import Any, Union
 
-import gym
+import gymnasium as gym
 import hydra
 import numpy as np
 import omegaconf

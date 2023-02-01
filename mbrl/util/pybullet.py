@@ -5,8 +5,7 @@
 import tempfile
 from typing import Callable, List, Tuple
 
-import gym
-import gym.wrappers
+import gymnasium as gym
 import numpy as np
 
 # Need to import pybulletgym to register pybullet envs.

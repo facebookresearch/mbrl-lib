@@ -5,8 +5,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, Union, cast
 
-import gym
-import gym.wrappers
+import gymnasium as gym
 import hydra
 import numpy as np
 import omegaconf
@@ -55,6 +54,7 @@ def _legacy_make_env(
         domain, task = cfg.overrides.env.split("___")[1].split("--")
         term_fn, reward_fn = _get_term_and_reward_fn(cfg)
         env = dmc2gym.make(domain_name=domain, task_name=task)
+        env = gym.make("GymV26Environment-v0", env=env)
     elif "gym___" in cfg.overrides.env:
         env = gym.make(cfg.overrides.env.split("___")[1])
         term_fn, reward_fn = _get_term_and_reward_fn(cfg)
@@ -267,11 +267,11 @@ class EnvHandler(ABC):
                 a = plan[i] if plan is not None else agent.act(current_obs)
                 if isinstance(a, torch.Tensor):
                     a = a.numpy()
-                next_obs, reward, done, _ = env.step(a)
+                next_obs, reward, terminated, truncated, _ = env.step(a)
                 actions.append(a)
                 real_obses.append(next_obs)
                 rewards.append(reward)
-                if done:
+                if terminated:
                     break
                 current_obs = next_obs
         return np.stack(real_obses), np.stack(rewards), np.stack(actions)

@@ -1,6 +1,6 @@
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+from gymnasium import utils
+from gymnasium.envs.mujoco import mujoco_env
 
 
 # Obtained from https://github.com/JannerM/mbpo/blob/master/mbpo/env/ant.py
@@ -21,13 +21,14 @@ class AntTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         survive_reward = 1.0
         reward = forward_reward - ctrl_cost - contact_cost + survive_reward
         state = self.state_vector()
-        notdone = np.isfinite(state).all() and state[2] >= 0.2 and state[2] <= 1.0
-        done = not notdone
+        notterminated = np.isfinite(state).all() and state[2] >= 0.2 and state[2] <= 1.0
+        terminated = not notterminated
         ob = self._get_obs()
         return (
             ob,
             reward,
-            done,
+            terminated,
+            False,
             dict(
                 reward_forward=forward_reward,
                 reward_ctrl=-ctrl_cost,

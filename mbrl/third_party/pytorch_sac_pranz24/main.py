@@ -1,7 +1,7 @@
 import argparse
 import itertools
 
-import gym
+import gymnasium as gym
 import numpy as np
 import torch
 from sac import SAC

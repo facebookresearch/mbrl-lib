@@ -7,7 +7,7 @@ import pathlib
 import random
 import tempfile
 
-import gym
+import gymnasium as gym
 import numpy as np
 import pytest
 import torch

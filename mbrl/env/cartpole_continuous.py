@@ -1,9 +1,9 @@
 import math
 
-import gym
+import gymnasium as gym
 import numpy as np
-from gym import logger, spaces
-from gym.utils import seeding
+from gymnasium import logger, spaces
+from gymnasium.utils import seeding
 
 
 class CartPoleEnv(gym.Env):
@@ -43,7 +43,6 @@ class CartPoleEnv(gym.Env):
         self.action_space = spaces.Box(-act_high, act_high, dtype=np.float32)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
-        self.seed()
         self.viewer = None
         self.state = None
 
@@ -83,14 +82,14 @@ class CartPoleEnv(gym.Env):
 
         self.state = (x, x_dot, theta, theta_dot)
 
-        done = bool(
+        terminated = bool(
             x < -self.x_threshold
             or x > self.x_threshold
             or theta < -self.theta_threshold_radians
             or theta > self.theta_threshold_radians
         )
 
-        if not done:
+        if not terminated:
             reward = 1.0
         elif self.steps_beyond_done is None:
             # Pole just fell!
@@ -107,12 +106,13 @@ class CartPoleEnv(gym.Env):
             self.steps_beyond_done += 1
             reward = 0.0
 
-        return np.array(self.state), reward, done, {}
+        return np.array(self.state), reward, terminated, False, {}
 
-    def reset(self):
+    def reset(self, seed):
+        super().reset(seed=seed)
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(4,))
         self.steps_beyond_done = None
-        return np.array(self.state)
+        return np.array(self.state), {}
 
     def render(self, mode="human"):
         screen_width = 600

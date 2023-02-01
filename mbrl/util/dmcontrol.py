@@ -4,8 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 from typing import Tuple
 
-import gym
-import gym.wrappers
+import gymnasium as gym
 import numpy as np
 
 import mbrl.third_party.dmc2gym as dmc2gym
@@ -63,6 +62,7 @@ class DmcontrolEnvHandler(EnvHandler):
     def make_env_from_str(env_name: str) -> gym.Env:
         domain, task = env_name.split("___")[1].split("--")
         env = dmc2gym.make(domain_name=domain, task_name=task)
+        env = gym.make("GymV26Environment-v0", env=env)
         return env
 
     @staticmethod
