@@ -2,33 +2,52 @@ import os
 
 import numpy as np
 import torch
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
+from gymnasium import utils
+from gymnasium.envs.mujoco import mujoco_env
 
 
 class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self):
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 20,
+    }
+
+    def __init__(self, render_mode: str = None):
         self.prev_qpos = None
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, "%s/assets/half_cheetah.xml" % dir_path, 5)
+        observation_space = Box(
+            low=-np.inf, high=np.inf, shape=(18,), dtype=np.float64
+        )
+        mujoco_env.MujocoEnv.__init__(
+            self, "%s/assets/half_cheetah.xml" % dir_path, 5, observation_space, render_mode
+        )
         utils.EzPickle.__init__(self)
 
     def step(self, action):
-        self.prev_qpos = np.copy(self.sim.data.qpos.flat)
+        self.prev_qpos = np.copy(self.data.qpos.flat)
         self.do_simulation(action, self.frame_skip)
         ob = self._get_obs()
 
         reward = HalfCheetahEnv.get_reward(ob, action)
 
-        done = False
-        return ob, reward, done, {}
+        terminated = False
+
+        if self.render_mode == "human":
+            self.render()
+
+        return ob, reward, terminated, False, {}
 
     def _get_obs(self):
         return np.concatenate(
             [
-                (self.sim.data.qpos[:1] - self.prev_qpos[:1]) / self.dt,
-                self.sim.data.qpos[1:],
-                self.sim.data.qvel,
+                (self.data.qpos[:1] - self.prev_qpos[:1]) / self.dt,
+                self.data.qpos[1:],
+                self.data.qvel,
             ]
         )
 
@@ -36,7 +55,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qpos = self.init_qpos + np.random.normal(loc=0, scale=0.001, size=self.model.nq)
         qvel = self.init_qvel + np.random.normal(loc=0, scale=0.001, size=self.model.nv)
         self.set_state(qpos, qvel)
-        self.prev_qpos = np.copy(self.sim.data.qpos)
+        self.prev_qpos = np.copy(self.data.qpos)
         return self._get_obs()
 
     def viewer_setup(self):

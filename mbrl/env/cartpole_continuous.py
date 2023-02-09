@@ -3,7 +3,7 @@ import math
 import gymnasium as gym
 import numpy as np
 from gymnasium import logger, spaces
-from gymnasium.utils import seeding
+from typing import Optional
 
 
 class CartPoleEnv(gym.Env):
@@ -12,7 +12,7 @@ class CartPoleEnv(gym.Env):
     # a multiplicative factor to the total force.
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": [50]}
 
-    def __init__(self):
+    def __init__(self, render_mode: Optional[str] = None):
         self.gravity = 9.8
         self.masscart = 1.0
         self.masspole = 0.1
@@ -43,14 +43,11 @@ class CartPoleEnv(gym.Env):
         self.action_space = spaces.Box(-act_high, act_high, dtype=np.float32)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
+        self.render_mode = render_mode
         self.viewer = None
         self.state = None
 
         self.steps_beyond_done = None
-
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
 
     def step(self, action):
         action = action.squeeze()
@@ -105,6 +102,9 @@ class CartPoleEnv(gym.Env):
                 )
             self.steps_beyond_done += 1
             reward = 0.0
+        
+        if self.render_mode == "human":
+            self.render()
 
         return np.array(self.state), reward, terminated, False, {}
 
@@ -112,9 +112,12 @@ class CartPoleEnv(gym.Env):
         super().reset(seed=seed)
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(4,))
         self.steps_beyond_done = None
+        if self.render_mode == "human":
+            self.render()
         return np.array(self.state), {}
 
-    def render(self, mode="human"):
+    def render(self):
+        mode = self.render_mode
         screen_width = 600
         screen_height = 400
 

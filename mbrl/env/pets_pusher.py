@@ -1,14 +1,29 @@
 import os
 
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
+from gymnasium import utils
+from gymnasium.envs.mujoco import mujoco_env
 
 
 class PusherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self):
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 25,
+    }
+
+    def __init__(self, render_mode: str = None):
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, "%s/assets/pusher.xml" % dir_path, 4)
+        observation_space = Box(
+            low=-np.inf, high=np.inf, shape=(20,), dtype=np.float64
+        )
+        mujoco_env.MujocoEnv.__init__(
+            self, "%s/assets/pusher.xml" % dir_path, 4, observation_space, render_mode
+        )
         utils.EzPickle.__init__(self)
         self.reset_model()
 
@@ -24,8 +39,12 @@ class PusherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
-        done = False
-        return ob, reward, done, {}
+        terminated = False
+
+        if self.render_mode == "human":
+            self.render()
+
+        return ob, reward, terminated, False, {}
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = -1
@@ -51,8 +70,8 @@ class PusherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_obs(self):
         return np.concatenate(
             [
-                self.sim.data.qpos.flat[:7],
-                self.sim.data.qvel.flat[:7],
+                self.data.qpos.flat[:7],
+                self.data.qvel.flat[:7],
                 self.get_body_com("tips_arm"),
                 self.get_body_com("object"),
             ]
@@ -61,7 +80,7 @@ class PusherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_state(self):
         return np.concatenate(
             [
-                self.sim.data.qpos.flat,
-                self.sim.data.qvel.flat,
+                self.data.qpos.flat,
+                self.data.qvel.flat,
             ]
         )

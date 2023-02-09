@@ -2,8 +2,9 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import gym
+import gymnasium as gym
 import numpy as np
+from typing import Optional
 
 from mbrl.util.math import quantize_obs
 
@@ -39,6 +40,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         channels_first: bool = True,
         bit_depth: int = 8,
         use_true_actions: bool = False,
+        render_mode: Optional[str] = None,
     ):
         super().__init__(env)
         self._image_width = image_width
@@ -47,6 +49,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._frame_skip = frame_skip
         self._camera_id = camera_id
         self._bit_depth = bit_depth
+        self.render_mode = render_mode
 
         shape = (
             [3, image_height, image_width]
@@ -97,19 +100,23 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         if not self._use_true_actions:
             action = self._convert_action(action)
         total_reward = 0.0
-        done = False
+        terminated = False
         for _ in range(self._frame_skip):
-            orig_obs, reward, done, _ = self.env.step(action)
+            orig_obs, reward, terminated, _ = self.env.step(action)
             self._last_low_dim_obs = orig_obs
             total_reward += reward
-            if done:
+            if terminated:
                 break
 
         next_obs = self._get_obs()
 
-        return next_obs, total_reward, done, {}
+        if self.render_mode == "human":
+            self.render()
 
-    def render(self, mode="rgb_array", height=None, width=None, camera_id=None):
+        return next_obs, total_reward, terminated, False, {}
+
+    def render(self, height=None, width=None, camera_id=None):
+        mode = self.render_mode
         height = height or self._image_height
         width = width or self._image_width
         camera_id = camera_id or self._camera_id
@@ -118,10 +125,16 @@ class MujocoGymPixelWrapper(gym.Wrapper):
             mode=mode, height=height, width=width, camera_id=camera_id
         )
 
-    def seed(self, seed=None):
+    def reset(self, seed=None):
+        super().reset(seed=seed)
         self._true_action_space.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
+
+        if self.render_mode == "human":
+            self.render()
+
+        return self._get_obs(), {}
 
     def get_last_low_dim_obs(self):
         return self._last_low_dim_obs
