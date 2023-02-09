@@ -435,10 +435,10 @@ class ICEMOptimizer(Optimizer):
                 size=(decay_population_size, x0.shape[1], x0.shape[0]),
                 device=self.device,
             ).transpose(1, 2)
-            population2 = torch.minimum(
+            population = torch.minimum(
                 population * torch.sqrt(var) + mu, self.upper_bound
             )
-            population2 = torch.maximum(population2, self.lower_bound)
+            population = torch.maximum(population, self.lower_bound)
             if self.elite is not None:
                 kept_elites = torch.index_select(
                     self.elite,
