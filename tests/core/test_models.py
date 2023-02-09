@@ -137,7 +137,7 @@ def test_gaussian_mlp_ensemble_random_model_propagation():
 
     batch_size = 100
     num_reps = 200
-    batch = _OUTPUT_FACTOR * torch.arange(batch_size).view(-1, 1)
+    batch = _OUTPUT_FACTOR * torch.arange(batch_size).view(-1, 1).to(_DEVICE)
     history = ["" for _ in range(batch_size)]
     with torch.no_grad():
         for _ in range(num_reps):
@@ -159,7 +159,7 @@ def test_gaussian_mlp_ensemble_fixed_model_propagation():
 
     batch_size = 100
     num_reps = 200
-    batch = _OUTPUT_FACTOR * torch.arange(batch_size).view(-1, 1)
+    batch = _OUTPUT_FACTOR * torch.arange(batch_size).view(-1, 1).to(_DEVICE)
     history = ["" for _ in range(batch_size)]
     rng = torch.Generator(device=_DEVICE)
     # This creates propagation indices to use for all runs
