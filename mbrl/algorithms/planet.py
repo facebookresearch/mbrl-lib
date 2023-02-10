@@ -6,7 +6,7 @@ import os
 import pathlib
 from typing import List, Optional, Union
 
-import gym
+import gymnasium as gym
 import hydra
 import numpy as np
 import omegaconf
@@ -150,12 +150,13 @@ def train(
 
         # Collect one episode of data
         episode_reward = 0.0
-        obs = env.reset()
+        obs, _ = env.reset()
         agent.reset()
         planet.reset_posterior()
         action = None
-        done = False
-        while not done:
+        terminated = False
+        truncated = False
+        while not terminated and not truncated:
             planet.update_posterior(obs, action=action, rng=rng)
             action_noise = (
                 0
@@ -165,8 +166,8 @@ def train(
             )
             action = agent.act(obs) + action_noise
             action = np.clip(action, -1.0, 1.0)  # to account for the noise
-            next_obs, reward, done, info = env.step(action)
-            replay_buffer.add(obs, action, next_obs, reward, done)
+            next_obs, reward, terminated, truncated, _ = env.step(action)
+            replay_buffer.add(obs, action, next_obs, reward, terminated, truncated)
             episode_reward += reward
             obs = next_obs
             if debug_mode:

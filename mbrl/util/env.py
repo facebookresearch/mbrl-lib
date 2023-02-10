@@ -267,7 +267,7 @@ class EnvHandler(ABC):
                 a = plan[i] if plan is not None else agent.act(current_obs)
                 if isinstance(a, torch.Tensor):
                     a = a.numpy()
-                next_obs, reward, terminated, truncated, _ = env.step(a)
+                next_obs, reward, terminated, _, _ = env.step(a)
                 actions.append(a)
                 real_obses.append(next_obs)
                 rewards.append(reward)

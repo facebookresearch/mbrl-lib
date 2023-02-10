@@ -51,4 +51,4 @@ def make(
             ),
             max_episode_steps=max_episode_steps,
         )
-    return gym.make("HumanoidPyBulletEnv-v0", apply_api_compatibility=True)
+    return gym.make(env_id, apply_api_compatibility=True)

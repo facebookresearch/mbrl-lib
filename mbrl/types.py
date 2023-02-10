@@ -25,13 +25,14 @@ class TransitionBatch:
     act: Optional[TensorType]
     next_obs: Optional[TensorType]
     rewards: Optional[TensorType]
-    dones: Optional[TensorType]
+    terminateds: Optional[TensorType]
+    truncateds: Optional[TensorType]
 
     def __len__(self):
         return self.obs.shape[0]
 
     def astuple(self) -> Transition:
-        return self.obs, self.act, self.next_obs, self.rewards, self.dones
+        return self.obs, self.act, self.next_obs, self.rewards, self.terminateds, self.truncateds
 
     def __getitem__(self, item):
         return TransitionBatch(
@@ -39,7 +40,8 @@ class TransitionBatch:
             self.act[item],
             self.next_obs[item],
             self.rewards[item],
-            self.dones[item],
+            self.terminateds[item],
+            self.truncateds[item],
         )
 
     @staticmethod
@@ -60,7 +62,8 @@ class TransitionBatch:
             self.act.reshape(self._get_new_shape(self.act.shape, batch_size)),
             self.next_obs.reshape(self._get_new_shape(self.obs.shape, batch_size)),
             self.rewards.reshape(self._get_new_shape(self.rewards.shape, batch_size)),
-            self.dones.reshape(self._get_new_shape(self.dones.shape, batch_size)),
+            self.terminateds.reshape(self._get_new_shape(self.terminateds.shape, batch_size)),
+            self.truncateds.reshape(self._get_new_shape(self.truncateds.shape, batch_size)),
         )
 
 
