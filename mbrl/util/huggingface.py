@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import gym
 import numpy as np
+import hydra
 
 try:
     import huggingface_hub  # noqa
@@ -34,7 +35,7 @@ from huggingface_hub.repocard import metadata_eval_result, metadata_save
 from omegaconf import OmegaConf
 
 from ..models import Model
-from ..planning import Agent
+from ..planning import Agent, sac_wrapper
 from ..third_party.pytorch_sac import VideoRecorder
 
 
@@ -90,7 +91,7 @@ def generate_metadata(
         "deep-reinforcement-learning",
         "reinforcement-learning",
         "mbrl-lib",
-    ] # type: ignore
+    ]  # type: ignore
 
     metrics_dict = {}
     if mean_reward:
@@ -348,11 +349,16 @@ def package_to_hub(
                 OmegaConf.save(cfg, outfile, resolve=True)
 
         if agent:
-            # TODO: Add agent saving functionality once there is a standard
-            # save/load mechanism.
-            # agent_dir = save_dir / "agent"
-            # agent_dir.mkdir(parents=True, exist_ok=True)
+            # TODO: Add general agent saving functionality once
+            # there is a standard save/load mechanism.
+            agent_dir = save_dir / "agent"
+            agent_dir.mkdir(parents=True, exist_ok=True)
             # agent.save(agent_dir)
+            if isinstance(agent, sac_wrapper.SACAgent):
+                ckpt_path = agent_dir / "checkpoint.pth"
+                agent.sac_agent.save_checkpoint(ckpt_path=ckpt_path)
+            else:
+                print(f"Agent saving behavior not implemented for {type(agent)}.")
 
             mean_reward, std_reward = save_video(agent, eval_env, save_dir)
 
@@ -365,7 +371,6 @@ def package_to_hub(
             _add_logdir(save_dir, Path(logs), repo_id)
 
         print(f"Pushing repo {repo_id} to the Hugging Face Hub")
-
 
         repo_url = upload_folder(
             repo_id=repo_id,
@@ -471,12 +476,38 @@ def load_from_hub(
     return downloaded_model_file
 
 
+def download_folder_from_hub(
+    repo_id: str, folder_name: str, save_dir: Union[str, Path], token: str = None
+):
+    """
+    Download a folder from a repository.
+
+    Args:
+        repo_id (str): id of the repository from the Hugging Face Hub.
+        folder_name (str, Path): directory to download from the repository
+        save_dir (str, Path): directory to save the folder
+        token (str, optional): optional token for HF API.
+    """
+    save_dir = Path(save_dir)
+    assert save_dir.exists()
+
+    files = list_repo_files(repo_id=repo_id)
+    folder_files = [f for f in files if f"{folder_name}/" in f]
+    cached_files = []
+    for f in folder_files:
+        downloaded_file = load_from_hub(repo_id, f, token)
+        cached_files.append(downloaded_file)
+
+    for cached_file in cached_files:
+        _copy_file(Path(cached_file), save_dir)
+
+
 def load_model_from_hub(repo_id: str, save_dir: Union[str, Path], token: str = None):
     """
     Download a saved model from a repository.
 
     Args:
-        repo_id (str): id of the model repository from the Hugging Face Hub.
+        repo_id (str): id of the repository from the Hugging Face Hub.
         save_dir (str, Path): directory to save the model weights, environment
             normalizers, etc.
         token (str, optional): optional token for HF API.
@@ -486,12 +517,61 @@ def load_model_from_hub(repo_id: str, save_dir: Union[str, Path], token: str = N
         print("Creating directory for saving model params.")
         save_dir.mkdir(parents=True, exist_ok=True)
 
-    files = list_repo_files(repo_id=repo_id)
-    model_files = [f for f in files if "model/" in f]
-    cached_files = []
-    for f in model_files:
-        downloaded_model_file = load_from_hub(repo_id, f, token)
-        cached_files.append(downloaded_model_file)
+    download_folder_from_hub(repo_id, "model", save_dir, token)
 
-    for cached_file in cached_files:
-        _copy_file(Path(cached_file), save_dir)
+
+def load_agent_from_hub(repo_id: str, save_dir: Union[str, Path], token: str = None):
+    """
+    Download a saved agent from a repository.
+
+    Args:
+        repo_id (str): id of the repository from the Hugging Face Hub.
+        save_dir (str, Path): directory to save the agent params, etc.
+        token (str, optional): optional token for HF API.
+    """
+    save_dir = Path(save_dir)
+    if not save_dir.exists():
+        print("Creating directory for saving agent params.")
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+    download_folder_from_hub(repo_id, "agent", save_dir, token)
+
+
+def create_agent_from_hub(repo_id: str, token: str = None):
+    """
+    Create an agent from config file and weights in a repository.
+    Currently works only for SAC agents
+
+    Args:
+        repo_id (str): id of the repository from the Hugging Face Hub.
+        token (str, optional): optional token for HF API.
+    """
+    files = list_repo_files(repo_id=repo_id)
+    config_exists = "config.yaml" in files
+    if not config_exists:
+        raise RuntimeError(
+            "Can't find the yaml file in HF " "repository to create agent."
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir_str:
+        temp_dir = Path(temp_dir_str)
+        cached_file = load_from_hub(repo_id, "config.yaml", token)
+        _copy_file(Path(cached_file), temp_dir)
+
+        load_agent_from_hub(repo_id, temp_dir, token)
+
+        cfg = OmegaConf.load(temp_dir / "config.yaml")
+
+        if (
+            cfg.algorithm.agent._target_
+            == "mbrl.third_party.pytorch_sac_pranz24.sac.SAC"
+        ):
+            import mbrl.third_party.pytorch_sac_pranz24 as pytorch_sac
+
+            from mbrl.planning.sac_wrapper import SACAgent
+
+            agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
+            agent.load_checkpoint(ckpt_path=temp_dir / "checkpoint.pth")
+            return SACAgent(agent)
+        else:
+            raise ValueError("Invalid agent configuration.")
