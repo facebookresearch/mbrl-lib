@@ -2,8 +2,6 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-from typing import Optional
-
 import gymnasium as gym
 import numpy as np
 
@@ -41,7 +39,6 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         channels_first: bool = True,
         bit_depth: int = 8,
         use_true_actions: bool = False,
-        render_mode: Optional[str] = None,
     ):
         super().__init__(env)
         self._image_width = image_width
@@ -50,7 +47,6 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._frame_skip = frame_skip
         self._camera_id = camera_id
         self._bit_depth = bit_depth
-        self.render_mode = render_mode
 
         shape = (
             [3, image_height, image_width]
@@ -107,13 +103,13 @@ class MujocoGymPixelWrapper(gym.Wrapper):
 
         next_obs = self._get_obs()
 
-        if self.render_mode == "human":
+        if self.env.render_mode == "human":
             self.render()
 
         return next_obs, total_reward, terminated, False, {}
 
     def render(self, height=None, width=None, camera_id=None):
-        mode = self.render_mode
+        mode = self.env.render_mode
         height = height or self._image_height
         width = width or self._image_width
         camera_id = camera_id or self._camera_id

@@ -620,7 +620,8 @@ class ReplayBuffer:
             (tuple): A tuple with observations, actions, next observations, rewards, terminated,
             and truncated indicators, as numpy arrays, respectively; these will correspond
             to a full trajectory. The i-th transition corresponds
-            to (obs[i], act[i], next_obs[i], rewards[i], terminateds[i], truncateds[i])."""
+            to (obs[i], act[i], next_obs[i], rewards[i], terminateds[i], truncateds[i]).
+        """
         if self.trajectory_indices is None or len(self.trajectory_indices) == 0:
             return None
         idx = self._rng.choice(len(self.trajectory_indices))
