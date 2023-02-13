@@ -18,34 +18,36 @@ def test_transition_batch_getitem():
     act = np.random.randn(how_many, 2)
     next_obs = np.random.randn(how_many, 4)
     rewards = np.random.randn(how_many, 1)
-    dones = np.random.randn(how_many, 1)
+    terminateds = np.random.randn(how_many, 1)
+    truncateds = np.random.randn(how_many, 1)
 
-    transitions = TransitionBatch(obs, act, next_obs, rewards, dones)
+    transitions = TransitionBatch(obs, act, next_obs, rewards, terminateds, truncateds)
     for i in range(how_many):
-        o, a, no, r, d = transitions[i].astuple()
+        o, a, no, r, term, trunc = transitions[i].astuple()
         assert np.allclose(o, obs[i])
         assert np.allclose(a, act[i])
         assert np.allclose(no, next_obs[i])
         assert np.allclose(r, rewards[i])
-        assert np.allclose(d, dones[i])
+        assert np.allclose(term, terminateds[i])
+        assert np.allclose(trunc, truncateds[i])
 
-        o, a, no, r, d = transitions[i:].astuple()
+        o, a, no, r, term, trunc = transitions[i:].astuple()
         assert np.allclose(o, obs[i:])
 
-        o, a, no, r, d = transitions[:i].astuple()
+        o, a, no, r, term, trunc = transitions[:i].astuple()
         assert np.allclose(o, obs[:i])
 
         for j in range(i + 1, how_many):
-            o, a, no, r, d = transitions[i:j].astuple()
+            o, a, no, r, term, trunc = transitions[i:j].astuple()
             assert np.allclose(o, obs[i:j])
 
     for sz in range(1, how_many):
         indices = np.random.choice(how_many, size=5)
-        o, a, no, r, d = transitions[indices].astuple()
+        o, a, no, r, term, trunc = transitions[indices].astuple()
         assert np.allclose(o, obs[indices])
 
 
-# Shapes: obs (batch_size, 2), act (batch_size, 1), done/reward (batch_size, 1)
+# Shapes: obs (batch_size, 2), act (batch_size, 1), reward/terminated/truncated (batch_size, 1)
 def _create_batch(size, mult=1):
     obs = (
         mult
@@ -55,13 +57,14 @@ def _create_batch(size, mult=1):
     act = mult * np.expand_dims(np.arange(0, size), axis=1).astype(np.int8)
     next_obs = obs + act
     reward = mult * 10 * np.expand_dims(np.arange(0, size), axis=1).astype(np.int8)
-    done = np.random.randint(0, 1, size=(size, 1), dtype=bool)
-    return obs, act, next_obs, reward, done
+    terminated = np.random.randint(0, 1, size=(size, 1), dtype=bool)
+    truncated = np.random.randint(0, 1, size=(size, 1), dtype=bool)
+    return obs, act, next_obs, reward, terminated, truncated
 
 
 def test_replay_buffer_batched_add():
     def compare_batch_to_buffer_slice(
-        start_idx, batch_size, obs, act, next_obs, reward, done
+        start_idx, batch_size, obs, act, next_obs, reward, terminated, truncated
     ):
         for i in range(batch_size):
             buffer_idx = (start_idx + i) % buffer.capacity
@@ -69,55 +72,58 @@ def test_replay_buffer_batched_add():
             np.testing.assert_array_equal(buffer.action[buffer_idx], act[i])
             np.testing.assert_array_equal(buffer.next_obs[buffer_idx], next_obs[i])
             np.testing.assert_array_equal(buffer.reward[buffer_idx], reward[i])
-            np.testing.assert_array_equal(buffer.done[buffer_idx], done[i])
+            np.testing.assert_array_equal(buffer.terminated[buffer_idx], terminated[i])
+            np.testing.assert_array_equal(buffer.truncated[buffer_idx], truncated[i])
 
     capacity = 20
     buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
 
     # Test adding less than capacity
     batch_size_ = 10
-    obs_, act_, next_obs_, reward_, done_ = _create_batch(batch_size_)
-    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], done_[:, 0])
+    obs_, act_, next_obs_, reward_, terminated_, truncated_= _create_batch(batch_size_)
+    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], terminated_[:, 0], truncated_[:, 0])
     assert buffer.cur_idx == batch_size_
     assert buffer.num_stored == batch_size_
-    compare_batch_to_buffer_slice(0, batch_size_, obs_, act_, next_obs_, reward_, done_)
+    compare_batch_to_buffer_slice(
+        0, batch_size_, obs_, act_, next_obs_, reward_, terminated_, truncated_
+        )
 
     # Test adding up to capacity
-    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], done_[:, 0])
+    buffer.add_batch(obs_, act_, next_obs_, reward_[:, 0], terminated_[:, 0], truncated_[:, 0])
     assert buffer.cur_idx == 0
     assert buffer.num_stored == buffer.capacity
     compare_batch_to_buffer_slice(
-        batch_size_, batch_size_, obs_, act_, next_obs_, reward_, done_
+        batch_size_, batch_size_, obs_, act_, next_obs_, reward_, terminated_, truncated_
     )  # new additions
     compare_batch_to_buffer_slice(
-        0, batch_size_, obs_, act_, next_obs_, reward_, done_
+        0, batch_size_, obs_, act_, next_obs_, reward_, terminated_, truncated_
     )  # Check that nothing changed here
 
     # Test adding beyond capacity
     start = 4
     buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
     # first add a few elements to set buffer.idx != 0
-    obs_1, act_1, next_obs_1, reward_1, done_1 = _create_batch(start, mult=3)
-    buffer.add_batch(obs_1, act_1, next_obs_1, reward_1[:, 0], done_1[:, 0])
+    obs_1, act_1, next_obs_1, reward_1, terminated_1, truncated_1 = _create_batch(start, mult=3)
+    buffer.add_batch(obs_1, act_1, next_obs_1, reward_1[:, 0], terminated_1[:, 0], truncated_1[:, 0])
     # now add a batch larger than capacity
     batch_size_ = 27
-    obs_2, act_2, next_obs_2, reward_2, done_2 = _create_batch(batch_size_, mult=7)
-    buffer.add_batch(obs_2, act_2, next_obs_2, reward_2[:, 0], done_2[:, 0])
+    obs_2, act_2, next_obs_2, reward_2, terminated_2, truncated_2 = _create_batch(batch_size_, mult=7)
+    buffer.add_batch(obs_2, act_2, next_obs_2, reward_2[:, 0], terminated_2[:, 0], truncated_2[:, 0])
     assert buffer.cur_idx == 11
     assert buffer.num_stored == buffer.capacity
     # The last 11 observations loop around and overwrite the first 11
     compare_batch_to_buffer_slice(
-        0, 11, obs_2[16:], act_2[16:], next_obs_2[16:], reward_2[16:], done_2[16:]
+        0, 11, obs_2[16:], act_2[16:], next_obs_2[16:], reward_2[16:], terminated_2[16:], truncated_2[16:]
     )
     # Now check that the last 9 observations are correct
     compare_batch_to_buffer_slice(
-        11, 9, obs_2[7:16], act_2[7:16], next_obs_2[7:16], reward_2[7:16], done_2[7:16]
+        11, 9, obs_2[7:16], act_2[7:16], next_obs_2[7:16], reward_2[7:16], terminated_2[7:16], truncated_2[7:16]
     )
 
 
 def test_sac_buffer_batched_add():
     def compare_batch_to_buffer_slice(
-        start_idx, batch_size, obs, act, next_obs, reward, done
+        start_idx, batch_size, obs, act, next_obs, reward, terminated
     ):
         for i in range(batch_size):
             buffer_idx = (start_idx + i) % buffer.capacity
@@ -126,50 +132,50 @@ def test_sac_buffer_batched_add():
             np.testing.assert_array_equal(buffer.next_obses[buffer_idx], next_obs[i])
             np.testing.assert_array_equal(buffer.rewards[buffer_idx], reward[i])
             np.testing.assert_array_equal(
-                buffer.not_dones[buffer_idx], np.logical_not(done[i])
+                buffer.not_dones[buffer_idx], np.logical_not(terminated[i])
             )
-            np.testing.assert_array_equal(buffer.not_dones_no_max[buffer_idx], done[i])
+            np.testing.assert_array_equal(buffer.not_dones_no_max[buffer_idx], terminated[i])
 
     buffer = sac_buffer.ReplayBuffer((2,), (1,), 20, torch.device("cpu"))
 
     # Test adding less than capacity
     batch_size_ = 10
-    obs_, act_, next_obs_, reward_, done_ = _create_batch(batch_size_)
-    buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
+    obs_, act_, next_obs_, reward_, terminated_, truncated_ = _create_batch(batch_size_)
+    buffer.add_batch(obs_, act_, reward_, next_obs_, terminated_, np.logical_not(terminated_))
     assert buffer.idx == batch_size_
     assert not buffer.full
-    compare_batch_to_buffer_slice(0, batch_size_, obs_, act_, next_obs_, reward_, done_)
+    compare_batch_to_buffer_slice(0, batch_size_, obs_, act_, next_obs_, reward_, terminated_)
 
     # Test adding up to capacity
-    buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
+    buffer.add_batch(obs_, act_, reward_, next_obs_, terminated_, np.logical_not(terminated_))
     assert buffer.idx == 0
     assert buffer.full
     compare_batch_to_buffer_slice(
-        batch_size_, batch_size_, obs_, act_, next_obs_, reward_, done_
+        batch_size_, batch_size_, obs_, act_, next_obs_, reward_, terminated_
     )  # new additions
     compare_batch_to_buffer_slice(
-        0, batch_size_, obs_, act_, next_obs_, reward_, done_
+        0, batch_size_, obs_, act_, next_obs_, reward_, terminated_
     )  # Check that nothing changed here
 
     # Test adding beyond capacity
     start = 4
     buffer = sac_buffer.ReplayBuffer((2,), (1,), 20, torch.device("cpu"))
     # first add a few elements to set buffer.idx != 0
-    obs_, act_, next_obs_, reward_, done_ = _create_batch(start, mult=3)
-    buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
+    obs_, act_, next_obs_, reward_, terminated_, truncated_ = _create_batch(start, mult=3)
+    buffer.add_batch(obs_, act_, reward_, next_obs_, terminated_, np.logical_not(terminated_))
     # now add a batch larger than capacity
     batch_size_ = 27
-    obs_, act_, next_obs_, reward_, done_ = _create_batch(batch_size_, mult=7)
-    buffer.add_batch(obs_, act_, reward_, next_obs_, done_, np.logical_not(done_))
+    obs_, act_, next_obs_, reward_, terminated_, _ = _create_batch(batch_size_, mult=7)
+    buffer.add_batch(obs_, act_, reward_, next_obs_, terminated_, np.logical_not(terminated_))
     assert buffer.idx == 11
     assert buffer.full
     # The last 11 observations loop around and overwrite the first 11
     compare_batch_to_buffer_slice(
-        0, 11, obs_[16:], act_[16:], next_obs_[16:], reward_[16:], done_[16:]
+        0, 11, obs_[16:], act_[16:], next_obs_[16:], reward_[16:], terminated_[16:]
     )
     # Now check that the last 9 observations are correct
     compare_batch_to_buffer_slice(
-        11, 9, obs_[7:16], act_[7:16], next_obs_[7:16], reward_[7:16], done_[7:16]
+        11, 9, obs_[7:16], act_[7:16], next_obs_[7:16], reward_[7:16], terminated_[7:16]
     )
 
 
@@ -178,7 +184,7 @@ def test_len_replay_buffer_no_trajectory():
     buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,))
     assert len(buffer) == 0
     for i in range(15):
-        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 0, False)
+        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 0, False, False)
         if i < capacity:
             assert len(buffer) == i + 1
         else:
@@ -189,14 +195,14 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
     capacity = 10
     buffer = replay_buffer.ReplayBuffer(capacity, (2,), (1,), max_trajectory_length=5)
     assert len(buffer) == 0
-    dones = [4, 7, 12]  # check that dones before capacity don't do anything weird
+    terminateds = [4, 7, 12]  # check that terminateds before capacity don't do anything weird
     for how_many in range(1, 15):
-        done = how_many in dones
-        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), how_many, done)
-        if how_many < dones[-1]:
+        terminated = how_many in terminateds
+        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), how_many, terminated, False)
+        if how_many < terminateds[-1]:
             assert len(buffer) == how_many
         else:
-            assert len(buffer) == dones[-1]
+            assert len(buffer) == terminateds[-1]
     # Buffer should have reset and added elements 13 and 14
     assert buffer.cur_idx == 2
     assert buffer.reward[0] == 13
@@ -204,26 +210,26 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
 
     # now we'll add longer trajectory at the end, num_stored should increase
     old_size = len(buffer)
-    dones[-1] = 14
-    number_after_done = 3
-    for how_many in range(buffer.cur_idx + 1, dones[-1] + number_after_done + 1):
-        done = how_many in dones
-        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 100 + how_many, done)
+    terminateds[-1] = 14
+    number_after_terminated = 3
+    for how_many in range(buffer.cur_idx + 1, terminateds[-1] + number_after_terminated + 1):
+        terminated = how_many in terminateds
+        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), 100 + how_many, terminated, False)
         if how_many <= old_size:
             assert len(buffer) == old_size
         else:
-            assert len(buffer) == min(how_many, dones[-1])
-    assert buffer.cur_idx == number_after_done
+            assert len(buffer) == min(how_many, terminateds[-1])
+    assert buffer.cur_idx == number_after_terminated
 
     # now we'll add a shorter trajectory at the end, num_stored should not change
     old_size = len(buffer)
-    dones[-1] = 10
-    number_after_done = 5
-    for how_many in range(buffer.cur_idx + 1, dones[-1] + number_after_done + 1):
-        done = how_many in dones
-        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), how_many, done)
+    terminateds[-1] = 10
+    number_after_terminated = 5
+    for how_many in range(buffer.cur_idx + 1, terminateds[-1] + number_after_terminated + 1):
+        terminated = how_many in terminateds
+        buffer.add(np.zeros(2), np.zeros(1), np.zeros(2), how_many, terminated, False)
         assert len(buffer) == old_size
-    assert buffer.cur_idx == number_after_done
+    assert buffer.cur_idx == number_after_terminated
 
     assert np.all(
         buffer.reward[:14].astype(int)
@@ -231,16 +237,16 @@ def test_buffer_with_trajectory_len_and_loop_behavior():
     )
 
 
-def test_buffer_close_trajectory_not_done():
+def test_buffer_close_trajectory_not_terminated():
     capacity = 10
     dummy = np.zeros(1)
     buffer = replay_buffer.ReplayBuffer(capacity, (1,), (1,), max_trajectory_length=5)
     for i in range(3):
-        buffer.add(dummy, dummy, dummy, i, False)
+        buffer.add(dummy, dummy, dummy, i, False, False)
     buffer.close_trajectory()
 
     for i in range(3, 8):
-        buffer.add(dummy, dummy, dummy, i, i == 7)
+        buffer.add(dummy, dummy, dummy, i, i == 7, False)
 
     assert buffer.trajectory_indices == [(0, 3), (3, 8)]
     assert np.allclose(buffer.reward[:8], np.arange(8))
@@ -269,7 +275,7 @@ def test_trajectory_contents():
 
     for tr_idx, l in enumerate(traj_lens):
         for i in range(l):
-            buffer.add(dummy, dummy, dummy, i, i == l - 1)
+            buffer.add(dummy, dummy, dummy, i, i == l - 1, False)
         if tr_idx < 4:
             # here trajectories should just get appended
             assert buffer.trajectory_indices == trajectories[: tr_idx + 1]
@@ -291,22 +297,22 @@ def test_partial_trajectory_overlaps():
     buffer = replay_buffer.ReplayBuffer(4, (1,), (1,), max_trajectory_length=2)
     dummy = np.zeros(1)
 
-    buffer.add(dummy, dummy, dummy, 0, False)
-    buffer.add(dummy, dummy, dummy, 0, True)
+    buffer.add(dummy, dummy, dummy, 0, False, False)
+    buffer.add(dummy, dummy, dummy, 0, True, False)
     assert buffer.trajectory_indices == [(0, 2)]
-    buffer.add(dummy, dummy, dummy, 0, False)
-    buffer.add(dummy, dummy, dummy, 0, True)
+    buffer.add(dummy, dummy, dummy, 0, False, False)
+    buffer.add(dummy, dummy, dummy, 0, True, False)
     assert buffer.trajectory_indices == [(0, 2), (2, 4)]
-    buffer.add(dummy, dummy, dummy, 0, False)
+    buffer.add(dummy, dummy, dummy, 0, False, False)
     assert buffer.trajectory_indices == [(2, 4)]
-    buffer.add(dummy, dummy, dummy, 0, True)
+    buffer.add(dummy, dummy, dummy, 0, True, False)
     assert buffer.trajectory_indices == [(2, 4), (0, 2)]
-    buffer.add(dummy, dummy, dummy, 0, False)
+    buffer.add(dummy, dummy, dummy, 0, False, False)
     assert buffer.trajectory_indices == [(0, 2)]
-    buffer.add(dummy, dummy, dummy, 0, True)
+    buffer.add(dummy, dummy, dummy, 0, True, False)
     assert buffer.trajectory_indices == [(0, 2), (2, 4)]
     for i in range(3):
-        buffer.add(dummy, dummy, dummy, 0, False)
+        buffer.add(dummy, dummy, dummy, 0, False, False)
     assert not buffer.trajectory_indices
 
 
@@ -315,14 +321,14 @@ def test_sample_trajectories():
     dummy = np.zeros(1)
 
     for i in range(7):
-        buffer.add(dummy, dummy, dummy, i, i == 6)
+        buffer.add(dummy, dummy, dummy, i, i == 6, False)
     for i in range(10):
-        buffer.add(dummy, dummy, dummy, 100 + i, i == 9)
+        buffer.add(dummy, dummy, dummy, 100 + i, i == 9, False)
 
     for _ in range(100):
-        o, a, no, r, d = buffer.sample_trajectory().astuple()
+        o, a, no, r, term, trunc = buffer.sample_trajectory().astuple()
         assert len(o) == 7 or len(o) == 10
-        assert d.sum() == 1 and d[-1]
+        assert term.sum() == 1 and term[-1]
         if len(o) == 7:
             assert r.sum() == 21
         else:
@@ -333,12 +339,12 @@ def test_transition_iterator():
     def _check_for_capacity_and_batch_size(num_transitions, batch_size):
         dummy = np.zeros((num_transitions, 1))
         input_obs = np.arange(num_transitions)[:, None]
-        transitions = TransitionBatch(input_obs, dummy, input_obs + 1, dummy, dummy)
+        transitions = TransitionBatch(input_obs, dummy, input_obs + 1, dummy, dummy, dummy)
         it = replay_buffer.TransitionIterator(transitions, batch_size)
         assert len(it) == int(np.ceil(num_transitions / bs))
         idx_check = 0
         for i, batch in enumerate(it):
-            obs, action, next_obs, reward, done = batch.astuple()
+            obs, action, next_obs, reward, terminated, truncated = batch.astuple()
             if i < num_transitions // batch_size:
                 assert len(obs) == batch_size
             else:
@@ -357,7 +363,7 @@ def test_transition_iterator_shuffle():
     def _check(num_transitions, batch_size):
         dummy = np.zeros((num_transitions, 1))
         input_obs = np.arange(num_transitions)[:, None]
-        transitions = TransitionBatch(input_obs, dummy, dummy, dummy, dummy)
+        transitions = TransitionBatch(input_obs, dummy, dummy, dummy, dummy, dummy)
         it = replay_buffer.TransitionIterator(
             transitions, batch_size, shuffle_each_epoch=True
         )
@@ -391,7 +397,7 @@ def test_bootstrap_iterator():
     def _check(num_transitions, batch_size, permute):
         dummy = np.zeros((num_transitions, 1))
         input_obs = np.arange(num_transitions)[:, None]
-        transitions = TransitionBatch(input_obs, dummy, input_obs + 1, dummy, dummy)
+        transitions = TransitionBatch(input_obs, dummy, input_obs + 1, dummy, dummy, dummy)
         it = replay_buffer.BootstrapIterator(
             transitions, batch_size, num_members, permute_indices=permute
         )
@@ -434,9 +440,9 @@ def test_get_all():
     buffer = replay_buffer.ReplayBuffer(capacity, (1,), (1,))
     dummy = np.ones(1)
     for i in range(capacity):
-        buffer.add(dummy, dummy, dummy, i, False)
+        buffer.add(dummy, dummy, dummy, i, False, False)
         assert np.allclose(buffer.get_all().rewards, np.arange(i + 1))
-    buffer.add(dummy, dummy, dummy, -1, False)
+    buffer.add(dummy, dummy, dummy, -1, False, False)
     expected_rewards = np.array([-1] + list(range(1, capacity)))
     assert np.allclose(buffer.get_all().rewards, expected_rewards)
 
@@ -451,7 +457,7 @@ def _add_dummy_trajectories_to_buffer(buffer, dummy, num_trajectories, max_len, 
         traj_length = rng.integers(15, max_len)
         for j in range(traj_length):
             v = F * i + j
-            buffer.add(dummy * v, dummy * v + 1, dummy * v + 2, v, j == traj_length - 1)
+            buffer.add(dummy * v, dummy * v + 1, dummy * v + 2, v, j == traj_length - 1, False)
 
 
 # This function checks that batches are returning correct trajectories
@@ -469,9 +475,9 @@ def _check_non_ensemble_sequence_batch(
     # also check that actions and next_obs are ok
     assert np.all(batch.obs - batch.act == -1)
     assert np.all(batch.obs - batch.next_obs == -2)
-    if np.any(batch.dones):
-        # Any dones must be at the end of a trajectory
-        assert not np.any(batch.dones[:, :-1])
+    if np.any(batch.terminateds):
+        # Any terminateds must be at the end of a trajectory
+        assert not np.any(batch.terminateds[:, :-1])
 
 
 def test_sequence_iterator():
@@ -575,7 +581,7 @@ def test_sequence_iterator_max_batches_per_loop():
     for i in range(num_trajectories):
         traj_length = rng.integers(15, max_len)
         for j in range(traj_length):
-            buffer.add(dummy, dummy, dummy, j, j == traj_length - 1)
+            buffer.add(dummy, dummy, dummy, j, j == traj_length - 1, False)
 
     for max_batches in range(1, 10):
         iterator = replay_buffer.SequenceTransitionIterator(

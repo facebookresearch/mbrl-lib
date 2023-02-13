@@ -14,7 +14,9 @@ ObsProcessFnType = Callable[[np.ndarray], np.ndarray]
 TensorType = Union[torch.Tensor, np.ndarray]
 TrajectoryEvalFnType = Callable[[TensorType, torch.Tensor], torch.Tensor]
 
-Transition = Tuple[TensorType, TensorType, TensorType, TensorType, TensorType]
+Transition = Tuple[
+    TensorType, TensorType, TensorType, TensorType, TensorType, TensorType
+]
 
 
 @dataclass
@@ -32,7 +34,14 @@ class TransitionBatch:
         return self.obs.shape[0]
 
     def astuple(self) -> Transition:
-        return self.obs, self.act, self.next_obs, self.rewards, self.terminateds, self.truncateds
+        return (
+            self.obs,
+            self.act,
+            self.next_obs,
+            self.rewards,
+            self.terminateds,
+            self.truncateds,
+        )
 
     def __getitem__(self, item):
         return TransitionBatch(
@@ -62,8 +71,12 @@ class TransitionBatch:
             self.act.reshape(self._get_new_shape(self.act.shape, batch_size)),
             self.next_obs.reshape(self._get_new_shape(self.obs.shape, batch_size)),
             self.rewards.reshape(self._get_new_shape(self.rewards.shape, batch_size)),
-            self.terminateds.reshape(self._get_new_shape(self.terminateds.shape, batch_size)),
-            self.truncateds.reshape(self._get_new_shape(self.truncateds.shape, batch_size)),
+            self.terminateds.reshape(
+                self._get_new_shape(self.terminateds.shape, batch_size)
+            ),
+            self.truncateds.reshape(
+                self._get_new_shape(self.truncateds.shape, batch_size)
+            ),
         )
 
 

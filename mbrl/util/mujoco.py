@@ -15,7 +15,7 @@ from mbrl.util.env import EnvHandler, Freeze
 
 # Include the mujoco environments in mbrl.env
 def _is_mujoco_gym_env(env: gym.wrappers.TimeLimit) -> bool:
-    class_module = env.env.__class__.__module__
+    class_module = env.unwrapped.__class__.__module__
     return "gymnasium.envs.mujoco" in class_module or (
         "mbrl.env." in class_module and hasattr(env.env, "data")
     )

@@ -2,9 +2,10 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+from typing import Optional
+
 import gymnasium as gym
 import numpy as np
-from typing import Optional
 
 from mbrl.util.math import quantize_obs
 
@@ -92,20 +93,16 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         action = action.astype(np.float32)
         return action
 
-    def reset(self):
-        self._last_low_dim_obs = self.env.reset()
-        return self._get_obs()
-
     def step(self, action):
         if not self._use_true_actions:
             action = self._convert_action(action)
         total_reward = 0.0
         terminated = False
         for _ in range(self._frame_skip):
-            orig_obs, reward, terminated, _ = self.env.step(action)
+            orig_obs, reward, terminated, truncated, _ = self.env.step(action)
             self._last_low_dim_obs = orig_obs
             total_reward += reward
-            if terminated:
+            if terminated or truncated:
                 break
 
         next_obs = self._get_obs()
@@ -130,6 +127,7 @@ class MujocoGymPixelWrapper(gym.Wrapper):
         self._true_action_space.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
+        self._last_low_dim_obs = self.env.reset()
 
         if self.render_mode == "human":
             self.render()

@@ -6,8 +6,8 @@ import os
 import pathlib
 import tempfile
 
-import gymnasium
 import gym
+import gymnasium
 import hydra
 import numpy as np
 import pybulletgym  # register PyBullet enviroments with open ai gym
@@ -47,9 +47,7 @@ _CFG_DICT = {
     },
     "dynamics_model": _MODEL_CFG,
     "overrides": {
-        "env_cfg": {
-            "_target_": "pybulletgym.envs.roboschool.envs.locomotion.hopper_env.HopperBulletEnv"
-        },
+        "env": f"pybulletgym___{_ENV_NAME}",
         "term_fn": "no_termination",
         "model_batch_size": 32,
         "validation_ratio": 0.1,

@@ -105,7 +105,8 @@ def test_create_replay_buffer():
         assert buffer.next_obs.shape == (how_many, obs_shape[0])
         assert buffer.action.shape == (how_many, act_shape[0])
         assert buffer.reward.shape == (how_many,)
-        assert buffer.done.shape == (how_many,)
+        assert buffer.terminated.shape == (how_many,)
+        assert buffer.truncated.shape == (how_many,)
 
     # Test reading from the above configuration and no bootstrap replay buffer
     buffer = utils.create_replay_buffer(cfg, obs_shape, act_shape)
@@ -200,12 +201,13 @@ class MockEnv:
             self.traj = 0
         self.val = 100 * self.traj
         self.traj += 1
-        return self.val
+        return self.val, {}
 
     def step(self, _):
         self.val += 1
-        done = self.val % _MOCK_TRAJ_LEN == 0
-        return self.val, 0, done, None
+        terminated = self.val % _MOCK_TRAJ_LEN == 0
+        truncated = False
+        return self.val, 0, terminated, truncated, {}
 
 
 class MockZeroAgent:
@@ -234,13 +236,14 @@ def test_populate_replay_buffer_no_trajectories():
     assert buffer.num_stored == num_steps
 
     # Check the order in which things were inserted
-    obs = env.reset(from_zero=True)
-    done = False
+    obs, _ = env.reset(from_zero=True)
+    terminated = False
+    truncated = False
     for i in range(num_steps):
-        if done:
-            obs = env.reset()
+        if terminated or truncated:
+            obs, _ = env.reset()
         assert buffer.obs[i] == obs
-        obs, _, done, _ = env.step(None)
+        obs, _, terminated, truncated, _ = env.step(None)
 
 
 def test_populate_replay_buffer_collect_trajectories():
@@ -266,14 +269,14 @@ def test_get_basic_buffer_iterators():
     buffer = mbrl.util.replay_buffer.ReplayBuffer(1000, (1,), (1,))
     dummy = np.ones(1)
     for i in range(900):
-        buffer.add(dummy, dummy, dummy, i, False)
+        buffer.add(dummy, dummy, dummy, i, False, False)
 
     train_iter, val_iter = mbrl.util.common.get_basic_buffer_iterators(buffer, 32, 0.1)
     assert train_iter.num_stored == 810 and val_iter.num_stored == 90
     all_rewards = []
     for it in [train_iter, val_iter]:
         for batch in it:
-            _, _, _, reward, _ = batch.astuple()
+            _, _, _, reward, _, _ = batch.astuple()
             all_rewards.extend(reward)
     assert sorted(all_rewards) == list(range(900))
 
@@ -288,12 +291,12 @@ def test_get_sequence_buffer_iterators():
     k = 0
     for i in range(num_trajectories_train):
         for j in range(20):
-            buffer.add(dummy, dummy, dummy, k, False)
+            buffer.add(dummy, dummy, dummy, k, False, False)
             k += 1
         buffer.close_trajectory()
     for i in range(num_trajectories_val):
         for j in range(20):
-            buffer.add(dummy, dummy, dummy, k, False)
+            buffer.add(dummy, dummy, dummy, k, False, False)
             k += 1
         buffer.close_trajectory()
 
@@ -313,13 +316,13 @@ def test_get_sequence_buffer_iterators():
         train_rewards = []
         for batch in train_iter:
             assert batch.rewards.ndim == 3  # (ensemble, batch_size, sequence)
-            _, _, _, reward, _ = batch.astuple()
+            _, _, _, reward, _, _ = batch.astuple()
             train_rewards.append(reward)  # only need start of sequence
         train_rewards = np.unique(np.concatenate(train_rewards, axis=1))
         val_rewards = []
         for batch in val_iter:
             assert batch.rewards.ndim == 2  # (batch_size, sequence) since non-bootstrap
-            _, _, _, reward, _ = batch.astuple()
+            _, _, _, reward, _, _ = batch.astuple()
             val_rewards.append(reward)  # only need start of sequence
         val_rewards = np.unique(np.concatenate(val_rewards, axis=0))
         # Check that validation and training were separate splits
@@ -351,7 +354,7 @@ def test_bootstrap_rb_sample_obs3d():
     buffer = mbrl.util.ReplayBuffer(capacity, obs_shape, act_shape, obs_type=np.int8)
     obs = np.ones(obs_shape)
     for i in range(20 * batch_size):
-        buffer.add(obs, np.zeros(act_shape), obs + 1, 0, False)
+        buffer.add(obs, np.zeros(act_shape), obs + 1, 0, False, False)
         obs += 1
 
     assert buffer.obs.shape == (capacity,) + obs_shape

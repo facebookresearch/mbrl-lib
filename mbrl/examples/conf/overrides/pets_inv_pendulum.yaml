@@ -1,5 +1,5 @@
 # @package _group_
-env: "gym___InvertedPendulum-v2"
+env: "gym___InvertedPendulum-v4"
 term_fn: "inverted_pendulum"
 learned_rewards: true
 trial_length: 1000

@@ -6,11 +6,11 @@ import os
 import pathlib
 import tempfile
 
-import gymnasium
 import gym
+import gymnasium
 import hydra
 import numpy as np
-import pybulletgym  # register PyBullet enviroments with open ai gym
+import pybulletgym  # register PyBullet enviroments with gym
 import torch
 import yaml
 from omegaconf import OmegaConf

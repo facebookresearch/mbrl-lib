@@ -23,7 +23,7 @@ _HYDRA_DIR = pathlib.Path(_DIR.name) / ".hydra"
 pathlib.Path.mkdir(_HYDRA_DIR)
 
 # Environment information
-_ENV_NAME = "HalfCheetah-v2"
+_ENV_NAME = "HalfCheetah-v4"
 _ENV = gym.make(_ENV_NAME)
 _OBS_SHAPE = _ENV.observation_space.shape
 _ACT_SHAPE = _ENV.action_space.shape

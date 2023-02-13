@@ -67,7 +67,7 @@ def create_handler_from_str(env_name: str):
 
           - "dmcontrol___<domain>--<task>": a Deep-Mind Control suite environment
             with the indicated domain and task (e.g., "dmcontrol___cheetah--run".
-          - "gym___<env_name>": a Gym environment (e.g., "gym___HalfCheetah-v2").
+          - "gym___<env_name>": a Gym environment (e.g., "gym___HalfCheetah-v4").
           - "pybulletgym__<env_name>": A Pybullet Gym environment
             (e.g. "pybulletgym__HalfCheetahMuJoCoEnv-v0")
           - "cartpole_continuous": a continuous version of gym's Cartpole environment.
