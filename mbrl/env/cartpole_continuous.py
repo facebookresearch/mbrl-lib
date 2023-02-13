@@ -1,10 +1,10 @@
 import math
+from typing import Optional
 
 import gymnasium as gym
 import numpy as np
 from gymnasium import logger, spaces
 from gymnasium.error import DependencyNotInstalled
-from typing import Optional
 
 
 class CartPoleEnv(gym.Env):
@@ -110,7 +110,7 @@ class CartPoleEnv(gym.Env):
                 )
             self.steps_beyond_terminated += 1
             reward = 0.0
-        
+
         if self.render_mode == "human":
             self.render()
 
@@ -134,8 +134,8 @@ class CartPoleEnv(gym.Env):
             return
 
         try:
-            import pygame # type: ignore
-            from pygame import gfxdraw # type: ignore
+            import pygame  # type: ignore
+            from pygame import gfxdraw  # type: ignore
         except ImportError:
             raise DependencyNotInstalled(
                 "pygame is not installed, run `pip install gymnasium[classic_control]`"
@@ -223,7 +223,7 @@ class CartPoleEnv(gym.Env):
 
     def close(self):
         if self.screen is not None:
-            import pygame # type: ignore
+            import pygame  # type: ignore
 
             pygame.display.quit()
             pygame.quit()

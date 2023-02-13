@@ -6,6 +6,7 @@ import argparse
 import os
 import pathlib
 
+import gymnasium as gym
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +18,6 @@ import mbrl.models
 import mbrl.planning
 import mbrl.util.common
 from mbrl.third_party import dmc2gym
-import gymnasium as gym
 
 
 class PlanetVisualizer:
@@ -50,7 +50,6 @@ class PlanetVisualizer:
             frame_skip=4,
         )
         self.env = gym.make("GymV26Environment-v0", env=env)
-
 
         self.model = mbrl.models.PlaNetModel(
             (3, 64, 64),

@@ -50,12 +50,14 @@ def rollout_model_and_populate_sac_buffer(
         pred_next_obs, pred_rewards, pred_dones, model_state = model_env.step(
             action, model_state, sample=True
         )
+        truncateds = np.zeros_like(pred_dones, dtype=bool)
         sac_buffer.add_batch(
             obs[~accum_dones],
             action[~accum_dones],
             pred_next_obs[~accum_dones],
             pred_rewards[~accum_dones, 0],
             pred_dones[~accum_dones, 0],
+            truncateds[~accum_dones, 0],
         )
         obs = pred_next_obs
         accum_dones |= pred_dones.squeeze()
@@ -98,7 +100,14 @@ def maybe_replace_sac_buffer(
         new_buffer = mbrl.util.ReplayBuffer(new_capacity, obs_shape, act_shape, rng=rng)
         if sac_buffer is None:
             return new_buffer
-        obs, action, next_obs, reward, terminated, truncated = sac_buffer.get_all().astuple()
+        (
+            obs,
+            action,
+            next_obs,
+            reward,
+            terminated,
+            truncated,
+        ) = sac_buffer.get_all().astuple()
         new_buffer.add_batch(obs, action, next_obs, reward, terminated, truncated)
         return new_buffer
     return sac_buffer
@@ -205,7 +214,13 @@ def train(
                 terminated = False
                 truncated = False
             # --- Doing env step and adding to model dataset ---
-            next_obs, reward, terminated, truncated, _ = mbrl.util.common.step_env_and_add_to_buffer(
+            (
+                next_obs,
+                reward,
+                terminated,
+                truncated,
+                _,
+            ) = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 

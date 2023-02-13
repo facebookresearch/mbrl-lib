@@ -1,7 +1,7 @@
 import numpy as np
-from gymnasium.spaces import Box
 from gymnasium import utils
 from gymnasium.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
 
 
 # Obtained from https://github.com/JannerM/mbpo/blob/master/mbpo/env/ant.py
@@ -14,11 +14,12 @@ class AntTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ],
         "render_fps": 20,
     }
+
     def __init__(self, render_mode: str = None):
-        observation_space = Box(
-            low=-np.inf, high=np.inf, shape=(27,), dtype=np.float64
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(27,), dtype=np.float64)
+        mujoco_env.MujocoEnv.__init__(
+            self, "ant.xml", 5, observation_space, render_mode=render_mode
         )
-        mujoco_env.MujocoEnv.__init__(self, "ant.xml", 5, observation_space, render_mode=render_mode)
         utils.EzPickle.__init__(self)
 
     def step(self, a):

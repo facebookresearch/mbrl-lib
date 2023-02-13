@@ -1,9 +1,9 @@
 import os
 
 import numpy as np
-from gymnasium.spaces import Box
 from gymnasium import utils
 from gymnasium.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
 
 
 class Reacher3DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -21,11 +21,9 @@ class Reacher3DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.goal = np.zeros(3)
-        observation_space = Box(
-            low=-np.inf, high=np.inf, shape=(19,), dtype=np.float64
-        )
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(19,), dtype=np.float64)
         mujoco_env.MujocoEnv.__init__(
-            self, "%s/assets/pusher.xml" % dir_path, 2,  observation_space, render_mode
+            self, "%s/assets/pusher.xml" % dir_path, 2, observation_space, render_mode
         )
 
     def step(self, a):

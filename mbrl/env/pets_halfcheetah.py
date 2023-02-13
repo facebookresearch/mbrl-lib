@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 import torch
-from gymnasium.spaces import Box
 from gymnasium import utils
 from gymnasium.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
 
 
 class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -20,11 +20,13 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, render_mode: str = None):
         self.prev_qpos = None
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        observation_space = Box(
-            low=-np.inf, high=np.inf, shape=(18,), dtype=np.float64
-        )
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(18,), dtype=np.float64)
         mujoco_env.MujocoEnv.__init__(
-            self, "%s/assets/half_cheetah.xml" % dir_path, 5, observation_space, render_mode
+            self,
+            "%s/assets/half_cheetah.xml" % dir_path,
+            5,
+            observation_space,
+            render_mode,
         )
         utils.EzPickle.__init__(self)
 

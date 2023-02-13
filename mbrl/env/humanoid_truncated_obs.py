@@ -1,8 +1,7 @@
 import numpy as np
-from gymnasium.spaces import Box
 from gymnasium import utils
 from gymnasium.envs.mujoco import mujoco_env
-
+from gymnasium.spaces import Box
 
 
 def mass_center(model, data):
@@ -21,11 +20,12 @@ class HumanoidTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ],
         "render_fps": 67,
     }
+
     def __init__(self, render_mode: str = None):
-        observation_space = Box(
-            low=-np.inf, high=np.inf, shape=(45,), dtype=np.float64
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(45,), dtype=np.float64)
+        mujoco_env.MujocoEnv.__init__(
+            self, "humanoid.xml", 5, observation_space, render_mode=render_mode
         )
-        mujoco_env.MujocoEnv.__init__(self, "humanoid.xml", 5, observation_space, render_mode=render_mode)
         utils.EzPickle.__init__(self)
 
     def _get_obs(self):

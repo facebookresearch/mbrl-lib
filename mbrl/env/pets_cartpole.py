@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 import torch
-from gymnasium.spaces import Box
 from gymnasium import utils
 from gymnasium.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
 
 
 # This is the cartpole environment as was used in the original PETS paper
@@ -30,12 +30,10 @@ class CartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, render_mode: str = None):
         utils.EzPickle.__init__(self)
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        observation_space = Box(
-            low=-np.inf, high=np.inf, shape=(4,), dtype=np.float64
-        )
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float64)
         mujoco_env.MujocoEnv.__init__(
             self, "%s/assets/cartpole.xml" % dir_path, 2, observation_space, render_mode
-            )
+        )
 
     def step(self, a):
         self.do_simulation(a, self.frame_skip)
