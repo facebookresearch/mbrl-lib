@@ -11,6 +11,7 @@ import hydra
 import numpy as np
 import omegaconf
 import torch
+from tqdm import tqdm
 
 import mbrl.constants
 from mbrl.env.termination_fns import no_termination
@@ -130,7 +131,7 @@ def train(
     # PlaNet loop
     step = replay_buffer.num_stored
     total_rewards = 0.0
-    for episode in range(cfg.algorithm.num_episodes):
+    for episode in tqdm(range(cfg.algorithm.num_episodes)):
         # Train the model for one epoch of `num_grad_updates`
         dataset, _ = get_sequence_buffer_iterator(
             replay_buffer,
@@ -144,7 +145,8 @@ def train(
             dataset, num_epochs=1, batch_callback=batch_callback, evaluate=False
         )
         planet.save(work_dir)
-        replay_buffer.save(work_dir)
+        if cfg.overrides.get("save_replay_buffer", False):
+            replay_buffer.save(work_dir)
         metrics = get_metrics_and_clear_metric_containers()
         logger.log_data("metrics", metrics)
 
@@ -156,6 +158,7 @@ def train(
         action = None
         terminated = False
         truncated = False
+        pbar = tqdm(total=500)
         while not terminated and not truncated:
             planet.update_posterior(obs, action=action, rng=rng)
             action_noise = (
@@ -165,7 +168,9 @@ def train(
                 * np_rng.standard_normal(env.action_space.shape[0])
             )
             action = agent.act(obs) + action_noise
-            action = np.clip(action, -1.0, 1.0)  # to account for the noise
+            action = np.clip(
+                action, -1.0, 1.0, dtype=env.action_space.dtype
+            )  # to account for the noise and fix dtype
             next_obs, reward, terminated, truncated, _ = env.step(action)
             replay_buffer.add(obs, action, next_obs, reward, terminated, truncated)
             episode_reward += reward
@@ -173,6 +178,8 @@ def train(
             if debug_mode:
                 print(f"step: {step}, reward: {reward}.")
             step += 1
+            pbar.update(1)
+        pbar.close()
         total_rewards += episode_reward
         logger.log_data(
             mbrl.constants.RESULTS_LOG_NAME,
