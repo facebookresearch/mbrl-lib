@@ -281,7 +281,7 @@ class PlaNetModel(Model):
     ) -> Tuple[torch.Tensor, ...]:
         # `obs` is a sequence, so `next_obs` is not necessary
         # sequence iterator samples full sequences, so `dones` not necessary either
-        obs, action, _, rewards, _ = super()._process_batch(batch, as_float=as_float)
+        obs, action, _, rewards, _, _ = super()._process_batch(batch, as_float=as_float)
         if pixel_obs:
             obs = self._process_pixel_obs(obs)
         return obs, action, rewards
