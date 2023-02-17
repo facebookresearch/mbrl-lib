@@ -158,7 +158,7 @@ def train(
         action = None
         terminated = False
         truncated = False
-        pbar = tqdm(total=500)
+        pbar = tqdm(total=1000)
         while not terminated and not truncated:
             planet.update_posterior(obs, action=action, rng=rng)
             action_noise = (
