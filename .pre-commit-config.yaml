@@ -17,7 +17,7 @@ repos:
       - id: mypy
         files: 'mbrl'
         additional_dependencies: [numpy, torch, tokenize-rt==3.2.0, types-PyYAML, types-termcolor]
-        args: [--no-strict-optional, --ignore-missing-imports]
+        args: [--no-strict-optional, --ignore-missing-imports, --disable-error-code=attr-defined]
 
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0

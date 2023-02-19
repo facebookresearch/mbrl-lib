@@ -80,8 +80,8 @@ class PybulletEnvHandler(EnvHandler):
     def make_env_from_str(env_name: str) -> gymnasium.Env:
         if "pybulletgym___" in env_name:
 
-            env = gym.make(env_name.split("___")[1], apply_api_compatibility=True)
-            env = gymnasium.make("GymV26Environment-v0", env=env)
+            gym_env = gym.make(env_name.split("___")[1], apply_api_compatibility=True)
+            env = gymnasium.make("GymV26Environment-v0", env=gym_env)
         else:
             raise ValueError("Invalid environment string.")
 
