@@ -79,7 +79,6 @@ class PybulletEnvHandler(EnvHandler):
     @staticmethod
     def make_env_from_str(env_name: str) -> gymnasium.Env:
         if "pybulletgym___" in env_name:
-
             gym_env = gym.make(env_name.split("___")[1], apply_api_compatibility=True)
             env = gymnasium.make("GymV26Environment-v0", env=gym_env)
         else:
