@@ -76,7 +76,7 @@ class SAC(object):
     def update_parameters(
         self, memory, batch_size, updates, logger=None, reverse_mask=False
     ):
-        # Sample a batch from memory
+        # Sample a batch from memory and ignore truncateds
         (
             state_batch,
             action_batch,
