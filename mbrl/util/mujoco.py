@@ -31,7 +31,7 @@ class FreezeMujoco(Freeze):
 
     .. code-block:: python
 
-       env = gym.make("HalfCheetah-v2")
+       env = gym.make("HalfCheetah-v4")
        env.reset()
        action = env.action_space.sample()
        # o1_expected, *_ = env.step(action)

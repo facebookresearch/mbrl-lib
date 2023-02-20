@@ -187,7 +187,7 @@ class EnvHandler(ABC):
         if env_cfg is None:
             return _legacy_make_env(cfg)
 
-        env = hydra.utils.instantiate(cfg.overrides.env_cfg)
+        env = hydra.utils.instantiate(env_cfg)
         env = gym.wrappers.TimeLimit(
             env, max_episode_steps=cfg.overrides.get("trial_length", 1000)
         )

@@ -5,8 +5,7 @@
 import tempfile
 from typing import Callable, List, Tuple
 
-import gym
-import gymnasium
+import gymnasium as gym
 import numpy as np
 
 # Need to import pybulletgym to register pybullet envs.
@@ -24,7 +23,7 @@ from pybulletgym.envs.roboschool.robots.locomotors.walker_base import (
 from mbrl.util.env import EnvHandler, Freeze
 
 
-def _is_pybullet_gym_env(env: gymnasium.wrappers.TimeLimit) -> bool:
+def _is_pybullet_gym_env(env: gym.wrappers.TimeLimit) -> bool:
     env = env.unwrapped.gym_env.unwrapped.env
     return isinstance(env, MJBaseBulletEnv) or isinstance(env, RSBaseBulletEnv)
 
@@ -51,7 +50,7 @@ class FreezePybullet(Freeze):
         env (:class:`gymnasium.wrappers.TimeLimit`): the environment to freeze.
     """
 
-    def __init__(self, env: gymnasium.wrappers.TimeLimit):
+    def __init__(self, env: gym.wrappers.TimeLimit):
         self._env = env
         self._init_state: np.ndarray = None
         self._elapsed_steps = 0
@@ -73,21 +72,23 @@ class PybulletEnvHandler(EnvHandler):
     freeze = FreezePybullet
 
     @staticmethod
-    def is_correct_env_type(env: gymnasium.wrappers.TimeLimit) -> bool:
+    def is_correct_env_type(env: gym.wrappers.TimeLimit) -> bool:
         return _is_pybullet_gym_env(env)
 
     @staticmethod
-    def make_env_from_str(env_name: str) -> gymnasium.Env:
+    def make_env_from_str(env_name: str) -> gym.Env:
         if "pybulletgym___" in env_name:
-            gym_env = gym.make(env_name.split("___")[1], apply_api_compatibility=True)
-            env = gymnasium.make("GymV26Environment-v0", env=gym_env)
+            import gym as g
+
+            gym_env = g.make(env_name.split("___")[1], apply_api_compatibility=True)
+            env = gym.make("GymV26Environment-v0", env=gym_env)
         else:
             raise ValueError("Invalid environment string.")
 
         return env
 
     @staticmethod
-    def get_current_state(env: gymnasium.wrappers.TimeLimit) -> Tuple:
+    def get_current_state(env: gym.wrappers.TimeLimit) -> Tuple:
         """Returns the internal state of the environment.
 
         Returns a tuple with information that can be passed to :func:set_env_state` to manually
@@ -124,7 +125,7 @@ class PybulletEnvHandler(EnvHandler):
         p.restoreState(fileName=filename)
 
     @staticmethod
-    def _get_current_state_default(env: gymnasium.wrappers.TimeLimit) -> Tuple:
+    def _get_current_state_default(env: gym.wrappers.TimeLimit) -> Tuple:
         """Returns the internal state of a manipulation / pendulum environment."""
         env = env.unwrapped.gym_env.unwrapped.env
         filename = PybulletEnvHandler.save_state_to_file(env._p)
@@ -134,7 +135,7 @@ class PybulletEnvHandler(EnvHandler):
         return ((filename, pickle_bytes),)
 
     @staticmethod
-    def _set_env_state_default(state: Tuple, env: gymnasium.wrappers.TimeLimit) -> None:
+    def _set_env_state_default(state: Tuple, env: gym.wrappers.TimeLimit) -> None:
         import pickle
 
         ((filename, pickle_bytes),) = state
@@ -144,7 +145,7 @@ class PybulletEnvHandler(EnvHandler):
         PybulletEnvHandler.load_state_from_file(env._p, filename)
 
     @staticmethod
-    def _get_current_state_locomotion(env: gymnasium.wrappers.TimeLimit) -> Tuple:
+    def _get_current_state_locomotion(env: gym.wrappers.TimeLimit) -> Tuple:
         """Returns the internal state of the environment.
 
         Returns a tuple with information that can be passed to :func:set_env_state` to manually
@@ -189,7 +190,7 @@ class PybulletEnvHandler(EnvHandler):
         )
 
     @staticmethod
-    def set_env_state(state: Tuple, env: gymnasium.wrappers.TimeLimit) -> None:
+    def set_env_state(state: Tuple, env: gym.wrappers.TimeLimit) -> None:
         """Sets the state of the environment.
 
         Assumes ``state`` was generated using :func:`get_current_state`.
@@ -215,7 +216,7 @@ class PybulletEnvHandler(EnvHandler):
             raise RuntimeError("Only pybulletgym environments supported.")
 
     @staticmethod
-    def _set_env_state_locomotion(state: Tuple, env: gymnasium.wrappers.TimeLimit):
+    def _set_env_state_locomotion(state: Tuple, env: gym.wrappers.TimeLimit):
         """Sets the state of the environment.
 
         Assumes ``state`` was generated using :func:`get_current_state`.
