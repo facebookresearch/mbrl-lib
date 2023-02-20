@@ -464,6 +464,7 @@ def rollout_agent_trajectories(
     replay_buffer: Optional[ReplayBuffer] = None,
     collect_full_trajectories: bool = False,
     agent_uses_low_dim_obs: bool = False,
+    seed: Optional[int] = None,
 ) -> List[float]:
     """Rollout agent trajectories in the given environment.
 
@@ -513,7 +514,7 @@ def rollout_agent_trajectories(
     trial = 0
     total_rewards: List[float] = []
     while True:
-        obs, info = env.reset()
+        obs, info = env.reset(seed=seed)
         agent.reset()
         terminated = False
         truncated = False
