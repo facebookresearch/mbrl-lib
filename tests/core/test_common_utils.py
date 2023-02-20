@@ -2,6 +2,8 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+from typing import Optional
+
 import numpy as np
 import omegaconf
 import pytest
@@ -196,7 +198,7 @@ class MockEnv:
         self.traj = 0
         self.val = 0
 
-    def reset(self, from_zero=False):
+    def reset(self, from_zero=False, seed: Optional[int]=None):
         if from_zero:
             self.traj = 0
         self.val = 100 * self.traj
