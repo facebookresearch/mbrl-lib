@@ -2,11 +2,10 @@
 env: "dmcontrol_cheetah_run"  # used to set the hydra dir, ignored otherwise
 
 env_cfg:
-  _target_: "mbrl.third_party.dmc2gym.wrappers.DMCWrapper"
+  _target_: "mbrl.third_party.dmc2gym.make"
   domain_name: "cheetah"
   task_name: "run"
-  task_kwargs:
-    random: ${seed}
+  seed: ${seed}
   visualize_reward: false
   from_pixels: true
   height: 64
