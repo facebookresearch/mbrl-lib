@@ -64,8 +64,8 @@ def test_freeze():
     # _freeze_mujoco_gym_env("ant_truncated_obs")
     # _freeze_mujoco_gym_env("gym___HalfCheetah-v4")
     # _freeze_mujoco_gym_env("gym___HumanoidStandup-v4")
-    _get_and_set_state("gym___Hopper-v4")
-    _get_and_set_state("gym___Humanoid-v4")
+    _freeze_mujoco_gym_env("gym___Hopper-v4")
+    _freeze_mujoco_gym_env("gym___Humanoid-v4")
 
 
 def test_get_and_set_state():
