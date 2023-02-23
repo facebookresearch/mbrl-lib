@@ -1,0 +1,30 @@
+# @package _group_
+env: "dmcontrol_walker_stand"  # used to set the hydra dir, ignored otherwise
+
+env_cfg:
+  _target_: "mbrl.third_party.dmc2gym.wrappers.DMCWrapper"
+  domain_name: "walker"
+  task_name: "stand"
+  task_kwargs:
+    random: ${seed}
+  visualize_reward: false
+  from_pixels: true
+  height: 64
+  width: 64
+  frame_skip: 2
+  bit_depth: 5
+
+term_fn: "no_termination"
+
+# General configuration overrides
+trial_length: 500
+action_noise_std: 0.3
+
+# Model overrides
+num_grad_updates: 100
+sequence_length: 50
+batch_size: 50
+free_nats: 3
+kl_scale: 1.0
+
+# Dreamer configuration overrides

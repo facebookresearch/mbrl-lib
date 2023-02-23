@@ -19,27 +19,27 @@ class Agent:
     """Abstract class for all agents."""
 
     @abc.abstractmethod
-    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+    def act(self, obs: Any, **_kwargs) -> mbrl.types.TensorType:
         """Issues an action given an observation.
 
         Args:
-            obs (np.ndarray): the observation for which the action is needed.
+            obs (Any): the observation for which the action is needed.
 
         Returns:
-            (np.ndarray): the action.
+            (TensorType): the action.
         """
         pass
 
-    def plan(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+    def plan(self, obs: Any, **_kwargs) -> mbrl.types.TensorType:
         """Issues a sequence of actions given an observation.
 
         Unless overridden by a child class, this will be equivalent to :meth:`act`.
 
         Args:
-            obs (np.ndarray): the observation for which the sequence is needed.
+            obs (Any): the observation for which the sequence is needed.
 
         Returns:
-            (np.ndarray): a sequence of actions.
+            (TensorType): a sequence of actions.
         """
 
         return self.act(obs, **_kwargs)
@@ -150,8 +150,15 @@ def load_agent(agent_path: Union[str, pathlib.Path], env: gym.Env) -> Agent:
         from .sac_wrapper import SACAgent
 
         complete_agent_cfg(env, cfg.algorithm.agent)
-        agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
-        agent.load_checkpoint(ckpt_path=agent_path / "sac.pth")
-        return SACAgent(agent)
+        sac: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
+        sac.load_checkpoint(ckpt_path=agent_path / "sac.pth")
+        return SACAgent(sac)
+    elif cfg.algorithm.agent == "mbrl.planning.dreamer_agent.DreamerAgent":
+        from mbrl.planning.dreamer_agent import DreamerAgent
+
+        complete_agent_cfg(env, cfg.algorithm.agent)
+        dreamer_agent: DreamerAgent = hydra.utils.instantiate(cfg.algorithm.agent)
+        dreamer_agent.load(agent_path)
+        return dreamer_agent
     else:
         raise ValueError("Invalid agent configuration.")

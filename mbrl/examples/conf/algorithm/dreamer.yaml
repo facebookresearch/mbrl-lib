@@ -1,0 +1,24 @@
+# @package _group_
+name: "dreamer"
+
+agent:
+  _target_: mbrl.planning.DreamerAgent
+  action_lb: ???
+  action_ub: ???
+  horizon: 15
+  policy_lr: 0.00008
+  critic_lr: 0.00008
+  gamma: 0.99
+  lam: 0.95
+  grad_clip_norm: 100.0
+  min_std: 0.0001
+  init_std: 5
+  mean_scale: 5
+  activation_function: "elu"
+  device: ${device}
+
+num_initial_trajectories: 5
+action_noise_std: 0.3
+test_frequency: 25
+num_episodes: 1000
+dataset_size: 1000000

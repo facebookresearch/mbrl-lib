@@ -101,7 +101,7 @@ class BeliefModel(nn.Module):
 
 
 class MeanStdCat(nn.Module):
-    # Convenience module to avoid having to write chuck and softplus in multiple places
+    # Convenience module to avoid having to write chunk and softplus in multiple places
     # (since it's needed for prior and posterior params)
     def __init__(self, latent_state_size: int, min_std: float):
         super().__init__()

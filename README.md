@@ -51,8 +51,8 @@ as examples of how to use this library. You can find them in the
 [mbrl/algorithms](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms) folder. Currently, we have implemented
 [PETS](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/pets.py),
 [MBPO](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/mbpo.py),
-[PlaNet](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/planet.py), 
-we plan to keep increasing this list in the future.
+[PlaNet](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/planet.py),
+[Dreamer](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/algorithms/dreamer.py), we plan to keep increasing this list in the future.
 
 The implementations rely on [Hydra](https://github.com/facebookresearch/hydra) 
 to handle configuration. You can see the configuration files in 
