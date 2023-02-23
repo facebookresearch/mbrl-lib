@@ -5,14 +5,14 @@ repos:
       - id: black
         files: 'mbrl'
 
-  - repo: https://gitlab.com/pycqa/flake8
+  - repo: https://github.com/pycqa/flake8
     rev: 3.9.2
     hooks:
       - id: flake8
         files: 'mbrl'
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.971
+    rev: v0.991
     hooks:
       - id: mypy
         files: 'mbrl'
@@ -21,7 +21,7 @@ repos:
         exclude: setup.py
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.10.1
+    rev: 5.12.0
     hooks:
       - id: isort
         args: ["--profile", "black"]

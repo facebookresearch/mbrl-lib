@@ -19,27 +19,27 @@ class Agent:
     """Abstract class for all agents."""
 
     @abc.abstractmethod
-    def act(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+    def act(self, obs: Any, **_kwargs) -> mbrl.types.TensorType:
         """Issues an action given an observation.
 
         Args:
-            obs (np.ndarray): the observation for which the action is needed.
+            obs (Any): the observation for which the action is needed.
 
         Returns:
-            (np.ndarray): the action.
+            (TensorType): the action.
         """
         pass
 
-    def plan(self, obs: np.ndarray, **_kwargs) -> np.ndarray:
+    def plan(self, obs: Any, **_kwargs) -> mbrl.types.TensorType:
         """Issues a sequence of actions given an observation.
 
         Unless overridden by a child class, this will be equivalent to :meth:`act`.
 
         Args:
-            obs (np.ndarray): the observation for which the sequence is needed.
+            obs (Any): the observation for which the sequence is needed.
 
         Returns:
-            (np.ndarray): a sequence of actions.
+            (TensorType): a sequence of actions.
         """
 
         return self.act(obs, **_kwargs)

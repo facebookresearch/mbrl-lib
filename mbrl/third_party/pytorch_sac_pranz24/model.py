@@ -8,6 +8,7 @@ LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 epsilon = 1e-6
 
+
 # Initialize Policy weights
 def weights_init_(m):
     if isinstance(m, nn.Linear):

@@ -43,7 +43,7 @@ def _is_eq(a, b) -> bool:
     if not type(a) == type(b):
         return False
     if isinstance(a, np.ndarray):
-        return np.all(a == b)
+        return all(a == b)
     elif isinstance(a, dict):
         if not set(a.keys()) == set(b.keys()):
             return False

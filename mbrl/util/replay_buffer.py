@@ -273,7 +273,7 @@ class SequenceTransitionIterator(BootstrapIterator):
         # iterator. It's a good price to pay for now, since it simplifies things
         # enormously and it's less error prone
         valid_starts = []
-        for (start, end) in trajectory_indices:
+        for start, end in trajectory_indices:
             if end - start < sequence_length:
                 continue
             valid_starts.extend(list(range(start, end - sequence_length + 1)))
@@ -368,7 +368,7 @@ class SequenceTransitionSampler(TransitionIterator):
         # iterator. It's a good price to pay for now, since it simplifies things
         # enormously and it's less error prone
         valid_starts = []
-        for (start, end) in trajectory_indices:
+        for start, end in trajectory_indices:
             if end - start < sequence_length:
                 continue
             valid_starts.extend(list(range(start, end - sequence_length + 1)))

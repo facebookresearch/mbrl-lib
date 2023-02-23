@@ -41,7 +41,6 @@ def evaluate_all_action_sequences(
     pool: mp.Pool,  # type: ignore
     current_state: Tuple,
 ) -> torch.Tensor:
-
     res_objs = [
         pool.apply_async(evaluate_sequence_fn, (sequence, current_state))  # type: ignore
         for sequence in action_sequences
@@ -148,7 +147,6 @@ if __name__ == "__main__":
     with mp.Pool(
         processes=args.num_processes, initializer=init, initargs=[args.env, args.seed]
     ) as pool__:
-
         total_reward__ = 0
         frames = []
         max_population_size = optimizer_cfg.population_size

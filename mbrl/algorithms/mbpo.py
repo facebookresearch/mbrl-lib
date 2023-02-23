@@ -37,7 +37,6 @@ def rollout_model_and_populate_sac_buffer(
     rollout_horizon: int,
     batch_size: int,
 ):
-
     batch = replay_buffer.sample(batch_size)
     initial_obs, *_ = cast(mbrl.types.TransitionBatch, batch).astuple()
     model_state = model_env.reset(
@@ -68,12 +67,12 @@ def evaluate(
     num_episodes: int,
     video_recorder: VideoRecorder,
 ) -> float:
-    avg_episode_reward = 0
+    avg_episode_reward = 0.0
     for episode in range(num_episodes):
         obs = env.reset()
         video_recorder.init(enabled=(episode == 0))
         done = False
-        episode_reward = 0
+        episode_reward = 0.0
         while not done:
             action = agent.act(obs)
             obs, reward, done, _ = env.step(action)
@@ -198,6 +197,7 @@ def train(
         obs, done = None, False
         for steps_epoch in range(cfg.overrides.epoch_length):
             if steps_epoch == 0 or done:
+                steps_epoch = 0
                 obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(

@@ -10,7 +10,7 @@ Installation
 
 Standard Installation
 ^^^^^^^^^^^^^^^^^^^^^
-``mbrl`` requires Python 3.7+ and `PyTorch (>= 1.7) <https://pytorch.org/>`_.
+``mbrl`` requires Python 3.8+ and `PyTorch (>= 1.7) <https://pytorch.org/>`_.
 
 To install the latest stable version, run
 

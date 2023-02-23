@@ -20,7 +20,7 @@ See also our companion [paper](https://arxiv.org/abs/2104.10159).
 
 #### Standard Installation
 
-``mbrl`` requires Python 3.7+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
+``mbrl`` requires Python 3.8+ library and [PyTorch (>= 1.7)](https://pytorch.org). 
 To install the latest stable version, run
 
     pip install mbrl
@@ -178,6 +178,11 @@ installation and are specific to models of type
 [``OneDimTransitionRewardModel``](../models/one_dim_tr_model.py).
 We are planning to extend this in the future; if you have useful suggestions
 don't hesitate to raise an issue or submit a pull request!
+
+## Advanced Examples
+MBRL-Lib can be used for many different research projects in the subject area. 
+Below are some community-contributed examples:
+*  [Trajectory-based Dynamics Model](https://arxiv.org/abs/2012.09156) Training [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/natolambert/mbrl-lib-dev/blob/main/notebooks/traj_based_model.ipynb) 
 
 ## Documentation 
 Please check out our **[documentation](https://facebookresearch.github.io/mbrl-lib/)** 
