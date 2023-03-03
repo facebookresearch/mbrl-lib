@@ -1,6 +1,14 @@
 # Changelog
 
-## main (v0.2.0.dev4)
+## main (v0.3.0)
+### Breaking changes
+- Migrated to [Gymnasium](https://github.com/Farama-Foundation/Gymnasium/)
+- `gym==0.26.3` is still required for the dm_control and pybullet-gym environments
+- `Transition` and `TranistionBatch` now support the `terminated` and `truncated` booleans
+  instead of the single `done` boolean previously used by gym
+- TODO(Rohan138, ruppulur): Enumerate all changes
+
+## v0.2.0.dev4
 ### Main new features
 - Added [PlaNet](http://proceedings.mlr.press/v97/hafner19a/hafner19a.pdf) implementation.
 - Added support for [PyBullet](https://pybullet.org/wordpress/) environments. 

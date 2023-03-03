@@ -95,7 +95,8 @@ configurations.
 Without any modifications, our provided `main.py` can be used to launch experiments with the following environments:
   * [`mujoco`](https://github.com/deepmind/mujoco)
   * [`dm_control`](https://github.com/deepmind/dm_control)
-  * [`pybullet-gym`](https://github.com/benelot/pybullet-gym) (thanks to [dtch1997](https://github.com/dtch1997)) for the contribution! Note: You must run `pip install gym==0.26.3` to use the pybulletgym environments.
+  * [`pybullet-gym`](https://github.com/benelot/pybullet-gym) (thanks to [dtch1997](https://github.com/dtch1997)) for the contribution!
+  Note: You must run `pip install gym==0.26.3` to use the dm_control and pybulletgym environments.
 
 You can test your Mujoco and PyBullet installations by running
 
