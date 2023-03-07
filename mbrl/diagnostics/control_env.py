@@ -86,7 +86,7 @@ if __name__ == "__main__":
     eval_env = handler.make_env_from_str(args.env)
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
-    current_obs, _ = eval_env.reset(args.seed)
+    current_obs, _ = eval_env.reset(seed=args.seed)
 
     if args.optimizer_type == "cem":
         optimizer_cfg = omegaconf.OmegaConf.create(
