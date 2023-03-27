@@ -545,7 +545,7 @@ class ReplayBuffer:
         self.truncated[self.cur_idx] = truncated
 
         if self.trajectory_indices is not None:
-            self._trajectory_bookkeeping(terminated)
+            self._trajectory_bookkeeping(terminated or truncated)
         else:
             self.cur_idx = (self.cur_idx + 1) % self.capacity
             self.num_stored = min(self.num_stored + 1, self.capacity)
