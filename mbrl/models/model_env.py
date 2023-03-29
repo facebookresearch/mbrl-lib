@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 from typing import Dict, Optional, Tuple
 
-import gym
+import gymnasium as gym
 import numpy as np
 import torch
 

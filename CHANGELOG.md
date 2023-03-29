@@ -1,6 +1,23 @@
 # Changelog
 
-## main (v0.2.0.dev4)
+## main (v0.2.0)
+### Breaking changes
+- Migrated from [gym](https://github.com/openai/gym) to [Gymnasium](https://github.com/Farama-Foundation/Gymnasium/)
+- `gym==0.26.3` is still required for the dm_control and pybullet-gym environments
+- `Transition` and `TransitionBatch` now support the `terminated` and `truncated` booleans
+  instead of the single `done` boolean previously used by gym
+- Migrated calls to `env.reset()` which now returns a tuple of `obs, info` instead of just `obs`
+- Migrated calls to `env.step()` which now returns a `observation, reward, terminated, truncated, info`
+- Migrated to Gymnasium render API, environments are instantiated with `render_mode=None` by default
+- DMC and PyBullet envs use the original gym wrappers to turn them into gym environments, then are wrapper by gymnasium.envs.GymV20Environment
+- All Mujoco envs use the DeepMind Mujoco [bindings](https://github.com/deepmind/mujoco), [mujoco-py](https://github.com/openai/mujoco-py) is deprecated as a dependency
+- Custom Mujoco envs e.g. `AntTruncatedObsEnv` inherit from gymnasium.envs.mujoco_env.MujocoEnv, and access data through `self.data` instead of `self.sim.data`
+- Mujoco environment versions have been updated to `v4` from`v2` e.g. `Hopper-v4`
+- [Fixed](https://github.com/facebookresearch/mbrl-lib/blob/ac58d46f585cc90c064b8c989e7ddf64f9e330ce/mbrl/algorithms/planet.py#L147) PlaNet to save model to a directory instead of a file name
+- Added `follow-imports=skip` to `mypy` CI test to allow for gymnasium/gym wrapper compatibility
+- Bumped `black` to version `0.23.1` in CI
+
+## v0.2.0.dev4
 ### Main new features
 - Added [PlaNet](http://proceedings.mlr.press/v97/hafner19a/hafner19a.pdf) implementation.
 - Added support for [PyBullet](https://pybullet.org/wordpress/) environments. 

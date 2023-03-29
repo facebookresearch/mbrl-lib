@@ -76,13 +76,14 @@ class SAC(object):
     def update_parameters(
         self, memory, batch_size, updates, logger=None, reverse_mask=False
     ):
-        # Sample a batch from memory
+        # Sample a batch from memory and ignore truncateds
         (
             state_batch,
             action_batch,
             next_state_batch,
             reward_batch,
             mask_batch,
+            _,
         ) = memory.sample(batch_size).astuple()
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)

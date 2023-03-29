@@ -8,7 +8,7 @@ import pathlib
 import time
 from typing import Sequence, Tuple, cast
 
-import gym.wrappers
+import gymnasium as gym
 import numpy as np
 import omegaconf
 import skvideo.io
@@ -27,8 +27,7 @@ def init(env_name: str, seed: int):
     global handler__
     handler__ = mbrl.util.create_handler_from_str(env_name)
     env__ = handler__.make_env_from_str(env_name)
-    env__.seed(seed)
-    env__.reset()
+    env__.reset(seed=seed)
 
 
 def step_env(action: np.ndarray):
@@ -85,10 +84,9 @@ if __name__ == "__main__":
     mp.set_start_method("spawn")
     handler = mbrl.util.create_handler_from_str(args.env)
     eval_env = handler.make_env_from_str(args.env)
-    eval_env.seed(args.seed)
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
-    current_obs = eval_env.reset()
+    current_obs, _ = eval_env.reset(seed=args.seed)
 
     if args.optimizer_type == "cem":
         optimizer_cfg = omegaconf.OmegaConf.create(
@@ -158,7 +156,7 @@ if __name__ == "__main__":
         values_sizes = []  # for icem
         for t in range(args.num_steps):
             if args.render:
-                frames.append(eval_env.render(mode="rgb_array"))
+                frames.append(eval_env.render())
             start = time.time()
 
             current_state__ = handler.get_current_state(
@@ -183,7 +181,7 @@ if __name__ == "__main__":
                 trajectory_eval_fn, callback=compute_population_stats
             )
             action__ = plan[0]
-            next_obs__, reward__, done__, _ = eval_env.step(action__)
+            next_obs__, reward__, terminated__, _, _ = eval_env.step(action__)
 
             total_reward__ += reward__
 

@@ -6,7 +6,7 @@ import argparse
 import pathlib
 from typing import Generator, List, Optional, Tuple, cast
 
-import gym.wrappers
+import gymnasium as gym
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
@@ -135,13 +135,14 @@ class Visualizer:
         return real_obses, real_rewards, model_obses, model_rewards, actions
 
     def vis_rollout(self, use_mpc: bool = False) -> Generator:
-        obs = self.env.reset()
-        done = False
+        obs, _ = self.env.reset()
+        terminated = False
+        truncated = False
         i = 0
-        while not done:
+        while not terminated and not truncated:
             vis_data = self.get_obs_rewards_and_actions(obs, use_mpc=use_mpc)
             action = self.agent.act(obs)
-            next_obs, reward, done, _ = self.env.step(action)
+            next_obs, reward, terminated, truncated, _ = self.env.step(action)
             self.total_reward += reward
             obs = next_obs
             i += 1

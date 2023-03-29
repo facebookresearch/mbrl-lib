@@ -18,14 +18,16 @@ def _consolidate_batches(batches: Sequence[TransitionBatch]) -> TransitionBatch:
     act = np.empty((len_batches,) + b0.act.shape, dtype=b0.act.dtype)
     next_obs = np.empty((len_batches,) + b0.obs.shape, dtype=b0.obs.dtype)
     rewards = np.empty((len_batches,) + b0.rewards.shape, dtype=np.float32)
-    dones = np.empty((len_batches,) + b0.dones.shape, dtype=bool)
+    terminateds = np.empty((len_batches,) + b0.terminateds.shape, dtype=bool)
+    truncateds = np.empty((len_batches,) + b0.truncateds.shape, dtype=bool)
     for i, b in enumerate(batches):
         obs[i] = b.obs
         act[i] = b.act
         next_obs[i] = b.next_obs
         rewards[i] = b.rewards
-        dones[i] = b.dones
-    return TransitionBatch(obs, act, next_obs, rewards, dones)
+        terminateds[i] = b.terminateds
+        truncateds[i] = b.truncateds
+    return TransitionBatch(obs, act, next_obs, rewards, terminateds, truncateds)
 
 
 class TransitionIterator:
@@ -100,7 +102,8 @@ class BootstrapIterator(TransitionIterator):
 
     When iterating, this iterator samples from a different set of indices for each model in the
     ensemble, essentially assigning a different dataset to each model. Each batch is of
-    shape (ensemble_size x batch_size x obs_size) -- likewise for actions, rewards, dones.
+    shape (ensemble_size x batch_size x obs_size) -- likewise for
+    actions, rewards, terminateds, truncateds.
 
     Args:
         transitions (:class:`TransitionBatch`): the transition data used to built
@@ -210,8 +213,8 @@ class SequenceTransitionIterator(BootstrapIterator):
     Note that this is a bootstrap iterator, so it can return an extra model dimension,
     where each batch is sampled independently. By default, each observation batch is of
     shape (ensemble_size x batch_size x sequence_length x obs_size)  -- likewise for
-    actions, rewards, dones. If not in bootstrap mode, then the ensemble_size dimension
-    is removed.
+    actions, rewards, terminateds, truncateds. If not in bootstrap mode,
+    then the ensemble_size dimension is removed.
 
 
     Args:
@@ -417,7 +420,7 @@ class ReplayBuffer:
             information should be stored and that trajectories will be at most this
             number of steps. Defaults to ``None`` in which case no trajectory
             information will be kept. The buffer will keep trajectory information
-            automatically using the done value when calling :meth:`add`.
+            automatically using the terminated value when calling :meth:`add`.
 
     .. warning::
         When using ``max_trajectory_length`` it is the user's responsibility to ensure
@@ -448,7 +451,8 @@ class ReplayBuffer:
         self.next_obs = np.empty((capacity, *obs_shape), dtype=obs_type)
         self.action = np.empty((capacity, *action_shape), dtype=action_type)
         self.reward = np.empty(capacity, dtype=reward_type)
-        self.done = np.empty(capacity, dtype=bool)
+        self.terminated = np.empty(capacity, dtype=bool)
+        self.truncated = np.empty(capacity, dtype=bool)
 
         if rng is None:
             self._rng = np.random.default_rng()
@@ -477,13 +481,13 @@ class ReplayBuffer:
         for _ in range(cnt):
             self.trajectory_indices.pop(0)
 
-    def _trajectory_bookkeeping(self, done: bool):
+    def _trajectory_bookkeeping(self, terminated: bool):
         self.cur_idx += 1
         if self.num_stored < self.capacity:
             self.num_stored += 1
         if self.cur_idx >= self.capacity:
             self.num_stored = max(self.num_stored, self.cur_idx)
-        if done:
+        if terminated:
             self.close_trajectory()
         else:
             partial_trajectory = (self._start_last_trajectory, self.cur_idx + 1)
@@ -520,25 +524,28 @@ class ReplayBuffer:
         action: np.ndarray,
         next_obs: np.ndarray,
         reward: float,
-        done: bool,
+        terminated: bool,
+        truncated: bool,
     ):
-        """Adds a transition (s, a, s', r, done) to the replay buffer.
+        """Adds a transition (s, a, s', r, terminated) to the replay buffer.
 
         Args:
             obs (np.ndarray): the observation at time t.
             action (np.ndarray): the action at time t.
             next_obs (np.ndarray): the observation at time t + 1.
             reward (float): the reward at time t + 1.
-            done (bool): a boolean indicating whether the episode ended or not.
+            terminated (bool): a boolean indicating whether the episode ended in a terminal state.
+            truncated (bool): a boolean indicating whether the episode ended prematurely.
         """
         self.obs[self.cur_idx] = obs
         self.next_obs[self.cur_idx] = next_obs
         self.action[self.cur_idx] = action
         self.reward[self.cur_idx] = reward
-        self.done[self.cur_idx] = done
+        self.terminated[self.cur_idx] = terminated
+        self.truncated[self.cur_idx] = truncated
 
         if self.trajectory_indices is not None:
-            self._trajectory_bookkeeping(done)
+            self._trajectory_bookkeeping(terminated or truncated)
         else:
             self.cur_idx = (self.cur_idx + 1) % self.capacity
             self.num_stored = min(self.num_stored + 1, self.capacity)
@@ -549,21 +556,23 @@ class ReplayBuffer:
         action: np.ndarray,
         next_obs: np.ndarray,
         reward: np.ndarray,
-        done: np.ndarray,
+        terminated: np.ndarray,
+        truncated: np.ndarray,
     ):
-        """Adds a transition (s, a, s', r, done) to the replay buffer.
+        """Adds a transition (s, a, s', r, terminated, truncated) to the replay buffer.
 
         Expected shapes are:
             obs --> (batch_size,) + obs_shape
             act --> (batch_size,) + action_shape
-            reward/done --> (batch_size,)
+            reward/terminated/truncated --> (batch_size,)
 
         Args:
             obs (np.ndarray): the batch of observations at time t.
             action (np.ndarray): the batch of actions at time t.
             next_obs (np.ndarray): the batch of observations at time t + 1.
             reward (float): the batch of rewards at time t + 1.
-            done (bool): a batch of booleans terminal indicators.
+            terminated (bool): a batch of booleans terminal indicators.
+            truncated (bool): a batch of booleans truncation indicators.
         """
 
         def copy_from_to(buffer_start, batch_start, how_many):
@@ -573,7 +582,8 @@ class ReplayBuffer:
             np.copyto(self.action[buffer_slice], action[batch_slice])
             np.copyto(self.reward[buffer_slice], reward[batch_slice])
             np.copyto(self.next_obs[buffer_slice], next_obs[batch_slice])
-            np.copyto(self.done[buffer_slice], done[batch_slice])
+            np.copyto(self.terminated[buffer_slice], terminated[batch_slice])
+            np.copyto(self.truncated[buffer_slice], truncated[batch_slice])
 
         _batch_start = 0
         buffer_end = self.cur_idx + len(obs)
@@ -595,9 +605,10 @@ class ReplayBuffer:
             batch_size (int): the number of samples required.
 
         Returns:
-            (tuple): the sampled values of observations, actions, next observations, rewards
-            and done indicators, as numpy arrays, respectively. The i-th transition corresponds
-            to (obs[i], act[i], next_obs[i], rewards[i], dones[i]).
+            (tuple): the sampled values of observations, actions, next observations, rewards,
+            terminated, and truncated indicators, as numpy arrays, respectively.
+            The i-th transition corresponds to
+            (obs[i], act[i], next_obs[i], rewards[i], terminateds[i], truncateds[i]).
         """
         indices = self._rng.choice(self.num_stored, size=batch_size)
         return self._batch_from_indices(indices)
@@ -606,10 +617,11 @@ class ReplayBuffer:
         """Samples a full trajectory and returns it as a batch.
 
         Returns:
-            (tuple): A tuple with observations, actions, next observations, rewards
-            and done indicators, as numpy arrays, respectively; these will correspond
+            (tuple): A tuple with observations, actions, next observations, rewards, terminated,
+            and truncated indicators, as numpy arrays, respectively; these will correspond
             to a full trajectory. The i-th transition corresponds
-            to (obs[i], act[i], next_obs[i], rewards[i], dones[i])."""
+            to (obs[i], act[i], next_obs[i], rewards[i], terminateds[i], truncateds[i]).
+        """
         if self.trajectory_indices is None or len(self.trajectory_indices) == 0:
             return None
         idx = self._rng.choice(len(self.trajectory_indices))
@@ -623,9 +635,10 @@ class ReplayBuffer:
         next_obs = self.next_obs[indices]
         action = self.action[indices]
         reward = self.reward[indices]
-        done = self.done[indices]
+        terminated = self.terminated[indices]
+        truncated = self.truncated[indices]
 
-        return TransitionBatch(obs, action, next_obs, reward, done)
+        return TransitionBatch(obs, action, next_obs, reward, terminated, truncated)
 
     def __len__(self):
         return self.num_stored
@@ -644,7 +657,8 @@ class ReplayBuffer:
             next_obs=self.next_obs[: self.num_stored],
             action=self.action[: self.num_stored],
             reward=self.reward[: self.num_stored],
-            done=self.done[: self.num_stored],
+            terminated=self.terminated[: self.num_stored],
+            truncated=self.truncated[: self.num_stored],
             trajectory_indices=self.trajectory_indices or [],
         )
 
@@ -661,7 +675,8 @@ class ReplayBuffer:
         self.next_obs[:num_stored] = data["next_obs"]
         self.action[:num_stored] = data["action"]
         self.reward[:num_stored] = data["reward"]
-        self.done[:num_stored] = data["done"]
+        self.terminated[:num_stored] = data["terminated"]
+        self.truncated[:num_stored] = data["truncated"]
         self.num_stored = num_stored
         self.cur_idx = self.num_stored % self.capacity
         if "trajectory_indices" in data and len(data["trajectory_indices"]):
@@ -683,7 +698,8 @@ class ReplayBuffer:
                 self.action[: self.num_stored],
                 self.next_obs[: self.num_stored],
                 self.reward[: self.num_stored],
-                self.done[: self.num_stored],
+                self.terminated[: self.num_stored],
+                self.truncated[: self.num_stored],
             )
 
     @property

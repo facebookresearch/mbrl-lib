@@ -1,18 +1,29 @@
 import os
 
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+from gymnasium import utils
+from gymnasium.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
 
 
 class Reacher3DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self):
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 50,
+    }
+
+    def __init__(self, render_mode: str = None):
         self.viewer = None
         utils.EzPickle.__init__(self)
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.goal = np.zeros(3)
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(19,), dtype=np.float64)
         mujoco_env.MujocoEnv.__init__(
-            self, os.path.join(dir_path, "assets/reacher3d.xml"), 2
+            self, "%s/assets/pusher.xml" % dir_path, 2, observation_space, render_mode
         )
 
     def step(self, a):
@@ -20,8 +31,12 @@ class Reacher3DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         reward = -np.sum(np.square(self.get_EE_pos(ob[None]) - self.goal))
         reward -= 0.01 * np.square(a).sum()
-        done = False
-        return ob, reward, done, dict(reward_dist=0, reward_ctrl=0)
+        terminated = False
+
+        if self.render_mode == "human":
+            self.render()
+
+        return ob, reward, terminated, False, dict(reward_dist=0, reward_ctrl=0)
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 1

@@ -5,8 +5,8 @@ functions that can be passed to `ModelEnv` to use for simulation, if needed.
 Additionally, for completion, we provide a number of custom environments that have been 
 used in the original papers of the algorithms we have implemented. The environments
 are provided to match their original versions, with the only changes related to the 
-Mujoco version (we only support 2.0). **Whenever possible, we suggest to use the 
-standard implementations of these environments in libraries like `mujoco-gym`, 
+Mujoco version and Gymnasium. **Whenever possible, we suggest to use the 
+standard implementations of these environments in libraries like `gymnasium`, `mujoco`, 
 `dmcontrol`, rather than using the environments in this folder**. These are mostly 
 provided for completeness, and to facilitate debugging of the algorithms provided.
 The current custom environments are:
@@ -15,7 +15,7 @@ The current custom environments are:
 only change is that the force applied is multiplied by an action in the range (-1, 1).
 * `ant_truncated_obs` and `humanoid_truncated_obs`: these are the versions of `Ant-v2` 
   and `Humanoid-v2` used in the original MBPO paper, which removes some dimensions 
-  from the full observation.
+  from the full observation. Note: Migrated to `Ant-v4` and `Humanoid-v4`.
 * `pets_halfcheetah`, `pets_cartpole`, `pets_reacher`, and `pets_pusher` are the 
 environments used in the original PETS paper, which include some observation 
   pre-processing functions.

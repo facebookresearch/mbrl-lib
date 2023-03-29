@@ -5,7 +5,7 @@
 import os
 from typing import Optional
 
-import gym
+import gymnasium as gym
 import numpy as np
 import omegaconf
 import torch
@@ -95,12 +95,13 @@ def train(
     current_trial = 0
     max_total_reward = -np.inf
     while env_steps < cfg.overrides.num_steps:
-        obs = env.reset()
+        obs, _ = env.reset()
         agent.reset()
-        done = False
+        terminated = False
+        truncated = False
         total_reward = 0.0
         steps_trial = 0
-        while not done:
+        while not terminated and not truncated:
             # --------------- Model Training -----------------
             if env_steps % cfg.algorithm.freq_train_model == 0:
                 mbrl.util.common.train_model_and_save_model_and_data(
@@ -112,7 +113,13 @@ def train(
                 )
 
             # --- Doing env step using the agent and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
+            (
+                next_obs,
+                reward,
+                terminated,
+                truncated,
+                _,
+            ) = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 

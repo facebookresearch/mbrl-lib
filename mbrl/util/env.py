@@ -5,8 +5,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, Union, cast
 
-import gym
-import gym.wrappers
+import gymnasium as gym
 import hydra
 import numpy as np
 import omegaconf
@@ -39,7 +38,7 @@ def _handle_learned_rewards_and_seed(
         reward_fn = None
 
     if cfg.seed is not None:
-        env.seed(cfg.seed)
+        env.reset(seed=cfg.seed)
         env.observation_space.seed(cfg.seed + 1)
         env.action_space.seed(cfg.seed + 2)
 
@@ -55,6 +54,14 @@ def _legacy_make_env(
         domain, task = cfg.overrides.env.split("___")[1].split("--")
         term_fn, reward_fn = _get_term_and_reward_fn(cfg)
         env = dmc2gym.make(domain_name=domain, task_name=task)
+        env = gym.make("GymV26Environment-v0", env=env)
+    elif "pybulletgym__" in cfg.overrides.env:
+        import gym as g
+        import pybulletgym  # noqa: F401
+
+        env = g.make(cfg.overrides.env.split("___")[1], apply_api_compatibility=True)
+        env = gym.make("GymV26Environment-v0", env=env)
+        term_fn, reward_fn = _get_term_and_reward_fn(cfg)
     elif "gym___" in cfg.overrides.env:
         env = gym.make(cfg.overrides.env.split("___")[1])
         term_fn, reward_fn = _get_term_and_reward_fn(cfg)
@@ -180,7 +187,7 @@ class EnvHandler(ABC):
         if env_cfg is None:
             return _legacy_make_env(cfg)
 
-        env = hydra.utils.instantiate(cfg.overrides.env_cfg)
+        env = hydra.utils.instantiate(env_cfg)
         env = gym.wrappers.TimeLimit(
             env, max_episode_steps=cfg.overrides.get("trial_length", 1000)
         )
@@ -267,11 +274,11 @@ class EnvHandler(ABC):
                 a = plan[i] if plan is not None else agent.act(current_obs)
                 if isinstance(a, torch.Tensor):
                     a = a.numpy()
-                next_obs, reward, done, _ = env.step(a)
+                next_obs, reward, terminated, truncated, _ = env.step(a)
                 actions.append(a)
                 real_obses.append(next_obs)
                 rewards.append(reward)
-                if done:
+                if terminated or truncated:
                     break
                 current_obs = next_obs
         return np.stack(real_obses), np.stack(rewards), np.stack(actions)

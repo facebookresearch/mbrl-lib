@@ -6,6 +6,7 @@ import argparse
 import os
 import pathlib
 
+import gymnasium as gym
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +17,7 @@ import mbrl.env.termination_fns
 import mbrl.models
 import mbrl.planning
 import mbrl.util.common
-from mbrl.third_party.dmc2gym.wrappers import DMCWrapper
+from mbrl.third_party import dmc2gym
 
 
 class PlanetVisualizer:
@@ -38,16 +39,17 @@ class PlanetVisualizer:
         pathlib.Path.mkdir(self.vis_dir, exist_ok=True)
 
         domain, task = env_name.split("___")[1].split("--")
-        self.env = DMCWrapper(
+        env = dmc2gym.make(
             domain,
             task,
-            task_kwargs={"random": 0},
+            seed=0,
             visualize_reward=False,
             height=64,
             width=64,
             from_pixels=True,
             frame_skip=4,
         )
+        self.env = gym.make("GymV26Environment-v0", env=env)
 
         self.model = mbrl.models.PlaNetModel(
             (3, 64, 64),
@@ -103,18 +105,18 @@ class PlanetVisualizer:
         true_obs = []
         true_total_reward = 0.0
         actions = []
-        obs = self.env.reset()
+        obs, _ = self.env.reset()
         self.agent.reset()
 
         for step in range(self.start_step + self.lookahead):
             action = self.agent.act(obs)
-            next_obs, reward, done, _ = self.env.step(action)
+            next_obs, reward, terminated, truncated, _ = self.env.step(action)
             if step >= self.start_step:
                 true_obs.append(obs)
                 actions.append(action)
                 true_total_reward += reward
             obs = next_obs
-            if done:
+            if terminated or truncated:
                 break
             current_step += 1
 
@@ -176,7 +178,7 @@ if __name__ == "__main__":
         args.lookahead,
         args.model_dir,
         args.env_name,
-        "cuda:0",
+        "cuda:0" if torch.cuda.is_available() else "cpu",
         args.seed,
     )
     visualizer.run()

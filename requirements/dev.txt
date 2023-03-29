@@ -1,9 +1,9 @@
 sphinx>=3.3.1
 nbsphinx>=0.8.0
 sphinx-rtd-theme>=0.5.0
-flake8>=3.8.4
-mypy>=0.902
-black>=22.6.0
+flake8>=3.9.2
+mypy>=0.991
+black>=23.1.0
 importlib_metadata<5
 pytest>=6.0.1
 types-pyyaml>=0.1.6

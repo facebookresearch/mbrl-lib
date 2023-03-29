@@ -2,8 +2,9 @@ import os
 
 import numpy as np
 import torch
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+from gymnasium import utils
+from gymnasium.envs.mujoco import mujoco_env
+from gymnasium.spaces import Box
 
 
 # This is the cartpole environment as was used in the original PETS paper
@@ -17,11 +18,22 @@ from gym.envs.mujoco import mujoco_env
 #   dynamics_model.in_size=6
 class CartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 25,
+    }
 
-    def __init__(self):
+    def __init__(self, render_mode: str = None):
         utils.EzPickle.__init__(self)
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, "%s/assets/cartpole.xml" % dir_path, 2)
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float64)
+        mujoco_env.MujocoEnv.__init__(
+            self, "%s/assets/cartpole.xml" % dir_path, 2, observation_space, render_mode
+        )
 
     def step(self, a):
         self.do_simulation(a, self.frame_skip)
@@ -37,9 +49,12 @@ class CartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             / (cost_lscale**2)
         )
         reward -= 0.01 * np.sum(np.square(a))
+        terminated = False
 
-        done = False
-        return ob, reward, done, {}
+        if self.render_mode == "human":
+            self.render()
+
+        return ob, reward, terminated, False, {}
 
     def reset_model(self):
         qpos = self.init_qpos + np.random.normal(0, 0.1, np.shape(self.init_qpos))
@@ -48,7 +63,7 @@ class CartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def _get_obs(self):
-        return np.concatenate([self.sim.data.qpos, self.sim.data.qvel]).ravel()
+        return np.concatenate([self.data.qpos, self.data.qvel]).ravel()
 
     @staticmethod
     def _get_ee_pos(x):

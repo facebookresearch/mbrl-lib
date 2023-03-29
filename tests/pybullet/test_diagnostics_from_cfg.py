@@ -7,6 +7,7 @@ import pathlib
 import tempfile
 
 import gym
+import gymnasium
 import hydra
 import numpy as np
 import pybulletgym  # register PyBullet enviroments with open ai gym
@@ -25,7 +26,7 @@ pathlib.Path.mkdir(_HYDRA_DIR)
 
 # Environment information
 _ENV_NAME = "HopperPyBulletEnv-v0"
-_ENV = gym.make(_ENV_NAME)
+_ENV = gymnasium.make("GymV26Environment-v0", env=gym.make(_ENV_NAME, apply_api_compatibility=True))
 _OBS_SHAPE = _ENV.observation_space.shape
 _ACT_SHAPE = _ENV.action_space.shape
 _CONF_DIR = pathlib.Path("mbrl") / "examples" / "conf"
@@ -46,9 +47,7 @@ _CFG_DICT = {
     },
     "dynamics_model": _MODEL_CFG,
     "overrides": {
-        "env_cfg": {
-            "_target_": "pybulletgym.envs.roboschool.envs.locomotion.hopper_env.HopperBulletEnv"
-        },
+        "env": f"pybulletgym___{_ENV_NAME}",
         "term_fn": "no_termination",
         "model_batch_size": 32,
         "validation_ratio": 0.1,

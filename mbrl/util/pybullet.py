@@ -5,8 +5,7 @@
 import tempfile
 from typing import Callable, List, Tuple
 
-import gym
-import gym.wrappers
+import gymnasium as gym
 import numpy as np
 
 # Need to import pybulletgym to register pybullet envs.
@@ -25,7 +24,8 @@ from mbrl.util.env import EnvHandler, Freeze
 
 
 def _is_pybullet_gym_env(env: gym.wrappers.TimeLimit) -> bool:
-    return isinstance(env.env, MJBaseBulletEnv) or isinstance(env.env, RSBaseBulletEnv)
+    env = env.unwrapped.gym_env.unwrapped.env
+    return isinstance(env, MJBaseBulletEnv) or isinstance(env, RSBaseBulletEnv)
 
 
 class FreezePybullet(Freeze):
@@ -38,7 +38,7 @@ class FreezePybullet(Freeze):
 
     .. code-block:: python
 
-       env = gym.make("HalfCheetah-v2")
+       env = gymnasium.make("HalfCheetah-v4")
        env.reset()
        action = env.action_space.sample()
        # o1_expected, *_ = env.step(action)
@@ -47,7 +47,7 @@ class FreezePybullet(Freeze):
        o1, *_ = env.step(action) # o1 will be equal to what o1_expected would have been
 
     Args:
-        env (:class:`gym.wrappers.TimeLimit`): the environment to freeze.
+        env (:class:`gymnasium.wrappers.TimeLimit`): the environment to freeze.
     """
 
     def __init__(self, env: gym.wrappers.TimeLimit):
@@ -78,7 +78,10 @@ class PybulletEnvHandler(EnvHandler):
     @staticmethod
     def make_env_from_str(env_name: str) -> gym.Env:
         if "pybulletgym___" in env_name:
-            env = gym.make(env_name.split("___")[1])
+            import gym as g
+
+            gym_env = g.make(env_name.split("___")[1], apply_api_compatibility=True)
+            env = gym.make("GymV26Environment-v0", env=gym_env)
         else:
             raise ValueError("Invalid environment string.")
 
@@ -93,10 +96,10 @@ class PybulletEnvHandler(EnvHandler):
         called.
 
         Args:
-            env (:class:`gym.wrappers.TimeLimit`): the environment.
+            env (:class:`gymnasium.wrappers.TimeLimit`): the environment.
         """
         if _is_pybullet_gym_env(env):
-            robot = env.env.robot
+            robot = env.unwrapped.gym_env.unwrapped.env.robot
 
             # pybullet-gym implements 2 types of environment:
             # - Roboschool
@@ -124,7 +127,7 @@ class PybulletEnvHandler(EnvHandler):
     @staticmethod
     def _get_current_state_default(env: gym.wrappers.TimeLimit) -> Tuple:
         """Returns the internal state of a manipulation / pendulum environment."""
-        env = env.env
+        env = env.unwrapped.gym_env.unwrapped.env
         filename = PybulletEnvHandler.save_state_to_file(env._p)
         import pickle
 
@@ -137,8 +140,8 @@ class PybulletEnvHandler(EnvHandler):
 
         ((filename, pickle_bytes),) = state
         new_env = pickle.loads(pickle_bytes)
-        env.env = new_env
-        env = env.env
+        env.unwrapped.gym_env.unwrapped.env = new_env
+        env = env.unwrapped.gym_env.unwrapped.env
         PybulletEnvHandler.load_state_from_file(env._p, filename)
 
     @staticmethod
@@ -150,9 +153,9 @@ class PybulletEnvHandler(EnvHandler):
         called.
 
         Args:
-            env (:class:`gym.wrappers.TimeLimit`): the environment.
+            env (:class:`gymnasium.wrappers.TimeLimit`): the environment.
         """
-        env = env.env
+        env = env.unwrapped.gym_env.unwrapped.env
         robot = env.robot
         if not isinstance(robot, (RSWalkerBase, MJWalkerBase)):
             raise RuntimeError("Invalid robot type. Expected a locomotor robot")
@@ -194,10 +197,10 @@ class PybulletEnvHandler(EnvHandler):
 
         Args:
             state (tuple): see :func:`get_current_state` for a description.
-            env (:class:`gym.wrappers.TimeLimit`): the environment.
+            env (:class:`gymnasium.wrappers.TimeLimit`): the environment.
         """
         if _is_pybullet_gym_env(env):
-            robot = env.env.robot
+            robot = env.unwrapped.gym_env.unwrapped.env.robot
 
             # pybullet-gym implements 2 types of environment:
             # - Roboschool
@@ -220,7 +223,7 @@ class PybulletEnvHandler(EnvHandler):
 
         Args:
             state (tuple): see :func:`get_current_state` for a description.
-            env (:class:`gym.wrappers.TimeLimit`): the environment.
+            env (:class:`gymnasium.wrappers.TimeLimit`): the environment.
         """
         if _is_pybullet_gym_env(env):
             (
@@ -231,12 +234,12 @@ class PybulletEnvHandler(EnvHandler):
                 robot_data,
             ) = state
 
-            env = env.env
-            env.ground_ids = ground_ids
-            env.potential = potential
-            env.reward = reward
-            PybulletEnvHandler.load_state_from_file(env._p, filename)
+            pybullet_env = env.unwrapped.gym_env.unwrapped.env
+            pybullet_env.ground_ids = ground_ids
+            pybullet_env.potential = potential
+            pybullet_env.reward = reward
+            PybulletEnvHandler.load_state_from_file(pybullet_env._p, filename)
             for k, v in robot_data.items():
-                setattr(env.robot, k, v)
+                setattr(pybullet_env.robot, k, v)
         else:
             raise RuntimeError("Only pybulletgym environments supported.")

@@ -1,5 +1,5 @@
 # @package _group_
-env: "gym___Hopper-v2"
+env: "gym___Hopper-v4"
 term_fn: "hopper"
 
 num_steps: 125000

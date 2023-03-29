@@ -7,7 +7,7 @@ import pathlib
 import random
 import tempfile
 
-import gym
+import gymnasium as gym
 import numpy as np
 import pytest
 import torch
@@ -53,18 +53,19 @@ class MockLineEnv(gym.Env):
         self.action_space.seed(SEED)
         self.observation_space.seed(SEED)
 
-    def reset(self):
+    def reset(self, seed=None):
+        super().reset(seed=seed)
         self.pos = 1.0
         self.vel = 0.0
         self.time_left = _TRIAL_LEN
-        return np.array([self.pos, self.vel])
+        return np.array([self.pos, self.vel]), {}
 
     def step(self, action: np.ndarray):
         self.vel += action.item()
         self.pos += self.vel
         self.time_left -= 1
         reward = -_REW_C * (self.pos ** 2)
-        return np.array([self.pos, self.vel]), reward, self.time_left == 0, {}
+        return np.array([self.pos, self.vel]), reward, self.time_left == 0, False, {}
 
 
 def mock_reward_fn(action, obs):

@@ -4,8 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 from typing import Tuple
 
-import gym
-import gym.wrappers
+import gymnasium as gym
 import numpy as np
 
 import mbrl.third_party.dmc2gym as dmc2gym
@@ -13,7 +12,7 @@ from mbrl.util.env import EnvHandler, Freeze
 
 
 def _is_dmcontrol_gym_env(env: gym.wrappers.TimeLimit) -> bool:
-    return "mbrl.third_party.dmc2gym" in env.env.__class__.__module__
+    return "DMCWrapper" in str(env)
 
 
 class FreezeDmcontrol(Freeze):
@@ -31,6 +30,7 @@ class FreezeDmcontrol(Freeze):
 
     def __init__(self, env: gym.wrappers.TimeLimit):
         self._env = env
+        self.dmc_env = self._env.unwrapped.gym_env.unwrapped.env._env
         self._init_state: np.ndarray = None
         self._elapsed_steps = 0
         self._step_count = 0
@@ -39,15 +39,15 @@ class FreezeDmcontrol(Freeze):
             raise RuntimeError("Tried to freeze an unsupported environment.")
 
     def __enter__(self):
-        self._init_state = self._env.env._env.physics.get_state().copy()
-        self._elapsed_steps = self._env._elapsed_steps
-        self._step_count = self._env.env._env._step_count
+        self._init_state = self.dmc_env.physics.get_state().copy()
+        self._elapsed_steps = self._env.unwrapped.gym_env._elapsed_steps
+        self._step_count = self.dmc_env._step_count
 
     def __exit__(self, *_args):
-        with self._env.env._env.physics.reset_context():
-            self._env.env._env.physics.set_state(self._init_state)
+        with self.dmc_env.physics.reset_context():
+            self.dmc_env.physics.set_state(self._init_state)
             self._env._elapsed_steps = self._elapsed_steps
-            self._env.env._env._step_count = self._step_count
+            self.dmc_env._step_count = self._step_count
 
 
 class DmcontrolEnvHandler(EnvHandler):
@@ -63,6 +63,7 @@ class DmcontrolEnvHandler(EnvHandler):
     def make_env_from_str(env_name: str) -> gym.Env:
         domain, task = env_name.split("___")[1].split("--")
         env = dmc2gym.make(domain_name=domain, task_name=task)
+        env = gym.make("GymV26Environment-v0", env=env)
         return env
 
     @staticmethod
@@ -81,9 +82,9 @@ class DmcontrolEnvHandler(EnvHandler):
             (position and velocity), and the number of elapsed steps so far.
 
         """
-        state = env.env._env.physics.get_state().copy()
-        elapsed_steps = env._elapsed_steps
-        step_count = env.env._env._step_count
+        state = env.unwrapped.gym_env.unwrapped.env._env.physics.get_state().copy()
+        elapsed_steps = env.unwrapped.gym_env._elapsed_steps
+        step_count = env.unwrapped.gym_env.unwrapped.env._env._step_count
         return state, elapsed_steps, step_count
 
     @staticmethod
@@ -96,7 +97,7 @@ class DmcontrolEnvHandler(EnvHandler):
             state (tuple): see :func:`get_current_state` for a description.
             env (:class:`gym.wrappers.TimeLimit`): the environment.
         """
-        with env.env._env.physics.reset_context():
-            env.env._env.physics.set_state(state[0])
+        with env.unwrapped.gym_env.unwrapped.env._env.physics.reset_context():
+            env.unwrapped.gym_env.unwrapped.env._env.physics.set_state(state[0])
             env._elapsed_steps = state[1]
-            env.env._env._step_count = state[2]
+            env.unwrapped.gym_env.unwrapped.env._env._step_count = state[2]

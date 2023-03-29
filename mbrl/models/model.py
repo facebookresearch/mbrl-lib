@@ -63,7 +63,8 @@ class Model(nn.Module, abc.ABC):
             _convert(batch.act),
             _convert(batch.next_obs),
             None if batch.rewards is None else _convert(batch.rewards),
-            None if batch.dones is None else _convert(batch.dones),
+            None if batch.terminateds is None else _convert(batch.terminateds),
+            None if batch.truncateds is None else _convert(batch.truncateds),
         )
 
     def forward(self, x: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, ...]:

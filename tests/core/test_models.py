@@ -398,6 +398,7 @@ def test_model_trainer_batch_callback():
             dummy_data,
             dummy_data.squeeze(1),
             dummy_data.squeeze(1),
+            dummy_data.squeeze(1),
         ),
         1,
     )

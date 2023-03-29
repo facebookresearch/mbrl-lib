@@ -5,7 +5,7 @@
 import os
 from typing import Optional, Sequence, cast
 
-import gym
+import gymnasium as gym
 import hydra.utils
 import numpy as np
 import omegaconf
@@ -50,12 +50,14 @@ def rollout_model_and_populate_sac_buffer(
         pred_next_obs, pred_rewards, pred_dones, model_state = model_env.step(
             action, model_state, sample=True
         )
+        truncateds = np.zeros_like(pred_dones, dtype=bool)
         sac_buffer.add_batch(
             obs[~accum_dones],
             action[~accum_dones],
             pred_next_obs[~accum_dones],
             pred_rewards[~accum_dones, 0],
             pred_dones[~accum_dones, 0],
+            truncateds[~accum_dones, 0],
         )
         obs = pred_next_obs
         accum_dones |= pred_dones.squeeze()
@@ -69,13 +71,14 @@ def evaluate(
 ) -> float:
     avg_episode_reward = 0.0
     for episode in range(num_episodes):
-        obs = env.reset()
+        obs, _ = env.reset()
         video_recorder.init(enabled=(episode == 0))
-        done = False
+        terminated = False
+        truncated = False
         episode_reward = 0.0
-        while not done:
+        while not terminated and not truncated:
             action = agent.act(obs)
-            obs, reward, done, _ = env.step(action)
+            obs, reward, terminated, truncated, _ = env.step(action)
             video_recorder.record(env)
             episode_reward += reward
         avg_episode_reward += episode_reward
@@ -97,8 +100,15 @@ def maybe_replace_sac_buffer(
         new_buffer = mbrl.util.ReplayBuffer(new_capacity, obs_shape, act_shape, rng=rng)
         if sac_buffer is None:
             return new_buffer
-        obs, action, next_obs, reward, done = sac_buffer.get_all().astuple()
-        new_buffer.add_batch(obs, action, next_obs, reward, done)
+        (
+            obs,
+            action,
+            next_obs,
+            reward,
+            terminated,
+            truncated,
+        ) = sac_buffer.get_all().astuple()
+        new_buffer.add_batch(obs, action, next_obs, reward, terminated, truncated)
         return new_buffer
     return sac_buffer
 
@@ -194,13 +204,23 @@ def train(
         sac_buffer = maybe_replace_sac_buffer(
             sac_buffer, obs_shape, act_shape, sac_buffer_capacity, cfg.seed
         )
-        obs, done = None, False
+        obs = None
+        terminated = False
+        truncated = False
         for steps_epoch in range(cfg.overrides.epoch_length):
-            if steps_epoch == 0 or done:
+            if steps_epoch == 0 or terminated or truncated:
                 steps_epoch = 0
-                obs, done = env.reset(), False
+                obs, _ = env.reset()
+                terminated = False
+                truncated = False
             # --- Doing env step and adding to model dataset ---
-            next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
+            (
+                next_obs,
+                reward,
+                terminated,
+                truncated,
+                _,
+            ) = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
             )
 

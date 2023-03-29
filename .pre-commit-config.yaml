@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 22.6.0
+    rev: 23.1.0
     hooks:
       - id: black
         files: 'mbrl'
@@ -17,8 +17,7 @@ repos:
       - id: mypy
         files: 'mbrl'
         additional_dependencies: [numpy, torch, tokenize-rt==3.2.0, types-PyYAML, types-termcolor]
-        args: [--no-strict-optional, --ignore-missing-imports]
-        exclude: setup.py
+        args: [--no-strict-optional, --ignore-missing-imports, --follow-imports=skip]
 
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
