@@ -185,6 +185,8 @@ MBRL-Lib can be used for many different research projects in the subject area.
 Below are some community-contributed examples:
 *  [Trajectory-based Dynamics Model](https://arxiv.org/abs/2012.09156) Training [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/natolambert/mbrl-lib-dev/blob/main/notebooks/traj_based_model.ipynb) 
 
+* Using HuggingFace Hub Integration for saving and loading models: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Awp4sSGFgz8nARyfonBGsLrgRWrbqChx?usp=sharing#scrollTo=SX1JYR_bJNWf)
+
 ## Documentation 
 Please check out our **[documentation](https://facebookresearch.github.io/mbrl-lib/)** 
 and don't hesitate to raise issues or contribute if anything is unclear!
