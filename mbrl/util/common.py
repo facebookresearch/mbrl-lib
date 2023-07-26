@@ -77,7 +77,7 @@ def create_one_dim_tr_model(
     # This first part takes care of the case where model is BasicEnsemble and in/out sizes
     # are handled by member_cfg
     model_cfg = cfg.dynamics_model
-    if model_cfg._target_ == "mbrl.models.BasicEnsemble":
+    if issubclass(hydra.utils._locate(model_cfg._target_), mbrl.models.BasicEnsemble):
         model_cfg = model_cfg.member_cfg
     if model_cfg.get("in_size", None) is None:
         model_cfg.in_size = obs_shape[0] + (act_shape[0] if act_shape else 1)
