@@ -88,6 +88,43 @@ def test_create_one_dim_tr_model():
         assert dynamics_model.input_normalizer.mean.dtype == dtype
 
 
+class CustomEnsemble(models.BasicEnsemble):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+def test_create_custom_ensemble_dynamics():
+    cfg_dict = {
+        "dynamics_model": {
+            "_target_": "tests.core.test_common_utils.CustomEnsemble",
+            "ensemble_size": 5,
+            "device": "cpu",
+            "propagation_method": "fixed_model",
+            "member_cfg": {
+                "_target_": "mbrl.models.GaussianMLP",
+                "device": "cpu",
+                "in_size": "???",
+                "out_size": "???",
+            },
+        },
+        "algorithm": {
+            "learned_rewards": True,
+            "target_is_delta": True,
+            "normalize": True,
+        },
+        "overrides": {},
+    }
+    obs_shape = (10,)
+    act_shape = (1,)
+
+    cfg = omegaconf.OmegaConf.create(cfg_dict)
+    dynamics_model = utils.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+
+    assert isinstance(dynamics_model.model, CustomEnsemble)
+    assert dynamics_model.model.in_size == obs_shape[0] + act_shape[0]
+    assert dynamics_model.model.out_size == obs_shape[0] + 1
+
+
 def test_create_replay_buffer():
     trial_length = 20
     num_trials = 10
@@ -198,7 +235,7 @@ class MockEnv:
         self.traj = 0
         self.val = 0
 
-    def reset(self, from_zero=False, seed: Optional[int]=None):
+    def reset(self, from_zero=False, seed: Optional[int] = None):
         if from_zero:
             self.traj = 0
         self.val = 100 * self.traj
