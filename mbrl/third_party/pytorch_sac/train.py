@@ -36,7 +36,7 @@ class Workspace(object):
             float(self.env.action_space.low.min()),
             float(self.env.action_space.high.max()),
         ]
-        self.agent = hydra.utils.instantiate(cfg.agent)
+        self.agent = hydra.utils.instantiate(cfg.agent, _recursive_=False)
 
         self.replay_buffer = ReplayBuffer(
             self.env.observation_space.shape,

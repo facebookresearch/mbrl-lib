@@ -129,7 +129,10 @@ def train(
 
     mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
     agent = SACAgent(
-        cast(pytorch_sac_pranz24.SAC, hydra.utils.instantiate(cfg.algorithm.agent))
+        cast(
+            pytorch_sac_pranz24.SAC,
+            hydra.utils.instantiate(cfg.algorithm.agent, _recursive_=False),
+        )
     )
 
     work_dir = work_dir or os.getcwd()

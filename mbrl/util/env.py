@@ -141,7 +141,8 @@ class EnvHandler(ABC):
         to have the following attributes (some are optional):
 
             - If ``cfg.overrides.env_cfg`` is present, this method
-            instantiates the environment using `hydra.utils.instantiate(env_cfg)`.
+            instantiates the environment using
+            `hydra.utils.instantiate(env_cfg, _recursive_=False)`.
             Otherwise, it expects attribute ``cfg.overrides.env``, which should be a
             string description of the environment where valid options are:
 
@@ -187,7 +188,7 @@ class EnvHandler(ABC):
         if env_cfg is None:
             return _legacy_make_env(cfg)
 
-        env = hydra.utils.instantiate(env_cfg)
+        env = hydra.utils.instantiate(env_cfg, _recursive_=False)
         env = gym.wrappers.TimeLimit(
             env, max_episode_steps=cfg.overrides.get("trial_length", 1000)
         )

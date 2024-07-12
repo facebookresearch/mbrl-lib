@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "gym___InvertedPendulum-v4"
 term_fn: "inverted_pendulum"
 

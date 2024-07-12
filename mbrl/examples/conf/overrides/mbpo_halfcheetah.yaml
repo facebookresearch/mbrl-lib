@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "gym___HalfCheetah-v2"
 term_fn: "no_termination"
 

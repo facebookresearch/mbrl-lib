@@ -183,14 +183,14 @@ class ModelTrainer:
                         "iteration": self._train_iteration,
                         "epoch": epoch,
                         "train_dataset_size": dataset_train.num_stored,
-                        "val_dataset_size": dataset_val.num_stored
-                        if dataset_val is not None
-                        else 0,
+                        "val_dataset_size": (
+                            dataset_val.num_stored if dataset_val is not None else 0
+                        ),
                         "model_loss": total_avg_loss,
                         "model_val_score": model_val_score,
-                        "model_best_val_score": best_val_score.mean()
-                        if best_val_score is not None
-                        else 0,
+                        "model_best_val_score": (
+                            best_val_score.mean() if best_val_score is not None else 0
+                        ),
                     },
                 )
             if callback:

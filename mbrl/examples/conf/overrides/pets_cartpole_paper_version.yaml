@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "cartpole_pets_version"
 
 # Note: This pre-process function requires setting model input manually

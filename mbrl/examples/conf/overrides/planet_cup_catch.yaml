@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "dmcontrol_ball_in_cup_catch"  # used to set the hydra dir, ignored otherwise
 
 env_cfg:

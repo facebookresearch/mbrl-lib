@@ -24,18 +24,19 @@ The config files are generally structured in 4 groups:
 * `action_optimizer`: describes possible optimizers to use for action selections. Some algorithms,
 like MBPO, ignore this.
   
-For example, to run MBPO on `gym`'s Hopper environment using the standard ensemble version of
+For example, to run MBPO on `gym`'s cartpole environment using the standard ensemble version of
 [GaussianMLP](https://github.com/facebookresearch/mbrl-lib/blob/main/mbrl/models/gaussian_mlp.py),
 you can type
 
 ```bash
 python -m mbrl.examples.main \
   algorithm=mbpo \
-  overrides=mbpo_hopper \
+  overrides=mbpo_cartpole \
   dynamics_model=gaussian_mlp_ensemble \
-  algorithm.agent.batch_size=256 \
-  overrides.validation_ratio=0.2 \
-  dynamics_model.activation_fn_cfg._target_=torch.nn.ReLU
+  ++device=cpu \
+  ++overrides.sac_batch_size=256 \
+  ++overrides.validation_ratio=0.2 \
+  ++dynamics_model.activation_fn_cfg._target_=torch.nn.ReLU 
 ```
 where we have re-written some defaults, just to show how `hydra` command line syntax
 works. The number of possible options is extensive, and the best way to explore would be to 

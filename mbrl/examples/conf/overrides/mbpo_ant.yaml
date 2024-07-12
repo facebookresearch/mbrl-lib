@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "ant_truncated_obs"
 # term_fn is set automatically by mbrl.util.env.EnvHandler.make_env
 

@@ -51,7 +51,7 @@ class BasicEnsemble(Ensemble):
         device (str or torch.device): the device to use for the model.
         member_cfg (omegaconf.DictConfig): the configuration needed to instantiate the models
                                            in the ensemble. They will be instantiated using
-                                           `hydra.utils.instantiate(member_cfg)`.
+                                           `hydra.utils.instantiate(member_cfg, _recursive_=False)`.
         propagation_method (str, optional): the uncertainty propagation method to use (see
             above). Defaults to ``None``.
     """
@@ -71,7 +71,7 @@ class BasicEnsemble(Ensemble):
         )
         self.members = []
         for i in range(ensemble_size):
-            model = hydra.utils.instantiate(member_cfg)
+            model = hydra.utils.instantiate(member_cfg, _recursive_=False)
             self.members.append(model)
         self.deterministic = self.members[0].deterministic
         self.in_size = getattr(self.members[0], "in_size", None)

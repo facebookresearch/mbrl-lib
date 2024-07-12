@@ -1,4 +1,4 @@
-# @package _group_
+
 _target_: mbrl.models.PlaNetModel
 obs_shape: [3, 64, 64]
 obs_encoding_size: 1024

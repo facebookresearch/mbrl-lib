@@ -98,9 +98,9 @@ class Reacher3DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             z = -np.sin(hinge) * np.cos(roll) * perp_all_axis
             new_rot_axis = x + y + z
             new_rot_perp_axis = np.cross(new_rot_axis, rot_axis)
-            new_rot_perp_axis[
-                np.linalg.norm(new_rot_perp_axis, axis=1) < 1e-30
-            ] = rot_perp_axis[np.linalg.norm(new_rot_perp_axis, axis=1) < 1e-30]
+            new_rot_perp_axis[np.linalg.norm(new_rot_perp_axis, axis=1) < 1e-30] = (
+                rot_perp_axis[np.linalg.norm(new_rot_perp_axis, axis=1) < 1e-30]
+            )
             new_rot_perp_axis /= np.linalg.norm(
                 new_rot_perp_axis, axis=1, keepdims=True
             )

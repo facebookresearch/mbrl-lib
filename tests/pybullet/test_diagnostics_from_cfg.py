@@ -127,7 +127,7 @@ def test_eval_on_dataset():
 
 def test_finetuner():
     planning.complete_agent_cfg(_ENV, _MBPO_CFG.algorithm.agent)
-    agent = hydra.utils.instantiate(_MBPO_CFG.algorithm.agent)
+    agent = hydra.utils.instantiate(_MBPO_CFG.algorithm.agent, _recursive_=False)
     agent.save_checkpoint(ckpt_path=os.path.join(_DIR.name, "sac.pth"))
 
     with open(_HYDRA_DIR / "config.yaml", "w") as f:

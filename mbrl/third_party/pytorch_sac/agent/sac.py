@@ -46,11 +46,17 @@ class SACAgent(Agent):
         self.batch_size = batch_size
         self.learnable_temperature = learnable_temperature
 
-        self.critic = hydra.utils.instantiate(critic_cfg).to(self.device)
-        self.critic_target = hydra.utils.instantiate(critic_cfg).to(self.device)
+        self.critic = hydra.utils.instantiate(critic_cfg, _recursive_=False).to(
+            self.device
+        )
+        self.critic_target = hydra.utils.instantiate(critic_cfg, _recursive_=False).to(
+            self.device
+        )
         self.critic_target.load_state_dict(self.critic.state_dict())
 
-        self.actor = hydra.utils.instantiate(actor_cfg).to(self.device)
+        self.actor = hydra.utils.instantiate(actor_cfg, _recursive_=False).to(
+            self.device
+        )
 
         self.log_alpha = torch.tensor(np.log(init_temperature)).to(self.device)
         self.log_alpha.requires_grad = True

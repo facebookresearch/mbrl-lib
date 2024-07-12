@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "cartpole_continuous"
 learned_rewards: false
 trial_length: 200

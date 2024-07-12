@@ -1,4 +1,4 @@
-# @package _group_
+
 
 _target_: mbrl.planning.CEMOptimizer
 num_iterations: ${overrides.cem_num_iters}

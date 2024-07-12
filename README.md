@@ -78,8 +78,8 @@ passing `experiment=your-name`. The logger will also save a file called
 
 Beyond the override defaults, You can also change other configuration options, 
 such as the type of dynamics model 
-(e.g., `dynamics_model=basic_ensemble`), or the number of models in the ensemble 
-(e.g., `dynamics_model.model.ensemble_size=some-number`). To learn more about
+(e.g., `dynamics_model=basic_ensemble`), or the number of models in the ensemble via configuration override 
+(e.g., `++dynamics_model.model.ensemble_size=some-number`). To learn more about
 all the available options, take a look at the provided 
 [configuration files](https://github.com/facebookresearch/mbrl-lib/tree/main/mbrl/examples/conf). 
 

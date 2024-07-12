@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "pets_halfcheetah"
 term_fn: "no_termination"
 obs_process_fn: mbrl.env.pets_halfcheetah.HalfCheetahEnv.preprocess_fn

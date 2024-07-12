@@ -21,7 +21,8 @@ def create_handler(cfg: Union[Dict, omegaconf.ListConfig, omegaconf.DictConfig])
         to have the following attributes (some are optional):
 
             - If ``cfg.overrides.env_cfg`` is present, this method
-            instantiates the environment using `hydra.utils.instantiate(env_cfg)`.
+            instantiates the environment using
+            `hydra.utils.instantiate(env_cfg, _recursive_=False)`.
             Otherwise, it expects attribute ``cfg.overrides.env``, which should be a
             string description of the environment where valid options are:
 

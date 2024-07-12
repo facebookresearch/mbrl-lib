@@ -85,7 +85,7 @@ def create_one_dim_tr_model(
         model_cfg.out_size = obs_shape[0] + int(cfg.algorithm.learned_rewards)
 
     # Now instantiate the model
-    model = hydra.utils.instantiate(cfg.dynamics_model)
+    model = hydra.utils.instantiate(cfg.dynamics_model, _recursive_=False)
 
     name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
     if name_obs_process_fn:

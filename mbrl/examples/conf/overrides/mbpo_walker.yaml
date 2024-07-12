@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "gym___Walker2d-v4"
 term_fn: "walker2d"
 

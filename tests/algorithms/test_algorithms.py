@@ -64,7 +64,7 @@ class MockLineEnv(gym.Env):
         self.vel += action.item()
         self.pos += self.vel
         self.time_left -= 1
-        reward = -_REW_C * (self.pos ** 2)
+        reward = -_REW_C * (self.pos**2)
         return np.array([self.pos, self.vel]), reward, self.time_left == 0, False, {}
 
 

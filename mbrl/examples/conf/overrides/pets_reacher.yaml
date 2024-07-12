@@ -1,4 +1,4 @@
-# @package _group_
+
 env: "pets_reacher"
 learned_rewards: true
 num_steps: 15000

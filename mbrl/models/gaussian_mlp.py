@@ -92,7 +92,7 @@ class GaussianMLP(Ensemble):
             else:
                 # Handle the case where activation_fn_cfg is a dict
                 cfg = omegaconf.OmegaConf.create(activation_fn_cfg)
-                activation_func = hydra.utils.instantiate(cfg)
+                activation_func = hydra.utils.instantiate(cfg, _recursive_=False)
             return activation_func
 
         def create_linear_layer(l_in, l_out):

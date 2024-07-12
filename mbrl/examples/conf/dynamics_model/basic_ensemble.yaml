@@ -1,4 +1,4 @@
-# @package _group_
+
 _target_: mbrl.models.BasicEnsemble
 ensemble_size: 5
 device: ${device}
